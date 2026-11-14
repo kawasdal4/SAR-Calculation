@@ -1,0 +1,2855 @@
+           Appendix N – Tables and graphs
+
+
+           Optimal search factor graphs for line datums
+                                          5
+
+
+
+
+                                         4.5
+
+
+
+
+                                          4
+
+
+
+
+                                         3.5
+
+                                                                                     Normal search conditions
+
+                                          3
+            Cumulative relative effort
+
+
+
+
+                                         2.5
+
+
+
+
+                                                                                                                           Ideal search
+                                          2
+                                                                                                                           conditions
+
+
+
+
+                                         1.5
+                                                           Ideal search conditions
+
+
+
+                                          1
+
+
+
+
+                                         0.5
+                                                                                                          Normal search conditions
+
+
+
+                                          0
+                                               0   0.1   0.2   0.3   0.4    0.5      0.6    0.7   0.8    0.9    1    1.1     1.2     1.3   1.4
+
+                                                                             Optimal search factor
+
+                                                                                     Figure N-7
+
+
+
+           N-14                                                                                                IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 14                                                                                                                                   5/20/2016 3:18:42 PM
+                                                                                                                      Appendix N – Tables and graphs
+
+
+                                                  25
+
+
+
+
+                                                  20
+                     Cumulative relative effort
+
+
+
+
+                                                  15
+                                                                               Normal search conditions
+
+
+
+
+                                                  10
+
+
+
+
+                                                  5
+
+
+
+                                                                                                                    Ideal search conditions
+
+
+
+
+                                                  0
+
+                                                       0   0.2   0.4   0.6   0.8   1    1.2   1.4   1.6   1.8   2     2.2   2.4   2.6   2.8   3
+
+                                                                                        Optimal search factor
+
+                                                                                         Figure N-8
+
+
+
+
+                 IAMSAR MANUAL VOLUME II                                                                                                         N-15
+
+
+
+
+IF961E.indb 15                                                                                                                                    5/20/2016 3:18:42 PM
+IF961E.indb 16
+                                                 Search area planning graph
+
+
+
+
+                       N-16
+                                                                                                                                                                                                                                                   Track spacing (S)
+                                                                                                                                                          1 NM           2 NM                          4 NM                               6 NM
+                                                                                          3,500
+
+                                                                                                       Search speed (V)
+                                                                                                       (knots for aircraft,                                                                                                                                     8 NM
+                                                                                                     knots × 10 for vessels)
+                                                                                          3,000
+                                                                                                                                                                                                                                                                        Appendix N – Tables and graphs
+
+
+
+
+                                                                                                                                                                                                                                                                10 NM
+
+
+
+
+                                                                                                                                 kt
+                                                                                          2,500
+
+
+
+
+                                                                                                                                  0
+                                                                                                                               18
+                                                                                                                                 kt
+                                                                                                                                  5
+                                                                                                                               16
+                                                                                                                                 kt
+                                                                                                                                  0
+                                                                                          2,000
+
+
+
+
+                                                                                                                               15
+                                                                                                                                 kt
+                                                                                                                                  5
+                                                                                                                               13
+                                                                                                                                 kt
+                                                                                                                                                                                                                                                                15 NM
+
+
+
+
+                                                                                                                                  0
+                                                                                                                               12
+                                                                                          1,500
+
+
+
+
+                                                                                                                                 kt
+                                                                                                                                                                                                                                                                20 NM
+
+
+
+
+                                                                                                                               90
+
+
+
+
+                                                   Distance travelled in searching (NM)
+                                                                                          1,000                       B                                  C
+                                                                                                                                       t
+                                                                                                                                6   0k
+
+
+
+                                                                                           500
+
+
+
+                                                                                                                 A                                       D
+                                                                                             0
+                                                                                                  0          5          10    13           0          2.5          5        7.5          10       12.5         15       17.5        20           22.5      25
+                                                                                                 Duration of search (T) in hours               Area searched (A) in thousands (aircraft) or hundreds (vessels) of square nautical miles
+
+                                                                                 To determine the area that can be searched in a given time, enter graph at A, duration of search; proceed vertically to search speed at B; horizontally to C, the track
+                                                                                 spacing; then downwards to find area, D. (8.5 hours × 120 kts × 2 NM = 2040 NM2 or 8.5 hours × 12 kts × 2 NM = 204 NM2). Reverse the procedure to determine
+                                                                                 the time required to search a given area. Reverse the procedure to determine the time required to search a given area.
+
+
+
+
+                       IAMSAR MANUAL VOLUME II
+                                                                                                                                                                             Figure N-9
+
+
+
+
+5/20/2016 3:18:42 PM
+                                                                                                                     Appendix N – Tables and graphs
+
+
+                 POD graph
+                   100%
+
+
+                       90%
+                                                                Ideal search conditions
+                       80%
+
+
+                       70%
+
+
+                       60%
+                 POD
+
+
+
+
+                       50%
+                                                                                          Normal search conditions
+                       40%
+
+
+                       30%
+
+
+                       20%
+
+
+                       10%
+
+
+                       0%
+                             0    0.1   0.2   0.3   0.4   0.5     0.6   0.7   0.8   0.9   1    1.1     1.2   1.3     1.4   1.5   1.6   1.7   1.8   1.9     2
+                                                                                    Coverage factor
+
+                                 Figure N-10 – Average probabilities of detection (POD) over an area for visual searches
+                                                                  using parallel sweeps
+
+
+
+
+                 IAMSAR MANUAL VOLUME II                                                                                                            N-17
+
+
+
+
+IF961E.indb 17                                                                                                                                       5/20/2016 3:18:42 PM
+           Appendix N – Tables and graphs
+
+
+           Cumulative POS graphs
+                              100%
+                                          Ideal search conditions
+
+                               90%
+
+
+                               80%
+
+
+                               70%
+           Cumulative POS
+
+
+
+
+                               60%
+                                                                       Normal search conditions
+
+                               50%
+
+
+                               40%
+
+
+                               30%
+
+
+                               20%
+
+
+                               10%
+
+
+                                0%
+                                     0               10           20           30           40          50             60          70              80         90             100
+                                                                                             Cumulative relative effort
+
+                                           Figure N-11 – Cumulative probability of success for optimal searches of point datums
+
+
+                              100%
+                                         Ideal search conditions
+
+                              90%
+
+
+                              80%
+                                                                                        Normal search conditions
+                              70%
+
+
+                              60%
+             Cumulative POS
+
+
+
+
+                              50%
+
+
+                              40%
+
+
+                              30%
+
+
+                              20%
+
+
+                              10%
+
+
+                               0%
+                                     0      1    2        3   4   5      6    7     8   9    10   11   12    13   14     15   16   17    18   19    20   21   22   23   24    25
+
+                                                                                            Cumulative relative effort
+
+                                          Figure N-12 – Cumulative probability of success for optimal searches along line datums
+
+
+           N-18                                                                                                                        IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 18                                                                                                                                                                     5/20/2016 3:18:43 PM
+                                                                                                         Appendix N – Tables and graphs
+
+
+                 Environmental curves
+
+                                                                         Actual air temperature
+                                  Estimated
+                                                                                 (°C/°F)
+                                    wind
+                                   speed
+                                   (knots)
+                                                   10/50        0/32            –12/10    –23/–9     –35/–31 –45/–49
+
+                                       0
+
+
+
+
+                                                                          s
+
+
+
+
+                                                                                                                      sh
+                                                                           on
+
+
+
+
+                                                                                                                 d f
+                                      10
+
+
+
+
+                                                                                                               se r o
+                                                                    d or
+
+
+
+
+                                                                                                                  fle
+                                                                        rs
+
+
+
+
+                                                                                                            p o ge
+                                                                  se r f
+                                                                     pe
+                                                               e s ge
+
+
+
+
+                                                                                                          ex an
+                                      20
+                                                             dr a n
+
+
+
+
+                                                                                                       of ed d
+
+
+
+
+                                                                                                           ed
+                                                                                                 sh p of
+                                                           ly d
+                                                         er tle
+
+
+
+
+                                                                                                   in g a s
+
+
+
+
+                                                                                            fle f ex ger
+                                                                                                        os
+                                      30
+                                                       op L it
+
+
+
+
+                                                                                                 ez re
+
+
+
+
+                                                                                                  o n
+                                                                                            f r e In c
+
+
+
+
+                                                                                           in g d a
+                                                                                         ez a t
+                                                       pr
+
+
+
+
+                                      40
+
+
+
+
+                                                                                     f re G re
+                                   or more
+
+
+                                                         Figure N-13 – Wind chill and frostbite
+
+
+
+
+                                     40
+
+                                     35
+
+                                     30
+
+                                     25
+                               Time
+                              (hours) 20
+
+                                      15
+
+                                      10
+
+                                       5
+
+                                       0
+                                           0      2         4      6        8        10      12     14      16       18      20
+                                                                        Water temperature (°C/°F)
+                                           32     36      39       43      46        50      54     57      61       64      68
+
+                     Figure N-14* – Realistic upper limit of survival time for people in the water wearing normal clothing,
+                                                       from time of entry into the water
+
+
+
+
+                 *
+                   Note that this graph does NOT show a ‘recommended search time’. There are many factors to take into account in determining
+                 search time. See Volume II, chapter 3.8.6.
+
+
+
+                 IAMSAR MANUAL VOLUME II                                                                                              N-19
+
+
+
+
+IF961E.indb 19                                                                                                                        5/20/2016 3:18:43 PM
+           Appendix N – Tables and graphs
+
+
+           Parachute tables
+                                                                       Rate of descent         Rate of descent at       Glide ratio
+            Parachute type                                               at sea level              7,000 feet          (horizontal/
+                                                                      (feet per minute)        (feet per minute)         vertical)
+
+            28 feet (C-9), escape                                            1,176                     1,284                  0
+
+            28 feet (C-9), with 4 suspension line release, escape            1,146                     1,260                 0.40
+
+            24 feet, paratroop reserve                                       1,362                     1,494                  0
+
+            24 feet, Martin-Baker system                                     1,440                                            0
+
+            35 feet (T-10), Army paratroop                                   918                       1,008                  0
+
+            35 feet (HALO), AF and Army special paratroop                    960                       1,038                 0.35
+
+            Skysail (Navy), escape                                           1,212                     1,320                  0
+
+            Paracommander, AF special paratroop                              1,080                     482                   1.16
+
+            Parawing (experimental)                                      600–900                                             3.0
+
+            Parafoil (experimental)                                      600–900                                             3.0
+
+            Parasail (experimental)                                      600–900                                             2.7
+
+            Apollo, 2 each (83 feet diameter)                                2,100                     2,232                  0
+
+            Apollo, 3 each (83 feet diameter; deployed at                    1,800                     1,950                  0
+            24,000 feet)
+
+                                      Table N-13 – Parachute descent data (300 lb person, except Apollo)
+
+
+
+                                                                                            Wind in knots
+            Parachute opening height
+                                                                10     20            30          40            50     60            70
+
+            30,000 ft (9,000 m)                                 3.7    7.4           11.1       14.7           18.4   22.1          25.8
+
+            20,000 ft (6,000 m)                                 2.7    5.3           8.0        10.7           13.3   16.0          18.7
+
+            14,000 ft (4,300 m)                                 1.9    3.8           5.7         7.7           9.5    11.4          13.3
+
+            10,000 ft (3,050 m)                                 1.4    2.8           4.2         5.7           7.0    8.3           9.7
+
+            8,000 ft (2,400 m)                                  1.2    2.3           3.5         4.6           5.8    6.9           8.1
+
+            6,000 ft (1,800 m)                                  0.9    1.7           2.6         3.5           4.4    5.2           6.1
+
+            4,000 ft (1,200 m)                                  0.6    1.2           1.8         2.4           3.0    3.5           4.1
+
+            2,000 ft (600 m)                                    0.3    0.6           0.9         1.2           1.5    1.8           2.1
+
+                                        Table N-14 – Parachute drift distance (zero glide ratio)
+                        (Distance in miles of landing position downwind from position of parachute opening)
+
+
+
+
+           N-20                                                                                       IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 20                                                                                                                             5/20/2016 3:18:43 PM
+                                                                                                              Appendix N – Tables and graphs
+
+
+                 Descent data
+
+                                            50,000 ft
+                                               –67°F
+
+
+
+
+                                            40,000 ft
+                                               –67°F
+                 Altitude and temperature
+
+
+
+
+                                            30,000 ft
+                                               –48°F
+
+
+                                                                                     26 ft chute                       28 ft chute
+
+                                            20,000 ft       Free fall
+                                               –12°F
+
+
+
+
+                                            10,000 ft
+                                                23°F
+
+
+                                                                         16 mph
+
+                                            Sea level
+                                                        0    5              10              15            20              25         28      30
+                                                                                 Time of descent in minutes
+
+                                                                        Figure N-15 – Descent data
+
+
+
+
+                 IAMSAR MANUAL VOLUME II                                                                                                 N-21
+
+
+
+
+IF961E.indb 21                                                                                                                            5/20/2016 3:18:43 PM
+IF961E.indb 22   5/20/2016 3:18:43 PM
+IF961E.indb 1
+                                                  Appendix O
+                                                  Ship reporting systems for SAR
+
+                                                  System name and                       General reporting     Voluntary or       Categories of ships
+                                                                          Operating                                                                          Reporting          System purpose/         Where/how to send
+                                                        country                               area             mandatory              entitled
+                                                                          authority                                                                           interval              objective                reports
+                                                    (if applicable)                       description         participation        to participate
+                                                  Amver               United States     World-wide          Voluntary         Merchant vessels of all      When               To provide an RCC the    Via selected radio
+
+
+
+
+                       IAMSAR MANUAL VOLUME II
+                                                  United States and   Coast Guard                                             nations making offshore      departing port     predicted location and   stations (see list in
+                                                  world shipping      (USCG)                                                  voyages.                     and at intervals   SAR characteristics      ALRS, Volume 1,
+                                                                                                                                                           not exceeding      of vessels known to      Parts 1 and 2) or via
+                                                                                                                                                           48 h.              be within an area        Inmarsat. Details of
+                                                                                                                                                                              of interest during a     charges (if applicable)
+                                                                                                                                                                              maritime emergency.      are included in the
+                                                                                                                                                                                                       services of each
+                                                                                                                                                                                                       station.
+                                                  Argentina           The Prefectura    Argentine waters    Mandatory         Mandatory for all vessels    When entering Not stated in the             Reports should
+                                                  SECOSENA            Naval Argentina                                         greater than 24 m in         and departing Admiralty List of             be sent to the
+                                                                                                                              length. This requirement     the area and  Radio Signals (ALRS)          nearest SECOSENA
+                                                                                                                              may be extended to           at 0000 and                                 Coast Radio
+                                                                                                                              smaller vessels in certain   1200 UTC                                    Station or a public
+                                                                                                                              circumstances.               while within                                correspondence
+                                                                                                                                                           the area.                                   Coast Radio Station if
+                                                                                                                                                                                                       necessary. Messages
+                                                                                                                                                                                                       should be sent in
+                                                                                                                                                                                                       Spanish or using the
+                                                                                                                                                                                                       International Code of
+                                                                                                                                                                                                       Signals.
+
+
+
+
+                       O-1
+
+
+
+
+5/20/2016 3:18:43 PM
+IF961E.indb 2
+                                                 System name and                          General reporting      Voluntary or       Categories of ships
+                                                                        Operating                                                                               Reporting         System purpose/         Where/how to send
+
+
+
+
+                       O-2
+                                                       country                                  area              mandatory              entitled
+                                                                        authority                                                                                interval             objective                reports
+                                                   (if applicable)                          description          participation        to participate
+                                                 Australia           Australian           The coverage area is Mandatory and     Mandatory for Australian     When entering To aid SAR operations        Reports are to be
+                                                 AUSREP              Maritime Safety      the same as for the voluntary          registered vessels and for   and departing by:                          addressed to RCC
+                                                                     Authority through    Australian SAR area.                   foreign vessels on voyages   the area and  – limiting the time          AUSTRALIA and can
+                                                                     RCC AUSTRALIA        Precise details are                    between Australian ports,    at intervals      between the              be sent free of charge
+                                                                                          in ALRS, Volume 1,                     and voluntary for foreign    not exceeding     loss of a vessel         through any Australian
+                                                                                          Part 2.                                vessels transiting through   24 h.             and the start of         Coast Radio Station
+                                                                                                                                 the AUSREP area and also                       a SAR action in          or via Inmarsat-C
+                                                                                                                                 for fishing vessels and                        cases where no           via LES Perth and
+                                                                                                                                 small craft which comply                       distress signal is       using Special Access
+                                                                                                                                 with certain criteria.                         transmitted.             Code 43. For further
+                                                                                                                                                                                                         details, refer to the
+                                                                                                                                                                            – limiting the size of
+                                                                                                                                                                                                         ALRS, Volume 1,
+                                                                                                                                                                                a search area, and
+                                                                                                                                                                                                         Part 2.
+                                                                                                                                                                            – providing up-to-
+                                                                                                                                                                                                                                  Appendix O – Ship reporting systems for SAR
+
+
+
+
+                                                                                                                                                                                date information
+                                                                                                                                                                                of shipping in the
+                                                                                                                                                                                vicinity of a SAR
+                                                                                                                                                                                incident.
+
+                                                                                                                                                                                AUSREP is a positive
+                                                                                                                                                                                reporting system. This
+                                                                                                                                                                                means that if a report
+                                                                                                                                                                                becomes overdue,
+                                                                                                                                                                                then a SAR response
+                                                                                                                                                                                will be started and
+                                                                                                                                                                                may include world-
+                                                                                                                                                                                wide communication
+                                                                                                                                                                                checks as well as
+                                                                                                                                                                                search action.
+                                                 Brazil              Naval Command        Coverage area        Mandatory and     Mandatory for Brazilian      When entering     To know the position     Reports can be sent
+                                                 SISTRAM             for the Control of   stretches east of    voluntary         registered vessels, and      and departing     of vessels within the    free of charge to
+                                                                     Maritime Traffic     Brazil to 10°W and                     voluntary for other          the area and if   Brazilian SAR area       COMCONTRAM RIO
+                                                                     (COMCONTRAM)         from approximately                     vessels.                     there are any     in case of a SAR         through any Brazilian
+                                                                                          04.5°N to 34.5°S.                                                   changes to the    incident.                Coast Radio Station.
+                                                                                          Exact details are                                                   planned route.
+                                                                                          shown in ALRS,                                                                                                 Reports sent via
+                                                                                          Volume 1, Part 2.                                                                                              telex to 21366931
+                                                                                                                                                                                                         or 21303933 will be
+                                                                                                                                                                                                         charged.
+
+
+
+
+                       IAMSAR MANUAL VOLUME II
+
+
+
+
+5/20/2016 3:18:44 PM
+IF961E.indb 3
+                                                  System name and                       General reporting       Voluntary or       Categories of ships
+                                                                          Operating                                                                          Reporting           System purpose/        Where/how to send
+                                                        country                               area               mandatory              entitled
+                                                                          authority                                                                           interval               objective               reports
+                                                    (if applicable)                       description           participation        to participate
+                                                  Canada              United States    World-wide             Mandatory         Mandatory for Canadian     When               To provide (to SAR       Reports should be
+                                                  Amver               Coast Guard                                               vessels and vessels        departing port     agencies and persons     addressed to “Amver
+                                                                      (USCG)                                                    involved in the Canadian   and at intervals   in distress) predicted   Vancouver” or “Amver
+                                                                                                                                coasting trade (with       not exceeding      location and SAR         Halifax” and can
+                                                                                                                                certain exceptions).       48 h.              characteristics of       be sent through any
+                                                                                                                                                                              vessels known to         Canadian Coast Radio
+                                                                                                                                                                              be within an area        Station or through
+                                                                                                                                                                              of interest during a     a Canadian Coast
+                                                                                                                                                                              maritime emergency.      Guard vessel.
+
+
+
+
+                       IAMSAR MANUAL VOLUME II
+                                                  Canada              Canadian Coast   East Coast Canadian Mandatory            All vessels ≥ 500 GRT      Entry into         To ensure                To ECAREG CANADA
+                                                  ECAREG              Guard (CCG)      waters south of                                                     or departing       compliance with          via any CCG Marine
+                                                                                       60°N and east of                                                    the area, at       Canadian regulatory      Communications
+                                                                                       66°W                                                                selected points    requirements.            and Traffic Services
+                                                                                                                                                           and if there are                            Station.
+                                                                                                                                                           any changes
+                                                                                                                                                           to information
+                                                                                                                                                           previously
+                                                                                                                                                           submitted.
+                                                  Canada              As above         Canadian waters        Voluntary         As above                   As above           As above                 To NORDREG
+                                                  NORDREG                              north of 60°N                                                                                                   CANADA via
+                                                                                       including all waters                                                                                            any CCG Marine
+                                                                                       of Ungava, James                                                                                                Communications
+                                                                                       and Hudson Bays                                                                                                 and Traffic Services
+                                                                                                                                                                                                       Station.
+                                                  Combined US/        As above         Canadian waters on Mandatory             All vessels ≥ 300 GRT      24 h prior         As above                 CVTS OFFSHORE
+                                                  Canada Vessel                        the west coast of                                                   to entry into                               via any CCG Marine
+                                                  Traffic Services                     Canada                                                              Canadian                                    Communications
+                                                  Area (CVTS                                                                                               waters.                                     and Traffic Services
+                                                  OFFSHORE)                                                                                                                                            Station.
+
+
+
+
+                       O-3
+                                                                                                                                                                                                                              Appendix O – Ship reporting systems for SAR
+
+
+
+
+5/20/2016 3:18:44 PM
+IF961E.indb 4
+                                                 System name and                          General reporting      Voluntary or       Categories of ships
+                                                                         Operating                                                                           Reporting       System purpose/         Where/how to send
+
+
+
+
+                       O-4
+                                                       country                                  area              mandatory              entitled
+                                                                         authority                                                                            interval           objective                reports
+                                                   (if applicable)                          description          participation        to participate
+                                                 Chile               General              The coverage area is Voluntary         Not stated in the ALRS   When entering To aid SAR operations       Reports are to be
+                                                 CHILREP             Directorate of the   the same as for the                                             and departing by:                         sent through Chilean
+                                                                     Maritime Territory   Chilean SAR area.                                               the area and     – limiting the time      Coast Radio Stations
+                                                                     and Merchant         Precise details of                                              once a day         between the loss       that accept public
+                                                                     Marine, which is a   area are in ALRS,                                               between 1200       of a vessel and the    correspondence.
+                                                                     directorate of the   Volume 1, Part 2.                                               and 1600 UTC       initiation of a SAR    Reports should
+                                                                     Chilean Navy.                                                                        so that a report   action in cases        be addressed to
+                                                                                                                                                          is received        where no distress      DIRECTEMAR
+                                                                                                                                                          every 24 h.        signal is sent out     VALPARAISO.
+                                                                                                                                                                           – limiting the size of
+                                                                                                                                                                             a search area for a
+                                                                                                                                                                             rescue action, and
+                                                                                                                                                                           – providing up-to-
+                                                                                                                                                                                                                           Appendix O – Ship reporting systems for SAR
+
+
+
+
+                                                                                                                                                                             date information of
+                                                                                                                                                                             shipping resources
+                                                                                                                                                                             available in the
+                                                                                                                                                                             area, in the event
+                                                                                                                                                                             of a SAR incident.
+
+
+                                                 Denmark             SHIPPOS Aarhus       Danish waters of the Voluntary         All vessels of 20,000 GRT When entering Not stated in the ALRS     Reports will be
+                                                 SHIPPOS                                  Baltic Sea, including                  and over.                   and departing                          accepted through any
+                                                                                          17 m minimum-                          All loaded oil, gas, and    the area and                           Danish Coast Radio
+                                                                                          depth transit route                    chemical tankers of         when crossing                          Station.
+                                                                                          known as Route T.                      1,600 GRT and over.         reporting
+                                                                                                                                 All vessels with a draught lines (details
+                                                                                                                                 of 13 m or more.            in ALRS,
+                                                                                                                                 All vessels carrying        Volume 1,
+                                                                                                                                 radio-active material.      Part 1).
+                                                                                                                                 All vessels with a draught
+                                                                                                                                 of 10 m or more may
+                                                                                                                                 participate when transiting
+                                                                                                                                 the ferry routes S of
+                                                                                                                                 Sprogoe.
+                                                                                                                                 Vessels of 40,000 DWT
+                                                                                                                                 are recommended to
+                                                                                                                                 participate in this service
+                                                                                                                                 while passing through the
+                                                                                                                                 entrances to the Baltic Sea
+
+
+
+
+                       IAMSAR MANUAL VOLUME II
+
+
+
+
+5/20/2016 3:18:44 PM
+IF961E.indb 5
+                                                  System name and                         General reporting      Voluntary or       Categories of ships
+                                                                          Operating                                                                              Reporting        System purpose/        Where/how to send
+                                                        country                                 area              mandatory              entitled
+                                                                          authority                                                                               interval            objective               reports
+                                                    (if applicable)                         description          participation        to participate
+                                                  Ecuador             Coast Guard         Within 200 NM        Mandatory         Vessels navigating in the     When entering Not stated in the ALRS     Reports should
+                                                                                          of Ecuador and                         reporting area.               or departing                             be sent through
+                                                                                          between the                                                          the area                                 Guayaquil (HCG) and
+                                                                                          mainland and the                                                     and position                             addressed to Coast
+                                                                                          Archipelago de                                                       reports as                               Guard (COGUAR).
+                                                                                          Colon.                                                               required.
+                                                  Fiji                Not stated in the   See diagram in                         For all vessels, including    Send reports    This is a maritime       Reports should be
+                                                                      ALRS                ALRS, Volume 1,                        small craft.                  at least once   surveillance safety      sent to Suva (3DP)
+                                                                                          Part 2.                                                              daily.          service involving ship   Coast Radio Station or
+
+
+
+
+                       IAMSAR MANUAL VOLUME II
+                                                                                                                                                                               reporting.               by telex to HOMSEC
+                                                                                                                                                                                                        Fiji.
+                                                  Greenland           GRØNLANDS-          For vessels         Mandatory          All ships on voyages to or On entry and Designed to assist in          Reports can be sent
+                                                  GREENPOS            KOMMANDO            en route to or from                    from Greenland ports and departure        the co-ordination of         free of charge in
+                                                                                          Greenland and in                       places of call.            for the area,  SAR operations.              the form of a radio
+                                                                                          the area north of                                                 and position                                telegram direct
+                                                                                          the 57°N and within                                               reports are to                              to GRØNLAND-
+                                                                                          250 NM of the                                                     be sent four                                KOMMANDO (GLK)
+                                                                                          Greenland coast.                                                  times daily at                              via Grønnedal Flåde
+                                                                                                                                                            times depicted                              Radio (OVC) or
+                                                                                                                                                            in ALRS,                                    through a Coast Radio
+                                                                                                                                                            Volume 1,                                   Station.
+                                                                                                                                                            Part 2.
+                                                  Greenland           GRØNLANDS-          For vessels on       Mandatory         All ships of 20 gross         On entry and Designed to assist in       Reports can be sent
+                                                  KYSTKONTROL         KOMMANDO            passage between                        tonnage and more and          departure        the co-ordination of    free of charge and
+                                                                                          harbours and ports                     fishing vessels, on voyages   from a port      SAR operations.         should be addressed
+                                                                                          on the coast of                        between Greenland ports       or harbour.                              to SKIBSKONTROL
+                                                                                          Greenland.                             and places of call.           Position                                 and the name of the
+                                                                                                                                                               reports are to                           appropriate control
+                                                                                                                                                               be sent at least                         station as listed in
+                                                                                                                                                               every 24 h if                            ALRS, Volume 1,
+                                                                                                                                                               the voyage                               Part 2. They can also
+                                                                                                                                                               exceeds 24 h.                            be sent via a Coast
+                                                                                                                                                                                                        Radio Station.
+                                                  Iceland             The Icelandic       Not stated in the    Mandatory         Compulsory for all            When entering Not stated in the ALRS Through Icelandic
+                                                                      Lifesaving          ALRS                                   Icelandic vessels.            or leaving                           Coast Radio Stations.
+                                                                      Association                                                                              harbour and
+                                                                                                                                                               twice a day at
+                                                                                                                                                               sea.
+
+
+
+
+                       O-5
+                                                                                                                                                                                                                                 Appendix O – Ship reporting systems for SAR
+
+
+
+
+5/20/2016 3:18:44 PM
+IF961E.indb 6
+                                                 System name and                         General reporting      Voluntary or         Categories of ships
+                                                                         Operating                                                                               Reporting         System purpose/        Where/how to send
+
+
+
+
+                       O-6
+                                                       country                                 area              mandatory                entitled
+                                                                         authority                                                                                interval             objective               reports
+                                                   (if applicable)                         description          participation          to participate
+                                                 India               Not stated in the   As detailed in ALRS, Mandatory and       Mandatory for all Indian     When entering To provide data for         Reports are free if sent
+                                                 INSPIRES            ALRS                Volume 1, Part 1     voluntary           merchant vessels,            and departing SAR operations, vessel      through Indian Naval
+                                                                                         but broadly covers                       including coastal and        the area and    traffic management,       Communications
+                                                                                         from India-Pakistan                      fishing vessels of more      daily according weather forecasting,      Centres Bombay (VTF)
+                                                                                         border to the                            than 300 GRT. Other          to the schedule and the prevention        or Vishakhapatnam
+                                                                                         African coast, then                      vessels within the           depicted        and containment of        (VTO).
+                                                                                         to 30°S (excluding                       reporting areas are          in ALRS,        marine pollution.
+                                                                                         Madagascar)                              encouraged to participate.   Volume 1,                                 Reports sent through
+                                                                                         across to 95°E and                                                    Part 1.                                   Bombay Radio
+                                                                                         northwards to coast.                                                                                            (VWB) or Madras
+                                                                                                                                                                                                         Radio (VWM) are
+                                                                                                                                                                                                         chargeable.
+                                                 Italy               Not stated in the   Not specifically     Mandatory           Mandatory for all Italian    When entering    To provide data          Reports are accepted
+                                                 ARES                ALRS                stated in the ALRS                       merchant vessels of over     and departing    that will ensure the     free of charge by
+                                                                                                                                                                                                                                    Appendix O – Ship reporting systems for SAR
+
+
+
+
+                                                                                         but appears to be                        1,600 GRT except for         the area         efficiency of SAR        Italian Coast Radio
+                                                                                         for vessels in the                       those vessels making         and daily at     operations.              Stations.
+                                                                                         Mediterranean or                         national voyages of          1200 local
+                                                                                         outside it.                              less than 24 h and           time if in the
+                                                                                                                                  international voyages        Mediterranean
+                                                                                                                                  of less than 12 h.           and every 48 h
+                                                                                                                                  Other vessels in the         if outside.
+                                                                                                                                  Mediterranean are
+                                                                                                                                  encouraged to participate
+                                                                                                                                  in the system.
+                                                 Japan               Japanese Maritime The sea area           Voluntary           All suitably equipped        When entering    To assist in the         Reports should be
+                                                 JASREP              Safety Agency     bounded by the                             vessels are invited to       and departing    co-ordination of SAR     send to Tokyo (JNA)
+                                                                     (JMSA)            mainland of Asia,                          participate                  the area and     operations. SAR action   or to any of the Coast
+                                                                                       the parallel of                                                         at intervals     may be initiated if an   Radio Stations listed
+                                                                                       latitude 17°N, and                                                      not exceeding    expected report is not   in ALRS Volume 1,
+                                                                                       the meridian of                                                         24 h.            received.                Part 1.
+                                                                                       longitude 165°E.
+                                                 Madagascar          Cencorsau,          Between 5°S and      Not stated in the   Not stated in the ALRS       When entering To assist SAR               Reports are free of
+                                                                     Tananarive          30°S and between     ALRS                                             and departing operations.                 charge and should
+                                                                                         60°E and the coast                                                    the area                                  be addressed
+                                                                                         of Africa.                                                            and daily at                              to “Cencorsau
+                                                                                                                                                               1000 UTC.                                 Tananarive”’ through
+                                                                                                                                                                                                         the nearest Coast
+                                                                                                                                                                                                         Radio Station in
+                                                                                                                                                                                                         Madagascar.
+
+
+
+
+                       IAMSAR MANUAL VOLUME II
+
+
+
+
+5/20/2016 3:18:44 PM
+IF961E.indb 7
+                                                  System name and                         General reporting        Voluntary or       Categories of ships
+                                                                          Operating                                                                             Reporting         System purpose/        Where/how to send
+                                                        country                                 area                mandatory              entitled
+                                                                          authority                                                                              interval             objective               reports
+                                                    (if applicable)                         description            participation        to participate
+                                                  Peru                The Peruvian        The north and south Mandatory            Mandatory for all          On entering      Not stated in the ALRS Can be sent free
+                                                                      Director General    maritime borders                         Peruvian vessels over      Peruvian                                of charge through
+                                                                      of Harbour          and a line 200 NM                        350 GRT and all foreign    waters or                               various Coast Radio
+                                                                      Masters and the     off the coast of                         vessels regardless of      departing a                             Stations (details in
+                                                                      Coast Guard         Peru.                                    tonnage and type.          Peruvian port.                          ALRS, Volume 1,
+                                                                                                                                                                                                      Part 2) or via satellite.
+                                                                                                                                                                                                      If sent through
+                                                                                                                                                                                                      foreign they are to be
+                                                                                                                                                                                                      addressed to Director
+
+
+
+
+                       IAMSAR MANUAL VOLUME II
+                                                                                                                                                                                                      General di Guarda
+                                                                                                                                                                                                      Costas.
+                                                  Singapore           Not stated in the   Coverage area          Voluntary         Vessels of any nationality, Preferably sent To aid SAR operations    Reports should be
+                                                  SINGREP             ALRS                encompasses                              tonnage or type are         daily between by:                        forwarded through
+                                                                                          the seas around                          welcome to participate as 0000 and          – reducing the time      Singapore Radio
+                                                                                          the Malay                                long as they are within the 0800 UTC.          between loss of a     (9VG) on RTG, RTF,
+                                                                                          Peninsula, most                          service area of SINGREP.                       vessel and start of   radio telex, or via
+                                                                                          of the Indonesian                                                                       a search in cases     Inmarsat.
+                                                                                          archipelago,                                                                            where no distress
+                                                                                          including Borneo                                                                        signals are sent
+                                                                                          and then north
+                                                                                          to the west coast                                                                    – limiting the size of
+                                                                                          of the Philipines.                                                                      the SAR area
+                                                                                          Specific details are                                                                 – providing up-to-
+                                                                                          shown in the ALRS,                                                                      date information on
+                                                                                          Volume 1, Part 1.                                                                       shipping resources
+                                                                                                                                                                                  available in the
+                                                                                                                                                                                  vicinity of the
+                                                                                                                                                                                  casualty.
+
+
+
+
+                       O-7
+                                                                                                                                                                                                                                  Appendix O – Ship reporting systems for SAR
+
+
+
+
+5/20/2016 3:18:44 PM
+IF961E.indb 8   5/20/2016 3:18:44 PM
+                Appendix P
+                Functional characteristics to consider with computer-based
+                search planning aids
+
+
+                Overview
+                The computer software, hereinafter referred to as the search planning model, should be designed to accept
+                all inputs that the SAR Co-ordinator can reasonably be expected to use in search planning and present the
+                calculated results to the Co-ordinator as useable information in the form of an optimal search plan, useful
+                statistics and values important to the search planning process. It should not simply produce a mass of data
+                outputs. The desirable functional characteristics of the search planning model should include, but should not
+                be limited to, those in the following list. The model should perform the following functions:
+                      •      Accept and integrate various environmental data from multiple sources, together with their
+                             estimated error and variability patterns;
+                      •      Simulate the effects of the environment on search object status and motion, sensor performance
+                             and the survivors;
+                      •      Use appropriate sampling techniques for simulating possible search object movements (e.g., drift),
+                             and determining the area of containment;
+                      •      Have the flexibility to develop updated search plans based on new information or assumptions
+                             made by the search planner;
+                      •      Have the ability to allow for time uncertainty and/or position uncertainty of the initial distress
+                             location;
+                      •      Simulate hazards, possible encounters between the missing craft and the hazards, and the
+                             probabilities that such encounters would result in a distress incident;
+                      •      Have the ability to generate initial probability density distributions using the previous two features
+                             together;
+                      •      Be capable of simulating post-distress changes (state changes) in the status of distressed persons
+                             such as abandoning a vessel into a liferaft;
+                      •      Be capable of predicting the survivability of distressed persons based on selectable scenarios and
+                             when computing optimal effort allocations;
+                      •      Generate valid probability density distributions of possible search object locations based on
+                             post-distress search object trajectories using low- to high-resolution* environmental data, as
+                             available (high-resolution data are always preferred);
+                      •      Be capable of handling multiple scenarios simultaneously which includes the ability to compare the
+                             scenarios and assign weighting factors to them;
+                      •      Produce an operationally feasible search plan that maximizes the probability of finding the
+                             distressed persons alive with the available search facilities – i.e., produce an optimal search plan
+                             for the situation at hand. Factors to consider are the possible (weighted) scenarios, the dynamic
+                             probability density distribution of search object locations, survivor state changes, survival times,
+
+                *
+                  High-resolution data are data on a small spatial (e.g., 0.1 × 0.1 degree or 6 NM × 6 NM at the equator) and temporal (e.g., every
+                three hours) grid. Low-resolution data would be on larger grids (e.g., 1 × 1 degree × 24 h or greater).
+
+
+
+                IAMSAR MANUAL VOLUME II                                                                                                       P-1
+
+
+
+
+IF961E.indb 1                                                                                                                               5/20/2016 3:18:44 PM
+           Appendix P – Functional characteristics to consider with computer-based search planning aids
+
+
+                      environmental parameters, search facility characteristics (number, type, location, endurance,
+                      sensors, etc.), previous search results, etc. Both tactical (myopic, day-to-day or sortie-to-sortie)
+                      and strategic optimisation (when resource availability can be predicted with reasonable certainty)
+                      should be available;
+                  •   Be able to properly evaluate search results (in the computational sense), including both positive
+                      (e.g., debris sightings) and negative (no sightings of search object) aspects. It should perform detailed
+                      updates of the dynamic probability density distributions of the possible search object locations
+                      based on actual sortie tracks and reports of sensor performance;
+                  •   Make proper use of previous search results when computing optimal plans for subsequent searches;
+                  •   Correctly simulate the effects of the relative motion between moving search objects and moving
+                      search facilities;
+                  •   Compute and display estimates of search effectiveness in the form of POS values for sorties and the
+                      cumulative POS value for all searching done to date;
+                  •   Be capable of processing and re-evaluating new (including late-arriving) information such as update
+                      of last known position and/or distress time to produce an updated optimal search plan;
+                  •   Consideration should be given to the man–machine interface so that the information generated by
+                      the computer-based tool and database would be useful to the search planner. The model should
+                      also be capable of displaying large volumes of information in ways that promote rapid assimilation.
+                      The model should contain or be integrated with appropriate geographical displays and useful tools
+                      for describing search sub-areas, generating search patterns, communicating search plans to search
+                      facilities, etc.; and,
+                  •   Finally, the software of such a model must be developed using sound software engineering
+                      principles to keep life-cycle costs down, maximize reliability, provide for ease of making future
+                      improvements, and have it operate with as many hardware platforms and operating systems as
+                      possible.
+
+
+
+
+           P-2                                                                              IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 2                                                                                                                     5/20/2016 3:18:44 PM
+                Appendix Q
+                Sample problem
+
+                F/V Sample – alpha search . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .            Q-1
+                Datum worksheet for computing drift in the marine environment. . . . . . . . . . . . . . . . . . . . . . . . . . .                                 Q-2
+                Average surface wind (ASW) worksheet . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .                     Q-4
+                Total water current (TWC) worksheet . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .                  Q-5
+                Wind current (WC) worksheet. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .               Q-6
+                Leeway (LW) worksheet . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .            Q-7
+                Total probable error of position (E) worksheet for land and marine environments. . . . . . . . . . . . . . .                                       Q-8
+                Total available search effort worksheet . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .               Q-10
+                Effort allocation worksheet for optimal search of single point, leeway divergence
+                or line datums. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .   Q-11
+                Results of a Monte Carlo simulation using the F/V Sample data for the alpha search. . . . . . . . . . . . .                                       Q-13
+
+
+
+
+                IAMSAR MANUAL VOLUME II                                                                                                                            Q-i
+
+
+
+
+IF961E.indb 1                                                                                                                                                     5/20/2016 3:18:45 PM
+IF961E.indb 2   5/20/2016 3:18:45 PM
+                F/V Sample – alpha search
+
+                Alpha search scenario   1   On 25 January 2000 at 2145Z, the F/V Sample broadcast a distress
+                                            radio call. The captain reported the vessel's engines were inoperable
+                                            and the vessel was taking on water, but the vessel was not in immediate
+                                            danger of sinking. However, the captain requested assistance. The
+                                            vessel's reported DR position at 2145Z was given as 37-10N, 065-45W.
+                                            This DR position was based on a celestial fix at 250100Z JAN 00
+                                            in position 38-57N, 068-54W. Communications were lost after this
+                                            initial call for assistance.
+                                        2   A British Airways flight transiting the area while en route to Bermuda
+                                            at 261100Z JAN 00 failed to sight the F/V Sample. Based on enquiries
+                                            about resource availability, the earliest time at which a search can
+                                            commence is 261630Z JAN 00. A search is to be planned for this
+                                            commence search time.
+                Wind information        3   Observed and forecast wind data
+                                            Date               Time          °T/kts    Date         Time      °T/kts
+                                            26 JAN             0000Z         175/32    27 JAN       0000Z     200/32
+                                                               0600Z         190/30                 0600Z     195/30
+                                                               1200Z         210/35                 1200Z     195/30
+                                                               1800Z         205/37                 1800Z     200/28
+                Vessel description      4   The F/V Sample is a 75-foot eastern-rigged side trawler, with a black
+                                            steel hull and a white superstructure.
+                Search facilities       5   Two four-engine fixed-wing aircraft search facilities are available with
+                                            GPS navigation systems.
+                                            Aircraft Type                Speed         On-Scene            Crew
+                                                                                       Endurance           Fatigue
+                                            C-130 Hercules               180 knots     3.00 hours          Normal
+                                            P-3 Orion                    200 knots     4.00 hours          Normal
+                Search conditions       6   On-scene weather for 26 January 2000:
+                                            Meteorological visibility 5 NM                Ceiling     1500 feet
+                                            Winds                       210°T/35 knots    Seas        3–5 feet
+                                            Sunrise                     1100Z             Sunset      2200Z
+
+
+
+
+                IAMSAR MANUAL VOLUME II                                                                             Q-1
+
+
+
+
+IF961E.indb 1                                                                                                    5/20/2016 3:18:45 PM
+           Appendix Q – Sample problem
+
+
+           Datum worksheet for computing drift in the marine environment
+
+           Case title 		 F/V SAMPLE                                Case number 00-001 Date  26 JAN 2000
+
+                          SAR SCHOOL
+           Planner’s name 								                                Datum number       1                     BC A
+                                                                                              Search plan A
+
+                         Medium displacement fishing vessel
+           Search object 		
+
+
+           A      Starting position for this drift interval
+           1      Type of position				              Last known position,		
+                  (Circle one) 					Estimated incident position
+                                                                     LKP
+                                                                     EIP
+                                                    Previous datum			PD
+                                                                               ○
+                                                                             252145 Z              JAN 2000
+
+                                                                                     ○                        ○
+           2      Position Date/time
+
+           3      Latitude, longitude of position                             37-10 N/S               065-45 W/E
+
+
+           B      Datum time
+
+           1      Commence search date/time                                  261630 Z              JAN 2000
+
+           		18.75
+           2 Drift interval			 hours
+
+
+           C      Average surface wind (ASW)
+                  (Attach Average surface wind (ASW) worksheet)
+
+           1      Average surface wind (ASW)                                   194       °T             31.72 kts
+
+           2	Probable error of drift velocity due to
+           		0.3
+              probable error of average surface wind (ASWDVe)			 kts
+
+
+           D      Total water current (TWC)
+                  (Attach Total water current (TWC) worksheet)
+
+           1      Total water current (TWC)                                    057       °T              1.86 kts
+
+           		0.42
+           2 Probable total water current error (TWCe)			 kts
+
+
+           E      Leeway (LW)
+                  (Attach Leeway (LW) worksheet)
+
+           1      Left of downwind                                             324       °T               1.3 kts
+
+           2      Right of downwind                                            064       °T               1.3 kts
+
+           		0.3
+           3 Probable leeway error (LWe)			 kts
+
+
+           Q-2                                                                      IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 2                                                                                                       5/20/2016 3:18:45 PM
+                                                                                             Appendix Q – Sample problem
+
+
+                F      Total surface drift
+                	Use a manoeuvring board or calculator to add Total water current and Leeway vectors.
+                  (See figure K-1a)
+
+                		                                                          (left of downwind)     (right of downwind)
+
+                1      Drift directions                                               021    °T              060 °T
+
+                2      Drift speeds                                                  2.21    kts            3.15 kts
+
+                3      Drift distances (line F.2 × line B.2)                        41.49    NM            59.14 NM
+
+                4	Total probable drift velocity error (DVe)
+                                _________________________
+                (DVe = √
+                		0.60   ASWDVe2 + TWCe2 + LWe2) ​			
+                       ​                              kts
+
+                G      Datum positions and divergence distance
+                	Using a chart, universal plotting sheet or calculator, determine the datum positions and divergence
+
+
+                                                                                           ○                     ○
+                  distance (DD) (See figure K-1b)
+
+                                                                                 37-48.7 N/S          065-26.3 W/E
+
+                                                                                           ○                     ○
+                1      Latitude, longitude (left of downwind)
+
+                2      Latitude, longitude (right of downwind)                   37-39.6 N/S          064-40.5 W/E
+                		37.5
+                3 Divergence distance (DD)			 NM
+
+                H      Total probable error of position (E) and separation ratio (SR)
+                       (Attach Total probable error of position (E) worksheet)
+
+                		1,002.7
+                1 Total probable error of position squared (E2)			 NM2
+
+                		31.67
+                2 Total probable error of position (E)			 NM
+
+                		1.18
+                3 Separation ratio (SR = DD/E)			
+
+                4      Go to the Total available search effort worksheet.
+
+
+
+
+                IAMSAR MANUAL VOLUME II                                                                              Q-3
+
+
+
+
+IF961E.indb 3                                                                                                       5/20/2016 3:18:45 PM
+           Appendix Q – Sample problem
+
+
+           Average surface wind (ASW) worksheet
+
+           Case title    F/V SAMPLE                                  Case number       00-001 Date  26 JAN 2000
+                           SAR SCHOOL
+           Planner’s name 									                                 Datum number         1                  BC A
+                                                                                               Search plan A
+
+           A       Average surface wind
+           1       Surface wind data
+           Time of              Time          Number                Wind                 Wind               Wind
+           observation         interval       of hours            direction             speed            contribution
+                                                 (A)                 (B)                 (C)               (A × C)
+            260000Z         2145 – 0300
+                                             5.25                  175 ° T             32 kts            168 NM
+
+            260600Z         0300 – 0900
+                                             6.00
+                                                                 190° T                   30 kts         180 NM
+
+            261200Z         0900 – 1500
+                                             6.00
+                                                                 210 ° T                  35 kts         210 NM
+
+            261800Z         1500 – 1630
+                                             1.50
+                                                                 205 ° T                  37 kts        55.5 NM
+
+                                  –                            °T                          kts             NM
+                                  –                            °T                          kts             NM
+                                  –                            °T                          kts             NM
+                                  –                            °T                          kts             NM
+
+
+
+                             Total hours          18.75          Vector sum of    194 °T
+                                                                                                       594.76 NM
+                                                     (D)          contributions     (E)                     (F)
+
+           2       Average surface wind (ASW) [(E)°T (F/D) kts]                              194 °T      31.72 kts
+
+
+           B       Probable error
+           		5.0
+           1 Probable error of the Average surface wind (ASWe)  kts
+           		0.3
+           2	Probable error of drift velocity due to probable error of the  kts
+              average surface wind (ASWDVe)
+
+
+           Go to part C on the Datum worksheet.
+
+
+
+
+           Q-4                                                                          IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 4                                                                                                           5/20/2016 3:18:45 PM
+                                                                                                Appendix Q – Sample problem
+
+
+                Total water current (TWC) worksheet
+
+                Case title   F/V SAMPLE                                   Case number    00-001 Date  26 JAN 2000
+                                SAR SCHOOL
+                Planner’s name 									                                 Datum number       1     Search plan A B C  A
+
+                A       Observed total water current (TWC)
+                1       Source (datum marker buoy (DMB), debris, oil) 		                   		
+
+                2       Observed set/drift                                                  °T                       kts
+
+                3       Probable error of observation (TWCe)			                                                      kts
+
+                4       Go to part D on the Datum worksheet.
+
+                B       Computed total water current
+                1       Tidal current (TC)
+                        a    Source (tidal current tables, local knowledge)		              		
+                        b	Tidal current (TC) set/drift
+                           (attach any tidal current computations)		                        °T                       kts
+                        c    Probable error of tidal current (TCe)			                                                kts
+
+                2       Sea current (SC)
+                        a    Source (atlas, pilot chart, etc.) 		                          NOOSP NA6 1400
+                                                                                           		
+                        b    Sea current (SC) set/drift   0.8 kts                       075 °T
+                		0.3
+                c	Probable error of sea current (SCe)			     kts
+
+                3	Wind current (WC)
+                   (attach Wind current worksheet)
+                        a    Wind current (WC) set/drift                                044 °T                1.13 kts
+                		0.3
+                b Probable error of wind current (WCe)			 kts
+                4       Other water current (OWC)
+                        a    Source (local knowledge, previous incidents, etc.)            		
+                        b    Other water current (OWC) set/drift                            °T                       kts
+                        c    Probable error of other water current (OWCe)			                                         kts
+
+                5       Computed total water current (TWC) set/drift                    057 °T                1.86 kts
+
+                            probable total water current error (TWCe)
+                6	Computed ____________________________
+                		0.42
+                (TWCe = ​√   
+                          TCe2 + SCe2 + WCe2 + OWCe2) ​			 kts
+                7       Go to part D on the Datum worksheet.
+
+
+
+
+                IAMSAR MANUAL VOLUME II                                                                               Q-5
+
+
+
+
+IF961E.indb 5                                                                                                         5/20/2016 3:18:45 PM
+           Appendix Q – Sample problem
+
+
+           Wind current (WC) worksheet
+
+           Case title 		 F/V SAMPLE                              Case number   00-001 Date  26 JAN 2000
+                           SAR SCHOOL
+           Planner’s name 									                             Datum number     1                BC A
+                                                                                     Search plan A
+
+           Wind current (WC)
+           1	Average surface wind (ASW)
+            		(From Datum worksheet, line C.1) 194 °T                                          31.72 kts
+
+           2			
+            Downwind direction (ASW direction ± 180°)			 014 °T
+
+           3	Wind current drift
+              (from figure N-1)			                                                              1.13 kts
+
+           4	Divergence of wind current
+            			
+              (from figure N-1)			       ± +30 °
+
+           5	Wind current set
+              (Downwind direction ± divergence of wind current)
+              (add divergence in northern hemisphere,
+              subtract in southern hemisphere)			                                                044 °T
+
+           6		
+            Wind current (WC) set/drift 044 °T                                                  1.13 kts
+
+           7      Probable error of wind current (WCe)			                                        0.3 kts
+
+           8      Go to line B.3 on the Total water current (TWC) worksheet.
+
+
+
+
+           Q-6                                                                  IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 6                                                                                              5/20/2016 3:18:45 PM
+                                                                                    Appendix Q – Sample problem
+
+
+                Leeway (LW) worksheet
+
+                Case title   F/V SAMPLE                        Case number    00-001 Date  26 JAN 2000
+                                SAR SCHOOL
+                Planner’s name 									                       Datum number     1     Search plan A B C  A
+                              Medium displacement fishing vessel
+                Search object 		
+
+
+                1	Average surface wind (ASW)
+                 		(from Datum worksheet, line C.1) 194 °T                                        31.72 kts
+
+                2			
+                 Downwind direction (ASW direction ± 180°)			 014 °T
+
+                3	Leeway speed
+                   (from figure N-2 or N-3)			                                                     1.13 kts
+
+                4	Leeway divergence angle
+                 			
+                   (from figure N-2 or N-3)			± 50 °
+
+                5       Leeway directions
+                        a    Left of downwind (line 2 – line 4)			                                  324 °T
+                			
+                b Right of downwind (line 2 + line 4)			 064 °T
+
+                6       Leeway (LW)
+                        a    Left of downwind                                324 °T                 1.3 kts
+                        b    Right of downwind                               064 °T                 1.3 kts
+
+                7	Probable leeway error (LWe)
+                   (from figure N-2 or N-3) 			                                                     0.3 kts
+
+                8       Go to part E on the Datum worksheet.
+
+
+
+
+                IAMSAR MANUAL VOLUME II                                                                    Q-7
+
+
+
+
+IF961E.indb 7                                                                                             5/20/2016 3:18:46 PM
+           Appendix Q – Sample problem
+
+
+           Total probable error of position (E) worksheet
+           for land and marine environments
+
+           Case title   F/V SAMPLE                                  Case number    00-001 Date  26 JAN 2000
+                           SAR SCHOOL
+           Planner’s name 									                                Datum number       1                 BC A
+                                                                                           Search plan A
+
+           A       Probable distress incident/initial position error (X)
+           	(Go to line 1 to compute probable error of the distress incident position. Go to line 6 if the starting
+             position for this drift interval is a previous datum.)
+
+           1	Navigational fix error
+              (from table N-1 or N-2)			 2.0 NM
+            			
+
+           2	Dead reckoning (DR) error rate
+            			
+              (from table N-3)			            15 %
+
+           3			
+            DR distance since last fix			 184 NM
+
+           4	DR navigational error
+              (line A.2 × line A.3) 			
+            			                         27.6 NM
+
+           5	Glide distance (if aircraft/parachute descent heading
+              is unknown)			                                                                                  NM
+
+           6	Probable initial position error (X)
+              (X = line A.1 + line A.4 + line A.5) or
+              (X = Total probable error of position from line H.2
+              of previous Datum worksheet)			 29.6 NM
+            			
+
+           B       Total probable drift error (De)
+           1	Drift interval
+            			
+              (from line B.2 of the Datum worksheet)			 18.75 hours
+                                                       	 
+
+           2	Probable drift velocity error (DVe)
+            			
+              (from line F.4 of the Datum worksheet)			 0.6 kts
+
+           3	Total probable drift error (De)
+              (De = line B.1 × line B.2)			11.25 NM
+            			
+
+
+           C       Probable search facility position error (Y)
+           1	Navigational fix error
+              (from table N-1 or N-2)			 0.1 NM
+            			
+
+           2	Dead reckoning (DR) error rate
+              (from table N-3)			                                                                              %
+
+           3       DR distance since last fix			                                                               NM
+
+           4	DR navigational error
+              (line C.2 × line C.3)			                                                                         NM
+
+           5	Probable search facility position error (Y)
+              (Y = line C.1 + line C.4)			 0.1 NM
+            			
+
+
+
+           Q-8                                                                       IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 8                                                                                                          5/20/2016 3:18:46 PM
+                                                             Appendix Q – Sample problem
+
+
+                D     Total probable error of position (E)
+                1 Sum of squared errors
+                  (E2 = X2 + De2 + Y2)			1002.7 NM2
+                 			
+
+                2 Total probable error of position
+                         _____________
+                  (E = √
+                 			     X2 + De2 + Y2 ​)			
+                       ​                           31.67 NM
+
+
+
+
+                IAMSAR MANUAL VOLUME II                                            Q-9
+
+
+
+
+IF961E.indb 9                                                                      5/20/2016 3:18:46 PM
+           Appendix Q – Sample problem
+
+
+           Total available search effort (Zta) worksheet
+
+           Case title     F/V SAMPLE                                   Case number      00-001 Date  26 JAN 2000
+                           SAR SCHOOL
+           Planner’s name 									                                    Datum number         1                    BC A
+                                                                                                    Search plan A
+
+           Datum           37-48.7 N                065-26.3 W     Datum        37-39.6 N                   064-40.5 W
+           (left)            Latitude                  Longitude     (right)         Latitude                    Longitude
+
+                          Medium displacement fishing vessel
+           Search object 											                                                    Date/time 261630Z JAN 2000
+
+           Total available effort computations
+                                                                                        1           2       3         4       5
+            1       Search sub-area designation                                        A-1      A-2                   
+            2       Search facility assigned                                        C-130
+                                                                                          P-3                         
+            3       Search facility speed(V)                                          180 200                         
+            4       On-scene endurance                                                 3.0      4.0                   
+            5       Daylight hours remaining                                           7.5      7.5                   
+            6       Search endurance (T)
+
+
+                                             ○
+                    (T = 85% of lesser of line 4 or 5 above)                          2.55
+                                                                                           3.4                        
+            7       Search altitude (metres/feet)
+                    				 (circle one)                                                 500 1000
+                                                                                                                       
+            8       Uncorrected sweep width                                            5.0      5.1                   
+            9       Weather, terrain correction factor (fw, ft)                        0.9      0.9                   
+            10      Velocity correction factor (fv)
+                    (aircraft only)                                                    1.0      1.0                   
+            11      Fatigue correction factor (ff )                                    1.0      1.0                   
+            12      Corrected sweep width (W)                                          4.5      4.6                   
+            13      Search effort (Z = V × T × W)                                 2,065.5
+                                                                                         3,128
+                                                                                                                       
+            14      Total available search effort (Zta = Za1 + Za2 + Za3 + ...)                            5,193.5       NM2
+            15      Separation ratio (SR) (leeway divergence datums only)
+                    (from line H.3 of the Datum worksheet)                                                      1.18
+            16      If the separation ratio (SR) on line 15 is greater than four (SR > 4), go to the Widely diverging datums
+                    worksheet. Otherwise, go to the Effort allocation worksheet.
+
+
+
+
+           Q-10                                                                            IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 10                                                                                                                    5/20/2016 3:18:46 PM
+                                                                                                         Appendix Q – Sample problem
+
+
+                 Effort allocation worksheet for optimal search of single point,
+                 leeway divergence or line datums
+
+                 Case title    F/V SAMPLE                                      Case number      00-001 Date  26 JAN 2000
+                                 SAR SCHOOL
+                 Planner’s name 									                                     Datum number           1     Search plan A B C  A
+
+                 Datum         37-48.7 N              065-26.3 W          Datum         37-39.6 N                   064-40.5 W
+                 (left)          Latitude                 Longitude         (right)           Latitude                   Longitude
+
+                                Medium displacement fishing vessel
+                 Search object 											                                                      Date/time  261630Z JAN 2000
+
+                 Effort allocation computations
+                 Available search effort (Zta, Za(left), or Za(right))
+                 1
+                 (from line 14 of the Total available search effort worksheet or
+                 			
+                 line 5.a or line 5.b of the Widely diverging datums worksheet)		 5,193.5 NM2
+                 2 Effort factor (fZ)
+                  			
+                   a     Total probable error of position (E)			 31.66 NM
+                         b    Length of datum line (L)			                                                                         NM
+                 c Effort factor (fZ) (fZp = E2 or fZl = E × L)			
+                 			                                               1002.7 NM2
+                  Relative effort (Zr = Za /fz)			 5.18
+                 3			
+                  Cumulative relative effort (Zrc = previous Zrc + Zr)			
+                 4			                                                     5.18
+                 5		
+                  Optimal search factor (fs)                                 Ideal           Normal X           (fs)       1.1
+                  Optimal search radius (Ro = fs × E)			34.83 NM
+                 6			
+                  Optimal search area (Ao)			 7,464 NM2
+                 7			
+                         a    Single point datum (Ao = 4 × Ro2)
+                         b    Leeway divergence datums [Ao = (4 × Ro2) + 2 × Ro × DD)]
+                         c    Line datum (Ao = 2 × Ro × L)
+
+                  Optimal coverage factor (Co = Za /Ao)			 0.70
+                 8			
+
+                                                                                                 1         2        3         4        5
+                 9       Optimal track spacing (So = W/Co)                                    6.45
+                                                                                                  6.45
+                                                                                                                               
+                 10      Nearest assignable track spacing (S)
+                         (within limits of search facility navigational capability)             6.5       6.5                 
+                 11      Adjusted search areas (A = V × T × S)                             2983.5
+                                                                                                 4420
+                                                                                                                               
+
+                  			
+                 12 Total adjusted search area (At = A1 + A2 + A3 + ...)			 7,403.5 NM2
+                  			
+                 13 Adjusted search radius (R)			      __             34.7 NM
+                                                     √
+                                                     ​ At ​
+                    a    Single point datum    R =​ ____​
+                                                      2
+                                                       ______________
+                                                                              √​ DD
+                                                                                   
+                                                                                    2
+                                                                                      + (4 × At) ​ – DD
+                         b    Leeway divergence datums                     _________________
+                                                                        R =​                ​
+                                                                                          4
+                                                                                 A
+                         c    Line datum                                R = ____
+                                                                            ​  t ​
+                                                                               2×L
+
+
+                 IAMSAR MANUAL VOLUME II                                                                                             Q-11
+
+
+
+
+IF961E.indb 11                                                                                                                        5/20/2016 3:18:46 PM
+           Appendix Q – Sample problem
+
+
+           14      Adjusted search area dimensions
+            			
+            a Length		 Length 107 NM
+                        i)     Single point datum            Length = 2 × R
+                        ii)    Leeway divergence datums      Length = (2 × R) + DD
+                        iii)   Line datum                    Length of the Base Line (Lb)                     NM
+                               a)    No extensions           Length = Lb
+                               b)    One extension           Length = R + Lb
+                               c)    Two extensions          Length = (2 × R) + Lb
+            			
+            b Width = 2 × R		 Width 69 NM
+
+           15      Plot the adjusted search area on a suitable chart		                  (Check when done) 		
+
+           16	Divide the adjusted search area into search sub-areas
+               according to the values on line 11		                                     (Check when done)		
+
+           17      Go to the Search action plan worksheet.
+
+
+
+
+           Q-12                                                                            IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 12                                                                                                        5/20/2016 3:18:47 PM
+                                                                                                  Appendix Q – Sample problem
+
+
+                 Results of a Monte Carlo simulation using the
+                 F/V Sample data for the alpha search
+                                120
+
+                                100
+
+                                 80
+
+                                 60          Datum (left)
+                                 40
+
+                                 20
+
+                                  0                           IP                            Datum (right)
+
+                                –20
+
+                                –40
+
+                                –60
+
+                                –80
+
+                                      –100         –50             0              50       100           150
+
+                                              Monte Carlo simulation of F/V Sample – alpha search
+
+
+                         Area                   POC                    Coverage             POD                   POS
+
+                      7,343 NM2                 70.8%                    0.70              50.2%                 35.6%
+
+
+                 Green/light grey dots represent some of the possible initial search object locations. Blue/black and red/dark
+                 grey dots (nearly indistinguishable if printed in black-and-white) represent some of the possible search object
+                 locations at the commence search time. There are 500 dots of each colour. Only the blue and red dots inside
+                 the search rectangle were counted and used to estimate the probability of the search object being in the
+                 search area at the commence search time.
+
+
+
+
+                 IAMSAR MANUAL VOLUME II                                                                                 Q-13
+
+
+
+
+IF961E.indb 13                                                                                                            5/20/2016 3:18:47 PM
+IF961E.indb 14   5/20/2016 3:18:47 PM
+                Appendix R
+                Medical assistance at sea,
+                TMAS – TMAS Medical Information Exchange Form
+
+
+                Identification of the requiring TMAS
+
+                Name: 	�. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+                Address:. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .               Tel: ����������������������������������������������������������������������
+
+                	������������. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .          Fax: ����������������������������������������������������������������������
+
+                	������������. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .          Email:       ����������������������������������������������������������������
+
+
+
+                                                              Confidential medical information
+                                                               Medical Assistance at Sea
+                                                     TMAS – TMAS Medical Information Exchange Form
+
+                To: TMAS: ���������������������������������������������������������������������������������������������������������������������������������������������������
+
+                (via MRCC if necessary: ) �����������������������������������������������������������������������������������������������������������������������������
+
+                Date: . . . . . . . /. . . . . . ./. . . . . . .           Time: . . . . . . . h . . . . . . .         Physician: Dr�����������������������������������������
+
+
+                                                                                               Patient
+
+
+                Surname: . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .                .First name: ������������������������������������������������������������
+
+                Date of birth: . . . . ./. . . . . . . /. . . . . . Age:. . . . . .                   Sex: M □ F □
+
+                Nationality:. . . . . . . . . . . . . . . . . . . . . . . . . . . . . .               .Occupation on board: ������������������������������������������
+
+
+                                                                                 Medical circumstances
+
+
+                             □ Illness                   ��������������������������������������������������������������������������������������������������������������������������������������
+
+                             □ Accident                  ��������������������������������������������������������������������������������������������������������������������������������������
+
+                             □ Poisoning                 ��������������������������������������������������������������������������������������������������������������������������������������
+
+                             Since ��������������� ��������������������������������������������������������������������������������������������������������������������������������������
+
+
+
+                IAMSAR MANUAL VOLUME II                                                                                                                                        R-1
+
+
+
+
+IF961E.indb 1                                                                                                                                                                5/20/2016 3:18:47 PM
+           Appendix R – Medical assistance at sea, TMAS – TMAS Medical Information Exchange Form
+
+
+                                                                                                                                        Care on board
+                     Previous medical history                                  Ongoing treatments
+                                                                                                                                    before teleconsultation
+
+            ���������������������������������������������������� ���������������������������������������������������� ����������������������������������������������������
+            ���������������������������������������������������� ���������������������������������������������������� ����������������������������������������������������
+
+
+
+                                                                             Medical observation
+
+
+            Pulse: . . . . /min               BP: . . . ./ . . . . mmHg ���������������������������������������������������������������������������������������������
+
+            BR: . . . ./. . . .min            T: . . . . °C                     ���������������������������������������������������������������������������������������������
+
+            Weight: . . . . Kg
+                                                                                ���������������������������������������������������������������������������������������������
+            Height: . . . . m. . . .
+
+
+
+           Diagnosis(es) given: �������������������������������������������������������������������������������������������������������������������������������������
+           ��������������������������������������������������������������������������������������������������������������������������������������������������������������������
+           ��������������������������������������������������������������������������������������������������������������������������������������������������������������������
+           ��������������������������������������������������������������������������������������������������������������������������������������������������������������������
+
+
+
+
+           R-2                                                                                                                 IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 2                                                                                                                                                                      5/20/2016 3:18:47 PM
+                                               Appendix R – Medical assistance at sea, TMAS – TMAS Medical Information Exchange Form
+
+
+                Identification of the requiring TMAS
+
+                Name: 	�. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+                Address:. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .                Tel: ����������������������������������������������������������������������
+
+                	������������. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .           Fax: ����������������������������������������������������������������������
+
+                	������������. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .           Email:      ����������������������������������������������������������������
+
+                                                                                   Medical instructions
+
+                  ����������������������������������������������������������������������������������������������������������������������������������������������������������������
+                  ����������������������������������������������������������������������������������������������������������������������������������������������������������������
+                  ����������������������������������������������������������������������������������������������������������������������������������������������������������������
+
+
+                                                                              Medical assistance required
+
+                 Medical decision:
+                                                      □ Ship diversion to (port): ���������������������������������������������������������������������������������
+                                                        □ Ambulance
+                                                            Medical team: □ Doctor □ Nurse □ Paramedic
+
+                                                            □ Medical evacuation
+                                                                   MEDEVAC time frame:                   □ Immediate □ Daylight hours
+                                                      	MEDEVAC method:                              □ Land on □ Winch/stretcher □ Winch/strop
+                                                                   ���������������������������������������������������������������������������������������������������������������
+                                                                   Medical team:               □ Doctor □ Nurse □ Paramedic
+                                                      □ A ir drop of supplies:
+                                                            �����������������������������������������������������������������������������������������������������������������������
+                                                            �����������������������������������������������������������������������������������������������������������������������
+
+                                                      □Q
+                                                        uarantine situation
+                                                            �����������������������������������������������������������������������������������������������������������������������
+                                                            �����������������������������������������������������������������������������������������������������������������������
+
+
+                                                                                                Ship
+
+                Ship name:. . . . . . . . . . . . . . . . . . . . . . . . . . . . . .                  Call sign: ��������������������������������������������������������������
+
+                Type: 	���. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .              Flag: ��������������������������������������������������������������������
+
+                            Location :. . . . . . . . . . . . . . . . . . . . . . . . .
+
+                            Port of origin:. . . . . . . . . . . . . . . . . . . . . .                 Departure/DTG: ����������������������������������������������������
+
+                            Destination: . . . . . . . . . . . . . . . . . . . . . . .                 ETA/DTG:. ������������������������������������������������������������
+
+                Contact: ������������������������������������������������������������������������������������������������������������������������������������������������������
+
+
+
+                IAMSAR MANUAL VOLUME II                                                                                                                                        R-3
+
+
+
+
+IF961E.indb 3                                                                                                                                                                5/20/2016 3:18:47 PM
+           Appendix R – Medical assistance at sea, TMAS – TMAS Medical Information Exchange Form
+
+
+           Please send back all the available follow-up information to:
+
+           TMAS name:. . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+           Address:. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .        Tel: ����������������������������������������������������������������������
+
+           	������������. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .   Fax: ����������������������������������������������������������������������
+
+           	������������. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .   Email:      ����������������������������������������������������������������
+
+
+
+
+           R-4                                                                                                         IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 4                                                                                                                                                             5/20/2016 3:18:47 PM
+                Appendix S
+                Search planning for 121.5 MHz distress beacon alerts
+
+                1.	Searching for beacons is often difficult, and may be impossible without additional information.
+                    However, the methods in this appendix should be followed as practicable.
+                2.	Search planning for 121.5 MHz beacon alerts typically result from reports received from commercial
+                    aircraft flying at high altitude. The beacon could be located anywhere within a large search area.
+                    Reports might also be received via low-flying aircraft and ground stations. The methods that follow
+                    will help define and reduce beacon search areas. Maximum detection ranges for beacon signals are
+                    assumed to be limited by line of sight.
+                3.	Figure S-1 depicts the geometry when an aircraft receives a beacon signal, and shows labelling used in
+                    planning a search for the beacon. However, potential scenarios discussed in the cautionary notes below
+                    may limit the applicability of figure S-1 and should be taken into account when deemed appropriate.
+
+                Cautionary notes
+                Only a single report and reporting aircraft location might be received. Unless the aircraft can provide
+                additional information, the search area would have to be assumed to include the area within a single circle
+                centred on the reporting aircraft’s location.
+                Reports of first heard and last heard information may not be accurate. The person monitoring the radio may
+                not immediately hear or recognize the 121.5 MHz distress beacon swept tone, causing the reported time and
+                location to be incorrect.
+                     •     The beacon may have started transmitting after the reporting aircraft was already well within the
+                           maximum detection range, or the beacon may cease transmitting well before the aircraft is beyond
+                           the maximum detection range. Try to determine whether the signal: seemed strong when first
+                           acquired and then faded; was getting stronger and then abruptly ceased; or started suddenly, stopped
+                           suddenly, and seemed to be about the same strength the whole time it was heard. In such cases,
+                           the search planning procedure in this appendix should still work, although the overlapping area
+                           where the two circles intersect will be enlarged; the centres of the circles would be closer together
+                           than they would be if signal acquisition and loss were solely due to the reporting aircraft coming
+                           within and then moving beyond maximum detection range while the beacon was transmitting.
+                     •     As a part of the report data gathering process it should also be ascertained that the receiving radio
+                           was already on (did not receive the signal when it was first turned on) and that detection of the
+                           signal did not occur while squelch was being adjusted. These situations may occur when seeking
+                           reports from additional aircraft when they first turn on or adjust their radios to listen. In such cases,
+                           the position for the last heard point could be more useful that the position of when the beacon was
+                           first heard.
+                Reports from a single aircraft may occur at different altitudes or courses. Aircraft, particularly those under
+                instrument flight rules, may be ascending, descending and/or changing course according to their flight plan
+                and air route traffic control needs. The first heard and last heard reports could be from different altitudes or
+                on different courses. For a course change, knowing the turn point would allow drawing another range circle to
+                combine with the first heard and last heard generated range circles to more narrowly define the area. When
+                the reports occur at different altitudes, range circles should be drawn for each altitude to identify their intersect
+                points.
+
+
+                IAMSAR MANUAL VOLUME II                                                                                          S-1
+
+
+
+
+IF961E.indb 1                                                                                                                  5/20/2016 3:18:47 PM
+           Appendix S – Search planning for 121.5 MHz distress beacon alerts
+
+
+           The transmitting beacon antenna may have some height above sea level or above its surrounding terrain.
+           The height of the sending antenna should be added to the height of the radio receiver when estimating the
+           detection range.
+
+           In areas involving an island, the island should be considered as a possible forced landing site. The first
+           heard and last heard positions may be affected by the forced landing site’s altitude and the terrain surrounding
+           the site, which could block the signal in some directions.
+
+           The radio horizon range circle may cross land. The altitude of the reporting aircraft should be assumed to be
+           the aircraft altitude above that elevation of the terrain at the lowest land horizon rather than above sea level,
+           as discussed below in this appendix.
+
+           The detected beacon may be aboard an in-flight aircraft, and the aircraft, course, speed or altitude could
+           change. The procedures in this appendix do not account for an in-flight beacon scenario, but the search
+           planner should be aware that apparently conflicting data or unexpected search planning outcomes could be
+           caused by this situation.
+
+
+
+
+                  Aircraft
+                flight path
+
+                                                                                                    Reporting aircraft
+
+
+
+
+                      Figure S-1 – Geometry where reporting aircraft passes within reception range of beacon signal
+
+
+           Search planning procedure
+           4.           Record reported data. Use table S-1 to record data received about a transmitting 121.5 MHz beacon.
+                        Of all data collected about the beacon signal, the position and height of the receiving antenna for
+                        points first heard (PFH) and last heard (PLH) are most important.
+                        Note: Obviously, reports from multiple sources can help substantially in narrowing down the search
+                        area for a 121.5 MHz beacon. The SAR mission co-ordinator (SMC) should use all reports, and also
+                        solicit additional reports from other aircraft in the area, either directly or via the appropriate flight
+                        services as appropriate. Aircraft should be asked to report their own altitudes and positions where
+                        the signal was first heard, when the maximum signals were heard, and when the signal faded or was
+                        lost. Flight services, communications authorities, maritime SAR authorities or others might also be
+                        able to obtain fixes or bearings on activated beacons. When receiving multiple reports, consider the
+                        possibility that more than one activated 121.5 MHz beacon might be heard. The authorities might also
+                        be able to help locate and silence an inadvertently activated beacon.
+
+           5.           Plot the reporting aircraft track. Use a rhumb line or great circle navigation depending on the track
+                        being followed by the reporting aircraft, as depicted in figure S-2.
+                        Note: The geographic area used as an example in figures S-2, S-3, S-4, S-5, S-8 and S-10 is Hawaii and
+                        the surrounding area. The illustration shows a Lockheed C-130 search aircraft from Air Station Barbers
+                        Point in response to a report from an aircraft at high altitude, but similar plots could be developed for
+                        any area and other situations.
+
+
+           S-2                                                                                  IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 2                                                                                                                       5/20/2016 3:18:48 PM
+                                                           Appendix S – Search planning for 121.5 MHz distress beacon alerts
+
+
+                                             Table S-1 – 121.5 MHz beacon alert report data
+
+                                                                                     Aircraft
+                                                                Position                              Course
+                              Point        Date-time                               altitude (h)
+                                                         (latitude/longitude)                      (degrees true)
+                                                                                        (ft)
+                                PFH                              N/S
+                           (first heard)                         E/W
+                               PLH                               N/S
+                           (last heard)                          E/W
+
+
+
+
+                                                    Figure S-2 – Plot of PFH and PLH
+                6.   Plot the radio horizons. Compute and plot the distance to the radio (VHF/UHF) horizon for the
+                     reporting aircraft at PFH and PLH.
+                     (a)   The radio horizon distance is estimated using table S-3 at the end of this appendix or by using
+                           the following equation:
+                                              __
+                                 d = 1.23 x √ h
+                           where:
+                                 h is the antenna height in feet above the water (e.g., mean sea level) or above ground level
+                                 (AGL); and
+                                 d is the radio horizon distance (reception range) for the reporting aircraft in nautical miles
+                                 (NM).
+                     (b)   Use table S-3 and its associated equations to determine the radio range to the horizon from a
+                           receiving antenna at various altitudes, where the altitude is measured above mean sea level (MSL)
+
+
+                IAMSAR MANUAL VOLUME II                                                                                     S-3
+
+
+
+
+IF961E.indb 3                                                                                                            5/20/2016 3:18:48 PM
+           Appendix S – Search planning for 121.5 MHz distress beacon alerts
+
+
+                        in oceanic environments. If the elevation of the horizon varies in different directions from the
+                        aircraft, perfect circles will not accurately represent the potential areas containing the beacon.
+                        The conservative approaches are as follows:
+                        •     when the horizon is only partly over an oceanic area, plot a circle using altitude above
+                              MSL;
+                        •     when the horizon is entirely over land, use the above ground level (AGL) altitude, where
+                              AGL is the altitude of the reporting aircraft above the elevation of the horizon at its lowest
+                              point; and
+                        •     be aware that over jungle areas, mountainous terrain, or where similar signal obstructions
+                              exist, the radio detection range may be as little as one-tenth of the horizon range (in
+                              mountainous terrain or areas covered with dense vegetation, the range of the signal will be
+                              reduced considerably compared to the range over water or flat land as discussed in section
+                              5.6 of this Manual).
+                   c.   Record the results in table S-2 below.
+
+                                                 Table S-2 – Radio horizon distance
+
+                                                         Aircraft         Radio horizon
+                                            Point      altitude (h)        distance (d)
+                                                            (ft)               (NM)
+                                            PFH
+                                            PLH
+
+                   d.   Draw circles centred on the PFH and PLH with a radius equal to the computed radio horizon
+                        distance for each point at the given altitude for each as recorded in table S-2 (shown in figure S-3).
+
+
+
+
+                             Figure S-3 – Plot of computed radio horizon distances for PFH and PLH
+
+
+
+           S-4                                                                              IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 4                                                                                                                    5/20/2016 3:18:48 PM
+                                                            Appendix S – Search planning for 121.5 MHz distress beacon alerts
+
+
+                7.   Plot the intersect line. The circles should intersect in two places. Draw a line between the two
+                     points where the circles intersect. This line will bisect the line connecting PFH and PLH positions as
+                     indicated in figure S-4.
+
+
+
+
+                                                   Figure S-4 – Plot of the intersect line
+
+
+
+
+                8.   Plan the search. With only a single report from a high-flying aircraft and the associated long distances,
+                     large search areas will result and search options will be limited.
+                     (a)   Generally, with a single report, an electronic search will be needed to attempt to reacquire and
+                           home on the beacon signal. An electronic search can often be accomplished reasonably fast
+                           with a single aircraft SAR unit (SRU) search track.
+                     (b)   The aircraft SRU should proceed to the nearest point where the two circles intersect and then
+                           fly at a high altitude to the other point where the two circles intersect as illustrated in figure S-5.
+                           This should allow the beacon signal to be detected so the SRU can home on it.
+                           Note: The other two legs of the triangle are flight from the base to commence search point (CSP)
+                           and also return to base from the second intersection point/end of the intersect line.
+                     (c)   The area where the two circles overlap could also be covered with a multi-leg track line pattern.
+                           This might be necessary if the maximum altitude of the SRU limits its detection range to less than
+                           half the width of the overlapping area of the two circles. A parallel sweep or creeping line search
+                           pattern could also be used as discussed in section 5.6 of this volume of the IAMSAR Manual.
+
+
+
+
+                IAMSAR MANUAL VOLUME II                                                                                        S-5
+
+
+
+
+IF961E.indb 5                                                                                                               5/20/2016 3:18:48 PM
+           Appendix S – Search planning for 121.5 MHz distress beacon alerts
+
+
+
+
+                         Figure S-5 – Aircraft SRU search down the intersect line at an altitude of 10,000 ft
+                                                with a radio horizon range of 123 NM
+
+
+
+           9.      Reporting aircraft position. When the reporting aircraft passes directly over or nearly over the beacon
+                   position as shown in figure S-6, the search aircraft may proceed along the reporting aircraft’s trackline.
+                   This special case is indicated when the distance over which the beacon was heard is twice (or nearly
+                   so) the radio horizon distance (d). However, if the reporting aircraft was not near the beacon position
+                   and the search aircraft’s altitude is substantially lower than the reporting aircraft’s altitude, a simple
+                   trackline electronic search may provide inadequate coverage to detect the beacon signal.
+                   (a)   As shown in figures S-7 and S-8, with the reporting aircraft at 30,000 ft and the search aircraft
+                         at 10,000 ft, two primary locations would be missed by a search along the reporting aircraft’s
+                         track; even a search at 20,000 ft would not cover the entire area.
+                   (b)   In most situations it would be best to search along the intersect line (figures S-5 and S-9), with
+                         the search aircraft at 10,000 ft.
+                   (c)   If searching along and perpendicular to the track does not succeed, a decision will be needed
+                         on if conducting a multiple leg track search is warranted based on all available information.
+
+
+
+
+           S-6                                                                             IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 6                                                                                                                   5/20/2016 3:18:48 PM
+                                                                        Appendix S – Search planning for 121.5 MHz distress beacon alerts
+
+
+
+
+                                              PFH            P1                         PLH
+                           Aircraft                                           d
+                         flight path                  d                P2
+                                                                                                               Reporting aircraft
+
+
+
+
+                where:
+                          PFH = point first heard
+                          PLH = point last heard
+                          d     = horizon distance for radio reception at a given height of antenna (aircraft altitude)
+                          P1    = intersect position one
+                          P2    = intersect position two
+
+                                       Figure S-6 – Basic geometry for special case where reporting aircraft passes
+                                                            directly over the beacon position
+
+
+
+
+                                                                  P1
+
+
+
+
+                                                                                                          d
+
+                                                    PFH                           PLH               Search
+                   Aircraft
+                 flight path
+                                                                                                    aircraft
+                                                                                                               Reporting aircraft
+                      Search
+                      aircraft
+                       radio
+                    sweep width
+                                                                  P2
+
+
+                where:
+                          PFH = point first heard
+                          PLH = point last heard
+                          d     = horizon distance for radio reception at a given height of antenna (aircraft altitude)
+                          P1    = intersect position one
+                          P2    = intersect position two
+
+                                 Figure S-7 – Search aircraft at lower altitude than reporting aircraft – same track;
+                                                              beacon signal not heard
+
+
+
+
+                IAMSAR MANUAL VOLUME II                                                                                                S-7
+
+
+
+
+IF961E.indb 7                                                                                                                       5/20/2016 3:18:48 PM
+           Appendix S – Search planning for 121.5 MHz distress beacon alerts
+
+
+
+                                            121.5 MHz beacon electronic search
+                                            A/S Barbers Point C-130; 10,000 FT
+
+
+
+
+                                                                                 180,00 NM / 060 T
+
+
+
+
+                                                                                   387,84 NM / 150 T
+
+
+
+
+                                    Figure S-8 – Search aircraft at 10,000 ft, reporting aircraft
+                                       at 30,000 ft – same track; beacon signal not heard
+
+
+
+
+           S-8                                                                                       IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 8                                                                                                                  5/20/2016 3:18:49 PM
+                                                                   Appendix S – Search planning for 121.5 MHz distress beacon alerts
+
+
+                                                      Search aircraft
+                                                          radio
+                                                       sweep width
+
+
+                                                              P1
+
+
+
+
+                                                                                                    d
+
+                                               PFH                         PLH
+                   Aircraft
+                 flight path
+
+                                                                                                        Reporting aircraft
+
+
+
+
+                                                             P2
+                                                           Search
+
+
+                                                           aircraft
+
+
+
+                where:
+                          PFH = point first heard
+                          PLH = point last heard
+                          d     = horizon distance for radio reception at a given height of antenna (aircraft altitude)
+                          P1    = intersect position one
+                          P2    = intersect position two
+
+                                   Figure S-9 – Searching the intersect line by search aircraft at lower altitude
+                                                           than the reporting aircraft
+
+
+                10.       Visual search. If no beacon signal is detected by the search aircraft conducting an electronic search
+                          or by other high-flying aircraft, a visual search will usually be impractical based on a single report.
+                          A visual search may be practical when the report comes from a low-flying aircraft which results in a
+                          smaller search area. If no other information is available besides a single report, the SMC should follow
+                          the SAR agency’s guidance for responding to uncorrelated reports.
+                11.       Multiple Reports. Multiple reports make it easier to reduce the area of the probable location for
+                          the distress beacon. (This situation is very similar to uncorrelated distress calls on VHF-FM and the
+                          reception by multiple radio towers (without direction finding).)
+                          (a)   Plot each report; identify the intersections and areas of overlap of the pairs of radio horizon
+                                circles; and, eliminate those areas not covered by the multiple reports.
+                          (b)   Figure S-10 shows a plot of reports from two aircraft. The first report is from an aircraft at
+                                30,000 ft on a course of 060 degrees T, and the second report is from a descending aircraft on
+                                a course of 242 degrees T from 20,000 ft to 10,000 ft when the signal is last heard. (The smaller
+                                search area in this case would reduce the search time needed for an electronic search and could
+                                result in a reasonable visual search.)
+
+
+
+
+                IAMSAR MANUAL VOLUME II                                                                                          S-9
+
+
+
+
+IF961E.indb 9                                                                                                                 5/20/2016 3:18:49 PM
+           Appendix S – Search planning for 121.5 MHz distress beacon alerts
+
+
+
+
+                            Figure S-10 – Plot of PFH, PLH and respective radio horizon range circles;
+                                Hifly at 30,000 ft and course of 060 degrees T; Hifly2 at 20,000 ft
+                                     and descending to 10,000 ft and course of 242 degrees T
+
+
+
+
+           S-10                                                                        IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 10                                                                                                   5/20/2016 3:18:49 PM
+                                                      Appendix S – Search planning for 121.5 MHz distress beacon alerts
+
+
+                                              Table S-3 – Distance to radio horizon
+
+                                            Radio distance               Altitude                Radio distance
+                     Altitude in feet
+                                                (NM)                        (m)                      (km)
+                           500                    28                        152                        52
+                          1,000                   39                        305                        72
+                          2,000                   55                        610                       102
+                          3,000                   67                        914                       124
+                          4,000                   78                       1,219                      145
+                          5,000                   87                       1,524                      161
+                          6,000                   95                       1,829                      176
+                          7,000                  103                       2,134                      191
+                          8,000                  110                       2,438                      204
+                          9,000                  117                       2,743                      217
+                         10,000                  123                      3,048                       228
+                         11,000                  129                      3,353                       239
+                         12,000                  135                      3,658                       250
+                         13,000                  140                      3,962                       259
+                         14,000                  146                       4,267                      271
+                         15,000                  151                      4,572                       280
+                         16,000                  156                      4,877                       289
+                         17,000                  160                       5,182                      297
+                         18,000                  165                      5,486                       306
+                         19,000                  170                       5,791                      315
+                         20,000                  174                       6,100                      322
+                         21,000                  178                      6,400                       330
+                         22,000                  182                      6,706                       337
+                         23,000                  187                       7,010                      347
+                         24,000                  191                       7,315                      354
+                         25,000                  195                       7,620                      361
+                         26,000                  198                       7,925                      367
+                         27,000                  202                      8,230                       374
+                         28,000                  206                      8,534                       382
+                         29,000                  210                      8,839                       389
+                         30,000                  213                       9,150                      395
+                         31,000                  217                      9,450                       402
+                         32,000                  220                      9,754                       408
+                         33,000                  223                     10,058                       413
+                         34,000                  227                     10,363                       421
+                         35,000                  230                     10,668                       426
+                         36,000                  233                     10,973                       432
+                         37,000                  237                      11,278                      439
+                         38,000                  240                      11,582                      445
+                         39,000                  243                      11,887                      450
+                         40,000                  246                      12,192                      456
+
+
+
+
+                 IAMSAR MANUAL VOLUME II                                                                          S-11
+
+
+
+
+IF961E.indb 11                                                                                                    5/20/2016 3:18:49 PM
+IF961E.indb 12   5/20/2016 3:18:49 PM
+                Appendix T
+                Checklist for multiple aircraft SAR operations
+
+                Checklist for Multiple Aircraft SAR Operations. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .                          T-1
+                Example radio communications plan. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .                         T-2
+                ACO procedure form – Mass rescue operations. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .                               T-3
+                Briefings . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .      T-4
+                SAR aircraft entry and exit reports. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .                   T-5
+                Pilot Information File. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .            T-6
+
+
+
+
+                IAMSAR MANUAL VOLUME II                                                                                                                                  T-i
+
+
+
+
+IF961E.indb 1                                                                                                                                                         5/20/2016 3:18:49 PM
+IF961E.indb 2   5/20/2016 3:18:49 PM
+                Checklist for Multiple Aircraft SAR Operations
+                The Checklist below is for example purposes and for general guidance only. Each SAR operation is different
+                therefore not all of the items below might be needed and additional ones might be required. Some items might
+                also be carried out by different facilities and units from those indicated below.
+
+
+
+
+                Notes:
+                1. ‘X’ signifies action required or the receipt of information
+                2. For the purposes of this checklist, ‘SRU’ refers to aircraft involved in the SAR operation.
+
+
+
+
+                IAMSAR MANUAL VOLUME II                                                                                 T-1
+
+
+
+
+IF961E.indb 1                                                                                                         5/20/2016 3:18:49 PM
+           Appendix T – Checklist for multiple aircraft SAR operations
+
+
+           Example radio communications plan
+
+
+                       Ejemplo
+                       Exemplede deplan
+                                     plande
+                                          deradiocomunicaciones
+                                             communication       para
+                       aérienne concernant
+                       operaciones   SAR conles  opérations
+                                               varias        SAR
+                                                      aeronaves
+                       faisant intervenir plusieurs aéronefs
+
+                                                                                                     Fréquence désignée
+                                                                                                     Frecuencia designadapar
+                                                                                                                          porleel
+                                                                                                                               SMC/RCC
+                                                                                                                                  SMC/RCC
+
+
+                                                                                    ACO
+                                                                                    ACO                                                  SMC/RCC
+                                                                                                                                         SMC/RCC
+
+
+                          VHF ou
+                        Ondas       autre
+                                  métricas
+                            fréquence
+                        u otra  frecuencia
+                         designada par
+                          désignée    por
+                               l'OSC
+                              el  OSC
+
+                                                                                  Lugar
+                                                                                  THÉÂTRESAR
+                                                                                           DES
+                                                                              Comunicaciones
+                                                                               OPÉRATIONS SAR
+                                                   HÉLICOPTÈRES
+                                                  HELICÓPTEROS                 COMMUNICATIONS
+                                                                                 en el aire  en
+                                                                                EN VOL 123,1 MHz                       AÉRONEFS
+                                                                                                                       AERONAVESAR
+                                                                                                                                SAR
+                                                   DETRANSPORTE
+                                                  DE  TRANSPORT                    123,1 MH
+
+
+
+
+                                                                                                           CanalCANAL
+                                                                                                                 16 en 16 OU CANAL
+                                                                                                                        ondas      6 con
+                                                                                                                              métricas
+                                                                                                                  (VHFde
+                                                                                                          modulación   AM) THÉÂTREo canal 16
+                                                                                                                         amplitud
+                                                                                                                DES OPÉRATIONS SAR
+                                                                                                                    del lugar SAR
+
+                                        OSC
+                                        OSC
+                                                    PLATES-FORMES/NAVIRES
+                                                    PLATAFORMAS/BUQUES
+                                               EN DÉTRESSE  [OU DE
+                                                  NECESITADOS   PLATES-FORMES
+                                                                   SOCORRO                           BUQUES
+                                                                                               NAVIRES DE SURFACE
+                                                        DE RÉCEPTION]
+                                                (O PLATAFORMAS   RECEPTORAS)                     DE SUPERFICIE
+
+
+
+
+                                              Les images ci-dessus sont présentées uniquement àEstas  imágenes sólo sirven de ilustración
+                                                                                                titre d'illustration.
+
+
+
+
+           T-2                                                                                                  IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 2                                                                                                                                      5/20/2016 3:18:50 PM
+                                                       Appendix T – Checklist for multiple aircraft SAR operations
+
+
+                ACO procedure form – Mass rescue operations
+
+
+
+
+                IAMSAR MANUAL VOLUME II                                                                       T-3
+
+
+
+
+IF961E.indb 3                                                                                               5/20/2016 3:18:50 PM
+           Appendix T – Checklist for multiple aircraft SAR operations
+
+
+           Briefings
+           The ACO should ensure that the following information is briefed to the SAR aircraft after check-in and when
+           appropriate.
+
+
+
+
+           T-4                                                                       IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 4                                                                                                            5/20/2016 3:18:50 PM
+                                                                       Appendix T – Checklist for multiple aircraft SAR operations
+
+
+                SAR aircraft entry and exit reports
+                Aircraft entry report
+                The entry report should be given to ACO/RCC before entering the area of SAR action (at least 20NM/10
+                minutes flight time to casualty).
+                1.      Call sign
+                2.      Nationality
+                3.      Type (specify fixed-wing or helicopter and type)
+                4.      Position
+                5.      Altitude and altimeter setting
+                6.      Estimated Time of Arrival
+                7.      Endurance on scene
+                8.      Remarks (specific equipment or limitations)
+                9.      POB (crew, other personnel)
+                Example of entry report: “Air Coordinator, Lifeguard 901; one Swedish S-76 rescue helicopter; position 25 NM
+                south of Ronneby; 1500 ft. on QNH 1013; ETA holding point North 1015Z; Endurance on scene 2 hours; no
+                limitations, 4 crew on board”
+
+                Aircraft exit report
+                The exit report should be given to the ACO/RCC before leaving the area of SAR action.
+                1.      Call sign
+                2.      Persons on Board (crew, other personnel, rescued)
+                3.      Estimated Time of Arrival at destination
+                4.      Requirements at destination (fuel, medical care, food etc.)
+                5.      Estimated Time of Arrival back in operations area
+                6.      Remarks (e.g. Hoist position, weather, etc.)
+                Example of exit report: “Air Coordinator, Lifeguard 901; total POB 9, 4 crew and 5 rescued; ETA to EVAC
+                1230Z; Require fuel after landing; ETA back in area 1430Z; hoist position 5535.9N 01659E”
+
+
+
+
+                IAMSAR MANUAL VOLUME II                                                                                       T-5
+
+
+
+
+IF961E.indb 5                                                                                                               5/20/2016 3:18:50 PM
+           Appendix T – Checklist for multiple aircraft SAR operations
+
+
+           Pilot Information File
+
+
+
+
+           T-6                                                          IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 6                                                                                      5/20/2016 3:18:50 PM
+                Notes
+
+
+
+
+IF961E.indb 1   5/20/2016 3:18:50 PM
+           Notes
+
+
+
+
+IF961E.indb 2      5/20/2016 3:18:50 PM
+                Notes
+
+
+
+
+IF961E.indb 3   5/20/2016 3:18:50 PM
+           Notes
+
+
+
+
+IF961E.indb 4      5/20/2016 3:18:50 PM
+                Notes
+
+
+
+
+IF961E.indb 5   5/20/2016 3:18:50 PM
+           Notes
+
+
+
+
+IF961E.indb 6      5/20/2016 3:18:50 PM
+                Notes
+
+
+
+
+IF961E.indb 7   5/20/2016 3:18:50 PM
+           Notes
+
+
+
+
+IF961E.indb 8      5/20/2016 3:18:50 PM
+                Notes
+
+
+
+
+IF961E.indb 9   5/20/2016 3:18:50 PM
+           Notes
+
+
+
+
+IF961E.indb 10     5/20/2016 3:18:50 PM
+The Mission Co-ordination volume
+assists personnel who plan and co-ordinate SAR
+operations and exercises.
+

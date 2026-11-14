@@ -1,0 +1,2640 @@
+           Appendix I – SITREPs and MAREC Code
+
+
+           Maritime Search and Rescue Recognition Code (MAREC Code)
+
+           General
+           1       The purpose of this Code is to facilitate the communication of essential descriptive information
+                   regarding merchant vessels and small craft within and between maritime SAR services.
+           2       The MAREC Code is in two parts:
+                   ––    Part 1 – Merchant vessels
+                   ––    Part 2 – Small craft
+           3       All messages should be preceded by the prefix MAREC followed by a local serial number, assigned
+                   by the RCC.
+           4       The message should contain all the lettered identification groups as separate paragraphs. If the
+                   information is not known, the symbol UNK should be inserted or alternatively the symbol NA, where
+                   the lettered group is not applicable.
+           5       When sending Email, Fax, SMS or some other electronic messages, there is no guarantee that the
+                   recipient receives the message or that the message is being processed.
+
+           Part 1 – Merchant vessels
+           The message is composed of the following identification groups and will be transmitted in the following
+           sequence:
+                   MAREC – Local serial number
+                   A.    Type of vessel – name – call sign or ship station identity
+                   B.    Superstructure – location – colour
+                   C.    Hull profile – colour
+                   D.    Sequence of uprights
+                   E.    Length
+                   F.    Condition of loading
+                   G.    Other characteristics
+
+           A.      Type of vessel, name and call sign or ship station identity
+                   Merchant ships are classified as follows:
+                   Voice 		                      Electronic
+                   Passenger ship                PAX
+                   Ferry 		                      FERRY
+                   Tanker                        TANK
+                   Bulk carrier                  BULK
+                   General cargo ship            GEN
+                   Coaster                       COAST
+                   Fishing vessel                FISH
+                   Containership                 CONT
+                   Specialized ship              SPEC
+
+                   The name and call sign, or ship station identity, are added to the above classification.
+
+                   For specialized vessels, the specific type of vessel should also be given, as appropriate, e.g. gas carrier,
+                   tug, or icebreaker.
+
+
+           I-4                                                                              IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 4                                                                                                                     5/20/2016 3:18:23 PM
+                                                                                       Appendix I – SITREPs and MAREC Code
+
+
+                      Example:
+
+                      Voice: 		 	ALFA, SPECIALIZED SHIP GAS CARRIER, FLYING DRAGON, CHARLIE GOLF HOTEL
+                                  INDIA
+
+                      Electronic:   A/SPEC/GAS CARRIER/FLYING DRAGON, CGHI
+
+
+                B.    Superstructure: Location and colour
+
+                      Superstructures are referred to as being located forward, midships or aft or a combination of these
+                      positions, and may be described as long or short.
+
+                      Colour is given in plain language.
+
+
+
+
+                                                                                     midships and aft, white
+
+
+
+
+                                                                                     aft, white
+
+
+
+
+                                                                                     midships, yellow
+
+
+
+
+                      Example:
+
+                      Voice: 		     BRAVO, SUPERSTRUCTURE MIDSHIPS AND AFT, WHITE
+
+                      Electronic:   B/MIDSHIPS AND AFT/WHITE
+
+
+                C.    Hull profile and colour
+
+                      The hull profile is divided into three sections, numbered 1, 2 and 3 from stem to stern.
+
+
+
+                                                               1        2        3
+
+
+
+
+                      The existence or otherwise of raised sections (other than superstructures) above the main weather
+                      deck of the vessel should be reported numerically as follows:
+
+
+                IAMSAR MANUAL VOLUME II                                                                                 I-5
+
+
+
+
+IF961E.indb 5                                                                                                        5/20/2016 3:18:24 PM
+           Appendix I – SITREPs and MAREC Code
+
+
+
+
+                                             0                                           1/2/3
+
+
+                                             1                                            1/23
+
+
+                                            12                                               2
+
+
+                                            1/2                                              2/3
+
+
+                                            1/3                                              23
+
+
+                                            12/3                                              3
+
+                  The colour of the hull is given in plain language.
+                  Example:
+                  Voice: 			 CHARLIE, PROFILE ONE TWO SLANT THREE, BLACK
+                  Electronic:   C/12/3 BLACK
+
+
+           D.     Uprights
+                  Uprights include everything, other than the profile and superstructures, which is prominent and can
+                  clearly be seen at a distance. The uprights are reported from stem to stern according to the list below:
+                  Voice 		                  Electronic
+                  Mast 		                   M
+                  Kingpost                  K
+                  Funnel                    F
+                  Crane 		                  C
+                  Gantry                    G
+                  Uprights located close to a superstructure such that they cannot be clearly seen from a distance
+                  should not be included. Double kingposts located athwartships (perpendicular to vessel’s centreline)
+                  are reported as one kingpost.
+                  Example:
+                                                                  M
+                                                   M
+                                                                                         F
+                                                             K
+
+
+
+
+                  Voice: 			 DELTA, MAST, KINGPOST, MAST, FUNNEL
+                  Electronic:   D/M K M F
+
+
+
+
+           I-6                                                                          IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 6                                                                                                                5/20/2016 3:18:24 PM
+                                                                                        Appendix I – SITREPs and MAREC Code
+
+
+                E.      Length
+
+                        Length is the length overall (LOA) given in metres.
+
+                        Note: Length can be estimated by observing the vessel’s lifeboats, which are normally about 10
+                        metres long, in proportion to the ship’s length.
+
+                        Example:
+                        Voice: 			 ECHO, TWO ZERO METRES
+                        Electronic:   E/LOA 20
+
+
+                F.      Conditions of loading
+
+                        The conditions of loading are indicated as follows:
+
+                        Voice 		                  Electronic
+                        Light 		                  LIGHT
+                        In ballast                BALL
+                        Partially loaded          PART
+                        Fully loaded              LOAD
+
+                        Example:
+
+                        Voice: 			 FOXTROT, PARTIALLY LOADED
+
+                        Electronic:   F/PART
+
+
+                G.      Other characteristics
+
+                        Other prominent characteristics should be given, e.g., stack insignia, conspicuous deck cargo or other
+                        distinguishing marks or colour variations, e.g., name in big letters on vessel’s side or company insignia
+                        painted on side of hull. In the message, such specific characteristics should be given in full.
+
+                        Example:
+                        Voice: 			 GOLF, RAILROAD CARS ON DECK
+                        Electronic:   G/RAILROAD CARS ON DECK
+
+
+                Complete example
+                The following illustrates a typical merchant vessel and how it would be described in a message according to
+                this system.
+
+
+
+
+                IAMSAR MANUAL VOLUME II                                                                                       I-7
+
+
+
+
+IF961E.indb 7                                                                                                              5/20/2016 3:18:24 PM
+           Appendix I – SITREPs and MAREC Code
+
+
+           Voice:			MAREC, 1/10 RCC SWEDEN RESCUE
+                     ALFA, GENERAL CARGO SHIP, VIKING, ECHO SIERRA DELTA CHARLIE
+                     BRAVO, SUPERSTRUCTURE AFT, WHITE
+                     CHARLIE, PROFILE ONE SLANT THREE, BLACK
+                     DELTA, MAST, KINGPOST, MAST, MAST, FUNNEL
+                     ECHO, EIGHT FIVE METRES
+                     FOXTROT, LIGHT
+                     GOLF, NOT APPLICABLE
+           Electronic:	MAREC 1/10 RCC SWEDEN RESCUE
+                        A/GEN/VIKING/ESDC
+                        B/AFT/WHITE
+                        C/1/3/BLACK
+                        D/M K M M F
+                        E/LOA 85
+                        F/LIGHT
+                        G/NA
+
+           Part 2 – Small craft
+           The message is composed of the following identification groups and will be transmitted in the following
+           sequence:
+                   MAREC – Local serial number
+                   A.    Type of craft/number of hulls – name – call sign or ship station identity – use
+                   B.    Make – distinctive markings
+                   C.    Motor installation or rigging
+                   D.    Construction – material – colour
+                   E.    Stem – stern
+                   F.    Type of bottom
+                   G.    Length
+                   H.    Other characteristics
+                   I.    Number of persons on board
+
+           A.      Type of small craft/number of hulls, name, call sign or ship station identity and use
+                   Voice 		                   Electronic
+                   Motor open                 MOTO
+                   Motor part cabin           MOTPC
+                   Motor full cabin           MOTFC
+                   Rowing                     ROW
+                   Sailing open               SAILO
+                   Sailing part cabin         SAILPC
+                   Sailing full cabin         SAILFC
+                   Motor sail                 MOTSAIL
+                   Inflatable                 INFLAT
+                   Where the number of hulls is more than one, this should be indicated by adding the words or group
+                   as follows:
+                         Two hulls – Catamaran       CAT
+                         Three hulls – Trimaran      TRI
+
+
+           I-8                                                                           IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 8                                                                                                          5/20/2016 3:18:24 PM
+                                                                                      Appendix I – SITREPs and MAREC Code
+
+
+                      The craft’s name, call sign or ship station identity and use should be added to words or groups above.
+                      Under use indicate the purpose for which the craft is being used, e.g., fishing, pilot boat, or offshore
+                      racer.
+
+                      Example:
+
+                      Voice:				
+                                ALFA, MOTOR PART CABIN CATAMARAN, LUCKY LADY, NAVIS ONE THREE,
+                                PLEASURE
+
+                      Electronic:   A/MOTPC/CAT/LUCKY LADY/NAVIS 13/PLEASURE
+
+
+                B.    Make and distinctive markings
+
+                      The make and distinctive markings should be given in plain language.
+
+                      Example:
+
+                      Voice:				    BRAVO, MAKE STORTRISS, SAIL MARKINGS TWO OVERLAPPING TRIANGLES
+                                    
+                                    WITH POINTS UP AND NUMBER SIERRA ONE THREE EIGHT
+
+                      Electronic:   B/STORTRISS/SAILMARKINGS TWO OVERLAPPING TRIANGLES POINTS UP/S138
+
+
+                C.    Motor installation or sail rigging
+
+                      Motor installation
+
+                      The motor installation is given according to the figures shown below.
+
+                                                                         Voice                        Electronic
+
+                                                                         Outboard motor,              OUTB
+                                                                         if applicable, with
+                                                                         the addition
+                                                                         Double                       OUTB 2
+                                                                         or Triple                    OUTB 3
+
+
+
+                                                                         Inboard motor                INB
+
+
+
+
+                                                                         Aquamatic, if                AQUA
+                                                                         applicable, with
+                                                                         the addition
+                                                                         Double                       AQUA 2
+
+
+
+                      Rigging (sailing boats)
+                      Type of rigging is described on sailing boats and motor sailers according to the figures below.
+                      (If there is more than one mast, this is indicated by the appropriate number.)
+
+
+                IAMSAR MANUAL VOLUME II                                                                                    I-9
+
+
+
+
+IF961E.indb 9                                                                                                           5/20/2016 3:18:24 PM
+           Appendix I – SITREPs and MAREC Code
+
+
+                                                 Voice              Electronic
+
+
+
+
+                                                 Jib rig            JIB
+
+
+
+
+                                                 Sprit rig          SPRI
+
+
+
+
+                                                 Gaff rig           GAFF
+
+
+
+
+                                                 Lug sail           LUG
+
+
+
+
+                                                 Lateen rig         LAT
+
+
+
+
+                                                 Sloop rig          SLOOP
+
+
+
+
+           I-10                                              IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 10                                                                          5/20/2016 3:18:24 PM
+                                                                      Appendix I – SITREPs and MAREC Code
+
+
+                                                           Voice                    Electronic
+
+
+
+
+                                                           Junk rig                 JUNK
+
+
+
+
+                                                           Yawl                     YAWL
+
+
+
+
+                                                           Ketch                    KETCH
+
+
+
+
+                                                           Schooner                 SCHON
+
+
+
+
+                       Example 1:
+
+                       Voice: 			 CHARLIE, OUTBOARD MOTOR, DOUBLE
+
+                       Electronic:   C/OUTB 2
+
+
+                       Example 2:
+
+                       Voice: 			 CHARLIE, SLOOP RIG
+
+                       Electronic:   C/SLOOP
+
+
+                 IAMSAR MANUAL VOLUME II                                                             I-11
+
+
+
+
+IF961E.indb 11                                                                                      5/20/2016 3:18:25 PM
+           Appendix I – SITREPs and MAREC Code
+
+
+           D.      Construction – material – colour
+                   Construction
+                   Two different types of construction exist, viz. clinker-built and carvel-built or smooth-sided.
+                   Note: Some glass fibre boats are moulded to resemble clinker-built and should be so described in
+                   this Code.
+
+
+
+
+                                              Clinker                          Carvel
+
+                   Material
+                   The materials are wood, metal or glass-reinforced plastic (GRP). Construction, material and colour
+                   should be given in plain language.
+                   Example:
+                   Voice: 			 DELTA, CLINKER, GLASS FIBRE, WHITE
+                   Electronic:   D/CLINKER/GRP/WHITE
+
+
+           E.      Stem – stern
+                   Stem and stern are described according to the figures shown below.
+
+                                                        Voice                        Electronic
+
+
+
+
+                                                        Straight stem                STR
+
+
+
+
+                                                        Clipper stem                 CLIP
+
+
+
+
+                                                        Falling stem                 FALL
+
+
+
+
+           I-12                                                                            IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 12                                                                                                          5/20/2016 3:18:25 PM
+                                                                           Appendix I – SITREPs and MAREC Code
+
+
+
+
+                                                  Flat stern                FLAT
+
+
+
+
+                                                  Square stern              SQUARE
+
+
+
+
+                                                  Sharp stern               SHARP
+
+
+
+
+                                                  Canoe stern               CAN
+
+
+
+
+                                                  Transom stern             TRANS
+
+
+
+
+                                                  Negative transom stern    NTRANS
+
+
+
+
+                       Example:
+                       Voice: 			 ECHO, FALLING STEM, CANOE STERN
+                       Electronic:   E/FALL/CAN
+
+
+
+                 IAMSAR MANUAL VOLUME II                                                                  I-13
+
+
+
+
+IF961E.indb 13                                                                                           5/20/2016 3:18:25 PM
+           Appendix I – SITREPs and MAREC Code
+
+
+           F.      Type of bottom
+                   Type of bottom is described according to the figures shown below.
+
+                                                                 Voice                     Electronic
+
+
+
+                                                                 V-bottom                  VBOT
+
+
+
+
+                                                                 Flat bottom               FLAT
+
+
+
+
+                                                                 Round bottom              ROUND
+
+
+
+
+                                                                 Ribbed bottom             RIB
+
+
+
+
+                                                                 Keel                      KEEL
+
+
+
+
+                                                                 Fin-keel
+                                                                 (where double
+                                                                                           FIN
+                                                                 fin-keel, add the
+                                                                 word “double”)
+
+
+
+
+                                                                 Centre-board              CB
+
+
+
+
+                   Example:
+                   Voice: 			 FOXTROT, RIBBED BOTTOM
+                   Electronic:   F/RIB
+
+
+
+           I-14                                                                       IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 14                                                                                                   5/20/2016 3:18:25 PM
+                                                                                        Appendix I – SITREPs and MAREC Code
+
+
+                 G.    Length
+                       Length is the length overall (LOA) given in metres.
+                       Example:
+                       Voice: 			 GOLF, TWO ZERO METRES
+                       Electronic:   G/LOA 20
+
+                 H.    Other characteristics
+                       Other characteristics should be included to describe certain details that might facilitate identification,
+                       e.g., flying bridge or spinnaker sail colouring.
+                       Example:
+                       Voice: 		     HOTEL, RED SPINNAKER
+                       Electronic:   H/RED SPINNAKER
+
+                 I.    Number of persons on board
+                       Example:
+                       Voice: 			INDIA, THREE
+                       Electronic:   I/3
+
+
+
+
+                 IAMSAR MANUAL VOLUME II                                                                                    I-15
+
+
+
+
+IF961E.indb 15                                                                                                             5/20/2016 3:18:25 PM
+           Appendix I – SITREPs and MAREC Code
+
+
+           Complete example
+           Motorboat
+
+
+
+
+           Voice:			MAREC 3/10, RCC STAVANGER
+                     ALFA, MOTORBOAT PART CABIN, GALANT, NAVIS ONE THREE, PLEASURE
+                     BRAVO, MAKE SOLOE TWO FIVE
+                     CHARLIE, INBOARD MOTOR
+                     DELTA, CLINKER, GLASS FIBRE, WHITE
+                     ECHO, FALLING STEM, SQUARE STERN
+                     FOXTROT, V-BOTTOM
+                     GOLF, SEVEN AND A HALF METRES
+                     HOTEL, PULPIT FORWARD
+                     INDIA, UNKNOWN
+           Electronic:	MAREC 3/10 RCC STAVANGER
+                        A/MOTPC/GALANT/NAVIS 13/PLEASURE
+                        B/SOLOE/25
+                        C/INB
+                        D/CLINKER/GRP/WHITE
+                        E/FALL/SQUARE
+                        F/VBOT
+                        G/LOA 7.5
+                        H/PULPIT FORWARD
+                        I/UNK
+
+
+
+
+           I-16                                                      IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 16                                                                                  5/20/2016 3:18:25 PM
+                                                                     Appendix I – SITREPs and MAREC Code
+
+
+                 Complete example
+                 Sailing boat
+
+
+
+                                                          OR
+                                                         S 235
+
+
+
+
+                 Voice:			MAREC 4/10, RCC SWEDEN RESCUE
+                           ALFA, SAILING PART CABIN, ARABESQUE, NAVIS ONE TWO, PLEASURE
+                           BRAVO, MAKE VIVO TWO ZERO, SAIL MARKINGS LETTERS OSCAR ROMEO SIERRA TWO
+                             THREE FIVE
+                           CHARLIE, SLOOP RIG
+                           DELTA, CARVEL, WOOD, BLACK WITH WHITE CABIN
+                           ECHO, FALLING STEM, NEGATIVE TRANSOM STERN
+                           FOXTROT, KEEL
+                           GOLF, EIGHT METRES
+                           HOTEL, PULPIT FORWARD
+                           INDIA, TWO
+                 Electronic:	A/SAILPC/ARABESQUE/NAVIS 12/PLEASURE
+                              B/VIVO 20/OR S 235
+                              C/SLOOP
+                              D/CARVEL/WOOD/BLACK WITH WHITE CABIN
+                              E/FALL/NTRANS
+                              F/KEEL
+                              G/LOA 8
+                              H/PULPIT FORWARD
+                              I/2
+
+
+
+
+                 IAMSAR MANUAL VOLUME II                                                            I-17
+
+
+
+
+IF961E.indb 17                                                                                     5/20/2016 3:18:26 PM
+IF961E.indb 18   5/20/2016 3:18:26 PM
+                Appendix J
+                Intercepts
+
+
+                J.1     Types of intercepts
+                J.1.1   This appendix provides methods for solving most SAR intercept problems. Intercepts are needed
+                        when a distressed craft is still able to move toward a safe haven but there is substantial concern as to
+                        whether it will be able to reach safety before it suffers a catastrophic incident. SAR intercepts fall into
+                        two broad categories.
+                        (a)   Direct intercepts are those where the SAR facility intercepts the distressed craft at some point
+                              and then provides assistance, such as rescuing survivors, performing a medical evacuation,
+                              escorting the distressed craft to safety, etc. Three types of direct intercept are possible. They
+                              are the head-on, overtaking, and offset or beam-on intercepts. For direct intercepts, it is usually
+                              assumed that the SAR facility’s speed is greater than that of the distressed craft.
+                        (b)   Minimum Time To Scene Intercepts (MTTSI) are used when the SAR facility’s speed is less than
+                              that of the distressed craft. The objective of MTTSI is to launch a SAR facility and have it follow
+                              a path that will keep it in the best position relative to the distressed craft so that its transit time to
+                              the scene of any ensuing catastrophe (e.g., an aircraft ditching) will be minimised. An example of
+                              this situation is when a helicopter is dispatched toward an incoming fixed-wing aircraft that has
+                              declared an in-flight emergency. This type of intercept has also been called a “maximum SAR
+                              coverage intercept”.
+
+                J.1.2   The intercept procedures in this appendix may be used for either vessels or aircraft. Some of the
+                        examples and figures depict vessel intercepts and some depict aircraft intercepts. It should be noted
+                        that the higher speed of aircraft often requires more rapid calculation of the intercept course and speed.
+                        Intercept planners should also be aware that winds aloft may affect aircraft intercept calculations and
+                        water currents may affect vessel intercept calculations.
+
+                J.2     Head-on method
+                J.2.1   This method is used when the distressed craft is moving directly toward the SAR facility’s position. The
+                        instructions which follow refer to figure J-1. To establish the intercept course and time and position
+                        where the intercept will be made, proceed as follows:
+                        (a)   Plot the relative positions of both the distressed craft (A) and the intercepting SAR facility (B) for
+                              that time at which the intercepting SAR facility is ready to proceed.
+                        (b)   Join the two positions with a line (AB). This line is the course made good of the distressed craft
+                              and its reciprocal is the course made good of the intercepting SAR facility.
+                        (c)   Lay off a line 90° to the distressed craft’s course made good and project it a reasonable distance
+                              (AC).
+                        (d)   Along this line, measure off the distance it will cover in one hour, based on the speed it is
+                              making good, and mark the position with an X.
+                        (e)   Lay off a line 90° to the intercepting SAR facility’s course made good on the opposite side of AB
+                              and project it a reasonable distance (BD).
+
+
+                IAMSAR MANUAL VOLUME II                                                                                              J-1
+
+
+
+
+IF961E.indb 1                                                                                                                     5/20/2016 3:18:26 PM
+           Appendix J – Intercepts
+
+
+                   (f)   Along this line, measure off the distance the intercepting SAR facility will cover in one hour,
+                         based on the speed it can make good along its intended course, and mark the position with a Y.
+                   (g)   Join the positions X and Y with a line. Where it cuts the course line is the intercept position, P.
+                   (h)   To find the time for this intercept, measure the distance from the initial position of either craft to
+                         the position of intercept and divide this distance by the speed of the chosen craft.
+                                          C
+                                                                                              Speed 12 knots
+                                                                                                Track 260°
+                                                                                                       B
+                                                                                                           0900
+                                              X
+
+                                                                       P
+                                                                           1015
+
+
+                                                 0900
+                                                        A
+                                             Speed 8 knots                                                        Y
+                                              Track 080°        A and B 25 NM apart at 0900
+                                                                                                                      D
+
+                                                              Figure J-1 – Head-on method
+
+           J.3     Overtaking method
+           J.3.1   This method is used when the distressed craft is moving directly away from the SAR facility’s position.
+                   The instructions which follow refer to figure J-2. To establish the intercept course, and the time and
+                   position where the intercept will be made, proceed as follows:
+                   (a)   Plot the relative positions of both the distressed craft (A) and the intercepting craft (B) for that
+                         time at which the intercepting SAR facility is ready to proceed.
+                   (b)   Join the two positions with a line and project it a reasonable distance (BC). This line is the course
+                         made good of both craft.
+                   (c)   Lay off a line at 90° to the intercepting SAR facility’s course and project it a reasonable distance
+                         (BD).
+                   (d)   Along this line, measure off the distance the intercepting SAR facility will cover in one hour,
+                         based on the speed it can make good along its intended course, and mark the position with an X.
+                   (e)   Lay off a line at 90° to the distressed craft’s course and project it a reasonable distance (AE) on
+                         the same side as BD.
+                   (f)   Along this line, measure off the distance the distressed craft will cover in one hour, based on the
+                         speed it is making good, and mark the position with a Y.
+                   (g)   Join the positions X and Y with a line and project it until it cuts the course line at F. This is the
+                         intercept position.
+                   (h)   To find the time for the intercept, measure the distance from the initial position of either craft to
+                         the position of the intercept, and divide this distance by the speed of the chosen craft.
+                                             B                   1000 A                            F
+                                      1000          080°T                   080°T                                 C
+                                                                                                Intercept
+                                                                                                 position
+                                                                       Y
+                                         X
+                                             D
+                                                                      E
+
+                                                             Figure J-2 – Overtaking method
+
+
+
+           J-2                                                                                 IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 2                                                                                                                     5/20/2016 3:18:26 PM
+                                                                                                                                 Appendix J – Intercepts
+
+
+                J.4     Offset or beam-on intercept: method 1 (no wind/current effects)
+                J.4.1   This method is used when the distressed craft is not moving directly toward or away from the SAR
+                        facility’s position and the effects of winds aloft (for aircraft) or currents (for vessels) are not significant.
+                        When the distressed craft has the greater ground speed (GS), the SAR facility will have to be closest
+                        to the intended destination to make the offset interception possible. (Another technique that is often
+                        useful when the SAR facility is slower than the distressed craft is the Minimum Time to Scene Intercept
+                        (MTTSI) described in paragraph J.7.) The instructions which follow refer to figure J-3. To establish the
+                        intercept course, time of intercept, and position where the intercept will be made, proceed as follows:
+
+                        (a)   Plot the relative positions of both the distressed craft (A) and the intercepting SAR facility (B) for
+                              that time at which the intercepting SAR facility is ready to proceed.
+
+                        (b)   Join these two positions with a line (AB).
+
+                        (c)   Lay off the distressed craft’s track in the direction of its heading and project it a reasonable
+                              distance on the chart (AC).
+
+                        (d)   Along this projected track or course line of the distressed craft, measure off the distance it will
+                              cover in one hour, based on its speed through the air (TAS for aircraft) or water (vessels), and
+                              mark the position with an X.
+
+                        (e)   Transfer the line joining the two craft through the plotted position, X (XY).
+
+                        (f)   With the centre of the circle being the point of departure of the intercepting SAR facility and
+                              using a radius equal to the distance it will cover in the time interval used for the distressed craft,
+                              describe an arc and mark the spot where the arc cuts the transferred line (W).
+                              Note: If the speed of the intercepted or intercepting vessel is such that the scale of the chart
+                              makes it unreasonable to use a full hour, then it will be necessary to use a proportional interval
+                              of time to ensure that the radius of the arc cuts the transferred line.
+
+                        (g)   Draw a line from the position of the intercepting SAR facility through the spot where the arc cuts
+                              the transferred line — this is the intercept heading/course for the intercepting SAR facility. By
+                              projecting this line until it cuts the projected track or course line of the distressed craft, one finds
+                              the position where the intercept will take place (D).
+
+                        (h)   To find the time it will take for the intercept, measure the distance from the initial position of
+                              the intercepting vessel to the point of intercept and divide this distance by the speed of the
+                              intercepting vessel (BD).
+                                                         25′       30′               35′           40′       45′   50′
+                                                                                                                           10′
+
+
+                                                                                         1000
+                                                                                     A
+                                                                                 T
+
+
+
+
+                                                                                                                           5′
+                                                                             198
+
+
+
+
+                                                                         X
+
+
+                                                                                                                           51°
+
+                                                                                                                    1000
+                                                           Intercept                       ur se
+                                                           position    Intercept co                      W
+                                                                                                                    B
+                                                                             263T
+
+                                                                   D                                                       55′
+                                                                                                               Y
+                                                                               Y
+
+
+                                                               C
+
+
+
+                                                      Figure J-3 – Offset or beam-on intercept: method 1
+
+
+                IAMSAR MANUAL VOLUME II                                                                                                              J-3
+
+
+
+
+IF961E.indb 3                                                                                                                                     5/20/2016 3:18:26 PM
+           Appendix J – Intercepts
+
+
+           J.5     Offset or beam-on intercept: method 2 (with wind/current effects)
+           J.5.1   This method is used when the distressed craft is making good a known track at a known speed over
+                   the ground, the SAR facility is to one side of the track, and winds aloft (for aircraft) or currents (for
+                   vessels) are significant. When the distressed craft has the greater ground speed (GS), the SAR facility
+                   will have to be closest to the intended destination to make the offset interception possible. (Another
+                   technique that is often useful when the SAR facility is slower than the distressed craft is the Minimum
+                   Time to Scene Intercept (MTTSI) described in paragraph J.7.) To perform an offset interception (refer
+                   to figure J-4):
+                   (a)   Plot the simultaneous positions of the distressed aircraft (A) and the SAR aircraft (B). Along the
+                         course being made good by the distressed craft, plot its projected positions for ten minutes (C)
+                         and one hour and ten minutes (D) later. The ten-minute lead to the position of the distressed craft
+                         is allowed for navigational errors. Be certain to use speed (in knots) and course made good over
+                         the ground to plot these dead reckoning (DR) positions.
+                   (b)   Draw a line of constant bearing (LCB) between positions B and C.
+                   (c)   Draw a second LCB, parallel to BC, through point D.
+                   (d)   For aircraft, draw a wind vector downwind from the original position of the SAR facility (BF)
+                         which is equal to the average expected winds aloft. For vessels, draw a current vector in the
+                         down-current direction which is equal to the expected average currents.
+                   (e)   Draw an arc equal to the SAR facility’s speed (TAS for aircraft, speed through the water for
+                         vessels) through the second LCB using the end of the wind/current vector (F) as the centre of
+                         origin. Then draw a line between the origin (F) and the point where the SAR facility’s speed arc
+                         crosses the second LCB (G). This represents the heading to be used by the SAR facility.
+                   (f)   The line drawn from the original position of the SAR aircraft (B) to point G represents the
+                         intercepting SAR facility’s true course and speed made good over the ground. If necessary, this
+                         line is extended until it crosses the projected true course of the distressed craft (H).
+                   (g)   The distance to intercept the intended track of the distressed craft is measured between the
+                         original position of the SAR facility (B) and the point at which the interception course made good
+                         crosses the projected course made good of the distressed craft (H). The en route time for this
+                         distance and closure time for the lead distance are computed and added to determine total time
+                         required for a collision point intercept with the distressed aircraft.
+                   (h)   Depending on the speed differential, the SAR facility may execute a turn to the reciprocal of
+                         the track of the distressed craft when the course of the distressed craft has been intercepted.
+                         Interception of the course of the distressed aircraft can be confirmed by direction finding (DF)
+                         from the distressed craft.
+                                                     Distressed aircraft
+
+                                                                                                   G
+                                                                             0 + 10 DR
+                                                                        C
+                                                            A
+                                                                                                       1 + 10 DR
+                                                                                         H
+                                                                                                   D
+                                                                  1st LCB
+
+
+                                                                                 c
+                                                                              ar
+                                                                               S
+
+
+
+
+                                                                                         2nd LCB
+                                                                          - TA
+                                                                            GS
+                                                                       TG
+
+
+
+
+                                                            F
+
+                                                                    B
+                                                                                         E
+                                                   SAR aircraft
+
+                                        Figure J-4 – Offset or beam-on intercept: method 2 (not to scale)
+
+
+           J-4                                                                                          IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 4                                                                                                                      5/20/2016 3:18:26 PM
+                                                                                                           Appendix J – Intercepts
+
+
+                J.6     Offset or beam-on intercept: method 3 (using a direction finder)
+                J.6.1   This procedure requires that the SAR aircraft have DF equipment that can receive transmissions from
+                        the distressed aircraft, and is executed as follows (refer to figure J-5), using magnetic (MAG) bearings:
+                        (a)   After the bearing to the distressed aircraft has been determined, the SAR aircraft is turned to a
+                              heading 45° from this bearing in the direction the distressed aircraft is flying.
+                        (b)   A relative bearing of 45° is maintained by checking DF bearings.
+                        (c)   If the DF check reveals that the bearing from the SAR aircraft has increased, the interception
+                              course should be increased twice the amount of the change between the last two bearings.
+                        (d)   If the check reveals that the bearing from the SAR aircraft has decreased, the interception course
+                              should be decreased twice the amount of change between the last two bearings.
+                        (e)   By bracketing the bearings as described above, an interception course is determined by
+                              maintaining a line of constant bearing.
+
+
+                                          0440                       331° mag bearing
+                                                                                                            Track of
+                                                  4°                                                        distressed
+                                                                                                            aircraft
+                                                 0500                332° mag bearing
+                                                          2°
+
+                                                        0520
+
+
+
+
+                                                                             Point of
+                                                                          interception
+
+
+                                                       Figure J-5 – Offset or beam-on intercept: method 3
+
+                J.7     Minimum time to scene intercept (MTTSI)
+                        Introduction
+                J.7.1   When an aircraft declares an in-flight emergency, it is often prudent for search and rescue (SAR)
+                        resources to respond even though the distressed aircraft may be able to reach its destination. The
+                        purpose of such a response is to minimise the time required to get a search and rescue unit (SRU)
+                        to the scene in the event of a ditching, forced landing, or bailout. Ideally, the SRU would intercept
+                        the distressed aircraft and then escort it to its destination. However, this is not always possible.
+                        SRUs, especially helicopters, often cannot fly as fast as the distressed aircraft and have a limited
+                        endurance and operating distance. When this situation arises, it is necessary to determine when
+                        the SRU should be launched toward the distressed aircraft and when it should turn back toward the
+                        distressed aircraft’s destination so the SRU’s transit time to the scene of any ensuing SAR incident is
+                        minimised. This is accomplished by having the SRU fly toward the distressed aircraft, turn around
+                        before it intercepts the distressed aircraft, and then allow the distressed aircraft to overtake it as both
+                        fly toward the destination. Adding complexity to the problem is the fact that the SRU’s ground speed
+                        on the outbound leg may be significantly different from its ground speed on the inbound leg due to
+                        the effects of winds aloft. During the intercept, the distressed aircraft should be constantly informed
+                        of the type and the status of the interception being performed.
+
+                        Assumptions
+                J.7.2   The three formulas below are based on the following assumptions:
+                        (a)   The SRU will depart from and return to the aerodrome that is the distressed aircraft’s destination.
+
+
+                IAMSAR MANUAL VOLUME II                                                                                         J-5
+
+
+
+
+IF961E.indb 5                                                                                                                5/20/2016 3:18:26 PM
+           Appendix J – Intercepts
+
+
+                   (b)     The time it takes the SRU to get to the distressed aircraft’s position (time to scene) anytime after
+                           the SRU makes its turn will be minimised, on average, when the time to scene at the end of the
+                           SRU’s outbound leg equals the difference in the arrival times of the two aircraft at the destination
+                           aerodrome. An intercept procedure where this is true is called a Minimum Time To Scene
+                           Intercept (MTTSI).
+                   (c)     The distressed aircraft is not expected to be in immediate danger of ditching, crash landing, or
+                           bailout before it reaches the SRU’s maximum operating distance.
+                   (d)     The ground speeds of the SRU on the outbound and inbound legs and the ground speed of the
+                           distressed aircraft are all known and remain constant throughout the mission.
+                   (e)     The distressed aircraft’s ground speed will be greater than that of the SAR aircraft on the inbound
+                           leg.
+                   (f)     The position of the distressed aircraft is accurately known and it is proceeding from that location
+                           directly to the destination aerodrome.
+
+                   SRU maximum operating distance
+           J.7.3   The maximum operational endurance of the SRU is an important factor in determining how far it may
+                   go from the aerodrome and still have enough fuel to provide some assistance to survivors and return
+                   safely. Maximum operational endurance is defined as the maximum endurance of the SRU minus the
+                   sum of the minimum useful time on scene and the required fuel reserve. For example, a helicopter
+                   might have a maximum endurance of 4+30 (four hours, thirty minutes). If the minimum useful time at
+                   the scene is 10 min and a 20 min fuel reserve is required, then its maximum operational endurance is
+                   4+00 or exactly four hours. To compute the maximum operating distance, the following formula may
+                   be used:
+                                     (​T​mo​​​Va1
+                                               ​ ​Va2
+                                                   ​ ​)
+                   [1]		   Dmo = _________
+                                  ​                     ​
+                                          ​ ​+​Va2
+                                        ​Va1      ​ ​
+                   where:
+                           Dmo = The SRU’s maximum operating distance in nautical miles,
+                           Tmo = The SRU’s maximum operational endurance in hours,
+                           Va1     = The SRU’s ground speed on the outbound leg in knots, and
+                           Va2 = The SRU’s ground speed on the inbound leg in knots.
+
+                   For example, if the helicopter mentioned above cruises at 150 knots true air speed (TAS) and there is
+                   a 25 knot wind at the helicopter’s flight level blowing toward the distressed aircraft, then the SRU’s
+                   ground speeds will be 175 knots on the outbound leg and 125 knots on the inbound leg. Using these
+                   values in formula [1], a maximum operating distance of about 292 NM is computed.
+                          4 × 175 × 125
+                         ____________
+                   		​        ​ = 291.67}
+                            175 + 125
+                   Time to launch the SRU
+           J.7.4   If the distressed aircraft is beyond the SRU’s maximum operating distance when the emergency is
+                   declared, the time to launch the SRU may be computed using the following formula:
+
+                   [2]		T0 = ​ __   [        ​V ​2a1​​+ 2​Va1
+                               ​  D ​– Dmo ​  ______________
+                                  Vb
+                                                   ​  ​
+                                                ​Va1
+                                                                 ​ ​ + ​Va2
+                                                                                 ]
+                                                                          ​ ​​Vb​ ​
+                                                                  ​ ​ + ​Va2
+                                                    ​ ​ ​Vb​ ​(​Va1        ​ ​)
+                   where:
+                           T0 = The time to launch in minutes after the emergency was declared,
+                           D =	The distance, in nautical miles, of the distressed aircraft from the aerodrome when the
+                               emergency was declared,
+                           Vb = The ground speed of the distressed aircraft in knots.
+
+
+           J-6                                                                              IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 6                                                                                                                     5/20/2016 3:18:27 PM
+                                                                                                         Appendix J – Intercepts
+
+
+                        For example, consider a scenario where the distressed aircraft declares an emergency when it is
+                        600 miles from its destination while maintaining a ground speed of 200 knots, and the SRU is the
+                        same helicopter used in the above examples. Using these values in formula [2], it will be found that
+                        the helicopter should not be launched until about 14 min after the emergency was declared.
+
+                               [600
+                        		​60 ​ ____
+                                200
+                                                   ​175​2​ × 2 × 175 + 125 × 200
+                                    ​ – 291.67 ×______________________
+                                                 ​     ​ ​= 14.375
+                                                   
+                                                     175 × 200 × (175 + 125)       ]
+                        Note: If formula [2] produces a negative value for T0, it means the distressed aircraft is already close
+                        enough for the SRU to be launched immediately.
+                        Note: If it is feared that the distressed aircraft is likely to experience a ditching, forced landing, or
+                        bailout situation as soon as it is within the SRU’s maximum operating distance or shortly thereafter,
+                        then a direct intercept at the SRU’s maximum operating distance should be considered. The risk
+                        associated with this tactic is that of substantially increasing the SRU’s time to scene if the distressed
+                        aircraft stays aloft longer than expected. If a second SRU is available, this risk can be eliminated by
+                        having it perform a MTTSI intercept in addition to the direct intercept performed by the first SRU.
+
+                        Time to turn
+                J.7.5   Once the distressed aircraft’s distance from the aerodrome at the time the SRU is launched is known,
+                        it is possible to compute how long the SRU should fly before turning back toward the aerodrome. The
+                        formula for this computation is
+                                                  60​D​0​​Va2     ​ ​+V
+                                                           ​ ​(​Va1    ​ b​ ​)
+                        [3]		   Ta1 = ___________________
+                                       ​    
+                                                                                        ​
+                                         ​Vb​ ​(​V ​a1 ​+ 2​Va1
+                                                   2
+                                                                   ​ ​+V
+                                                              ​ ​​Va2    ​ a2​ ​​Vb​ ​)
+                        where:
+                             Ta1   =	The time in minutes after launch when the SRU should turn back toward the aerodrome,
+                                      and
+                             D0    =	The distressed aircraft’s distance, in nautical miles, from the aerodrome at the time the
+                                      SRU was launched.
+                        For example, using the same ground speeds as in the previous examples and assuming the distressed
+                        aircraft is 500 NM from the aerodrome when the SRU is launched, using formula [3] produces a time
+                        to turn of about 71 min after launch.
+                                  60 × 500 × 125 × (175 + 200)
+                        		​ ________________________________
+                                
+                                                                        ​ = 70.75
+                            200 × (​175​2​ + 2 × 175 × 125 + 125 × 200)
+                        Note: In any intercept situation, the SAR Mission Co-ordinator (SMC) should consider other facilities
+                        to supplement the capabilities of the intercepting SRU. For example, if the intercept is over the ocean,
+                        requesting a list of merchant vessels near the distressed aircraft’s intended track from Amver should
+                        be considered. If time and circumstances permit, the pilot of the distressed aircraft should be provided
+                        such information in case a ditching becomes necessary.
+
+
+
+
+                IAMSAR MANUAL VOLUME II                                                                                       J-7
+
+
+
+
+IF961E.indb 7                                                                                                              5/20/2016 3:18:27 PM
+IF961E.indb 8   5/20/2016 3:18:27 PM
+                Appendix K
+                Determining datum
+
+                Guidance for establishing probable survivor location. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .                        K-1
+                Aeronautical drift worksheet. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .            K-6
+                Aeronautical drift worksheet instructions. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .                 K-8
+                Average wind aloft (AWA) worksheet . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .                  K-10
+                Average wind aloft (AWA) worksheet instructions . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .                       K-11
+                Datum worksheet (marine environment) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .                    K-13
+                Datum worksheet (marine environment) instructions. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .                          K-15
+                Average surface wind (ASW) worksheet . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .                    K-19
+                Average surface wind (ASW) worksheet instructions. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .                         K-20
+                Total water current (TWC) worksheet . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .                K-22
+                Total water current (TWC) worksheet instructions. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .                      K-23
+                Wind Current (WC) worksheet . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .              K-26
+                Wind current (WC) worksheet instructions . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .                   K-27
+                Leeway (LW) worksheet . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .          K-28
+                Leeway (LW) worksheet instructions. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .                K-29
+                Total probable error of position (E) worksheet for land and marine
+                environments . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .   K-31
+                Total probable error of position (E) worksheet instructions. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .                       K-33
+
+
+
+
+                IAMSAR MANUAL VOLUME II                                                                                                                             K-i
+
+
+
+
+IF961E.indb 1                                                                                                                                                    5/20/2016 3:18:27 PM
+IF961E.indb 2   5/20/2016 3:18:27 PM
+                Guidance for establishing probable survivor location
+
+                K.1     General
+                K.1.1   As soon as it is known or suspected that a distress incident has occurred, the SMC must first determine
+                        the time and location of the distress as accurately as possible. Sometimes a complete and accurate
+                        time and position are given with the initial report. Often, however, only partial information or a few
+                        clues are available from which to estimate the time and place of the distress incident.
+                K.1.2   Whenever a craft is missing and believed to be in distress, the SMC should make every effort to obtain
+                        additional information and clues which, when analysed, will reduce the size of the area most likely to
+                        contain the survivors and point to a small area that has a high probability of containment (POC) value.
+                        Additional information and clues may include any information received from the distressed craft prior
+                        to the distress incident or observations by other persons which might be related to the distressed craft
+                        or the conditions that led to the distress incident. The effort to obtain more information and clues
+                        should continue until all the survivors have been located or otherwise accounted for.
+                K.1.3   The following sections describe how to estimate the time and location of the distress incident in a few
+                        of the more common SAR situations. SMCs should note that the specific scenarios discussed below
+                        are only a small sample of the possible situations which may be encountered. Many of the techniques
+                        described below may be adapted to other situations not covered here.
+
+                K.2     Estimating distress incident time and location
+                        Complete time and position reported
+                K.2.1   When apparently complete and accurate time and position information about a distress incident
+                        are provided, the SMC should immediately plot the position and check for any obvious errors. If the
+                        position is not obviously inconsistent with other known information, the SMC should immediately
+                        contact and dispatch the most suitable available facilities. As soon as this has been done, steps
+                        should be taken to verify the position and reduce its uncertainty. The uncertainty in the reported
+                        position will depend upon the method(s) used to determine it. Appendix N contains guidance for
+                        estimating probable position errors. If there is continued contact with the distressed craft, its crew
+                        should be asked to report any visible landmarks or other information from a second source, such as
+                        an alternative means of navigation, to confirm the craft’s location. If this is not possible, then a more
+                        careful comparison of the reported position with all other known information that might be pertinent
+                        should be done. For example, if the initial report was from a vessel sinking in a storm, the position
+                        should be compared with the latest available weather information for the reported time and location
+                        of the distress. Any inconsistencies which are found must be resolved as quickly as possible.
+
+                        Time of distress is known, but position is not known
+                K.2.2   If an en-route aircraft or vessel reports a distress without indicating its location, several situations are
+                        possible. The following scenarios are just a few of the possibilities that may be considered.
+                        (a)   The craft was following its intended flight or voyage plan at the time of the distress incident.
+                              In this situation, the approximate position may be estimated based on data from the flight or
+                              voyage plan and any previous position reports along the intended track that may be available.
+                              (If previous position reports do not fall on or near the intended track, another scenario should
+                              be considered.) The estimated distress position should be based on the last known or reported
+                              position, the estimated or intended speed of advance, and the craft’s intended track. If there is
+                              no conflicting information, this scenario is usually considered the most likely.
+                        (b)   The craft significantly altered its intended course or speed of advance as a result of encountering
+                              adverse weather conditions, winds aloft, etc. The SMC should obtain appropriate information
+
+
+                IAMSAR MANUAL VOLUME II                                                                                         K-1
+
+
+
+
+IF961E.indb 1                                                                                                                 5/20/2016 3:18:27 PM
+           Appendix K – Determining datum
+
+
+                         about weather conditions along the craft’s intended route and attempt to correlate that information
+                         with the distress incident. The SMC should then attempt to determine the course(s) of action
+                         the master or pilot in command would be most likely to take if those weather conditions were
+                         encountered. The estimated position of the distress incident should be based on this information.
+                   (c)   The craft significantly altered its intended course or speed of advance to avoid encountering
+                         adverse weather conditions. The SMC should obtain appropriate information about weather
+                         conditions along the craft’s intended route and attempt to correlate that information with the
+                         distress incident. The SMC should then attempt to determine the course(s) of action the master
+                         or pilot in command would be most likely to take to avoid those weather conditions.
+                   (d)   The craft significantly altered its intended course or speed of advance in an attempt to reach the
+                         nearest safe port or alternate aerodrome. This includes the possibility of the craft reversing its
+                         direction in an attempt to return to its departure point.
+
+           K.2.3   To estimate the extent of the possibility area which includes all possible scenarios, perform the
+                   following steps:
+                   (a)   using the guidance provided in appendix N, or other more accurate information if it is available,
+                         estimate the probable error in the last known or reported position;
+                   (b)   estimate the maximum distance the distressed craft could have travelled between the time of its
+                         last known or reported position and the time of the distress incident;
+                   (c)   add the probable error in the last known or reported position to the maximum distance the craft
+                         could have travelled and draw a circle of that radius about the last known or reported position
+                         to determine the possibility area.
+
+           K.2.4   Often the possibility area encompassing all scenarios is too large to search effectively. Whenever
+                   several scenarios are possible, and especially when they are about equally likely, the SMC should
+                   make every effort to obtain additional information that will eliminate some of the scenarios from
+                   consideration and allow refinement of the remaining ones to reduce the size of the possibility area.
+                   For example, if a short-range radio was used to transmit the distress signal, determining which stations
+                   heard the signal can help reduce the range of possible locations. If a DF bearing was obtained for the
+                   distress signal, a line of bearing for the distress position or mobile telecommunications device data
+                   which may help indicate present or past location or area can be established which may eliminate
+                   some scenarios. The goal is to eliminate and adjust scenarios until a single scenario emerges which
+                   accounts for all the known facts. However, this is not always possible and it may be necessary to
+                   choose a specific scenario on which to base the search plan.
+
+           K.2.5   For search planning purposes, the estimated area where the distress may have occurred depends on
+                   which scenario is most likely to be true. For the scenario described in paragraph K.2.2 (a) above, the
+                   datum position and probable error of position are determined as follows:
+                   (a)   Determine the distressed craft’s last known or reported position and the means used to establish
+                         that position, such as a navigational fix and the method of navigation used, radar, etc.
+                   (b)   Subtract the time of the last known or reported position from the time of the distress incident.
+                   (c)   Multiply the length of this time interval by the estimated speed of advance over the ground prior
+                         to the distress incident to get the distance travelled since the last known or reported position.
+                   (d)   Advance the last known or reported position along the intended track, based on the distance
+                         computed in the previous step. This is the datum point for the distress incident.
+                   (e)   If the datum point is in the marine environment, go to the Datum worksheet in this appendix.
+                         Otherwise, go to the Total probable error of position worksheet at the end of this appendix.
+                         When no maritime drift is involved, the drift error (De) is set to zero.
+                   (f)   Once the total probable error of position (E) has been estimated, go to the Effort allocation
+                         worksheet (datum point or datum line) in appendix L to plan the search. An initial probability
+                         map may be prepared by following the instructions provided in appendix M for point datums.
+
+
+           K-2                                                                            IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 2                                                                                                                  5/20/2016 3:18:27 PM
+                                                                                                Appendix K – Determining datum
+
+
+                        No communication received after the last position report
+                K.2.6   This is a relatively common situation in search and rescue but it is by far the most difficult because so
+                        many scenarios are possible, making the possibility area very large. The possible scenarios are similar
+                        to those for which the time but not the position of a distress is known. The only difference is that a
+                        range of times for the distress incident are now possible as well as a larger range of locations. The
+                        earliest possible time for the distress incident is immediately following the last time when the distressed
+                        persons were known to be safe. Usually this is assumed to be the time of the last communication
+                        with the craft. The latest possible time for the distress incident is either the time at which all control
+                        over the craft’s movements must have ceased (usually the time of fuel exhaustion) or the present time,
+                        whichever is earlier.
+
+                K.2.7   When an aircraft or vessel disappears en route, the first assumption is that the aircraft or vessel is in
+                        distress on or near the intended track. (There is also the possibility that it is not in distress but has
+                        experienced a communications failure and is proceeding in accordance with the current flight or
+                        voyage plan.) In the distress scenario, the possible locations of the craft will be concentrated in the
+                        immediate vicinity of the craft’s intended track. If no other information is available, the datum will
+                        normally be assumed to be a line that follows the intended route from the last known or reported
+                        position to the destination. An initial probability map for the possible distress incident locations may
+                        be prepared using the instructions provided in appendix M for line datums. The Effort allocation
+                        worksheet (datum point or datum line) in appendix L may be used to plan the search.
+
+                        Information, other than position, received since last position report
+                K.2.8   When the last communication received from an en-route aircraft or vessel is not a position report
+                        but other communication which did not indicate any distress, three possible scenarios are normally
+                        considered and prioritized in the following order:
+                        (a)   Scenario 1: The distress incident occurred immediately following the last communication.
+                        (b)   Scenario 2: The craft continued along its intended track and the distress incident occurred a
+                              significant time after the last communication.
+                        (c)   Scenario 3: The craft diverted toward an alternate destination, such as the nearest safe port or
+                              an alternate aerodrome, and became distressed a significant time after the last communication.
+                              This includes the possibility that the craft reversed direction and the alternate destination was the
+                              departure point.
+
+                K.2.9   In this situation, it is necessary to prepare a generalized probability map consisting of at least three
+                        sub-areas prior to planning any search efforts. The three sub-areas would correspond to the three
+                        scenarios.
+                        (a)   The first sub-area is determined by estimating the craft’s position at the time of the last
+                              communication and centering an area of reasonable size on that point. The total probable error
+                              of position may be used as a guide in estimating a reasonable size for this sub-area. This sub-area
+                              should be assigned a POC value that makes its probability density higher than that in either of
+                              the other two sub-areas.
+                        (b)   The second sub-area extends along the intended track from where the first sub-area ends to the
+                              destination and is given a reasonable width. The total probable error of position may be used
+                              as a guide for estimating a reasonable width. This sub-area should be assigned a POC value
+                              that makes its probability density fall approximately halfway between that of the first and third
+                              sub-areas.
+                        (c)   The third sub-area extends along the track the craft would have followed had it diverted to the
+                              alternate destination. It begins where the first sub-area (and possibly part of the second as well)
+                              ends and extends to the alternate destination. The total probable error of position may be used
+                              as a guide for estimating a reasonable width for this sub-area. The POC value for this sub-area
+                              should be chosen so that the probability density is less than that of the other two sub-areas.
+
+
+                IAMSAR MANUAL VOLUME II                                                                                        K-3
+
+
+
+
+IF961E.indb 3                                                                                                                5/20/2016 3:18:27 PM
+           Appendix K – Determining datum
+
+
+                   (d)   If it is certain that the survivors are in one of these three areas, their initial POC values should add
+                         to 100%. Otherwise, the remainder of the possibility area for these scenarios needs to be defined
+                         and assigned a POC value that makes the total equal 100%. It may be advisable to construct
+                         a suitable grid for the possibility area and assign POC values to the grid cells based on the
+                         sub-area(s) within which they lie. Instructions for preparing generalized probability maps are given
+                         in appendix M. The Effort allocation worksheet (generalized distribution) in appendix L should be
+                         used to plan the search.
+
+           K.3     Estimating survivor location following a distress incident
+                   Aeronautical drift
+           K.3.1   When an aircraft experiences a serious casualty, such as an engine failure, the pilot will normally
+                   attempt to maintain altitude as long as possible. If the casualty cannot be corrected and the pilot is
+                   forced to descend, this will be done by either gliding or, if a parachute is available, bailing out.
+                   (a)   Gliding. The safest descent may involve gliding or flying at greatly reduced power toward the
+                         most suitable available site for a forced, off-aerodrome landing. Aircraft can glide a considerable
+                         distance. The key factors are power-off rate of descent, glide airspeed, and height above the
+                         surface. Since glide ratios vary widely, the manufacturer of the distressed aircraft or pilots
+                         experienced with that type of aircraft should be consulted regarding glide and forced landing
+                         characteristics.
+                   (b)   Parachute. If parachutes are available, the pilot in command may elect to use this method of
+                         descent. This situation is rare in civil aviation but more common in military aviation. If the
+                         survivors leave the aircraft while it is still airborne, their landing site and the crash site of the aircraft
+                         may be widely separated from each other and from the bailout position. Drift characteristics
+                         for modern civilian parachutes can vary widely. For civilian cases, the manufacturer of the
+                         parachute or another knowledgeable source should be consulted for the information needed
+                         to determine how far the survivor(s) may have drifted during descent. Drift computations for
+                         parachutes may be completed using the Aeronautical drift worksheet in this appendix together
+                         with the parachute drift tables provided in appendix N.
+
+                   Maritime drift
+           K.3.2   Two types of forces cause survival craft on the ocean to move or drift: wind and current. To compute
+                   the area where the survivors may be located, it is necessary to estimate the rate and direction of
+                   drift. This requires estimates of the winds and currents in and around the area containing the possible
+                   distress locations. The two components of drift are total water current (TWC) and leeway. The Datum
+                   worksheet for computing drift in the marine environment and its supporting worksheets describe how
+                   to estimate survivor motion due to environmental forces.
+                   (a)   Total water current (TWC) can have several components. Some or all of the following may be
+                         included:
+                         (1)   Sea current (SC). This is the main large-scale flow of ocean waters. Sea currents near the
+                               surface are of principal interest to search planners. Near shore or in shallow waters, sea
+                               current is usually less important than the tidal current or the local wind current. Sea currents
+                               are not always steady, so averages should be used with caution. Sea current estimates may
+                               be obtained from direct observation at the scene (such as ship set and drift, trajectories of
+                               drifting objects having zero leeway), output from computer models of ocean circulation,
+                               and hydrographic tables and charts.
+                         (2)   Tidal or rotary currents. In coastal waters, currents change in direction and speed as the
+                               tides change. They may be estimated from tidal current tables, current charts, and pilot
+                               charts. However, local knowledge often will be of the greatest value.
+                         (3)   River current. This should be considered only if the survivors may be in, or near, the mouth
+                               of a large river (such as the Amazon).
+
+
+           K-4                                                                                   IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 4                                                                                                                             5/20/2016 3:18:27 PM
+                                                                                              Appendix K – Determining datum
+
+
+                            (4)   Local wind current (WC). Local wind current is due to the effect of sustained local winds
+                                  on the water’s surface. The exact effect of wind in creating local wind currents is not clear,
+                                  but it is generally assumed that after 6 to 12 h with the wind in a constant direction, a local
+                                  surface current is generated. The estimated average wind velocity and direction for the
+                                  previous 24 to 48 h should be verified by contacting ships which have been in the vicinity
+                                  of the distress scene. The direction and velocity of local wind current can be estimated
+                                  using the Local Wind Current Graph in figure N-1.
+                            Vector (direction and speed) values must be obtained for each current which is present and
+                            added, vector fashion, to obtain the total water current (TWC). Figure 4-6 in chapter 4 shows
+                            how to compute TWC offshore in the open ocean.
+                      (b)   Leeway (LW). The force of the wind against the exposed surfaces of the craft causes it to
+                            move through the water in a generally downwind direction. This is called leeway. A drogue
+                            (sea anchor) may be deployed to decrease the rate of leeway. The shapes of the exposed
+                            and underwater surfaces can affect the rate of leeway and cause the leeway direction to be
+                            somewhat off the downwind direction. Estimates of wind direction and speed may be obtained
+                            from direct observation at the scene, output from computer models used for weather prediction,
+                            local weather bureaus and, as a last resort, wind roses on pilot charts. Leeway rates may be
+                            computed from leeway graphs provided in figures N-2 and N-3.
+                      (c)   Once the directions and speeds of the TWC and leeway vectors are estimated, the direction
+                            and rate of survivor drift are computed by adding the leeway and TWC vectors as shown in
+                            figure 4-7 of chapter 4. Normally, all velocities are computed in nautical miles per hour (knots).
+
+
+
+
+                IAMSAR MANUAL VOLUME II                                                                                      K-5
+
+
+
+
+IF961E.indb 5                                                                                                              5/20/2016 3:18:28 PM
+           Appendix K – Determining datum
+
+
+           Aeronautical drift worksheet
+
+           Case title 											                                       Case number 			                    Date 
+           Planner’s name 									                                     Datum number                Search plan A
+                                                                                                                 BC
+                                                                                                               (Circle one)
+
+           Search object 									
+
+           A       Estimated incident/bailout position
+           1       Date/time                                                                  Z
+
+           2       Latitude, longitude                                                        N/S                       W/E
+
+           B       Aircraft/parachute glide displacement (da/p)
+           (For both aircraft and parachute glide, use this part twice; once for the aircraft glide and again for the parachute
+           glide. For parachutes with zero glide ratios, go to part C below.)
+
+           1       Incident or bailout/opening altitude as appropriate (Altmax) 		                                      ft
+
+           2       Terrain or bailout/opening altitude as appropriate (Altmin) 		                                       ft
+
+           3       Altitude loss (Alt loss = Altmax – Altmin)			                                                        ft
+
+           4       Glide ratio (gr = horizontal distance/vertical distance)
+                   (from flight manual for aircraft or table N-13 for parachutes)		
+
+           5       Glide true air speed (TASg)			                                                                       kts
+
+           6       Rate of descent (rated) ((TASg × 101)/gr for aircraft)
+                   (for parachutes, enter value from table N-13)			                                                     ft/min
+
+           7       Time of descent (td = Alt Loss/rated)			                                                             min
+
+           8       Glide distance (dg = (TASg × td)/60)			                                                              NM
+
+           9       Descent heading (if unknown, leave blank)			                                                         °T
+
+           10      Average wind aloft during glide (AWAg)
+                   (attach Average wind aloft worksheet)                                       °T                       kts
+
+           11      Downwind aircraft/parachute displacement
+                   due to average wind aloft (dd = (td × AWA)/60)                              °T                       NM
+
+           12      Aircraft/parachute glide displacement
+                   (da = vector sum of dg and dd)                                              °T                       NM
+
+           13      Date/time at end of glide
+                   (incident date/time + time of descent)                                      Z
+
+           14	Latitude, longitude at end of glide
+               (If descent heading is unknown, leave blank
+               and enter the sum of the aircraft and parachute
+               glide distances into the Total probable error
+               of position worksheet at A.5)                                                   Z                        W/E
+
+
+
+           K-6                                                                              IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 6                                                                                                                     5/20/2016 3:18:28 PM
+                                                                                   Appendix K – Determining datum
+
+
+                C      Parachute drift (dp) (for parachutes with a zero glide ratio)
+
+                1      Bailout position				Last known position			        LKP
+                                            Estimated incident position		 EIP
+                                            Glide position				GP
+                                                                                   (Circle one)
+
+                2      Date/time                                                       Z
+
+                3      Latitude, longitude                                             N/S                 W/E
+
+                4      Parachute opening altitude (Altmax)			                                              ft
+
+                5      Terrain altitude (Altmin)			                                                        ft
+
+                6      Altitude loss (Alt loss = Altmax – Altmin)			                                       ft
+
+                7	Average wind aloft during parachute descent (AWAp)
+                   from opening altitude to terrain altitude
+                   (attach Average wind aloft worksheet)                               °T                  kts
+
+                8	Drift distance from parachute opening altitude to sea level (dp1)
+                   (from table N-14)			                                                                    NM
+
+                9	Drift distance from terrain altitude to sea level (dp2)
+                   (from table N-14)			                                                                    NM
+
+                10	Downwind parachute displacement due to
+                    winds aloft (dp = dp1 – dp2)                                       °T                  NM
+
+                11	Time of arrival at the surface
+                    (incident time + time of descent)                                  Z
+
+                12     Latitude, longitude                                             N/S                 W/E
+
+
+
+
+                IAMSAR MANUAL VOLUME II                                                                        K-7
+
+
+
+
+IF961E.indb 7                                                                                               5/20/2016 3:18:28 PM
+           Appendix K – Determining datum
+
+
+           Aeronautical drift worksheet instructions
+
+           Introduction
+           The Aeronautical drift worksheet is used in conjunction with the Average wind aloft worksheet to compute
+           the probable position of landing when the position of the distress incident is known. Aeronautical drift may
+           consist of either gliding, parachute drift or a combination of the two. There are several things to consider with
+           aeronautical drift, including:
+                         Starting altitude			                 Terrain altitude
+                         Glide true air speed		               Glide ratio
+                         Rate of descent			                   Average wind aloft
+
+           This worksheet assumes the aircraft maintains a constant heading during its descent from the distress incident
+           position and that the parachute, if it has a non-zero glide ratio, also maintains a constant descent heading
+           from the bailout/opening position (not necessarily the same heading as the aircraft’s glide). If either of the glide
+           descent headings is unknown, the glide distance should be computed and added to the distressed aircraft’s
+           probable position error (X) to give a new (and larger) probable position error value for X on the Total probable
+           error of position worksheet.
+
+           A       Estimated incident position
+           1       Date/time                          Enter the date time group (DTG) of the incident position.
+                                                      Example: 231140Z FEB 13
+           2       Latitude, longitude                Enter the estimated incident position.
+
+
+           B       Aircraft/parachute glide displacement (da/p)
+           For both aircraft and parachute glide, use this part twice; once for the aircraft glide and again for the parachute
+           glide. For parachutes with zero glide ratios, go to part C below.
+
+           1       Incident or bailout/opening        For aircraft glide, enter the incident altitude or last known/assigned
+                   altitude                           altitude. For parachute glide, enter the bailout or parachute opening
+                                                      altitude as appropriate. (Altmax)
+           2       Terrain or bailout/opening         For aircraft glide without bailout, enter the terrain altitude.
+                   altitude                           For aircraft glide followed by bailout, enter the bailout altitude.
+                                                      For parachute glide, enter the terrain altitude. (Altmin)
+           3       Altitude loss                      Subtract the lower altitude (B.2) from the higher altitude (B.1).
+           4       Glide ratio                        Enter the glide ratio from the aircraft’s flight manual or manufac-
+                                                      turer’s data or, for parachutes, enter the appropriate value from
+                                                      table N-13.
+           5       Glide true air speed               If available, enter the actual value provided by the pilot. Otherwise,
+                                                      enter the best glide true air speed from the aircraft’s flight manual
+                                                      or manufacturer’s data. Leave blank for parachutes.
+           6       Rate of descent                    Multiply the glide true air speed (B.5) by 101 and divide the result
+                                                      by the glide ratio (B.4). (The value 101 is the conversion factor for
+                                                      converting knots to feet per minute).
+           7       Time of descent                    Divide the altitude loss (B.3) by the rate of descent (B.6).
+           8       Glide distance                     Multiply the glide true air speed (B.5) by the time of descent (B.7)
+                                                      and divide the result by 60 to get the glide distance in nautical
+                                                      miles.
+
+
+
+           K-8                                                                              IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 8                                                                                                                     5/20/2016 3:18:28 PM
+                                                                                            Appendix K – Determining datum
+
+
+                9     Descent heading                  Enter the descent heading. If unknown, leave blank.
+                10    Average wind aloft               Enter average wind aloft from the Average wind aloft worksheet for
+                                                       the interval between the higher altitude (B.1) and the lower altitude
+                                                       (B.2).
+                11    Downwind displacement            Add (or subtract) 180° to (from) the average wind aloft direction
+                                                       (B.10) to get the downwind direction in degrees true. Multiply
+                                                       the time of descent (B.7) by the speed of the average wind aloft
+                                                       (B.10) and divide the result by 60 to get the downwind distance in
+                                                       nautical miles.
+                12    Aircraft/parachute glide         If the descent heading is known, compute the vector sum
+                      displacement                     of the descent heading (B.9)/glide distance (B.8) and the
+                                                       downwind displacement (B.11). Otherwise, enter the downwind
+                                                       displacement (B.11).
+                13    Date/time at end of glide        Add the time of descent (B.7) to the estimated incident time (A.1).
+                14    Latitude, longitude at end of    Plot the end-of-glide position using the incident/bailout position
+                      glide                            (A.2) and the aircraft/parachute glide displacement (B.12). If the
+                                                       descent heading is unknown, enter the glide distance (B.8) into
+                                                       the Total probable error of position worksheet at A.5. If both the
+                                                       aircraft and the parachute have non-zero glide distances, enter the
+                                                       larger of the two glide distances.
+
+
+                C     Parachute drift (dP) (for parachutes with zero glide ratio)
+                1     Bailout position                 Circle the appropriate source of information so it is documented for
+                                                       future reference/review.
+                2     Date/time                        Enter the date time group of the bailout position.
+                                                       Example 231150Z FEB 13.
+                3     Latitude, longitude              Enter the bailout position.
+                4     Parachute opening altitude       Enter the altitude at which the parachute opened.
+                5     Terrain Altitude                 Enter the altitude of the terrain below the bailout position.
+                6     Altitude loss                    Subtract the terrain altitude (C.5) from the parachute opening
+                                                       altitude (C.4).
+                7     Average wind aloft               Enter average wind aloft from the Average wind aloft worksheet for
+                                                       the interval between the higher altitude (C.4) and the lower altitude
+                                                       (C.5).
+                8     Drift distance from parachute    Enter table N-14 with the parachute opening altitude (C.4) and
+                      opening altitude to sea level    average wind aloft (C.7) and record the drift distance.
+                9     Drift distance from terrain      Enter table N-14 with the terrain altitude (C.5) and the average
+                      altitude to sea level            wind aloft (C.7) and record the drift distance.
+                10    Downwind parachute               Enter the downwind direction in degrees true. Subtract the drift
+                      displacement                     distance from terrain altitude to sea level (C.9) from the drift
+                                                       distance from parachute opening altitude to sea level (C.8) to get
+                                                       the drift distance in nautical miles.
+                11    Time of arrival at the surface   Add the time of descent from figure N-15 to the time of bailout
+                                                       (C.2).
+                12    Latitude, longitude              Using the bailout position (C.3) and downwind parachute displace-
+                                                       ment (C.10), plot the position where the survivor reaches the
+                                                       surface.
+
+
+
+                IAMSAR MANUAL VOLUME II                                                                                     K-9
+
+
+
+
+IF961E.indb 9                                                                                                             5/20/2016 3:18:28 PM
+           Appendix K – Determining datum
+
+
+           Average wind aloft (AWA) worksheet
+           Case title 											                                  Case number 		        Date 
+           Planner’s name 									                                Datum number          Search plan A
+                                                                                                      BC
+                                                                                                         (Circle one)
+
+
+           Average wind aloft (AWA) worksheet
+           Altitude of            Altitude     Thousands       Wind                   Wind                Wind
+           observation            interval       of feet     direction               speed             contribution
+                                                   (A)          (B)                   (C)                (A × C)
+                                     –                    °T                            kts                 kts
+                                     –                    °T                            kts                  kts
+                                     –                    °T                            kts                  kts
+                                     –                    °T                            kts                  kts
+                                     –                    °T                            kts                  kts
+                                     –                    °T                            kts                  kts
+                                     –                    °T                            kts                  kts
+                                     –                    °T                            kts                  kts
+
+
+
+                    Total altitude loss                         Vector sum of    °T                             kts
+                   (thousands of feet)             (D)           contributions    (E)                       (F)
+
+           Average wind aloft [(E)°T (F/D) kts]         AWA               °T                kts
+
+
+
+
+           K-10                                                                      IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 10                                                                                                           5/20/2016 3:18:28 PM
+                                                                                               Appendix K – Determining datum
+
+
+                 Average wind aloft (AWA) worksheet instructions
+
+                 Introduction
+                 The purpose of this worksheet is to compute a weighted average of wind velocity vectors over some range of
+                 altitudes. Average wind aloft is used to compute downwind displacement of gliding aircraft and descending
+                 parachutes. The contribution of each wind observation or estimate is weighted according to the altitude
+                 range where it was in effect. For example, a wind that has been in effect for 2,000 ft will have twice as much
+                 influence on the average wind as one that was in effect for only 1,000 ft.
+
+                 1       Making entries in the worksheet       For each available wind value, enter the altitude of the
+                                                               observation, the starting and ending altitudes of the interval in
+                                                               which that wind value was in effect, the number of feet (in
+                                                               thousands) in the interval (higher altitude minus lower altitude),
+                                                               the wind direction, the wind speed and the wind contribution
+                                                               for that interval (wind speed multiplied by the number of feet (in
+                                                               thousands) in the interval).
+                 2       Computing the total altitude loss     Add all the entries in the “Thousands of feet” column. Usually,
+                                                               when multiplied by 1000, this value should equal the number
+                                                               of feet in the Altitude Loss from B.3 or C.6 of the Aeronautical
+                                                               drift worksheet. If it doesn’t, the difference should be explained.
+                 3       Computing the total wind vector       Using a chart, manoeuvering board, universal plotting sheet or
+                                                               calculator, add all the wind contribution vectors to get the total
+                                                               wind vector.
+                 4       Computing the average wind aloft      The direction of the average wind is the same as the direction
+                                                               of the total wind vector. Divide the magnitude of the total wind
+                                                               vector by the total number of feet (in thousands) in the altitude
+                                                               loss to get the average wind speed.
+                 5       Go to line B.10 or C.7 as appropriate of the Aeronautical drift worksheet and record the computed
+                         Average wind aloft.
+
+
+
+
+                 IAMSAR MANUAL VOLUME II                                                                                    K-11
+
+
+
+
+IF961E.indb 11                                                                                                              5/20/2016 3:18:28 PM
+           Appendix K – Determining datum
+
+
+
+                                           A. Wind aloft data                                   B. Vector solution                C. Parachute drift
+
+                     Altitude of          Effective         Observed          Weighted
+                    observation           altitude          direction/         vector           30
+                                           interval          velocity          value                        50
+                                                                                                                                Parachute
+                                             9,000                                                                              opening
+                                                                                                                      50
+                                                                                                                                position
+
+
+
+
+                                                                                                Fro
+                       8,000                                  270/30           270/30
+
+
+
+
+                                                                                                    m
+                 (parachute opens)
+
+
+
+
+                                                                                                     33
+                                                                                                                           46
+
+
+
+
+                                                                                                     5° T
+                                             7,000
+
+
+
+
+                                                                                                         /16
+                                                                                                             0
+
+
+
+
+                                                                                                                                   155
+                        6,000                                 300/25           300/50                                 44
+
+
+
+
+                                                                                                                                      °
+                                                                                                                                     Tru
+                                                                                                                                         e
+                                                                                                                                       , 2.
+                                             5,000
+
+
+
+
+                                                                                                                                          3m
+                                                                                                                                             il e s
+                        4,000                                 300/25           300/50
+                                                                                                  Resultant vector:
+                                                                                                     335/160
+                                             3,000
+                                                                                                     Average wind                                 Surface
+                                                                                                       direction                                  position
+                        2,000                                 000/23           000/46                    335°
+                                                                                                      Average wind
+                                                                                                        velocity:
+                                             1,000
+                                                                                                     160 = 29 knots
+                                                                                                        8
+
+                    Sea level                                 045/44            045/44           Average wind aloft:
+                                                                                                      335/20
+                 Note: the vector values for 6,000, 4,000, and 2,000 represent an interval
+                 of 2,000 ft each; therefore, each corresponding wind speed is multiplied
+                 by a weighting factor of 2. Total altitude is in thousands of feet and is 8.
+
+                                                            (Parachute opened at 8,000 feet over ocean)
+
+                                                               Figure K-1 – Average wind aloft example
+
+
+
+
+           K-12                                                                                                           IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 12                                                                                                                                               5/20/2016 3:18:28 PM
+                                                                                      Appendix K – Determining datum
+
+
+                 Datum worksheet for computing drift in the marine environment
+
+                 Case title 										                                 Case number 			               Date 
+
+                 Planner’s name 								                               Datum number          Search plan A B C 
+
+                 Search object 									
+
+
+                 A     Starting position for this drift interval
+                 1     Type of position				              Last known position			
+                                                                           LKP
+                       (Circle one) 					Estimated incident position		    EIP
+                                                         Previous datum				PD
+
+                 2     Position Date/time                                              Z
+
+                 3     Latitude, longitude of position                                 N/S                          W/E
+
+
+                 B     Datum time
+
+                 1     Commence search date/time                                       Z
+
+                 2     Drift interval			                                                                            hours
+
+
+                 C     Average surface wind (ASW)
+                       (Attach Average surface wind (ASW) worksheet)
+
+                 1     Average surface wind (ASW)                                       °T                          kts
+
+                 2	Probable error of drift velocity due to
+                    probable error of average surface wind (ASWDVe)			                                              kts
+
+
+                 D     Total water current (TWC)
+                       (Attach Total water current (TWC) worksheet)
+
+                 1     Total water current (TWC)                                        °T                          kts
+
+                 2     Probable total water current error (TWCe)			                                                 kts
+
+
+                 E     Leeway (LW)
+                       (Attach Leeway (LW) worksheet)
+
+                 1     Left of downwind                                                 °T                          kts
+
+                 2     Right of downwind                                                °T                          kts
+
+                 3     Probable leeway error (LWe)			                                                               kts
+
+
+                 IAMSAR MANUAL VOLUME II                                                                            K-13
+
+
+
+
+IF961E.indb 13                                                                                                      5/20/2016 3:18:29 PM
+           Appendix K – Determining datum
+
+
+           F       Total surface drift
+           	Use a manoeuvring board or calculator to add Total water current and Leeway vectors.
+             (See figure K-1a)
+
+           		                                                           (left of downwind)     (right of downwind)
+
+           1       Drift directions                                                      °T                    °T
+
+           2       Drift speeds                                                          kts                   kts
+
+           3       Drift distances (line F.2 × line B.2)                                 NM                    NM
+
+           4	Total probable drift velocity error (DVe)
+                            _________________________
+                   (DVe = √ ASWDVe2 + TWCe2 + LWe2) ​			
+                          ​                                                                                    kts
+
+           G       Datum positions and divergence distance
+           	Using a chart, universal plotting sheet or calculator, determine the datum positions and divergence
+             distance (DD ) (See figure K-1b)
+
+           1       Latitude, longitude (left of downwind)                               N/S                    W/E
+
+           2       Latitude, longitude (right of downwind)                              N/S                    W/E
+
+           3       Divergence distance (DD)			                                                                 NM
+
+           H       Total probable error of position (E) and separation ratio (SR)
+                   (Attach Total probable error of position (E) worksheet)
+
+           1       Total probable error of position squared (E2)			                                            NM2
+
+           2       Total probable error of position (E)			                                                     NM
+
+           3       Separation ratio (SR = DD/E)			
+
+           4       Go to the Total available search effort worksheet.
+
+
+
+
+           K-14                                                                       IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 14                                                                                                       5/20/2016 3:18:29 PM
+                                                                                                Appendix K – Determining datum
+
+
+                 Datum worksheet (marine environment) instructions
+
+                 Introduction
+
+                 The Datum worksheet is used to compile information from other worksheets and compute a new Datum
+                 position. A Datum worksheet should be completed for each initial datum point.
+
+                 Complete the information at the top of the page, then go to part A.
+
+
+                 A       Starting position for this drift interval
+
+                 1       Type of position                       Circle the appropriate source of information about the starting
+                                                                position for this drift interval. If the initial position is the last
+                                                                known position (as clearly and accurately reported by the
+                                                                distressed vessel, an eyewitness, or a remote sensor), circle
+                                                                “LKP”. If the initial position was estimated by dead reckoning
+                                                                or determined by remote sensing with a large probable error
+                                                                or as ambiguous positions (e.g., pairs of positions sometimes
+                                                                reported by COSPAS/SARSAT), circle “EIP”. If the initial
+                                                                position for this drift interval was a datum position computed
+                                                                for a previous drift interval, circle “PD”.
+                 2       Position date/time                     Enter the date time group (DTG) of the starting position.
+                                                                Example: 231200Z FEB 99.
+                 3       Latitude, longitude of position        Enter the latitude and longitude of the starting position for this
+                                                                drift interval.
+
+
+
+                 B       Datum time
+
+                 1       Commence search date/time              Enter the date and time when the next search will begin in
+                                                                date time group (DTG) format. This will be the time for which
+                                                                the next datum position is computed.
+                 2       Drift interval                         Subtract the starting position date and time (line A.2) from
+                                                                the commence search date and time (line B.1). If necessary,
+                                                                convert the result from days and hours to get the number of
+                                                                hours between the two date time groups.
+
+                 C       Average surface wind (ASW)             If the search object has no leeway and wind current is not a
+                                                                factor, leave part C blank and go to part D. Otherwise, go to
+                                                                the Average surface wind (ASW) worksheet and compute
+                                                                the average surface wind for this drift interval.
+                 1       Average surface wind (ASW)             Enter the average surface wind direction in degrees true and
+                                                                the average surface wind speed in knots from line A.2 of the
+                                                                Average surface wind (ASW) worksheet.
+                 2       Probable error of drift velocity       Enter the estimated probable error of the drift velocity that will
+                         due to ASWe (ASWDVe)                   be caused by the probable error of the average surface wind
+                                                                from line B.2 of the Average surface wind (ASW) worksheet.
+
+
+
+                 IAMSAR MANUAL VOLUME II                                                                                       K-15
+
+
+
+
+IF961E.indb 15                                                                                                                 5/20/2016 3:18:29 PM
+           Appendix K – Determining datum
+
+
+           D       Total water current (TWC)
+
+           1       Total water current (TWC)        Enter the total water current direction in degrees true and the
+                                                    total water current speed in knots from line A.2 or line B.5
+                                                    of the Total water current (TWC) worksheet, as appropriate.
+           2       Probable total water current     Enter the estimated/computed probable error of the total
+                   error (TWCe)                     water current from line A.3 or line B.6 of the Total water
+                                                    current (TWC) worksheet, as appropriate.
+
+
+           E       Leeway (LW)
+
+           1       Left of downwind                 Enter the leeway direction to the left of the downwind
+                                                    direction in degrees true and the leeway speed in knots from
+                                                    line 6.a of the Leeway (LW) worksheet.
+           2       Right of downwind                Enter the leeway direction to the right of the downwind
+                                                    direction in degrees true and the leeway speed in knots from
+                                                    line 6.b of the Leeway (LW) worksheet.
+           3       Probable leeway error (LWe)      Enter the estimated probable leeway error from line 7 of the
+                                                    Leeway (LW) worksheet.
+
+
+
+           F       Total surface drift              The total surface drift velocities are the vector sum of the total
+                                                    water current velocity from line D.1 and each of the leeway
+                                                    velocities from lines E.1 and E.2. Multiplying each of the total
+                                                    surface drift speeds by the drift interval produces the total
+                                                    surface drift distances.
+           1       Drift directions                 Using a manoeuvring board or calculator, add the total water
+                                                    current vector from line D.1 to each of the leeway vectors
+                                                    from lines E.1 and E.2 to compute two resultant surface drift
+                                                    velocity vectors. Figure K-1a is an example of how the two
+                                                    drift velocity vectors might appear. Enter the direction of each
+                                                    resultant surface drift velocity vector.
+           2       Drift speeds                     Enter the magnitude of each resultant surface drift velocity
+                                                    vector.
+           3       Drift distances                  Multiply the drift speeds (line F.2) by the drift interval (line B.2)
+                                                    and enter the results.
+           4        Total probable drift velocity   Compute the probable error of the surface drift velocity
+                    error (DVe) (DVe =
+                     _________________________      vectors by taking the square root of the sum of the squared
+                     ASWDVe2 + TWCe2 + LWe2 ​)
+                   ​√                               errors from lines C.2, D.2 and E.3.
+
+
+
+           G       Datum positions and              Determine and plot the datum positions and determine the
+                   divergence distance              distance between them. (See figure K-1b)
+           1       Latitude, longitude (left of     Using a chart, universal plotting sheet, or a calculator,
+                   downwind)                        determine the latitude and longitude of the datum position
+                                                    based on the total drift direction (line F.1) and distance (line
+                                                    F.3) from the starting position (line A.3) for the datum that lies
+                                                    to the left of the downwind direction. Plot the position.
+
+
+
+           K-16                                                                     IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 16                                                                                                              5/20/2016 3:18:29 PM
+                                                                                                    Appendix K – Determining datum
+
+
+                 2     Latitude, longitude (right of                 Using a chart, universal plotting sheet, or a calculator,
+                       downwind)                                     determine the latitude and longitude of the datum position
+                                                                     based on the total drift direction (line F.1) and distance (line
+                                                                     F.3) from the starting position (line A.3) for the datum that lies
+                                                                     to the right of the downwind direction. Plot the position.
+                 3     Divergence distance (DD)                      Using a chart, universal plotting sheet, or a calculator,
+                                                                     determine the divergence distance between the two datums.
+                                                                     (See figure K-1b)
+
+
+                 H     Total probable error of position (E) and separation ratio (SR)
+                 1     Total probable error of position              Enter the square of the total probable error of position from line
+                       squared (E2)                                  D.1 of the Total probable error of position worksheet. This
+                                                                     value will be used later with the Effort allocation worksheet.
+                 2     Total probable error of position (E)          Enter the total probable error of position from line D.2 of the
+                                                                     Total probable error of position worksheet. This value will
+                                                                     also be used with the Effort allocation worksheet.
+                 3     Separation ratio (SR)                         Divide the divergence distance (DD) on line G.3 by the total
+                                                                     probable error of position on line H.2 and enter the result.
+                                                                     Stated as a formula, SR = DD/E. This value will also be used
+                                                                     with the Effort allocation worksheet.
+                 4     Go to the Total available search              Proceed to the Total available search effort worksheet to
+                       effort worksheet                              continue planning the search.
+
+
+
+
+                                                              Datum (left)                         Downwind
+                                                                                Divergence
+                                                                               distance (NM)
+
+
+                                           Drift distance
+                                        (NM, when leeway                       Datum (right)
+                                       is left of downwind)                                           N
+
+
+                                                                            Drift distance
+                                                                         (NM, when leeway
+                                                                       is right of downwind)
+                                                 LKP
+
+                                         Figure K-1a – Drift velocity vectors with leeway divergence
+
+
+
+
+                 IAMSAR MANUAL VOLUME II                                                                                         K-17
+
+
+
+
+IF961E.indb 17                                                                                                                   5/20/2016 3:18:29 PM
+           Appendix K – Determining datum
+
+
+
+
+                                                               Drift velocity
+                                                          (kts, when leeway is        Downwind
+                                                            left of downwind)
+                                Leeway (kts, left
+                                 of downwind)
+                                                              Leeway (kts, right
+                                                                of downwind)
+
+                                                                                        N
+                                 Total water
+                                   current
+                                    (kts)
+                                                             Drift velocity
+                                                         (kts, when leeway is
+                                                          right of downwind)
+
+
+                                      Figure K-1b – Drift distances and divergence distance
+
+
+
+
+           K-18                                                                       IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 18                                                                                                   5/20/2016 3:18:29 PM
+                                                                                           Appendix K – Determining datum
+
+
+                 Average surface wind (ASW) worksheet
+
+                 Case title 										                                   Case number 			 Date 
+                 Planner’s name 									                                Datum number              Search plan A B C 
+
+                 A      Average surface wind
+                 1      Surface wind data
+                 Time of             Time          Number                Wind               Wind                   Wind
+                 observation        interval       of hours            direction           speed                contribution
+                                                      (A)                 (B)               (C)                   (A × C)
+                                       –                            °T                        kts                   NM
+                                       –                            °T                        kts                  NM
+                                       –                            °T                        kts                  NM
+                                       –                            °T                        kts                  NM
+                                       –                            °T                        kts                  NM
+                                       –                            °T                        kts                  NM
+                                       –                            °T                        kts                  NM
+                                       –                            °T                        kts                  NM
+
+
+
+                                   Total hours                        Vector sum of    °T                             NM
+                                                          (D)          contributions    (E)                        (F)
+
+                 2      Average surface wind (ASW) [(E)°T (F/D) kts]                                    °T              kts
+
+
+
+                 B      Probable error
+                 1      Probable error of the average surface wind (ASWe)                                                kts
+                 2	Probable error of drift velocity due to probable error of the                                        kts
+                    Average surface wind (ASWDVe)
+
+
+                 Go to part C on the Datum worksheet.
+
+
+
+
+                 IAMSAR MANUAL VOLUME II                                                                                  K-19
+
+
+
+
+IF961E.indb 19                                                                                                            5/20/2016 3:18:29 PM
+           Appendix K – Determining datum
+
+
+           Average surface wind (ASW) worksheet instructions
+
+           Introduction
+           The purpose of this worksheet is to compute a weighted average of wind velocity vectors over some period
+           of time, usually a drift interval. Average surface wind is used to estimate wind current and leeway. The
+           contribution of each wind observation or estimate is weighted according to the amount of time it was in effect.
+           For example, a wind that has been in effect for twelve hours will have twice as much influence on the average
+           wind as one that was in effect for only six hours. In general, wind averages should not be used for intervals
+           exceeding 24 h in length.
+           Wind observations and estimates are not exact and forecast wind data are even less accurate. Furthermore, the
+           winds experienced by the search object can never be known precisely. Therefore, it is necessary to estimate the
+           probable error of the average surface wind acting on the search object and the amount of probable error this will
+           introduce into the drift computations. This amount will be used to compute the total probable error of position.
+
+           A       Average surface wind (ASW)
+           1       Surface wind data                  For each available wind value in this drift interval, enter the time of
+                                                      the observation, the starting and ending times of the time interval
+                                                      during which that wind value was in effect, the number of hours in
+                                                      the interval (ending time minus starting time), the wind direction, the
+                                                      wind speed, and the wind contribution for that interval (wind speed
+                                                      times the number of hours in the interval).
+           2       Average surface wind               Add the hours in the “Number of hours” column to get the “Total
+                                                      hours” (D). (The total hours should equal the number of hours in
+                                                      the drift interval from line B.2 of the Datum worksheet. If this is not
+                                                      the case, the difference should be explained.) Use a manoeuvring
+                                                      board or a calculator to compute the direction (E) and speed (F)
+                                                      of the vector sum of all the wind contribution vectors. Copy the
+                                                      direction of this vector sum (E) to the average surface wind direction
+                                                      on line A.2 of this worksheet. Divide the speed of the vector sum
+                                                      (F) by the total hours (D) and enter the result as the average surface
+                                                      wind speed on line A.2 of this worksheet. Copy the average surface
+                                                      wind direction and speed to line C.1 of the Datum worksheet.
+
+
+           B       Probable error
+           1       Probable error of ASW              Estimate the probable error of the average surface wind. If no value
+                                                      is available, enter 5 knots for observed winds, 8 knots for forecast
+                                                      winds.
+           2       Probable error of drift velocity   Estimate the probable error of the drift velocity that will be caused by
+                   due to probable error of the       the probable error of the average surface wind. If no better estimate is
+                   Average surface wind               available, enter 0.3 knots for observed winds that are either relatively
+                   (ASWDVe)                           steady or change gradually in speed or direction. Enter 0.5 knots for
+                                                      forecast winds and highly variable observed winds such as winds
+                                                      that suddenly shift during the passage of storms or weather fronts.
+                                                      Copy this value to line C.2 of the Datum worksheet. See note below
+                                                      for more information.
+
+           Note: The probable error of the average surface wind (ASWe) contributes to the total probable drift velocity
+           error (DVe) in two ways. The ASWe increases the total probable wind current error and the total probable
+           leeway error. The value recorded on line B.2 of the Average surface wind (ASW) worksheet is an estimate of
+
+
+           K-20                                                                            IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 20                                                                                                                   5/20/2016 3:18:30 PM
+                                                                                               Appendix K – Determining datum
+
+
+                 the combined effects of the increased probable errors in wind current and leeway due to the probable error
+                 in the average surface wind. Caution: The probable wind current error (WCe) entered on line 7 of the Wind
+                 current (WC) worksheet represents only the probable error in the wind current estimate that still exists even
+                 when the average surface wind is precisely known. It does not include any error due to uncertainty about
+                 the average surface wind value used to estimate the wind current. Similarly, the probable leeway error (LWe)
+                 entered on line 7 of the Leeway (LW) worksheet represents only the probable error in the leeway estimate
+                 that still exists even when the average surface wind is precisely known. It also does not include any error due
+                 to uncertainty about the average surface wind value used to estimate the leeway.
+
+
+
+
+                 IAMSAR MANUAL VOLUME II                                                                                  K-21
+
+
+
+
+IF961E.indb 21                                                                                                            5/20/2016 3:18:30 PM
+           Appendix K – Determining datum
+
+
+           Total water current (TWC) worksheet
+
+           Case title 										                                     Case number 			            Date 
+           Planner’s name 									                                  Datum number        Search plan A
+                                                                                                      BC
+
+           A       Observed total water current (TWC)
+           1       Source (datum marker buoy (DMB), debris, oil) 		                 		
+
+           2       Observed set/drift                                               °T                       kts
+
+           3       Probable error of observation (TWCe)			                                                   kts
+
+           4       Go to part D on the Datum worksheet.
+
+           B       Computed total water current
+           1       Tidal current (TC)
+                   a    Source (tidal current tables, local knowledge)		            		
+                   b	Tidal current (TC) set/drift
+                      (Attach any tidal current computations)                       °T                       kts
+                   c    Probable error of tidal current (TCe)			                                             kts
+
+           2       Sea current (SC)
+                   a    Source (atlas, pilot chart, etc.) 		                        		
+                   b    Sea current (SC) set/drift                                  °T                       kts
+                   c	Probable error of sea current (SCe)			                                                 kts
+
+           3	Wind current (WC)
+              (Attach Wind current worksheet)
+                   a    Wind current (WC) set/drift                                 °T                       kts
+                   b    Probable error of wind current (WCe)			                                              kts
+           4       Other water current (OWC)
+                   a    Source (local knowledge, previous incidents, etc.)          		
+                   b    Other water current (OWC) set/drift                         °T                       kts
+                   c    Probable error of other water current (OWCe)			                                      kts
+
+           5       Computed Total water current (TWC) set/drift                     °T                       kts
+
+                        probable total water current error (TWCe)
+           6	Computed ____________________________
+              (TWCe = √ TCe2 + SCe2 + WCe2 + OWCe2) ​			
+                      ​                                                                                      kts
+           7       Go to part D on the Datum worksheet.
+
+
+
+
+           K-22                                                                    IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 22                                                                                                     5/20/2016 3:18:30 PM
+                                                                                                Appendix K – Determining datum
+
+
+                 Total water current (TWC) worksheet instructions
+
+                 Introduction
+                 Total water current may be determined by observing the drift of objects that have little or no leeway. Total
+                 water current may also be determined or estimated using data from tidal current tables, sea current atlases, a
+                 wind current graph or computational procedure, and other sources. Often the Total Water Current will be the
+                 vector sum of two or more of these values.
+                 None of the values will be exact and each will have at least some probable error. It is necessary to estimate the
+                 sizes of these probable errors. If two or more current vectors are added to determine the total water current,
+                 then the probable error of the total water current must be computed from the probable errors of the individual
+                 currents. This value will then be used to compute the total probable error of position.
+                 If available, observed total water current at or near the scene is preferable to computed or estimated values.
+                 If total water current observations are available, complete Part A of this worksheet and record the result in
+                 Part D of the Datum worksheet. If total water current observations are not available, complete the applicable
+                 sections of Part B of this worksheet and record the result in Part D of the Datum worksheet.
+
+                 A       Observed total water current              Datum marker buoys (DMBs) and debris with little freeboard
+                                                                   tend to drift with the surface current. Early observations
+                                                                   derived from relocating identifiable objects may be
+                                                                   questionable due to navigational error. Self-locating DMBs
+                                                                   are generally very accurate although the data returned may
+                                                                   require some processing to be useful.
+                 1       Source                                    Enter the type of object whose drift was observed to
+                                                                   determine the total water current.
+                 2       Observed set/drift                        Enter the true direction and drift of the observed object.
+                 3       Probable error of observation             Enter the estimated probable error of the observed total
+                         (TWCe)                                    water current as it relates to the search object’s probable
+                                                                   starting position. Factors to consider include the probable
+                                                                   position errors of the observations, the distance between
+                                                                   the observations and the search object’s probable starting
+                                                                   position, the amount of time since the last observation,
+                                                                   and the amount of variability of the currents in the area of
+                                                                   interest. If the observations are considered to be of good
+                                                                   to excellent quality and representative of the current at
+                                                                   the search object’s (unknown) location, enter 0.1 knots.
+                                                                   Otherwise, enter 0.2 knots.
+                 4       Go to Part D of the                       Enter the true direction and speed (line A.2) on line D.1 of
+                         Datum worksheet                           the Datum worksheet. Enter the probable error (line A.3) on
+                                                                   line D.2 of the Datum worksheet.
+
+                 B       Computed total water current              Enter values only for those currents that are present at the
+                                                                   search object’s location. For any current that is not present,
+                                                                   leave the set, drift, and probable error blank.
+                 1       Tidal current (TC)                        General Rule: In coastal waters, tidal currents will usually be
+                                                                   important. To compute tidal current, search planners should
+                                                                   consult published tidal current tables, if available, for the
+                                                                   vicinity of the datum position. Local knowledge is also often
+                                                                   of great value in dealing with drift due to tidal currents.
+                         a     Source                              Enter the source of the tidal current information.
+
+
+
+
+                 IAMSAR MANUAL VOLUME II                                                                                    K-23
+
+
+
+
+IF961E.indb 23                                                                                                              5/20/2016 3:18:30 PM
+           Appendix K – Determining datum
+
+
+                   b    Tidal current (TC) set/drift   Enter the true direction and speed of the average, or net,
+                                                       tidal current for the drift interval.
+                   c 	Probable error of tidal         Enter the estimated probable error of the computed or
+                       current (TCe)                   estimated tidal current as it relates to the search object’s
+                                                       approximate location. Factors to consider include the
+                                                       distance between the reference location shown in the tidal
+                                                       current tables and the search object’s probable starting
+                                                       position and the amount of variability of the currents in
+                                                       the area of interest. If no better estimate is available, enter
+                                                       0.3 knots.
+           2       Sea current (SC)                    General rule: Sea currents derived from long-term seasonal
+                                                       averages taken over a wide area (e.g., currents taken from
+                                                       a pilot chart or atlas of surface currents) are most useful in
+                                                       areas that are well off shore. Currents from these sources
+                                                       generally should not be used when computing total water
+                                                       current in coastal waters, especially when the distance from
+                                                       the shore of a large land mass is less than 25 miles and the
+                                                       water depth is less than 300 feet (100 metres, 50 fathoms).
+                                                       If local and regional data on short-term coastal surface
+                                                       currents are available, or if such data are available from a
+                                                       validated computerized circulation model, these values
+                                                       should be used. If not, sea current should be ignored and
+                                                       TWC should be calculated using only the wind current (WC)
+                                                       and tidal current (TC).
+                   a    Source                         Enter the source of the sea current information.
+                   b    Sea current (SC) set/drift     Enter the true direction and speed of the sea current from
+                                                       the information source.
+                   c	Probable error of sea            Enter the estimated probable error of the sea current as it
+                      current (SCe)                    relates to the search object’s approximate location. Consider
+                                                       the amount of variability of the currents in the area of
+                                                       interest. If no better estimate is available, enter 0.3 knots.
+           3       Wind current (WC)                   Go to the Wind current worksheet, compute the wind
+                                                       current, and attach the worksheet.
+                   a	Wind current (WC)                Enter the true direction and speed of the wind current from
+                      set/drift                        line 6 of the Wind current worksheet.
+                   b	Probable error of wind           Enter the estimated probable error of the wind current from
+                      current (WCe)                    line 7 of the Wind current worksheet.
+           4       Other water current (OWC)           General rule: Other water current is current that does not fall
+                                                       into one of the other categories. For example, the discharge
+                                                       of large rivers into the sea can affect the currents many miles
+                                                       from shore.
+                   a  Source                           Enter the source of this current information.
+                   b	Other water current              Enter the true direction and speed of this current from the
+                      (OWC) set/drift                  information source.
+                   c	Probable error of other          Enter the estimated probable error of this current as it relates
+                      water current (OWCe)             to the search object’s approximate location. Consider the
+                                                       amount of variability of the currents in the area of interest. If
+                                                       no better estimate is available, enter 0.3 knots.
+
+
+
+
+           K-24                                                                     IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 24                                                                                                             5/20/2016 3:18:30 PM
+                                                                                           Appendix K – Determining datum
+
+
+                 5     Computed total water current           Using a manoeuvring board or calculator, compute the
+                       set/drift                              vector sum of all the above water currents. Enter the resultant
+                                                              direction (set) and speed (drift) in the spaces provided.
+                 6     Computed total probable                Compute the probable error of the total water current by
+                       water current error (TWCe)             taking the square root of the sum of all the squared water
+                                                              current errors. Stated as a general formula:
+                                                                                  ____________________________
+                                                                      TWCe = ​√TCe + SCe + WCe + OWCe  ​
+                                                                                  2     2     2      2
+
+                                                              Usually only some of these terms will be used. For example,
+                                                              if the object is well out to sea beyond tidal influence, then
+                                                              the term TCe is removed from the formula above.
+                 7     Go to Part D of the Datum worksheet Enter the computed total water current true direction and
+                                                           speed (line B.5) on line D.1 of the Datum worksheet. Enter
+                                                           the probable total water current error (line B.6) on line D.2
+                                                           of the Datum worksheet.
+
+
+
+
+                 IAMSAR MANUAL VOLUME II                                                                               K-25
+
+
+
+
+IF961E.indb 25                                                                                                         5/20/2016 3:18:30 PM
+           Appendix K – Determining datum
+
+
+           Wind current (WC) worksheet
+
+           Case title 											                                Case number 			            Date 
+           Planner’s name 									                              Datum number        Search plan A
+                                                                                                  BC
+
+           Wind current (WC)
+           1	Average surface wind (ASW)
+              (From Datum worksheet, line C.1)                                  °T                       kts
+
+           2       Downwind direction (ASW direction ± 180°)			                                          °T
+
+           3	Wind current drift
+              (from figure N-1)			                                                                       kts
+
+           4	Divergence of wind current
+              (from figure N-1)			       ±                                                               °
+
+           5	Wind current set
+              (Downwind direction ± divergence of wind current)
+              (add divergence in northern hemisphere,
+              subtract in southern hemisphere)			                                                        °T
+
+           6       Wind current (WC) set/drift                                  °T                       kts
+
+           7       Probable error of wind current (WCe)			                                               kts
+
+           8       Go to line B.3 on the Total water current (TWC) worksheet.
+
+
+
+
+           K-26                                                                IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 26                                                                                                 5/20/2016 3:18:30 PM
+
