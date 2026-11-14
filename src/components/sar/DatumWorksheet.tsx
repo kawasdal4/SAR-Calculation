@@ -95,8 +95,7 @@ export default function DatumWorksheet({
   initialState,
 }: DatumWorksheetProps) {
   const [driftInterval, setDriftInterval] = useState<number>(initialState?.driftInterval ?? 6);
-  const [latitude, setLatitude] = useState<number>(initialState?.latitude ?? Math.abs(startLat));
-  const [seaCurrentDir, setSeaCurrentDir] = useState<number>(initialState?.seaCurrentDir ?? 30);
+  const [latitude, setLatitude] = useState<number>(initialState?.latitude ?? Math.abs(startLat));  const [seaCurrentDir, setSeaCurrentDir] = useState<number>(initialState?.seaCurrentDir ?? 30);
   const [seaCurrentSpeed, setSeaCurrentSpeed] = useState<number>(initialState?.seaCurrentSpeed ?? 0.5);
   const [seaCurrentErr, setSeaCurrentErr] = useState<number>(initialState?.seaCurrentErr ?? 0.3);
   const [leewayObjectId, setLeewayObjectId] = useState<string>(initialState?.leewayObjectId ?? 'raft-canopy-drogue');

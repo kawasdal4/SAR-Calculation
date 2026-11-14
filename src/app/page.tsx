@@ -68,7 +68,8 @@ export default function Home() {
   const [searchResults, setSearchResults] = useState<SearchPlanResults | null>(null);
 
   // Controlled LKP — set by Datum worksheet inputs OR by clicking on the map
-  const [lkp, setLkp] = useState<LatLng>({ lat: -6.1, lng: 106.8 });
+  // Default: Laut Jawa bagian barat (off Jakarta/Kepulauan Seribu) — falls inside BMKG coverage
+  const [lkp, setLkp] = useState<LatLng>({ lat: -5.8, lng: 106.9 });
   const [pickMode, setPickMode] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>('awa');
 
