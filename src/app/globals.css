@@ -158,3 +158,108 @@
 .leaflet-control-attribution {
   font-size: 10px !important;
 }
+
+/* Graticule (lat/lon grid) labels */
+.sar-graticule-label {
+  background: transparent !important;
+  border: none !important;
+  pointer-events: none;
+}
+
+/* Custom layer-control panel for opacity sliders */
+.sar-layer-controls {
+  background: #fff;
+  padding: 10px 12px;
+  border-radius: 4px;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.15);
+  font-size: 11px;
+  min-width: 200px;
+}
+
+.sar-layer-controls h4 {
+  margin: 0 0 6px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.sar-layer-controls .layer-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.sar-layer-controls .layer-row:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.sar-layer-controls label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  color: #334155;
+}
+
+.sar-layer-controls input[type="range"] {
+  width: 100%;
+  height: 4px;
+  margin-top: 2px;
+  cursor: pointer;
+}
+
+/* Cursor coordinate readout (top-left of map) */
+.sar-coord-readout {
+  background: rgba(15, 23, 42, 0.85);
+  color: #f1f5f9;
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-family: var(--font-geist-mono, ui-monospace, monospace);
+  font-size: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Depth info popup */
+.sar-depth-popup {
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-family: var(--font-geist-mono, ui-monospace, monospace);
+  font-size: 11px;
+  color: #1e293b;
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.sar-depth-popup .depth-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0369a1;
+}
+
+.sar-depth-popup .depth-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  color: #64748b;
+  letter-spacing: 0.05em;
+}
+
+/* "Not for navigation" disclaimer badge */
+.sar-disclaimer-badge {
+  background: rgba(254, 226, 226, 0.95);
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  padding: 3px 8px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  pointer-events: none;
+}

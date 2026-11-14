@@ -9,13 +9,13 @@ import { Ship, Wind, Map as MapIcon, Compass, Calculator, FileText } from 'lucid
 import AWAWorksheet, {
   type AWAData,
   type AWAInitialState,
-  type AWAObservation,
 } from '@/components/sar/AWAWorksheet';
 import ASWWorksheet, {
   type ASWData,
   type ASWInitialState,
-  type ASWObservation,
 } from '@/components/sar/ASWWorksheet';
+import { type AWAObservation } from '@/lib/sar/sarCalculations';
+import { type ASWObservation } from '@/lib/sar/sarCalculations';
 import DatumWorksheet, {
   type DatumData,
   type DatumResults,
@@ -71,6 +71,7 @@ export default function Home() {
   // Default: Laut Jawa bagian barat (off Jakarta/Kepulauan Seribu) — falls inside BMKG coverage
   const [lkp, setLkp] = useState<LatLng>({ lat: -5.8, lng: 106.9 });
   const [pickMode, setPickMode] = useState<boolean>(false);
+  const [measureMode, setMeasureMode] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>('awa');
 
   // Raw state snapshots — captured by parent from each worksheet for save/load
@@ -543,7 +544,7 @@ export default function Home() {
                   <MapIcon className="h-4 w-4 text-slate-600" /> Live Sea Chart
                 </CardTitle>
                 <span className="text-[10px] text-slate-500 font-mono">
-                  OSM + OpenSeaMap
+                  OSM + OpenSeaMap + GEBCO
                 </span>
               </div>
             </CardHeader>
@@ -570,25 +571,44 @@ export default function Home() {
                   circles={circles}
                   height="460px"
                   onMapClick={handleMapClick}
+                  pickMode={pickMode}
+                  measureMode={measureMode}
                 />
               </div>
-              <div className="px-3 py-2 bg-slate-50 border-t border-slate-200 text-[11px] text-slate-600">
-                <span className="font-semibold">Legend:</span>{' '}
-                <span className="inline-flex items-center gap-1">
-                  <span className="w-2.5 h-2.5 rounded-full bg-sky-500 inline-block" /> LKP
-                </span>{' '}
-                ·{' '}
-                <span className="inline-flex items-center gap-1">
-                  <span className="w-2.5 h-2.5 rounded-full bg-red-600 inline-block" /> Datum
-                </span>{' '}
-                ·{' '}
-                <span className="inline-flex items-center gap-1">
-                  <span className="w-2.5 h-2.5 bg-amber-500 inline-block" /> Drift
-                </span>{' '}
-                ·{' '}
-                <span className="inline-flex items-center gap-1">
-                  <span className="w-2.5 h-2.5 bg-emerald-600 inline-block" /> Search area
-                </span>
+              <div className="px-3 py-2 bg-slate-50 border-t border-slate-200 text-[11px] text-slate-600 flex flex-wrap items-center gap-2 justify-between">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-semibold">Legend:</span>{' '}
+                  <span className="inline-flex items-center gap-1">
+                    <span className="w-2.5 h-2.5 rounded-full bg-sky-500 inline-block" /> LKP
+                  </span>{' '}
+                  ·{' '}
+                  <span className="inline-flex items-center gap-1">
+                    <span className="w-2.5 h-2.5 rounded-full bg-red-600 inline-block" /> Datum
+                  </span>{' '}
+                  ·{' '}
+                  <span className="inline-flex items-center gap-1">
+                    <span className="w-2.5 h-2.5 bg-amber-500 inline-block" /> Drift
+                  </span>{' '}
+                  ·{' '}
+                  <span className="inline-flex items-center gap-1">
+                    <span className="w-2.5 h-2.5 bg-emerald-600 inline-block" /> Search area
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMeasureMode(!measureMode)}
+                  className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium border transition-colors ${
+                    measureMode
+                      ? 'bg-red-600 text-white border-red-600'
+                      : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                  }`}
+                  title="Klik untuk mulai mengukur jarak. Klik ganda untuk reset."
+                >
+                  {measureMode ? '◉ Measure: ON (double-click to reset)' : '📏 Measure distance'}
+                </button>
+              </div>
+              <div className="px-3 py-2 bg-amber-50 border-t border-amber-200 text-[10px] text-amber-800">
+                ⚠ <strong>Bukan untuk navigasi pelayaran</strong>; akurasi tidak dijamin. Sumber data: OpenStreetMap, OpenSeaMap, GEBCO (batimetri &amp; kedalaman titik). Aktifkan layer "GEBCO bathymetry" dari panel Layers di kanan atas peta untuk melihat batimetetri berwarna. Klik peta (di luar mode Pick LKP) untuk menampilkan kedalaman titik.
               </div>
             </CardContent>
           </Card>
