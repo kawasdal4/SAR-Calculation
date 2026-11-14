@@ -5,7 +5,12 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { type LatLng, distanceNm } from '@/lib/sar/sarCalculations';
 import { drawGraticule } from '@/lib/sar/latLonGrid';
-import { fetchDepth, fetchPolygonDepths, summariseDepths } from '@/lib/sar/depthApi';
+import {
+  getDepthAt,
+  getPolygonDepths,
+  summariseDepths,
+  getDepthSourceInfo,
+} from '@/lib/sar/depthSources';
 
 // ============================================================================
 // Public types — kept stable with the original SeaMap API so callers (page.tsx)
@@ -146,6 +151,18 @@ const GEBCO_ATTR = 'Imagery reproduced from the GEBCO Grid, GEBCO (https://www.g
 // and uses the same grid as the bathymetry tiles — better fit.
 const DEPTH_ATTR = 'Depth: GEBCO WMS GetFeatureInfo';
 
+// ----------------------------------------------------------------------------
+// BATNAS (BIG Indonesia) layer — optional, env-var driven.
+// If NEXT_PUBLIC_BATNAS_TILES_URL is set, the tile PNG layer + checkbox +
+// opacity slider are shown. If NEXT_PUBLIC_BATNAS_COG_URL is set, click-to-depth
+// and polygon-depth-sampling use BATNAS COG (via geotiff.js) instead of GEBCO.
+// If both are unset, BATNAS is hidden and the app falls back to GEBCO WMS.
+// ----------------------------------------------------------------------------
+const BATNAS_TILES_URL = process.env.NEXT_PUBLIC_BATNAS_TILES_URL;
+const BATNAS_TILES_CONFIGURED = !!BATNAS_TILES_URL;
+const BATNAS_ATTR = 'BATNAS: Badan Informasi Geospasial (BIG) Indonesia';
+const BATNAS_RESOLUTION_NOTE = 'BATNAS resolusi sekitar 180 m, hanya untuk perkiraan awal.';
+
 // ============================================================================
 // Main SeaMap component
 // ============================================================================
@@ -231,6 +248,20 @@ export default function SeaMap({
       maxZoom: 12,
     });
 
+    // BATNAS tiles layer — only created if NEXT_PUBLIC_BATNAS_TILES_URL is set.
+    // Off by default; user toggles on. Reads tile PNGs at {z}/{x}/{y}.png from
+    // the URL configured in env var.
+    const batnas = BATNAS_TILES_CONFIGURED && BATNAS_TILES_URL
+      ? L.tileLayer(BATNAS_TILES_URL, {
+          attribution: BATNAS_ATTR,
+          opacity: 0.7,
+          maxZoom: 14,
+          tileSize: 256,
+          // TMS vs XYZ detection: BIG publishes in XYZ (standard Leaflet) by default.
+          // If the host serves TMS, set tms: true here.
+        })
+      : null;
+
     // Graticule (lat/lon grid) — built once, redrawn on zoom/move
     const graticule = L.layerGroup().addTo(map);
     const redrawGraticule = () => {
@@ -288,6 +319,15 @@ export default function SeaMap({
     const LayerPanelControl = L.Control.extend({
       onAdd: () => {
         const div = L.DomUtil.create('div', 'sar-layer-controls');
+        const batnasRow = BATNAS_TILES_CONFIGURED
+          ? `
+            <div class="layer-row">
+              <label><input type="checkbox" id="lyr-batnas" /> BATNAS (BIG)</label>
+              <input type="range" id="lyr-batnas-opacity" min="0" max="100" value="70" />
+              <div style="font-size:9px;color:#64748b;margin-top:2px;">${BATNAS_RESOLUTION_NOTE}</div>
+            </div>
+          `
+          : '';
         div.innerHTML = `
           <h4>Map Layers</h4>
           <div class="layer-row">
@@ -300,6 +340,7 @@ export default function SeaMap({
             <label><input type="checkbox" id="lyr-gebco" /> GEBCO bathymetry</label>
             <input type="range" id="lyr-gebco-opacity" min="0" max="100" value="65" />
           </div>
+          ${batnasRow}
           <div class="layer-row">
             <label><input type="checkbox" id="lyr-grid" checked /> Lat/Lon grid</label>
           </div>
@@ -316,12 +357,20 @@ export default function SeaMap({
       const gebcoCb = document.getElementById('lyr-gebco') as HTMLInputElement | null;
       const gebcoOp = document.getElementById('lyr-gebco-opacity') as HTMLInputElement | null;
       const gridCb = document.getElementById('lyr-grid') as HTMLInputElement | null;
+      const batnasCb = document.getElementById('lyr-batnas') as HTMLInputElement | null;
+      const batnasOp = document.getElementById('lyr-batnas-opacity') as HTMLInputElement | null;
 
       if (osmCb) osmCb.addEventListener('change', () => (osmCb.checked ? osm.addTo(map) : map.removeLayer(osm)));
       if (seamarkCb) seamarkCb.addEventListener('change', () => (seamarkCb.checked ? seamark.addTo(map) : map.removeLayer(seamark)));
       if (gebcoCb) gebcoCb.addEventListener('change', () => (gebcoCb.checked ? gebco.addTo(map) : map.removeLayer(gebco)));
       if (gebcoOp) gebcoOp.addEventListener('input', () => gebco.setOpacity(parseInt(gebcoOp.value, 10) / 100));
       if (gridCb) gridCb.addEventListener('change', () => (gridCb.checked ? graticule.addTo(map) : map.removeLayer(graticule)));
+      if (batnasCb && batnas) {
+        batnasCb.addEventListener('change', () => (batnasCb.checked ? batnas.addTo(map) : map.removeLayer(batnas)));
+      }
+      if (batnasOp && batnas) {
+        batnasOp.addEventListener('input', () => batnas.setOpacity(parseInt(batnasOp.value, 10) / 100));
+      }
     }, 50);
 
     // ---- Map click handler ----
@@ -520,15 +569,20 @@ export default function SeaMap({
           .addTo(layer);
       }
       // Fetch depth summary inside polygon (sample grid up to 100 points)
+      // Dispatches to BATNAS COG (if configured) or GEBCO WMS GetFeatureInfo.
       if (p.points.length >= 3) {
-        void fetchPolygonDepths(p.points, 100).then((results) => {
+        void getPolygonDepths(p.points, 100).then((results) => {
           const summary = summariseDepths(results);
           if (summary.count === 0) return;
+          const info = getDepthSourceInfo();
+          const sourceLabel = info.source === 'BATNAS'
+            ? 'Bathymetri (BATNAS — BIG, ~180 m)'
+            : 'Bathymetri (GEBCO Grid)';
           const label = `Depth inside area: min ${formatDepth(summary.min)} · max ${formatDepth(summary.max)} · mean ${formatDepth(summary.mean)} (${summary.count} samples)`;
           L.popup({ className: 'sar-depth-popup', closeButton: false, offset: [0, 0] })
             .setLatLng(L.latLngBounds(latlngs).getCenter())
             .setContent(
-              `<div class="depth-label">Bathymetri (GEBCO)</div>` +
+              `<div class="depth-label">${sourceLabel}</div>` +
               `<div class="depth-value">${formatDepth(summary.min)} … ${formatDepth(summary.max)}</div>` +
               `<div class="depth-label">mean ${formatDepth(summary.mean)} · ${summary.count} samples</div>`,
             )
@@ -574,7 +628,8 @@ export default function SeaMap({
 }
 
 // ============================================================================
-// Helper: show depth at a clicked point (single-point query via GEBCO WMS GetFeatureInfo)
+// Helper: show depth at a clicked point (single-point query).
+// Dispatches to BATNAS COG (if configured) or GEBCO WMS GetFeatureInfo.
 // ============================================================================
 
 async function showDepthAt(map: L.Map, layer: L.LayerGroup, lat: number, lng: number): Promise<void> {
@@ -589,13 +644,28 @@ async function showDepthAt(map: L.Map, layer: L.LayerGroup, lat: number, lng: nu
   loadingMarker.bindTooltip('Fetching depth…', { permanent: true, direction: 'top' });
 
   try {
-    const result = await fetchDepth(lat, lng);
+    const result = await getDepthAt(lat, lng);
     layer.removeLayer(loadingMarker);
-    if (!result) return;
+    if (!result) {
+      L.popup({ className: 'sar-depth-popup', closeButton: true })
+        .setLatLng([lat, lng])
+        .setContent(
+          `<div class="depth-label">Depth unavailable</div>` +
+          `<div style="color:#475569;">Tidak ada data kedalaman untuk titik ini.</div>`,
+        )
+        .addTo(map);
+      return;
+    }
+    // Use the actual dataset from result (may be BATNAS or GEBCO fallback)
+    const sourceLabel = result.dataset.startsWith('BATNAS')
+      ? 'Depth (BATNAS — BIG Indonesia, ~180 m resolution)'
+      : result.dataset.startsWith('GEBCO WMS (fallback)')
+      ? 'Depth (GEBCO Grid, WMS GetFeatureInfo — BATNAS fallback)'
+      : `Depth (${result.dataset})`;
     const popup = L.popup({ className: 'sar-depth-popup', closeButton: true, autoPan: true })
       .setLatLng([lat, lng])
       .setContent(
-        `<div class="depth-label">Depth (GEBCO Grid, WMS GetFeatureInfo)</div>` +
+        `<div class="depth-label">${sourceLabel}</div>` +
         `<div class="depth-value">${formatDepth(result.elevation)}</div>` +
         `<div class="depth-label">${formatDMS(lat, true)} · ${formatDMS(lng, false)}</div>`,
       )
