@@ -72,6 +72,8 @@ interface SearchPlanWorksheetProps {
   onResults: (results: SearchPlanResults | null) => void;
   /** Fired whenever internal state changes — used by parent to save state. */
   onStateChange?: (state: SearchPlanInitialState) => void;
+  /** External visibility override from WeatherPanel. */
+  visibilityOverride?: { nm: number; ts: number } | null;
   initialState?: SearchPlanInitialState | null;
 }
 
@@ -105,6 +107,7 @@ export default function SearchPlanWorksheet({
   aswDirFrom,
   onResults,
   onStateChange,
+  visibilityOverride,
   initialState,
 }: SearchPlanWorksheetProps) {
   const [facilityType, setFacilityType] = useState<SearchFacilityType>(initialState?.facilityType ?? 'fixed-wing-aircraft');
@@ -134,6 +137,14 @@ export default function SearchPlanWorksheet({
       },
     ],
   );
+
+  // Apply visibility override from WeatherPanel
+  useEffect(() => {
+    if (visibilityOverride) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setVisibility(visibilityOverride.nm);
+    }
+  }, [visibilityOverride]);
 
   // Emit SearchPlanInitialState snapshot up to parent for saving
   useEffect(() => {

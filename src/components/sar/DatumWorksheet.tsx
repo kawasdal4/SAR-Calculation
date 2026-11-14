@@ -69,6 +69,8 @@ interface DatumWorksheetProps {
   onRequestMapPick?: () => void;
   /** True when parent is waiting for a map click to set LKP. */
   pickMode?: boolean;
+  /** External override for sea current (e.g. from WeatherPanel "Apply Sea Current"). */
+  seaCurrentOverride?: { dir: number; speed: number; ts: number } | null;
   onResults: (results: DatumResults | null) => void;
   onDataChange: (data: DatumData | null) => void;
   /** Fired whenever any internal state changes — used by parent to save state. */
@@ -86,6 +88,7 @@ export default function DatumWorksheet({
   onLKPChange,
   onRequestMapPick,
   pickMode,
+  seaCurrentOverride,
   onResults,
   onDataChange,
   onStateChange,
@@ -104,6 +107,16 @@ export default function DatumWorksheet({
   useEffect(() => {
     setLatitude(Math.abs(startLat));
   }, [startLat]);
+
+  // Apply sea current override (e.g. from WeatherPanel)
+  useEffect(() => {
+    if (seaCurrentOverride) {
+       
+      setSeaCurrentDir(seaCurrentOverride.dir);
+       
+      setSeaCurrentSpeed(seaCurrentOverride.speed);
+    }
+  }, [seaCurrentOverride]);
 
   const objectType: LeewayObjectType =
     LEEWAY_OBJECT_TYPES.find((t) => t.id === leewayObjectId) ?? LEEWAY_OBJECT_TYPES[0];

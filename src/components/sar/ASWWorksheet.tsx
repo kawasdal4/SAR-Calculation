@@ -31,10 +31,12 @@ interface ASWWorksheetProps {
   onDataChange: (data: ASWData) => void;
   /** Fired whenever observations or aswErr changes — used by parent to save state. */
   onStateChange?: (state: { observations: ASWObservation[]; aswErr: number }) => void;
+  /** External wind override — replaces observations with a single observation representing the live average wind. */
+  windOverride?: { dirFrom: number; speed: number; hours: number; ts: number } | null;
   initialState?: ASWInitialState | null;
 }
 
-export default function ASWWorksheet({ onDataChange, onStateChange, initialState }: ASWWorksheetProps) {
+export default function ASWWorksheet({ onDataChange, onStateChange, windOverride, initialState }: ASWWorksheetProps) {
   const [observations, setObservations] = useState<ASWObservation[]>(
     () =>
       initialState?.observations ?? [
@@ -43,6 +45,22 @@ export default function ASWWorksheet({ onDataChange, onStateChange, initialState
       ],
   );
   const [aswErr, setAswErr] = useState<number>(initialState?.aswErr ?? 2.0);
+
+  // Apply wind override from WeatherPanel: replace observations with a single live observation
+  useEffect(() => {
+    if (windOverride) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setObservations([
+        {
+          timeStart: 'Live',
+          timeEnd: 'Open-Meteo',
+          hours: windOverride.hours,
+          windDirFrom: windOverride.dirFrom,
+          windSpeed: windOverride.speed,
+        },
+      ]);
+    }
+  }, [windOverride]);
 
   // Emit full state up to parent for saving
   useEffect(() => {

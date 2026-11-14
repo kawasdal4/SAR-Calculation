@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,6 +28,9 @@ import SearchPlanWorksheet, {
 import CaseManager from '@/components/sar/CaseManager';
 import ExportButtons from '@/components/sar/ExportButtons';
 import { PodChart, PoscChart, PointDatumProbMap } from '@/components/sar/PodCharts';
+import { LeewayChart } from '@/components/sar/LeewayChart';
+import CompareScenarios from '@/components/sar/CompareScenarios';
+import WeatherPanel from '@/components/sar/WeatherPanel';
 import { buildSearchActionPlanData } from '@/lib/sar/searchActionPlan';
 import {
   type LatLng,
@@ -90,6 +93,12 @@ export default function Home() {
   } | null>(null);
   const [caseVersion, setCaseVersion] = useState<number>(0);
 
+  // Override signals from WeatherPanel → pushed down to worksheets
+  const [windOverride, setWindOverride] = useState<{ dirFrom: number; speed: number; hours: number; ts: number } | null>(null);
+  const [seaCurrentOverride, setSeaCurrentOverride] = useState<{ dir: number; speed: number; ts: number } | null>(null);
+  const [visibilityOverride, setVisibilityOverride] = useState<{ nm: number; ts: number } | null>(null);
+  const [driftIntervalForWeather, setDriftIntervalForWeather] = useState<number>(6);
+
   /** Build the full state payload to persist to the database. */
   const buildState = useCallback(() => {
     return {
@@ -118,6 +127,14 @@ export default function Home() {
     },
     [],
   );
+
+  // Keep driftIntervalForWeather synced with Datum worksheet state (for WeatherPanel averaging window)
+  useEffect(() => {
+    if (datumState?.driftInterval) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setDriftIntervalForWeather(datumState.driftInterval);
+    }
+  }, [datumState?.driftInterval]);
 
   // Map view center — defaults to LKP; updates when datum computed
   const mapCenter: LatLng = useMemo(() => {
@@ -378,6 +395,7 @@ export default function Home() {
                 key={`asw-${caseVersion}`}
                 onDataChange={setAsw}
                 onStateChange={setAswState}
+                windOverride={windOverride}
                 initialState={loadedInitialState?.asw}
               />
               <ReferenceCard
@@ -406,6 +424,7 @@ export default function Home() {
                   setActiveTab('datum');
                 }}
                 pickMode={pickMode}
+                seaCurrentOverride={seaCurrentOverride}
                 onResults={setDatumResults}
                 onDataChange={setDatumData}
                 onStateChange={setDatumState}
@@ -423,6 +442,15 @@ export default function Home() {
                   'SR (Separation Ratio) = DD / E. Jika SR > 4, gunakan dua datum terpisah.',
                 ]}
               />
+              {datumResults && (
+                <div className="mt-4">
+                  <LeewayChart
+                    currentWindSpeed={asw.aswSpeed}
+                    selectedObjectId={datumResults.lw.objectType.id}
+                    currentLeewaySpeed={datumResults.lw.leewaySpeed}
+                  />
+                </div>
+              )}
             </TabsContent>
 
             <TabsContent value="search" className="mt-0">
@@ -437,6 +465,7 @@ export default function Home() {
                     aswDirFrom={asw.aswDirFrom}
                     onResults={setSearchResults}
                     onStateChange={setSearchState}
+                    visibilityOverride={visibilityOverride}
                     initialState={loadedInitialState?.search}
                     key={`search-${caseVersion}`}
                   />
@@ -470,6 +499,13 @@ export default function Home() {
                       <PointDatumProbMap E_nm={datumResults.E} />
                     </div>
                   )}
+                  <div className="mt-4">
+                    <CompareScenarios
+                      baseLkp={lkp}
+                      baseAswDirFrom={asw.aswDirFrom}
+                      baseAswSpeed={asw.aswSpeed}
+                    />
+                  </div>
                 </>
               ) : (
                 <Card className="border-amber-200 bg-amber-50">
@@ -486,6 +522,19 @@ export default function Home() {
 
         {/* Right: live sea map + results summary */}
         <aside className="lg:col-span-2 space-y-4 lg:sticky lg:top-4 lg:self-start">
+          <WeatherPanel
+            lkp={lkp}
+            driftIntervalHours={driftIntervalForWeather}
+            onApplyAsw={(dirFrom, speed) =>
+              setWindOverride({ dirFrom, speed, hours: driftIntervalForWeather, ts: Date.now() })
+            }
+            onApplyVisibility={(nm) =>
+              setVisibilityOverride({ nm, ts: Date.now() })
+            }
+            onApplySeaCurrent={(dir, speed) =>
+              setSeaCurrentOverride({ dir, speed, ts: Date.now() })
+            }
+          />
           <Card className="overflow-hidden border-slate-200 shadow-sm">
             <CardHeader className="bg-slate-50 pb-3">
               <div className="flex items-center justify-between gap-2">
