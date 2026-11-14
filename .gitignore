@@ -52,3 +52,12 @@ prompt
 server.log
 # Skills directory
 /skills/
+# Sandbox-specific files (do not push)
+.env
+.env.local
+.env*.local
+db/*.db
+db/*.db-journal
+.zscripts/dev.pid
+.zscripts/dev.log
+.zscripts/dev.out.log
