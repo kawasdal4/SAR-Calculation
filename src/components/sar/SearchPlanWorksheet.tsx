@@ -51,6 +51,17 @@ export interface SearchPlanResults {
   trackSpacing: number;
 }
 
+export interface SearchPlanInitialState {
+  facilityType?: SearchFacilityType;
+  searchObject?: SearchObjectCategory;
+  visibility?: number;
+  windSpeed?: number;
+  altitudeFt?: number;
+  conditions?: SearchConditions;
+  datumType?: DatumType;
+  facilities?: FacilityRow[];
+}
+
 interface SearchPlanWorksheetProps {
   E: number;
   datumLeft: LatLng;
@@ -59,6 +70,9 @@ interface SearchPlanWorksheetProps {
   driftLeftDir: number;
   aswDirFrom: number;
   onResults: (results: SearchPlanResults | null) => void;
+  /** Fired whenever internal state changes — used by parent to save state. */
+  onStateChange?: (state: SearchPlanInitialState) => void;
+  initialState?: SearchPlanInitialState | null;
 }
 
 type FacilityRow = SearchFacilityInput;
@@ -90,31 +104,59 @@ export default function SearchPlanWorksheet({
   driftLeftDir,
   aswDirFrom,
   onResults,
+  onStateChange,
+  initialState,
 }: SearchPlanWorksheetProps) {
-  const [facilityType, setFacilityType] = useState<SearchFacilityType>('fixed-wing-aircraft');
-  const [searchObject, setSearchObject] = useState<SearchObjectCategory>('raft-6-person');
-  const [visibility, setVisibility] = useState<number>(10);
-  const [windSpeed, setWindSpeed] = useState<number>(15);
-  const [altitudeFt, setAltitudeFt] = useState<number>(1000);
-  const [conditions, setConditions] = useState<SearchConditions>('normal');
-  const [datumType, setDatumType] = useState<DatumType>('leeway-divergence');
-  const [facilities, setFacilities] = useState<FacilityRow[]>([
-    {
-      id: '1',
-      name: 'SAR Aircraft #1',
-      speed: 150,
-      endurance: 5,
-      daylightHours: 8,
-      W: 0,
-    },
-    {
-      id: '2',
-      name: 'SAR Vessel #1',
-      speed: 12,
-      endurance: 12,
-      daylightHours: 8,
-      W: 0,
-    },
+  const [facilityType, setFacilityType] = useState<SearchFacilityType>(initialState?.facilityType ?? 'fixed-wing-aircraft');
+  const [searchObject, setSearchObject] = useState<SearchObjectCategory>(initialState?.searchObject ?? 'raft-6-person');
+  const [visibility, setVisibility] = useState<number>(initialState?.visibility ?? 10);
+  const [windSpeed, setWindSpeed] = useState<number>(initialState?.windSpeed ?? 15);
+  const [altitudeFt, setAltitudeFt] = useState<number>(initialState?.altitudeFt ?? 1000);
+  const [conditions, setConditions] = useState<SearchConditions>(initialState?.conditions ?? 'normal');
+  const [datumType, setDatumType] = useState<DatumType>(initialState?.datumType ?? 'leeway-divergence');
+  const [facilities, setFacilities] = useState<FacilityRow[]>(
+    initialState?.facilities ?? [
+      {
+        id: '1',
+        name: 'SAR Aircraft #1',
+        speed: 150,
+        endurance: 5,
+        daylightHours: 8,
+        W: 0,
+      },
+      {
+        id: '2',
+        name: 'SAR Vessel #1',
+        speed: 12,
+        endurance: 12,
+        daylightHours: 8,
+        W: 0,
+      },
+    ],
+  );
+
+  // Emit SearchPlanInitialState snapshot up to parent for saving
+  useEffect(() => {
+    onStateChange?.({
+      facilityType,
+      searchObject,
+      visibility,
+      windSpeed,
+      altitudeFt,
+      conditions,
+      datumType,
+      facilities,
+    });
+  }, [
+    facilityType,
+    searchObject,
+    visibility,
+    windSpeed,
+    altitudeFt,
+    conditions,
+    datumType,
+    facilities,
+    onStateChange,
   ]);
 
   const sweep = useMemo(

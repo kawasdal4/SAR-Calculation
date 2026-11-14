@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus, Trash2 } from 'lucide-react';
 import {
@@ -20,16 +20,31 @@ export interface AWAData {
   aswSpeed: number;
 }
 
-interface AWAWorksheetProps {
-  onDataChange: (data: AWAData) => void;
+export interface AWAInitialState {
+  observations?: AWAObservation[];
 }
 
-export default function AWAWorksheet({ onDataChange }: AWAWorksheetProps) {
-  const [observations, setObservations] = useState<AWAObservation[]>([
-    { altLow: 0, altHigh: 2000, windDirFrom: 45, windSpeed: 15 },
-    { altLow: 2000, altHigh: 4000, windDirFrom: 50, windSpeed: 18 },
-    { altLow: 4000, altHigh: 6000, windDirFrom: 60, windSpeed: 22 },
-  ]);
+interface AWAWorksheetProps {
+  onDataChange: (data: AWAData) => void;
+  /** Fired whenever observations array changes — used by parent to save state. */
+  onObservationsChange?: (observations: AWAObservation[]) => void;
+  initialState?: AWAInitialState | null;
+}
+
+export default function AWAWorksheet({ onDataChange, onObservationsChange, initialState }: AWAWorksheetProps) {
+  const [observations, setObservations] = useState<AWAObservation[]>(
+    () =>
+      initialState?.observations ?? [
+        { altLow: 0, altHigh: 2000, windDirFrom: 45, windSpeed: 15 },
+        { altLow: 2000, altHigh: 4000, windDirFrom: 50, windSpeed: 18 },
+        { altLow: 4000, altHigh: 6000, windDirFrom: 60, windSpeed: 22 },
+      ],
+  );
+
+  // Emit observations up to parent for state-saving
+  useEffect(() => {
+    onObservationsChange?.(observations);
+  }, [observations, onObservationsChange]);
 
   const result = useMemo(() => computeAWA(observations), [observations]);
 

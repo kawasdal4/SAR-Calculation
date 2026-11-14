@@ -45,13 +45,35 @@ export interface DatumResults {
   twc: ReturnType<typeof computeTWC>;
 }
 
+export interface DatumInitialState {
+  driftInterval?: number;
+  latitude?: number;
+  seaCurrentDir?: number;
+  seaCurrentSpeed?: number;
+  seaCurrentErr?: number;
+  leewayObjectId?: string;
+  X?: number;
+  Y?: number;
+}
+
 interface DatumWorksheetProps {
   aswDirFrom: number;
   aswSpeed: number;
   aswErr: number;
   aswdve: number;
+  /** Controlled LKP position — set by parent (which can be updated from map clicks). */
+  startLat: number;
+  startLng: number;
+  onLKPChange: (lat: number, lng: number) => void;
+  /** Triggered when user clicks the "Pick on map" button. */
+  onRequestMapPick?: () => void;
+  /** True when parent is waiting for a map click to set LKP. */
+  pickMode?: boolean;
   onResults: (results: DatumResults | null) => void;
   onDataChange: (data: DatumData | null) => void;
+  /** Fired whenever any internal state changes — used by parent to save state. */
+  onStateChange?: (state: DatumInitialState) => void;
+  initialState?: DatumInitialState | null;
 }
 
 export default function DatumWorksheet({
@@ -59,19 +81,29 @@ export default function DatumWorksheet({
   aswSpeed,
   aswErr,
   aswdve,
+  startLat,
+  startLng,
+  onLKPChange,
+  onRequestMapPick,
+  pickMode,
   onResults,
   onDataChange,
+  onStateChange,
+  initialState,
 }: DatumWorksheetProps) {
-  const [startLat, setStartLat] = useState<number>(-6.1);
-  const [startLng, setStartLng] = useState<number>(106.8);
-  const [driftInterval, setDriftInterval] = useState<number>(6);
-  const [latitude, setLatitude] = useState<number>(Math.abs(-6.1));
-  const [seaCurrentDir, setSeaCurrentDir] = useState<number>(30);
-  const [seaCurrentSpeed, setSeaCurrentSpeed] = useState<number>(0.5);
-  const [seaCurrentErr, setSeaCurrentErr] = useState<number>(0.3);
-  const [leewayObjectId, setLeewayObjectId] = useState<string>('raft-canopy-drogue');
-  const [X, setX] = useState<number>(2.0);
-  const [Y, setY] = useState<number>(1.5);
+  const [driftInterval, setDriftInterval] = useState<number>(initialState?.driftInterval ?? 6);
+  const [latitude, setLatitude] = useState<number>(initialState?.latitude ?? Math.abs(startLat));
+  const [seaCurrentDir, setSeaCurrentDir] = useState<number>(initialState?.seaCurrentDir ?? 30);
+  const [seaCurrentSpeed, setSeaCurrentSpeed] = useState<number>(initialState?.seaCurrentSpeed ?? 0.5);
+  const [seaCurrentErr, setSeaCurrentErr] = useState<number>(initialState?.seaCurrentErr ?? 0.3);
+  const [leewayObjectId, setLeewayObjectId] = useState<string>(initialState?.leewayObjectId ?? 'raft-canopy-drogue');
+  const [X, setX] = useState<number>(initialState?.X ?? 2.0);
+  const [Y, setY] = useState<number>(initialState?.Y ?? 1.5);
+
+  // Keep |latitude| (used for wind current divergence) synced with startLat
+  useEffect(() => {
+    setLatitude(Math.abs(startLat));
+  }, [startLat]);
 
   const objectType: LeewayObjectType =
     LEEWAY_OBJECT_TYPES.find((t) => t.id === leewayObjectId) ?? LEEWAY_OBJECT_TYPES[0];
@@ -148,6 +180,30 @@ export default function DatumWorksheet({
     });
   }, [start, driftInterval, aswDirFrom, aswSpeed, aswdve, twc, lw, datum, e, wc]);
 
+  // Emit DatumInitialState snapshot up to parent for state-saving
+  useEffect(() => {
+    onStateChange?.({
+      driftInterval,
+      latitude,
+      seaCurrentDir,
+      seaCurrentSpeed,
+      seaCurrentErr,
+      leewayObjectId,
+      X,
+      Y,
+    });
+  }, [
+    driftInterval,
+    latitude,
+    seaCurrentDir,
+    seaCurrentSpeed,
+    seaCurrentErr,
+    leewayObjectId,
+    X,
+    Y,
+    onStateChange,
+  ]);
+
   return (
     <div className="space-y-4">
       <WorksheetCard
@@ -158,12 +214,12 @@ export default function DatumWorksheet({
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <div>
             <Label className="text-xs">Latitude (°)</Label>
-            <NumberInput value={startLat} onChange={setStartLat} />
+            <NumberInput value={startLat} onChange={(v) => onLKPChange(v, startLng)} />
             <p className="text-[10px] text-slate-400 mt-1">N = +, S = −</p>
           </div>
           <div>
             <Label className="text-xs">Longitude (°)</Label>
-            <NumberInput value={startLng} onChange={setStartLng} />
+            <NumberInput value={startLng} onChange={(v) => onLKPChange(startLat, v)} />
             <p className="text-[10px] text-slate-400 mt-1">E = +, W = −</p>
           </div>
           <div>
@@ -176,6 +232,21 @@ export default function DatumWorksheet({
             <NumberInput value={latitude} onChange={setLatitude} />
             <p className="text-[10px] text-slate-400 mt-1">For figure N-1 divergence lookup</p>
           </div>
+          {onRequestMapPick && (
+            <div className="sm:col-span-1 col-span-2 flex items-end">
+              <button
+                type="button"
+                onClick={onRequestMapPick}
+                className={`w-full h-8 px-3 rounded-md text-xs font-medium border transition-colors ${
+                  pickMode
+                    ? 'bg-emerald-600 text-white border-emerald-600 animate-pulse'
+                    : 'bg-white text-emerald-700 border-emerald-300 hover:bg-emerald-50'
+                }`}
+              >
+                {pickMode ? '◉ Click on map to set LKP…' : '📍 Pick LKP on map'}
+              </button>
+            </div>
+          )}
         </div>
       </WorksheetCard>
 

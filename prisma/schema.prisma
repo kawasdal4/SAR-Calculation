@@ -13,20 +13,24 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
+/// A saved SAR mission case — captures all worksheet inputs as JSON.
+model SarCase {
+  id          String   @id @default(cuid())
+  /// Human-friendly case title (e.g., "M/V NEVERSEEN — Java Sea").
+  title       String
+  /// Optional case number for cross-reference with RCC files.
+  caseNumber  String?
+  /// Search object description (e.g., "8-person orange liferaft with canopy").
+  searchObject String?
+  /// Emergency phase: UNCERTAINTY | ALERT | DISTRESS
+  phase       String  @default("DISTRESS")
+  /// Serialized full worksheet state (JSON).
+  /// Shape: { awa, asw, datum (start, env, lw, X, Y), search (facilities, sweep, datumType, conditions) }
+  state       String
+  /// Optional notes for the SMC.
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-model Post {
-  id        String   @id @default(cuid())
-  title     String
-  content   String?
-  published Boolean  @default(false)
-  authorId  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  @@index([createdAt])
 }

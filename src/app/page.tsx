@@ -6,15 +6,29 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Ship, Wind, Map as MapIcon, Compass, Calculator, FileText } from 'lucide-react';
-import AWAWorksheet, { type AWAData } from '@/components/sar/AWAWorksheet';
-import ASWWorksheet, { type ASWData } from '@/components/sar/ASWWorksheet';
+import AWAWorksheet, {
+  type AWAData,
+  type AWAInitialState,
+  type AWAObservation,
+} from '@/components/sar/AWAWorksheet';
+import ASWWorksheet, {
+  type ASWData,
+  type ASWInitialState,
+  type ASWObservation,
+} from '@/components/sar/ASWWorksheet';
 import DatumWorksheet, {
   type DatumData,
   type DatumResults,
+  type DatumInitialState,
 } from '@/components/sar/DatumWorksheet';
 import SearchPlanWorksheet, {
   type SearchPlanResults,
+  type SearchPlanInitialState,
 } from '@/components/sar/SearchPlanWorksheet';
+import CaseManager from '@/components/sar/CaseManager';
+import ExportButtons from '@/components/sar/ExportButtons';
+import { PodChart, PoscChart, PointDatumProbMap } from '@/components/sar/PodCharts';
+import { buildSearchActionPlanData } from '@/lib/sar/searchActionPlan';
 import {
   type LatLng,
   type Vector,
@@ -50,6 +64,61 @@ export default function Home() {
   const [datumResults, setDatumResults] = useState<DatumResults | null>(null);
   const [searchResults, setSearchResults] = useState<SearchPlanResults | null>(null);
 
+  // Controlled LKP — set by Datum worksheet inputs OR by clicking on the map
+  const [lkp, setLkp] = useState<LatLng>({ lat: -6.1, lng: 106.8 });
+  const [pickMode, setPickMode] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<string>('awa');
+
+  // Raw state snapshots — captured by parent from each worksheet for save/load
+  const [awaObservations, setAwaObservations] = useState<AWAObservation[]>([]);
+  const [aswState, setAswState] = useState<{ observations: ASWObservation[]; aswErr: number }>({
+    observations: [],
+    aswErr: 2.0,
+  });
+  const [datumState, setDatumState] = useState<DatumInitialState | null>(null);
+  const [searchState, setSearchState] = useState<SearchPlanInitialState | null>(null);
+
+  // Initial state used to rehydrate child components after loading a case.
+  // Bumping `caseVersion` forces React to remount child worksheets (via `key`)
+  // so they read the new initialState fresh from useState initializers.
+  const [loadedInitialState, setLoadedInitialState] = useState<{
+    awa?: AWAInitialState;
+    asw?: ASWInitialState;
+    datum?: DatumInitialState;
+    search?: SearchPlanInitialState;
+    lkp?: LatLng;
+  } | null>(null);
+  const [caseVersion, setCaseVersion] = useState<number>(0);
+
+  /** Build the full state payload to persist to the database. */
+  const buildState = useCallback(() => {
+    return {
+      title: '',
+      state: {
+        awa: { observations: awaObservations },
+        asw: { observations: aswState.observations, aswErr: aswState.aswErr },
+        datum: datumState ?? {},
+        search: searchState ?? {},
+        lkp,
+      },
+    };
+  }, [awaObservations, aswState, datumState, searchState, lkp]);
+
+  /** Apply a loaded state back to the worksheets by rehydrating initialState + bumping key. */
+  const applyState = useCallback(
+    (state: Record<string, unknown>) => {
+      const awa = (state.awa ?? {}) as AWAInitialState;
+      const asw = (state.asw ?? {}) as ASWInitialState;
+      const datum = (state.datum ?? {}) as DatumInitialState;
+      const search = (state.search ?? {}) as SearchPlanInitialState;
+      const lkpLoaded = state.lkp as LatLng | undefined;
+      setLoadedInitialState({ awa, asw, datum, search, lkp: lkpLoaded });
+      if (lkpLoaded) setLkp(lkpLoaded);
+      setCaseVersion((v) => v + 1);
+    },
+    [],
+  );
+
   // Map view center — defaults to LKP; updates when datum computed
   const mapCenter: LatLng = useMemo(() => {
     if (datumData && datumResults) {
@@ -58,13 +127,19 @@ export default function Home() {
         lng: (datumData.start.lng + datumResults.datumLeft.lng + datumResults.datumRight.lng) / 3,
       };
     }
-    return DEFAULT_CENTER;
-  }, [datumData, datumResults]);
+    return lkp;
+  }, [datumData, datumResults, lkp]);
 
-  // Allow user to click the map to set the start position (LKP) — handled in SeaMap click handler
-  const handleMapClick = useCallback((_latlng: LatLng) => {
-    // Reserved for future click-to-set LKP feature
-  }, []);
+  // Click on map → set LKP (only when in pick mode)
+  const handleMapClick = useCallback(
+    (latlng: LatLng) => {
+      if (pickMode) {
+        setLkp(latlng);
+        setPickMode(false);
+      }
+    },
+    [pickMode],
+  );
 
   // Build map markers from datum + start
   const markers: MapMarker[] = useMemo(() => {
@@ -190,6 +265,42 @@ export default function Home() {
 
   const mapZoom = 8;
 
+  // Build the Search Action Plan payload (Appendix L-23) from the current state.
+  const searchActionPlanData = useMemo(() => {
+    if (!datumResults || !searchResults || !datumData) return null;
+    return buildSearchActionPlanData({
+      caseTitle: 'SAR Search Action Plan',
+      lkp,
+      datumLeft: datumResults.datumLeft,
+      datumRight: datumResults.datumRight,
+      driftDistanceNm: datumResults.driftDistance,
+      divergenceDistanceNm: datumResults.divergenceDistance,
+      E_nm: datumResults.E,
+      Zta_nm2: searchResults.Zta,
+      Ro_nm: searchResults.Ro,
+      Ao_nm2: searchResults.Ao,
+      coverageFactor: searchResults.C,
+      POD_pct: searchResults.POD * 100,
+      trackSpacing_nm: searchResults.trackSpacing,
+      searchAreaLength_nm: searchResults.searchAreaLength,
+      searchAreaWidth_nm: searchResults.searchAreaWidth,
+      searchAreaCenter: searchResults.searchAreaCenter,
+      searchAreaOrientationDeg: searchResults.orientationDeg,
+      aswDirFrom: asw.aswDirFrom,
+      aswSpeedKts: asw.aswSpeed,
+      awaDirFrom: awa.aswDirFrom,
+      awaSpeedKts: awa.aswSpeed,
+      twcDir: datumResults.twc.twc.dir,
+      twcSpeed: datumResults.twc.twc.mag,
+      lwLeftDir: datumResults.lw.lwLeftDir,
+      lwRightDir: datumResults.lw.lwRightDir,
+      lwSpeed: datumResults.lw.leewaySpeed,
+      facilities: searchState?.facilities?.map((f) => ({ name: f.name, speed: f.speed })) ?? [
+        { name: 'SAR Aircraft #1', speed: 150 },
+      ],
+    });
+  }, [datumResults, searchResults, datumData, lkp, asw, awa, searchState]);
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
       {/* Header */}
@@ -209,7 +320,9 @@ export default function Home() {
                 </p>
               </div>
             </div>
-            <div className="hidden sm:flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <CaseManager buildState={buildState} applyState={applyState} />
+              <ExportButtons data={searchActionPlanData} caseTitle="SAR_Search_Action_Plan" />
               <Badge variant="secondary" className="bg-slate-800 text-slate-200 border-slate-700">
                 Volume II
               </Badge>
@@ -224,7 +337,7 @@ export default function Home() {
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-6 grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Left: worksheets */}
         <section className="lg:col-span-3 space-y-4">
-          <Tabs defaultValue="awa" className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid grid-cols-2 sm:grid-cols-4 mb-4 bg-slate-100">
               <TabsTrigger value="awa" className="text-xs sm:text-sm">
                 <Wind className="h-4 w-4 mr-1.5" /> AWA
@@ -241,7 +354,12 @@ export default function Home() {
             </TabsList>
 
             <TabsContent value="awa" className="mt-0">
-              <AWAWorksheet onDataChange={setAwa} />
+              <AWAWorksheet
+                key={`awa-${caseVersion}`}
+                onDataChange={setAwa}
+                onObservationsChange={setAwaObservations}
+                initialState={loadedInitialState?.awa}
+              />
               <ReferenceCard
                 title="Average Wind Aloft (AWA)"
                 description="Appendix K-10"
@@ -256,7 +374,12 @@ export default function Home() {
             </TabsContent>
 
             <TabsContent value="asw" className="mt-0">
-              <ASWWorksheet onDataChange={setAsw} />
+              <ASWWorksheet
+                key={`asw-${caseVersion}`}
+                onDataChange={setAsw}
+                onStateChange={setAswState}
+                initialState={loadedInitialState?.asw}
+              />
               <ReferenceCard
                 title="Average Surface Wind (ASW)"
                 description="Appendix K-19"
@@ -275,8 +398,19 @@ export default function Home() {
                 aswSpeed={asw.aswSpeed}
                 aswErr={asw.aswErr}
                 aswdve={asw.aswdve}
+                startLat={lkp.lat}
+                startLng={lkp.lng}
+                onLKPChange={(lat, lng) => setLkp({ lat, lng })}
+                onRequestMapPick={() => {
+                  setPickMode(true);
+                  setActiveTab('datum');
+                }}
+                pickMode={pickMode}
                 onResults={setDatumResults}
                 onDataChange={setDatumData}
+                onStateChange={setDatumState}
+                initialState={loadedInitialState?.datum}
+                key={`datum-${caseVersion}`}
               />
               <ReferenceCard
                 title="Datum Worksheet (Marine)"
@@ -302,6 +436,9 @@ export default function Home() {
                     driftLeftDir={datumResults ? datumData?.aswDirFrom ?? 0 : 0}
                     aswDirFrom={asw.aswDirFrom}
                     onResults={setSearchResults}
+                    onStateChange={setSearchState}
+                    initialState={loadedInitialState?.search}
+                    key={`search-${caseVersion}`}
                   />
                   <ReferenceCard
                     title="Effort Allocation Worksheet"
@@ -315,6 +452,24 @@ export default function Home() {
                       'Track spacing S = W / C. Search legs harus sejajar arah drift.',
                     ]}
                   />
+                  {searchResults && datumResults && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                      <PodChart
+                        currentCoverage={searchResults.C}
+                        currentPod={searchResults.POD}
+                        conditions={searchState?.conditions ?? 'normal'}
+                      />
+                      <PoscChart
+                        currentZrc={searchResults.Zrc}
+                        datumType={searchState?.datumType ?? 'leeway-divergence'}
+                      />
+                    </div>
+                  )}
+                  {datumResults && (
+                    <div className="mt-4">
+                      <PointDatumProbMap E_nm={datumResults.E} />
+                    </div>
+                  )}
                 </>
               ) : (
                 <Card className="border-amber-200 bg-amber-50">
@@ -343,16 +498,30 @@ export default function Home() {
               </div>
             </CardHeader>
             <CardContent className="p-0">
-              <SeaMap
-                center={mapCenter}
-                zoom={mapZoom}
-                markers={markers}
-                lines={[...lines, ...envLines]}
-                polygons={polygons}
-                circles={circles}
-                height="460px"
-                onMapClick={handleMapClick}
-              />
+              {pickMode && (
+                <div className="px-3 py-2 bg-emerald-600 text-white text-xs font-medium flex items-center justify-between">
+                  <span>◉ Pick mode active — click anywhere on the chart to set the LKP</span>
+                  <button
+                    type="button"
+                    onClick={() => setPickMode(false)}
+                    className="text-emerald-100 hover:text-white underline"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+              <div className={pickMode ? 'ring-2 ring-emerald-500 ring-inset' : ''}>
+                <SeaMap
+                  center={mapCenter}
+                  zoom={mapZoom}
+                  markers={markers}
+                  lines={[...lines, ...envLines]}
+                  polygons={polygons}
+                  circles={circles}
+                  height="460px"
+                  onMapClick={handleMapClick}
+                />
+              </div>
               <div className="px-3 py-2 bg-slate-50 border-t border-slate-200 text-[11px] text-slate-600">
                 <span className="font-semibold">Legend:</span>{' '}
                 <span className="inline-flex items-center gap-1">

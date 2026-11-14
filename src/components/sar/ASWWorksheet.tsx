@@ -22,16 +22,32 @@ export interface ASWData {
   aswdve: number;
 }
 
-interface ASWWorksheetProps {
-  onDataChange: (data: ASWData) => void;
+export interface ASWInitialState {
+  observations?: ASWObservation[];
+  aswErr?: number;
 }
 
-export default function ASWWorksheet({ onDataChange }: ASWWorksheetProps) {
-  const [observations, setObservations] = useState<ASWObservation[]>([
-    { timeStart: '', timeEnd: '', hours: 6, windDirFrom: 90, windSpeed: 18 },
-    { timeStart: '', timeEnd: '', hours: 4, windDirFrom: 110, windSpeed: 22 },
-  ]);
-  const [aswErr, setAswErr] = useState<number>(2.0);
+interface ASWWorksheetProps {
+  onDataChange: (data: ASWData) => void;
+  /** Fired whenever observations or aswErr changes — used by parent to save state. */
+  onStateChange?: (state: { observations: ASWObservation[]; aswErr: number }) => void;
+  initialState?: ASWInitialState | null;
+}
+
+export default function ASWWorksheet({ onDataChange, onStateChange, initialState }: ASWWorksheetProps) {
+  const [observations, setObservations] = useState<ASWObservation[]>(
+    () =>
+      initialState?.observations ?? [
+        { timeStart: '', timeEnd: '', hours: 6, windDirFrom: 90, windSpeed: 18 },
+        { timeStart: '', timeEnd: '', hours: 4, windDirFrom: 110, windSpeed: 22 },
+      ],
+  );
+  const [aswErr, setAswErr] = useState<number>(initialState?.aswErr ?? 2.0);
+
+  // Emit full state up to parent for saving
+  useEffect(() => {
+    onStateChange?.({ observations, aswErr });
+  }, [observations, aswErr, onStateChange]);
 
   const result = useMemo(() => computeASW(observations), [observations]);
 
