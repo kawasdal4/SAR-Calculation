@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { type LatLng, distanceNm } from '@/lib/sar/sarCalculations';
@@ -157,10 +157,15 @@ const DEFAULT_VIEW_PREFS: ViewPrefs = {
   coord: true,
   zoom: true,
   disclaimer: true,
-  depth: false, // off by default — opt-in to avoid surprise fetches
+  // depth ON by default — the layer must be visible out of the box. Fetches
+  // are debounced, rate-limited and cached (memory + localStorage), so the
+  // first paint costs at most a couple of small requests.
+  depth: true,
 };
 
-const VIEW_PREFS_KEY = 'seamap:viewPrefs';
+// v2: bumped from 'seamap:viewPrefs' so the fixed defaults apply to existing
+// visitors too (old stored prefs could keep depth off or a fully-hidden map).
+const VIEW_PREFS_KEY = 'seamap:viewPrefs:v2';
 const DEPTH_DENSITY_KEY = 'seamap:depthDensity';
 
 function loadViewPrefs(): ViewPrefs {
@@ -169,13 +174,18 @@ function loadViewPrefs(): ViewPrefs {
     const raw = window.localStorage.getItem(VIEW_PREFS_KEY);
     if (!raw) return { ...DEFAULT_VIEW_PREFS };
     const parsed = JSON.parse(raw) as Partial<ViewPrefs>;
-    return {
+    const restored: ViewPrefs = {
       layers: typeof parsed.layers === 'boolean' ? parsed.layers : true,
       coord: typeof parsed.coord === 'boolean' ? parsed.coord : true,
       zoom: typeof parsed.zoom === 'boolean' ? parsed.zoom : true,
       disclaimer: typeof parsed.disclaimer === 'boolean' ? parsed.disclaimer : true,
-      depth: typeof parsed.depth === 'boolean' ? parsed.depth : false,
+      depth: typeof parsed.depth === 'boolean' ? parsed.depth : true,
     };
+    // Never restore a fully-hidden map — a map with every overlay hidden
+    // reads as "broken" (the user thinks the map disappeared). Hiding is
+    // still possible; it just doesn't survive a reload.
+    if (allHidden(restored)) return { ...DEFAULT_VIEW_PREFS };
+    return restored;
   } catch {
     return { ...DEFAULT_VIEW_PREFS };
   }
@@ -192,8 +202,8 @@ function saveViewPrefs(prefs: ViewPrefs): void {
 
 function allHidden(p: ViewPrefs): boolean {
   // "Hide all" only hides the in-map overlays (layers/coord/zoom/disclaimer).
-  // The depth layer has its own checkbox in the Layers panel — it's not
-  // affected by the Tampilan "hide all" toggle.
+  // The depth layer has its own checkbox (Layers panel + Tampilan menu) —
+  // it's not affected by the Tampilan "hide all" toggle.
   return !p.layers && !p.coord && !p.zoom && !p.disclaimer;
 }
 
@@ -267,6 +277,38 @@ export default function SeaMap({
   // only runs in the browser.
   const [viewPrefs, setViewPrefs] = useState<ViewPrefs>(() => loadViewPrefs());
   const [menuOpen, setMenuOpen] = useState(false);
+  const [hideToast, setHideToast] = useState(false);
+  // Mirror of viewPrefs so the once-bound keyboard handler can read the
+  // latest value without re-binding.
+  const viewPrefsRef = useRef(viewPrefs);
+  useEffect(() => {
+    viewPrefsRef.current = viewPrefs;
+  }, [viewPrefs]);
+
+  // Non-blocking toast shown right after the overlays are hidden, telling
+  // the user how to bring them back (the #1 recovery path).
+  const hideToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flashHideToast = useCallback(() => {
+    setHideToast(true);
+    if (hideToastTimer.current) clearTimeout(hideToastTimer.current);
+    hideToastTimer.current = setTimeout(() => {
+      setHideToast(false);
+      hideToastTimer.current = null;
+    }, 6000);
+  }, []);
+  const clearHideToast = useCallback(() => {
+    setHideToast(false);
+    if (hideToastTimer.current) {
+      clearTimeout(hideToastTimer.current);
+      hideToastTimer.current = null;
+    }
+  }, []);
+  useEffect(
+    () => () => {
+      if (hideToastTimer.current) clearTimeout(hideToastTimer.current);
+    },
+    [],
+  );
 
   // Persist on change.
   useEffect(() => {
@@ -276,7 +318,7 @@ export default function SeaMap({
   // Keyboard shortcut: H toggles ALL elements (hide-all ↔ show-all).
   // Ignores modifier keys (Ctrl/Meta/Alt) and any editable focus target.
   // Note: the depth layer is NOT toggled by H — it has its own checkbox in
-  // the Layers panel.
+  // the Layers panel and in the Tampilan menu.
   useEffect(() => {
     const isEditable = (el: Element | null): boolean => {
       if (!el) return false;
@@ -290,22 +332,33 @@ export default function SeaMap({
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (isEditable(document.activeElement)) return;
       e.preventDefault();
-      setViewPrefs((prev) => {
-        if (allHidden(prev)) return { ...DEFAULT_VIEW_PREFS, depth: prev.depth };
-        return { layers: false, coord: false, zoom: false, disclaimer: false, depth: prev.depth };
-      });
+      const prev = viewPrefsRef.current;
+      if (allHidden(prev)) {
+        setViewPrefs({ ...DEFAULT_VIEW_PREFS, depth: prev.depth });
+        clearHideToast();
+      } else {
+        setViewPrefs({ layers: false, coord: false, zoom: false, disclaimer: false, depth: prev.depth });
+        flashHideToast();
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  }, [flashHideToast, clearHideToast]);
 
-  // Build the className applied to the map container, based on view prefs.
+  // Build the className applied to the map WRAPPER, based on view prefs.
   // Each class triggers a CSS rule that hides the corresponding Leaflet
   // control with `display: none`. The map's own pan/zoom/click handlers are
   // attached to the map pane, not the control container, so they keep working
   // when controls are hidden.
-  const mapClassName = [
-    'seamap-map',
+  // IMPORTANT: these classes must live on the wrapper div, NOT on the
+  // Leaflet container itself. Leaflet adds its own classes to the container
+  // (`leaflet-container`, `leaflet-fade-anim`, …) after init; if React ever
+  // re-writes that div's className (which happens on every toggle), those
+  // classes are wiped — `.leaflet-container .leaflet-tile { max-width: none
+  // !important }` stops matching, Tailwind's `img { max-width: 100% }`
+  // collapses every tile to width 0, and the whole map turns white. That
+  // was the "klik hide → peta hilang" bug.
+  const mapWrapperClassName = [
     !viewPrefs.layers && 'seamap-hide-layers',
     !viewPrefs.coord && 'seamap-hide-coord',
     !viewPrefs.zoom && 'seamap-hide-zoom',
@@ -778,7 +831,9 @@ export default function SeaMap({
     scaleBorderCanvas.style.top = '0';
     scaleBorderCanvas.style.left = '0';
     scaleBorderCanvas.style.pointerEvents = 'none';
-    scaleBorderCanvas.style.zIndex = '400';
+    // ABOVE .leaflet-map-pane (z-index 400) so the chart frame is never
+    // buried under the map tiles; still below the controls (800/1000).
+    scaleBorderCanvas.style.zIndex = '460';
     scaleBorderCanvas.style.width = '100%';
     scaleBorderCanvas.style.height = '100%';
     map.getContainer().appendChild(scaleBorderCanvas);
@@ -982,7 +1037,11 @@ export default function SeaMap({
     depthCanvas.style.top = '0';
     depthCanvas.style.left = '0';
     depthCanvas.style.pointerEvents = 'none';
-    depthCanvas.style.zIndex = '350'; // BELOW scale border (400), ABOVE tiles (200-300)
+    // CRITICAL: this canvas is a SIBLING of .leaflet-map-pane, which Leaflet
+    // gives z-index 400. Anything below 400 renders UNDER the (opaque) map
+    // tiles and is invisible. 450 sits above the map pane but below the
+    // scale-border canvas (460) and the controls (800/1000).
+    depthCanvas.style.zIndex = '450';
     depthCanvas.style.width = '100%';
     depthCanvas.style.height = '100%';
     map.getContainer().appendChild(depthCanvas);
@@ -1007,8 +1066,14 @@ export default function SeaMap({
     };
     window.addEventListener('seamap:depth-toggle', onDepthToggle);
 
-    // Initial draw (after a tick so the canvas has a real size).
-    setTimeout(() => drawDepthOverlay(), 200);
+    // Initial draw (after a tick so the canvas has a real size), then kick
+    // off the first fetch — without this the depth layer stays empty until
+    // the user pans/zooms, because maybeFetchDepths was previously only
+    // wired to moveend/zoomend.
+    setTimeout(() => {
+      drawDepthOverlay();
+      void maybeFetchDepths();
+    }, 200);
 
     // Layer groups for SAR overlays
     const markersLayer = L.layerGroup().addTo(map);
@@ -1080,6 +1145,7 @@ export default function SeaMap({
               <div class="layer-source" id="lyr-depth-source">${depthSourceLabel}</div>
               <div class="layer-source-hint">Interpolasi grid; bukan hasil survei. Tidak untuk navigasi.</div>
               <div class="layer-status" id="lyr-depth-status"></div>
+              <div class="layer-hint" id="lyr-depth-hint" style="display:none;"></div>
             </div>
           </div>
         `;
@@ -1144,8 +1210,11 @@ export default function SeaMap({
 
     // Sync depth status text + checkbox state from React state → DOM.
     // The Layers panel is built imperatively (Leaflet Control), so we need
-    // a side-channel to push state updates into it.
-    const syncDepthPanel = () => {
+    // a side-channel to push state updates into it. The fresh values ride
+    // on the event's `detail` — this handler is bound once inside the mount
+    // effect, so closure-over state would be permanently stale.
+    const syncDepthPanel = (e: Event) => {
+      const detail = (e as CustomEvent<{ status?: DepthStatus; hint?: string | null }>).detail;
       const cb = document.getElementById('lyr-depth') as HTMLInputElement | null;
       if (cb && cb.checked !== depthEnabledRef.current) cb.checked = depthEnabledRef.current;
       const wrap = document.getElementById('lyr-density-wrap');
@@ -1154,7 +1223,7 @@ export default function SeaMap({
       if (sel && sel.value !== depthDensityRef.current) sel.value = depthDensityRef.current;
       const statusEl = document.getElementById('lyr-depth-status');
       if (statusEl) {
-        const s = depthStatus;
+        const s = detail?.status ?? 'idle';
         const statusText =
           s === 'loading' ? 'Memuat…'
           : s === 'rate-limited' ? 'Rate limit — pakai cache'
@@ -1165,8 +1234,9 @@ export default function SeaMap({
       }
       const hintEl = document.getElementById('lyr-depth-hint');
       if (hintEl) {
-        hintEl.textContent = depthHint ?? '';
-        hintEl.style.display = depthHint ? 'block' : 'none';
+        const hint = detail?.hint ?? null;
+        hintEl.textContent = hint ?? '';
+        hintEl.style.display = hint ? 'block' : 'none';
       }
     };
     // Subscribe to React state changes — but the panel DOM is owned by Leaflet,
@@ -1408,13 +1478,15 @@ export default function SeaMap({
   // ---- Tampilan menu handlers ----
   const togglePref = (key: keyof ViewPrefs) => {
     setViewPrefs((prev) => ({ ...prev, [key]: !prev[key] }));
+    clearHideToast();
   };
   const hideAll = () => {
     setViewPrefs((prev) => ({
       layers: false, coord: false, zoom: false, disclaimer: false,
-      depth: prev.depth, // depth has its own checkbox in Layers — preserved
+      depth: prev.depth, // depth has its own checkbox — preserved
     }));
     setMenuOpen(false);
+    flashHideToast();
   };
   const showAll = () => {
     setViewPrefs((prev) => ({
@@ -1422,11 +1494,17 @@ export default function SeaMap({
       depth: prev.depth, // depth has its own checkbox — preserved
     }));
     setMenuOpen(false);
+    clearHideToast();
   };
 
   // Push depth status/hint changes into the imperative Layers panel DOM.
+  // Values travel in the event detail — see syncDepthPanel above.
   useEffect(() => {
-    window.dispatchEvent(new Event('seamap:depth-panel-sync'));
+    window.dispatchEvent(
+      new CustomEvent('seamap:depth-panel-sync', {
+        detail: { status: depthStatus, hint: depthHint },
+      }),
+    );
   }, [depthStatus, depthHint, viewPrefs.depth, depthDensity]);
 
   const everythingHidden = allHidden(viewPrefs);
@@ -1438,6 +1516,7 @@ export default function SeaMap({
       aria-label="Interactive sea map showing search and rescue datum, search areas, and bathymetry"
     >
       <div
+        className={mapWrapperClassName}
         style={{
           position: 'relative',
           flex: '1 1 auto',
@@ -1446,17 +1525,20 @@ export default function SeaMap({
           borderRadius: '0.5rem 0.5rem 0 0',
         }}
       >
+        {/* className is a constant so React never re-writes it and Leaflet's
+         * own classes (leaflet-container, …) survive every re-render. */}
         <div
           ref={containerRef}
-          className={mapClassName}
+          className="seamap-map"
           style={{ height: '100%', width: '100%' }}
         />
 
         {/* Tampilan (view) toggle button + menu.
          * Sibling of the map container so it survives the per-element hide
          * classes (which only target Leaflet controls, not this button).
-         * Auto-collapses to a translucent icon when every element is hidden,
-         * and returns to full opacity on hover. */}
+         * Always rendered at full opacity with a text label; when every
+         * element is hidden the button turns accent-blue so the recovery
+         * path is obvious. */}
         <div
           className={`seamap-tampilan${everythingHidden ? ' is-collapsed' : ''}${menuOpen ? ' is-open' : ''}`}
         >
@@ -1482,6 +1564,7 @@ export default function SeaMap({
               <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
               <circle cx="12" cy="12" r="3" />
             </svg>
+            <span className="seamap-tampilan-btn__label">Tampilan</span>
           </button>
 
           {menuOpen && (
@@ -1518,6 +1601,14 @@ export default function SeaMap({
                 />
                 <span>Peringatan</span>
               </label>
+              <label className="seamap-tampilan-row">
+                <input
+                  type="checkbox"
+                  checked={viewPrefs.depth}
+                  onChange={() => togglePref('depth')}
+                />
+                <span>Angka kedalaman</span>
+              </label>
               <button
                 type="button"
                 className="seamap-tampilan-all"
@@ -1530,7 +1621,18 @@ export default function SeaMap({
             </div>
           )}
         </div>
+        {/* Recovery toast — appears right after the overlays are hidden so
+         * the user always knows how to get the map elements back. Anchored
+         * inside the relative map wrapper, above the Tampilan button. */}
+        {hideToast && (
+          <div className="seamap-hide-toast" role="status">
+            Elemen peta disembunyikan — klik tombol{' '}
+            <strong>Tampilan</strong> di kanan bawah (atau tekan <strong>H</strong>)
+            untuk menampilkan kembali.
+          </div>
+        )}
       </div>
+
       {/* Disclaimer strip below the map — always visible (even when the
        * top-right badge is hidden), since it lives outside the map area.
        * When the depth layer is active, also show the data-source

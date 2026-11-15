@@ -40,6 +40,7 @@ import {
   dirToCompass,
 } from '@/lib/sar/sarCalculations';
 import type { MapMarker, MapLine, MapPolygon, MapCircle } from '@/components/sar/SeaMap';
+import BasicCalculation from '@/components/sar/BasicCalculation';
 // SeaMapMount = dynamic import + error boundary. Jika chunk peta gagal
 // dimuat (mis. setelah server dev restart), pengguna melihat tombol
 // "Muat ulang" — bukan spinner abadi.
@@ -348,7 +349,7 @@ export default function Home() {
         {/* Left: worksheets */}
         <section className="lg:col-span-3 space-y-4">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid grid-cols-2 sm:grid-cols-4 mb-4 bg-slate-100">
+            <TabsList className="grid grid-cols-3 sm:grid-cols-5 mb-4 bg-slate-100">
               <TabsTrigger value="awa" className="text-xs sm:text-sm">
                 <Wind className="h-4 w-4 mr-1.5" /> AWA
               </TabsTrigger>
@@ -360,6 +361,9 @@ export default function Home() {
               </TabsTrigger>
               <TabsTrigger value="search" className="text-xs sm:text-sm">
                 <Calculator className="h-4 w-4 mr-1.5" /> Search
+              </TabsTrigger>
+              <TabsTrigger value="basic-calc" className="text-xs sm:text-sm">
+                <Calculator className="h-4 w-4 mr-1.5" /> Hitung Dasar
               </TabsTrigger>
             </TabsList>
 
@@ -509,6 +513,9 @@ export default function Home() {
                   </CardContent>
                 </Card>
               )}
+            </TabsContent>
+            <TabsContent value="basic-calc" className="mt-0">
+              <BasicCalculation />
             </TabsContent>
           </Tabs>
         </section>

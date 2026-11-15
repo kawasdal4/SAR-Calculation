@@ -3,13 +3,16 @@
  *
  * Source priority:
  *   1. `NEXT_PUBLIC_BATNAS_COG_URL`  → BATNAS Cloud Optimized GeoTIFF (~180 m)
- *   2. `NEXT_PUBLIC_GEBCO_COG_URL`    → GEBCO Cloud Optimized GeoTIFF (~450 m)
- *   3. Open-Topo-Data GEBCO API      → https://api.opentopodata.org/v1/gebco2020
+ *   2. `NEXT_PUBLIC_GEBCO_COG_URL`   → GEBCO Cloud Optimized GeoTIFF (~450 m)
+ *   3. `/api/depth` proxy → GEBCO 2020 (server-side; see src/app/api/depth)
  *
  * COG sources read pixels directly from the remote TIFF via HTTP range
- * requests (geotiff.js, in-browser, no proxy). Open-Topo-Data is used as a
- * rate-limited fallback (max 100 points per request, 1.1 s minimum between
- * requests, single in-process queue).
+ * requests (geotiff.js, in-browser, no proxy). The GEBCO fallback goes
+ * through the same-origin `/api/depth` Next.js route — the upstream API
+ * (api.opentopodata.org) does NOT send CORS headers, so a direct browser
+ * fetch always fails; the proxy fetches server-side and adds its own
+ * TTL cache + rate limiting. On the client side this path is limited to
+ * 100 points per request.
  *
  * Caching:
  *   - In-memory `Map<string, number>` keyed by `"lat,lng"` (rounded to 6 dp).
@@ -38,9 +41,13 @@ import type { DepthSource, GridPoint } from './depthLabels';
 
 const BATNAS_COG_URL = process.env.NEXT_PUBLIC_BATNAS_COG_URL;
 const GEBCO_COG_URL = process.env.NEXT_PUBLIC_GEBCO_COG_URL;
-const OPENTOPO_ENDPOINT = 'https://api.opentopodata.org/v1/gebco2020';
-const OPENTOPO_MAX_PER_REQUEST = 100;
-const OPENTOPO_MIN_INTERVAL_MS = 1100; // ≥ 1 req/s per docs
+// Same-origin proxy (src/app/api/depth/route.ts). The upstream API sends no
+// CORS headers, so the browser must never call it directly.
+const DEPTH_PROXY_ENDPOINT = '/api/depth';
+const DEPTH_PROXY_MAX_PER_REQUEST = 100;
+// The proxy throttles upstream calls (>=1.1 s) and caches server-side, so
+// the client only needs a small gap between its own requests.
+const DEPTH_PROXY_MIN_INTERVAL_MS = 250;
 
 const LOCALSTORAGE_KEY = 'seamap:depthCache';
 const LOCALSTORAGE_MAX_ENTRIES = 5000;
@@ -61,7 +68,7 @@ export function getDepthSourceLabel(): string {
   switch (getActiveDepthSource()) {
     case 'BATNAS_COG': return 'BATNAS COG (~180 m, BIG Indonesia)';
     case 'GEBCO_COG': return 'GEBCO COG (~450 m)';
-    case 'OPENTOPO_GEBCO': return 'Open-Topo-Data GEBCO API (~450 m)';
+    case 'OPENTOPO_GEBCO': return 'GEBCO 2020 via proxy server (~450 m)';
     case 'NONE': return 'Tidak ada sumber';
   }
 }
@@ -260,19 +267,19 @@ async function cogSample(lat: number, lng: number, signal: AbortSignal): Promise
 }
 
 // ============================================================================
-// Open-Topo-Data API fallback
+// /api/depth proxy path (GEBCO 2020, fetched server-side)
 // ============================================================================
 
-/** Single-request queue: only one Open-Topo-Data request in flight at a time,
- *  with at least OPENTOPO_MIN_INTERVAL_MS between requests. */
+/** Single-request queue: only one proxy request in flight at a time,
+ *  with at least DEPTH_PROXY_MIN_INTERVAL_MS between requests. */
 let opentopoQueue: Promise<void> = Promise.resolve();
 let opentopoLastRequest = 0;
 
 async function opentopoThrottle(): Promise<void> {
   const now = Date.now();
   const elapsed = now - opentopoLastRequest;
-  if (elapsed < OPENTOPO_MIN_INTERVAL_MS) {
-    await new Promise<void>((r) => setTimeout(r, OPENTOPO_MIN_INTERVAL_MS - elapsed));
+  if (elapsed < DEPTH_PROXY_MIN_INTERVAL_MS) {
+    await new Promise<void>((r) => setTimeout(r, DEPTH_PROXY_MIN_INTERVAL_MS - elapsed));
   }
   opentopoLastRequest = Date.now();
 }
@@ -284,14 +291,17 @@ async function opentopoBatchFetch(
   const out = new Map<string, number>();
   if (points.length === 0) return out;
 
-  // Chunk into groups of OPENTOPO_MAX_PER_REQUEST.
-  for (let i = 0; i < points.length; i += OPENTOPO_MAX_PER_REQUEST) {
+  // Chunk into groups of DEPTH_PROXY_MAX_PER_REQUEST.
+  for (let i = 0; i < points.length; i += DEPTH_PROXY_MAX_PER_REQUEST) {
     if (signal.aborted) return out;
-    const chunk = points.slice(i, i + OPENTOPO_MAX_PER_REQUEST);
+    const chunk = points.slice(i, i + DEPTH_PROXY_MAX_PER_REQUEST);
     const locations = chunk.map((p) => `${p.lat.toFixed(6)},${p.lng.toFixed(6)}`).join('|');
-    const url = `${OPENTOPO_ENDPOINT}?locations=${locations}`;
-    // Queue ensures only one request at a time, with ≥1.1s gap.
-    await new Promise<void>((resolve, reject) => {
+    const url = `${DEPTH_PROXY_ENDPOINT}?locs=${encodeURIComponent(locations)}`;
+    // Queue ensures only one request at a time, with a small gap. The queue
+    // handler NEVER throws (that would poison the shared chain); failures
+    // are reported via the `upstreamFailed` flag instead.
+    let upstreamFailed = false;
+    await new Promise<void>((resolve) => {
       opentopoQueue = opentopoQueue.then(async () => {
         try {
           await opentopoThrottle();
@@ -299,31 +309,49 @@ async function opentopoBatchFetch(
           const res = await fetch(url, { signal });
           if (res.status === 429) {
             // Rate limited — stop, leave the rest of the queue to cache.
+            upstreamFailed = true;
             resolve();
             return;
           }
           if (!res.ok) {
+            upstreamFailed = true;
             resolve();
             return;
           }
-          const json = (await res.json()) as { results?: Array<{ elevation: number | null } | null> };
-          const results = json.results ?? [];
-          for (let j = 0; j < results.length && i + j < points.length; j++) {
-            const r = results[j];
-            if (r && typeof r.elevation === 'number') {
-              out.set(cacheKey(chunk[j].lat, chunk[j].lng), r.elevation);
+          const json = (await res.json()) as {
+            ok?: boolean;
+            status?: 'ok' | 'upstream-error';
+            results?: Record<string, number>;
+          };
+          if (json.status === 'upstream-error') {
+            // Proxy couldn't reach upstream (and served nothing from its
+            // server-side cache) — surface as an error, not "rate limit".
+            upstreamFailed = true;
+            resolve();
+            return;
+          }
+          const results = json.results ?? {};
+          for (const p of chunk) {
+            const k = cacheKey(p.lat, p.lng);
+            const v = results[k];
+            if (typeof v === 'number') {
+              out.set(k, v);
             }
           }
           resolve();
         } catch (err) {
-          if ((err as Error).name === 'AbortError') {
-            resolve();
-            return;
+          if ((err as Error).name !== 'AbortError') {
+            upstreamFailed = true;
           }
-          resolve(); // swallow non-abort errors
+          resolve(); // always resolve — never reject into the shared queue
         }
       });
     });
+    // Propagate hard failures to fetchDepths (status 'error') only when we
+    // got nothing at all — partial results still populate the cache.
+    if (upstreamFailed && out.size === 0) {
+      throw new Error('depth proxy upstream error');
+    }
   }
   return out;
 }

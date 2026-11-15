@@ -1,0 +1,675 @@
+     1→'use client';
+     2→
+     3→import { useState, useCallback, useMemo, useEffect } from 'react';
+     4→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+     5→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+     6→import { Badge } from '@/components/ui/badge';
+     7→import { Ship, Wind, Map as MapIcon, Compass, Calculator, FileText } from 'lucide-react';
+     8→import AWAWorksheet, {
+     9→  type AWAData,
+    10→  type AWAInitialState,
+    11→  type AWAObservation,
+    12→} from '@/components/sar/AWAWorksheet';
+    13→import ASWWorksheet, {
+    14→  type ASWData,
+    15→  type ASWInitialState,
+    16→  type ASWObservation,
+    17→} from '@/components/sar/ASWWorksheet';
+    18→import DatumWorksheet, {
+    19→  type DatumData,
+    20→  type DatumResults,
+    21→  type DatumInitialState,
+    22→} from '@/components/sar/DatumWorksheet';
+    23→import SearchPlanWorksheet, {
+    24→  type SearchPlanResults,
+    25→  type SearchPlanInitialState,
+    26→} from '@/components/sar/SearchPlanWorksheet';
+    27→import CaseManager from '@/components/sar/CaseManager';
+    28→import ExportButtons from '@/components/sar/ExportButtons';
+    29→import { PodChart, PoscChart, PointDatumProbMap } from '@/components/sar/PodCharts';
+    30→import { LeewayChart } from '@/components/sar/LeewayChart';
+    31→import CompareScenarios from '@/components/sar/CompareScenarios';
+    32→import WeatherPanel from '@/components/sar/WeatherPanel';
+    33→import { buildSearchActionPlanData } from '@/lib/sar/searchActionPlan';
+    34→import {
+    35→  type LatLng,
+    36→  type Vector,
+    37→  project,
+    38→  rectangleCorners,
+    39→  distanceNm,
+    40→  dirToCompass,
+    41→} from '@/lib/sar/sarCalculations';
+    42→import type { MapMarker, MapLine, MapPolygon, MapCircle } from '@/components/sar/SeaMap';
+    43→// SeaMapMount = dynamic import + error boundary. Jika chunk peta gagal
+    44→// dimuat (mis. setelah server dev restart), pengguna melihat tombol
+    45→// "Muat ulang" — bukan spinner abadi.
+    46→import SeaMapMount from '@/components/sar/SeaMapMount';
+    47→
+    48→const DEFAULT_CENTER: LatLng = { lat: -6.1, lng: 106.8 }; // Jakarta area
+    49→
+    50→export default function Home() {
+    51→  // AWA result feeds into aeronautical drift (currently shown as reference; not directly used in marine datum)
+    52→  const [awa, setAwa] = useState<AWAData>({ aswDirFrom: 0, aswSpeed: 0 });
+    53→  const [asw, setAsw] = useState<ASWData>({
+    54→    aswDirFrom: 90,
+    55→    aswSpeed: 18,
+    56→    aswErr: 2.0,
+    57→    aswdve: 0.1,
+    58→  });
+    59→  const [datumData, setDatumData] = useState<DatumData | null>(null);
+    60→  const [datumResults, setDatumResults] = useState<DatumResults | null>(null);
+    61→  const [searchResults, setSearchResults] = useState<SearchPlanResults | null>(null);
+    62→
+    63→  // Controlled LKP — set by Datum worksheet inputs OR by clicking on the map
+    64→  const [lkp, setLkp] = useState<LatLng>({ lat: -6.1, lng: 106.8 });
+    65→  const [pickMode, setPickMode] = useState<boolean>(false);
+    66→  const [activeTab, setActiveTab] = useState<string>('awa');
+    67→
+    68→  // Raw state snapshots — captured by parent from each worksheet for save/load
+    69→  const [awaObservations, setAwaObservations] = useState<AWAObservation[]>([]);
+    70→  const [aswState, setAswState] = useState<{ observations: ASWObservation[]; aswErr: number }>({
+    71→    observations: [],
+    72→    aswErr: 2.0,
+    73→  });
+    74→  const [datumState, setDatumState] = useState<DatumInitialState | null>(null);
+    75→  const [searchState, setSearchState] = useState<SearchPlanInitialState | null>(null);
+    76→
+    77→  // Initial state used to rehydrate child components after loading a case.
+    78→  // Bumping `caseVersion` forces React to remount child worksheets (via `key`)
+    79→  // so they read the new initialState fresh from useState initializers.
+    80→  const [loadedInitialState, setLoadedInitialState] = useState<{
+    81→    awa?: AWAInitialState;
+    82→    asw?: ASWInitialState;
+    83→    datum?: DatumInitialState;
+    84→    search?: SearchPlanInitialState;
+    85→    lkp?: LatLng;
+    86→  } | null>(null);
+    87→  const [caseVersion, setCaseVersion] = useState<number>(0);
+    88→
+    89→  // Override signals from WeatherPanel → pushed down to worksheets
+    90→  const [windOverride, setWindOverride] = useState<{ dirFrom: number; speed: number; hours: number; ts: number } | null>(null);
+    91→  const [seaCurrentOverride, setSeaCurrentOverride] = useState<{ dir: number; speed: number; ts: number } | null>(null);
+    92→  const [visibilityOverride, setVisibilityOverride] = useState<{ nm: number; ts: number } | null>(null);
+    93→  const [driftIntervalForWeather, setDriftIntervalForWeather] = useState<number>(6);
+    94→
+    95→  /** Build the full state payload to persist to the database. */
+    96→  const buildState = useCallback(() => {
+    97→    return {
+    98→      title: '',
+    99→      state: {
+   100→        awa: { observations: awaObservations },
+   101→        asw: { observations: aswState.observations, aswErr: aswState.aswErr },
+   102→        datum: datumState ?? {},
+   103→        search: searchState ?? {},
+   104→        lkp,
+   105→      },
+   106→    };
+   107→  }, [awaObservations, aswState, datumState, searchState, lkp]);
+   108→
+   109→  /** Apply a loaded state back to the worksheets by rehydrating initialState + bumping key. */
+   110→  const applyState = useCallback(
+   111→    (state: Record<string, unknown>) => {
+   112→      const awa = (state.awa ?? {}) as AWAInitialState;
+   113→      const asw = (state.asw ?? {}) as ASWInitialState;
+   114→      const datum = (state.datum ?? {}) as DatumInitialState;
+   115→      const search = (state.search ?? {}) as SearchPlanInitialState;
+   116→      const lkpLoaded = state.lkp as LatLng | undefined;
+   117→      setLoadedInitialState({ awa, asw, datum, search, lkp: lkpLoaded });
+   118→      if (lkpLoaded) setLkp(lkpLoaded);
+   119→      setCaseVersion((v) => v + 1);
+   120→    },
+   121→    [],
+   122→  );
+   123→
+   124→  // Keep driftIntervalForWeather synced with Datum worksheet state (for WeatherPanel averaging window)
+   125→  useEffect(() => {
+   126→    if (datumState?.driftInterval) {
+   127→      // eslint-disable-next-line react-hooks/set-state-in-effect
+   128→      setDriftIntervalForWeather(datumState.driftInterval);
+   129→    }
+   130→  }, [datumState?.driftInterval]);
+   131→
+   132→  // Map view center — defaults to LKP; updates when datum computed
+   133→  const mapCenter: LatLng = useMemo(() => {
+   134→    if (datumData && datumResults) {
+   135→      return {
+   136→        lat: (datumData.start.lat + datumResults.datumLeft.lat + datumResults.datumRight.lat) / 3,
+   137→        lng: (datumData.start.lng + datumResults.datumLeft.lng + datumResults.datumRight.lng) / 3,
+   138→      };
+   139→    }
+   140→    return lkp;
+   141→  }, [datumData, datumResults, lkp]);
+   142→
+   143→  // Click on map → set LKP (only when in pick mode)
+   144→  const handleMapClick = useCallback(
+   145→    (latlng: LatLng) => {
+   146→      if (pickMode) {
+   147→        setLkp(latlng);
+   148→        setPickMode(false);
+   149→      }
+   150→    },
+   151→    [pickMode],
+   152→  );
+   153→
+   154→  // Build map markers from datum + start
+   155→  const markers: MapMarker[] = useMemo(() => {
+   156→    if (!datumData) {
+   157→      return [
+   158→        {
+   159→          position: DEFAULT_CENTER,
+   160→          label: 'Default location (set LKP)',
+   161→          color: '#94a3b8',
+   162→          isStart: true,
+   163→        },
+   164→      ];
+   165→    }
+   166→    const list: MapMarker[] = [
+   167→      {
+   168→        position: datumData.start,
+   169→        label: 'LKP — Last Known Position',
+   170→        color: '#0ea5e9',
+   171→        isStart: true,
+   172→      },
+   173→    ];
+   174→    if (datumResults) {
+   175→      list.push({
+   176→        position: datumResults.datumLeft,
+   177→        label: 'Datum (Left of Downwind)',
+   178→        color: '#dc2626',
+   179→        isDatum: true,
+   180→      });
+   181→      list.push({
+   182→        position: datumResults.datumRight,
+   183→        label: 'Datum (Right of Downwind)',
+   184→        color: '#dc2626',
+   185→        isDatum: true,
+   186→      });
+   187→    }
+   188→    return list;
+   189→  }, [datumData, datumResults]);
+   190→
+   191→  // Drift arrows
+   192→  const lines: MapLine[] = useMemo(() => {
+   193→    if (!datumData || !datumResults) return [];
+   194→    return [
+   195→      {
+   196→        from: datumData.start,
+   197→        to: datumResults.datumLeft,
+   198→        color: '#f59e0b',
+   199→        label: `Drift L: ${datumResults.driftDistance.toFixed(1)} NM`,
+   200→      },
+   201→      {
+   202→        from: datumData.start,
+   203→        to: datumResults.datumRight,
+   204→        color: '#f59e0b',
+   205→        label: `Drift R: ${datumResults.driftDistance.toFixed(1)} NM`,
+   206→      },
+   207→    ];
+   208→  }, [datumData, datumResults]);
+   209→
+   210→  // Total water current + wind arrows (info overlays)
+   211→  const envLines: MapLine[] = useMemo(() => {
+   212→    if (!datumData) return [];
+   213→    const lines: MapLine[] = [];
+   214→    // TWC vector — scale up for visibility (10 NM per kt)
+   215→    const twcEnd = project(
+   216→      datumData.start,
+   217→      datumData.twc.dir,
+   218→      Math.max(1, datumData.twc.mag * 10),
+   219→    );
+   220→    lines.push({
+   221→      from: datumData.start,
+   222→      to: twcEnd,
+   223→      color: '#3b82f6',
+   224→      label: `TWC ${datumData.twc.dir.toFixed(0)}°T/${datumData.twc.mag.toFixed(2)}kt`,
+   225→      dashed: true,
+   226→    });
+   227→    return lines;
+   228→  }, [datumData]);
+   229→
+   230→  // Probable error circle(s) around each datum
+   231→  const circles: MapCircle[] = useMemo(() => {
+   232→    if (!datumResults) return [];
+   233→    const list: MapCircle[] = [];
+   234→    list.push({
+   235→      center: datumResults.datumLeft,
+   236→      radiusNm: datumResults.E,
+   237→      color: '#dc2626',
+   238→      fillColor: '#dc2626',
+   239→      fillOpacity: 0.05,
+   240→      label: `E = ${datumResults.E.toFixed(1)} NM`,
+   241→    });
+   242→    if (
+   243→      distanceNm(datumResults.datumLeft, datumResults.datumRight) > 0.001
+   244→    ) {
+   245→      list.push({
+   246→        center: datumResults.datumRight,
+   247→        radiusNm: datumResults.E,
+   248→        color: '#dc2626',
+   249→        fillColor: '#dc2626',
+   250→        fillOpacity: 0.05,
+   251→      });
+   252→    }
+   253→    return list;
+   254→  }, [datumResults]);
+   255→
+   256→  // Search area polygon
+   257→  const polygons: MapPolygon[] = useMemo(() => {
+   258→    if (!searchResults || !searchResults.searchAreaLength) return [];
+   259→    const corners = rectangleCorners(
+   260→      searchResults.searchAreaCenter,
+   261→      searchResults.searchAreaLength,
+   262→      searchResults.searchAreaWidth,
+   263→      searchResults.orientationDeg,
+   264→    );
+   265→    return [
+   266→      {
+   267→        points: corners,
+   268→        color: '#16a34a',
+   269→        fillColor: '#16a34a',
+   270→        fillOpacity: 0.12,
+   271→        label: `Search Area\n${searchResults.searchAreaLength.toFixed(1)}×${searchResults.searchAreaWidth.toFixed(1)} NM\nPOD=${(searchResults.POD * 100).toFixed(0)}%`,
+   272→      },
+   273→    ];
+   274→  }, [searchResults]);
+   275→
+   276→  const mapZoom = 8;
+   277→
+   278→  // Build the Search Action Plan payload (Appendix L-23) from the current state.
+   279→  const searchActionPlanData = useMemo(() => {
+   280→    if (!datumResults || !searchResults || !datumData) return null;
+   281→    return buildSearchActionPlanData({
+   282→      caseTitle: 'SAR Search Action Plan',
+   283→      lkp,
+   284→      datumLeft: datumResults.datumLeft,
+   285→      datumRight: datumResults.datumRight,
+   286→      driftDistanceNm: datumResults.driftDistance,
+   287→      divergenceDistanceNm: datumResults.divergenceDistance,
+   288→      E_nm: datumResults.E,
+   289→      Zta_nm2: searchResults.Zta,
+   290→      Ro_nm: searchResults.Ro,
+   291→      Ao_nm2: searchResults.Ao,
+   292→      coverageFactor: searchResults.C,
+   293→      POD_pct: searchResults.POD * 100,
+   294→      trackSpacing_nm: searchResults.trackSpacing,
+   295→      searchAreaLength_nm: searchResults.searchAreaLength,
+   296→      searchAreaWidth_nm: searchResults.searchAreaWidth,
+   297→      searchAreaCenter: searchResults.searchAreaCenter,
+   298→      searchAreaOrientationDeg: searchResults.orientationDeg,
+   299→      aswDirFrom: asw.aswDirFrom,
+   300→      aswSpeedKts: asw.aswSpeed,
+   301→      awaDirFrom: awa.aswDirFrom,
+   302→      awaSpeedKts: awa.aswSpeed,
+   303→      twcDir: datumResults.twc.twc.dir,
+   304→      twcSpeed: datumResults.twc.twc.mag,
+   305→      lwLeftDir: datumResults.lw.lwLeftDir,
+   306→      lwRightDir: datumResults.lw.lwRightDir,
+   307→      lwSpeed: datumResults.lw.leewaySpeed,
+   308→      facilities: searchState?.facilities?.map((f) => ({ name: f.name, speed: f.speed })) ?? [
+   309→        { name: 'SAR Aircraft #1', speed: 150 },
+   310→      ],
+   311→    });
+   312→  }, [datumResults, searchResults, datumData, lkp, asw, awa, searchState]);
+   313→
+   314→  return (
+   315→    <div className="min-h-screen flex flex-col bg-slate-50">
+   316→      {/* Header */}
+   317→      <header className="bg-slate-900 text-white">
+   318→        <div className="max-w-7xl mx-auto px-4 py-4 sm:py-5">
+   319→          <div className="flex items-center justify-between gap-3 flex-wrap">
+   320→            <div className="flex items-center gap-3">
+   321→              <div className="w-10 h-10 rounded-md bg-emerald-500 flex items-center justify-center">
+   322→                <Compass className="h-6 w-6 text-white" />
+   323→              </div>
+   324→              <div>
+   325→                <h1 className="text-lg sm:text-xl font-bold tracking-tight">
+   326→                  IAMSAR Mission Co-ordinator Workbench
+   327→                </h1>
+   328→                <p className="text-xs text-slate-300">
+   329→                  Search and Rescue worksheet calculator with online sea chart — based on IAMSAR Manual Volume II (2016)
+   330→                </p>
+   331→              </div>
+   332→            </div>
+   333→            <div className="flex items-center gap-2 flex-wrap">
+   334→              <CaseManager buildState={buildState} applyState={applyState} />
+   335→              <ExportButtons data={searchActionPlanData} caseTitle="SAR_Search_Action_Plan" />
+   336→              <Badge variant="secondary" className="bg-slate-800 text-slate-200 border-slate-700">
+   337→                Volume II
+   338→              </Badge>
+   339→              <Badge variant="secondary" className="bg-emerald-700 text-emerald-100 border-emerald-600">
+   340→                Appendix K & L
+   341→              </Badge>
+   342→            </div>
+   343→          </div>
+   344→        </div>
+   345→      </header>
+   346→
+   347→      <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-6 grid grid-cols-1 lg:grid-cols-5 gap-6">
+   348→        {/* Left: worksheets */}
+   349→        <section className="lg:col-span-3 space-y-4">
+   350→          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+   351→            <TabsList className="grid grid-cols-2 sm:grid-cols-4 mb-4 bg-slate-100">
+   352→              <TabsTrigger value="awa" className="text-xs sm:text-sm">
+   353→                <Wind className="h-4 w-4 mr-1.5" /> AWA
+   354→              </TabsTrigger>
+   355→              <TabsTrigger value="asw" className="text-xs sm:text-sm">
+   356→                <Wind className="h-4 w-4 mr-1.5" /> ASW
+   357→              </TabsTrigger>
+   358→              <TabsTrigger value="datum" className="text-xs sm:text-sm">
+   359→                <Ship className="h-4 w-4 mr-1.5" /> Datum
+   360→              </TabsTrigger>
+   361→              <TabsTrigger value="search" className="text-xs sm:text-sm">
+   362→                <Calculator className="h-4 w-4 mr-1.5" /> Search
+   363→              </TabsTrigger>
+   364→            </TabsList>
+   365→
+   366→            <TabsContent value="awa" className="mt-0">
+   367→              <AWAWorksheet
+   368→                key={`awa-${caseVersion}`}
+   369→                onDataChange={setAwa}
+   370→                onObservationsChange={setAwaObservations}
+   371→                initialState={loadedInitialState?.awa}
+   372→              />
+   373→              <ReferenceCard
+   374→                title="Average Wind Aloft (AWA)"
+   375→                description="Appendix K-10"
+   376→                formula="AWA = Σ(Wind × ΔAltitude) / Σ(ΔAltitude)"
+   377→                notes={[
+   378→                  'Setiap observasi angin diberi bobot oleh interval ketinggian (ribuan kaki).',
+   379→                  'Vektor kontribusi = wind speed × Δaltitude (kft), arah = downwind.',
+   380→                  'Total altitude loss harus sama dengan keturunan ketinggian dari B.3 atau C.6 di Aeronautical drift worksheet.',
+   381→                  'Output: AWA direction (°T, from) dan AWA speed (kts) — dipakai di Aeronautical drift worksheet.',
+   382→                ]}
+   383→              />
+   384→            </TabsContent>
+   385→
+   386→            <TabsContent value="asw" className="mt-0">
+   387→              <ASWWorksheet
+   388→                key={`asw-${caseVersion}`}
+   389→                onDataChange={setAsw}
+   390→                onStateChange={setAswState}
+   391→                windOverride={windOverride}
+   392→                initialState={loadedInitialState?.asw}
+   393→              />
+   394→              <ReferenceCard
+   395→                title="Average Surface Wind (ASW)"
+   396→                description="Appendix K-19"
+   397→                formula="ASW = Σ(Wind × Hours) / Σ(Hours)"
+   398→                notes={[
+   399→                  'Bobot observasi = jumlah jam berlaku.',
+   400→                  'ASWDVe ≈ ASWe × sensitivitas drift (0.05) — faktor turunan wind current + leeway.',
+   401→                  'Output: ASW direction (°T, from) dan ASW speed (kts) — dipakai di Datum worksheet bagian C.',
+   402→                ]}
+   403→              />
+   404→            </TabsContent>
+   405→
+   406→            <TabsContent value="datum" className="mt-0">
+   407→              <DatumWorksheet
+   408→                aswDirFrom={asw.aswDirFrom}
+   409→                aswSpeed={asw.aswSpeed}
+   410→                aswErr={asw.aswErr}
+   411→                aswdve={asw.aswdve}
+   412→                startLat={lkp.lat}
+   413→                startLng={lkp.lng}
+   414→                onLKPChange={(lat, lng) => setLkp({ lat, lng })}
+   415→                onRequestMapPick={() => {
+   416→                  setPickMode(true);
+   417→                  setActiveTab('datum');
+   418→                }}
+   419→                pickMode={pickMode}
+   420→                seaCurrentOverride={seaCurrentOverride}
+   421→                onResults={setDatumResults}
+   422→                onDataChange={setDatumData}
+   423→                onStateChange={setDatumState}
+   424→                initialState={loadedInitialState?.datum}
+   425→                key={`datum-${caseVersion}`}
+   426→              />
+   427→              <ReferenceCard
+   428→                title="Datum Worksheet (Marine)"
+   429→                description="Appendix K-13"
+   430→                formula="Datum = Start + (TWC + Leeway) × drift_interval"
+   431→                notes={[
+   432→                  'DVe = √(ASWDVe² + TWCe² + LWe²) — total probable drift velocity error.',
+   433→                  'De = DVe × drift_interval — total probable drift error.',
+   434→                  'E = √(X² + De² + Y²) — total probable error of position.',
+   435→                  'SR (Separation Ratio) = DD / E. Jika SR > 4, gunakan dua datum terpisah.',
+   436→                ]}
+   437→              />
+   438→              {datumResults && (
+   439→                <div className="mt-4">
+   440→                  <LeewayChart
+   441→                    currentWindSpeed={asw.aswSpeed}
+   442→                    selectedObjectId={datumResults.lw.objectType.id}
+   443→                    currentLeewaySpeed={datumResults.lw.leewaySpeed}
+   444→                  />
+   445→                </div>
+   446→              )}
+   447→            </TabsContent>
+   448→
+   449→            <TabsContent value="search" className="mt-0">
+   450→              {datumResults ? (
+   451→                <>
+   452→                  <SearchPlanWorksheet
+   453→                    E={datumResults.E}
+   454→                    datumLeft={datumResults.datumLeft}
+   455→                    datumRight={datumResults.datumRight}
+   456→                    divergenceDistance={datumResults.divergenceDistance}
+   457→                    driftLeftDir={datumResults ? datumData?.aswDirFrom ?? 0 : 0}
+   458→                    aswDirFrom={asw.aswDirFrom}
+   459→                    onResults={setSearchResults}
+   460→                    onStateChange={setSearchState}
+   461→                    visibilityOverride={visibilityOverride}
+   462→                    initialState={loadedInitialState?.search}
+   463→                    key={`search-${caseVersion}`}
+   464→                  />
+   465→                  <ReferenceCard
+   466→                    title="Effort Allocation Worksheet"
+   467→                    description="Appendix L-7"
+   468→                    formula="Ro = fs × E   |   Ao = 4×Ro² (point) atau (2Ro+DD)×2Ro (divergence)"
+   469→                    notes={[
+   470→                      'Zr = Zta / fZ — relative effort.',
+   471→                      'Zrc = Σ previous Zr + current Zr — cumulative relative effort (figures N-5..N-8 lookup).',
+   472→                      'fs = optimal search factor (dari kurva).',
+   473→                      'C = Zta / Ao — coverage factor. POD dari figure N-10.',
+   474→                      'Track spacing S = W / C. Search legs harus sejajar arah drift.',
+   475→                    ]}
+   476→                  />
+   477→                  {searchResults && datumResults && (
+   478→                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+   479→                      <PodChart
+   480→                        currentCoverage={searchResults.C}
+   481→                        currentPod={searchResults.POD}
+   482→                        conditions={searchState?.conditions ?? 'normal'}
+   483→                      />
+   484→                      <PoscChart
+   485→                        currentZrc={searchResults.Zrc}
+   486→                        datumType={searchState?.datumType ?? 'leeway-divergence'}
+   487→                      />
+   488→                    </div>
+   489→                  )}
+   490→                  {datumResults && (
+   491→                    <div className="mt-4">
+   492→                      <PointDatumProbMap E_nm={datumResults.E} />
+   493→                    </div>
+   494→                  )}
+   495→                  <div className="mt-4">
+   496→                    <CompareScenarios
+   497→                      baseLkp={lkp}
+   498→                      baseAswDirFrom={asw.aswDirFrom}
+   499→                      baseAswSpeed={asw.aswSpeed}
+   500→                    />
+   501→                  </div>
+   502→                </>
+   503→              ) : (
+   504→                <Card className="border-amber-200 bg-amber-50">
+   505→                  <CardContent className="pt-6 pb-6 text-center">
+   506→                    <p className="text-sm text-amber-800">
+   507→                      Complete the Datum worksheet first to compute total probable error (E).
+   508→                    </p>
+   509→                  </CardContent>
+   510→                </Card>
+   511→              )}
+   512→            </TabsContent>
+   513→          </Tabs>
+   514→        </section>
+   515→
+   516→        {/* Right: live sea map + results summary */}
+   517→        <aside className="lg:col-span-2 space-y-4 lg:sticky lg:top-4 lg:self-start">
+   518→          <WeatherPanel
+   519→            lkp={lkp}
+   520→            driftIntervalHours={driftIntervalForWeather}
+   521→            onApplyAsw={(dirFrom, speed) =>
+   522→              setWindOverride({ dirFrom, speed, hours: driftIntervalForWeather, ts: Date.now() })
+   523→            }
+   524→            onApplyVisibility={(nm) =>
+   525→              setVisibilityOverride({ nm, ts: Date.now() })
+   526→            }
+   527→            onApplySeaCurrent={(dir, speed) =>
+   528→              setSeaCurrentOverride({ dir, speed, ts: Date.now() })
+   529→            }
+   530→          />
+   531→          <Card className="overflow-hidden border-slate-200 shadow-sm">
+   532→            <CardHeader className="bg-slate-50 pb-3">
+   533→              <div className="flex items-center justify-between gap-2">
+   534→                <CardTitle className="text-base flex items-center gap-2">
+   535→                  <MapIcon className="h-4 w-4 text-slate-600" /> Live Sea Chart
+   536→                </CardTitle>
+   537→                <span className="text-[10px] text-slate-500 font-mono">
+   538→                  OSM + OpenSeaMap
+   539→                </span>
+   540→              </div>
+   541→            </CardHeader>
+   542→            <CardContent className="p-0">
+   543→              {pickMode && (
+   544→                <div className="px-3 py-2 bg-emerald-600 text-white text-xs font-medium flex items-center justify-between">
+   545→                  <span>◉ Pick mode active — click anywhere on the chart to set the LKP</span>
+   546→                  <button
+   547→                    type="button"
+   548→                    onClick={() => setPickMode(false)}
+   549→                    className="text-emerald-100 hover:text-white underline"
+   550→                  >
+   551→                    Cancel
+   552→                  </button>
+   553→                </div>
+   554→              )}
+   555→              <div className={pickMode ? 'ring-2 ring-emerald-500 ring-inset' : ''}>
+   556→                <SeaMapMount
+   557→                  center={mapCenter}
+   558→                  zoom={mapZoom}
+   559→                  markers={markers}
+   560→                  lines={[...lines, ...envLines]}
+   561→                  polygons={polygons}
+   562→                  circles={circles}
+   563→                  height="460px"
+   564→                  onMapClick={handleMapClick}
+   565→                />
+   566→              </div>
+   567→              <div className="px-3 py-2 bg-slate-50 border-t border-slate-200 text-[11px] text-slate-600">
+   568→                <span className="font-semibold">Legend:</span>{' '}
+   569→                <span className="inline-flex items-center gap-1">
+   570→                  <span className="w-2.5 h-2.5 rounded-full bg-sky-500 inline-block" /> LKP
+   571→                </span>{' '}
+   572→                ·{' '}
+   573→                <span className="inline-flex items-center gap-1">
+   574→                  <span className="w-2.5 h-2.5 rounded-full bg-red-600 inline-block" /> Datum
+   575→                </span>{' '}
+   576→                ·{' '}
+   577→                <span className="inline-flex items-center gap-1">
+   578→                  <span className="w-2.5 h-2.5 bg-amber-500 inline-block" /> Drift
+   579→                </span>{' '}
+   580→                ·{' '}
+   581→                <span className="inline-flex items-center gap-1">
+   582→                  <span className="w-2.5 h-2.5 bg-emerald-600 inline-block" /> Search area
+   583→                </span>
+   584→              </div>
+   585→            </CardContent>
+   586→          </Card>
+   587→
+   588→          {/* Summary panel */}
+   589→          <Card className="border-slate-200 shadow-sm">
+   590→            <CardHeader className="bg-slate-50 pb-3">
+   591→              <CardTitle className="text-base flex items-center gap-2">
+   592→                <FileText className="h-4 w-4 text-slate-600" /> Mission Summary
+   593→              </CardTitle>
+   594→            </CardHeader>
+   595→            <CardContent className="pt-3 grid grid-cols-2 gap-2 text-xs">
+   596→              <SummaryItem label="ASW" value={asw.aswSpeed > 0 ? `${asw.aswDirFrom.toFixed(0)}°T / ${asw.aswSpeed.toFixed(1)} kt` : '—'} />
+   597→              <SummaryItem label="AWA (ref)" value={awa.aswSpeed > 0 ? `${awa.aswDirFrom.toFixed(0)}°T / ${awa.aswSpeed.toFixed(1)} kt` : '—'} />
+   598→              <SummaryItem
+   599→                label="Datum (left)"
+   600→                value={datumResults ? `${datumResults.datumLeft.lat.toFixed(3)}, ${datumResults.datumLeft.lng.toFixed(3)}` : '—'}
+   601→              />
+   602→              <SummaryItem
+   603→                label="Datum (right)"
+   604→                value={datumResults ? `${datumResults.datumRight.lat.toFixed(3)}, ${datumResults.datumRight.lng.toFixed(3)}` : '—'}
+   605→              />
+   606→              <SummaryItem label="Drift Dist" value={datumResults ? `${datumResults.driftDistance.toFixed(2)} NM` : '—'} />
+   607→              <SummaryItem label="DD (divergence)" value={datumResults ? `${datumResults.divergenceDistance.toFixed(2)} NM` : '—'} />
+   608→              <SummaryItem label="E (prob. error)" value={datumResults ? `${datumResults.E.toFixed(2)} NM` : '—'} />
+   609→              <SummaryItem label="Zta" value={searchResults ? `${searchResults.Zta.toFixed(0)} NM²` : '—'} />
+   610→              <SummaryItem label="Ro (radius)" value={searchResults ? `${searchResults.Ro.toFixed(2)} NM` : '—'} />
+   611→              <SummaryItem label="Coverage C" value={searchResults ? searchResults.C.toFixed(2) : '—'} />
+   612→              <SummaryItem label="POD" value={searchResults ? `${(searchResults.POD * 100).toFixed(1)}%` : '—'} accent />
+   613→              <SummaryItem label="Search Area" value={searchResults ? `${searchResults.searchAreaLength.toFixed(1)}×${searchResults.searchAreaWidth.toFixed(1)} NM` : '—'} accent />
+   614→            </CardContent>
+   615→          </Card>
+   616→        </aside>
+   617→      </main>
+   618→
+   619→      <footer className="mt-auto bg-slate-900 text-slate-400 text-xs">
+   620→        <div className="max-w-7xl mx-auto px-4 py-4">
+   621→          <p>
+   622→            Implementasi worksheet IAMSAR Manual Volume II (2016) — Appendix K (Determining Datum) & Appendix L (Search Planning).{' '}
+   623→            <span className="text-slate-300">
+   624→              Wind/current models, sweep-width tables, dan fs lookup graphs menggunakan pendekatan numerik sesuai manual.
+   625→            </span>
+   626→          </p>
+   627→        </div>
+   628→      </footer>
+   629→    </div>
+   630→  );
+   631→}
+   632→
+   633→function ReferenceCard({
+   634→  title,
+   635→  description,
+   636→  formula,
+   637→  notes,
+   638→}: {
+   639→  title: string;
+   640→  description: string;
+   641→  formula: string;
+   642→  notes: string[];
+   643→}) {
+   644→  return (
+   645→    <Card className="mt-4 border-slate-200 bg-slate-50">
+   646→      <CardHeader className="pb-2">
+   647→        <CardTitle className="text-sm flex items-center gap-2">
+   648→          <FileText className="h-3.5 w-3.5" />
+   649→          {title}{' '}
+   650→          <span className="text-[10px] text-slate-500 font-normal">— {description}</span>
+   651→        </CardTitle>
+   652→      </CardHeader>
+   653→      <CardContent className="pt-2">
+   654→        <div className="bg-white border border-slate-200 rounded p-2 mb-2 font-mono text-xs text-emerald-700">
+   655→          {formula}
+   656→        </div>
+   657→        <ul className="text-xs text-slate-600 space-y-1 list-disc pl-4">
+   658→          {notes.map((n, i) => (
+   659→            <li key={i}>{n}</li>
+   660→          ))}
+   661→        </ul>
+   662→      </CardContent>
+   663→    </Card>
+   664→  );
+   665→}
+   666→
+   667→function SummaryItem({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+   668→  return (
+   669→    <div className={`p-2 rounded border ${accent ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-slate-200'}`}>
+   670→      <div className="text-[9px] uppercase tracking-wide text-slate-500 mb-0.5">{label}</div>
+   671→      <div className={`text-xs font-mono font-semibold ${accent ? 'text-emerald-700' : 'text-slate-800'}`}>{value}</div>
+   672→    </div>
+   673→  );
+   674→}
+   675→
