@@ -113,7 +113,9 @@ function formatDMS(value: number, isLat: boolean): string {
   const minFull = (abs - deg) * 60;
   const min = Math.floor(minFull);
   const sec = ((minFull - min) * 60).toFixed(1);
-  return `${deg}°${min.toString().padStart(2, '0')}'${sec.padStart(4, '0')}"${hemi}`;
+  const dStr = deg.toString().padStart(isLat ? 2 : 3, '0');
+  const mStr = min.toString().padStart(2, '0');
+  return `${dStr}°${mStr}′${sec.padStart(4, '0')}″${hemi}`;
 }
 
 function formatDepth(m: number | null): string {
@@ -274,51 +276,66 @@ export default function SeaMap({
     let scaleBorderRAF: number | null = null;
 
     /**
-     * Choose major/minor intervals based on zoom.
-     * Returns intervals in degrees and in seconds (for label formatting).
+     * Choose major/minor intervals independently for each axis.
      * Table: major / minor
-     *   5° / 1°
-     *   1° / 10'
-     *   30' / 5'
-     *   10' / 2'
-     *   5' / 1'
-     *   1' / 10"
-     *   30" / 5"
-     *   10" / 2"
+     *   5° / 1°, 2° / 30', 1° / 10', 30' / 5', 10' / 2', 5' / 1', 2' / 30", 1' / 10", 30" / 5", 10" / 2", 5" / 1"
+     * Min label distance: 80px for longitude (horizontal text), 40px for latitude.
+     * Min tick distance: 5px for minor.
      */
-    function chooseInterval(): { majorDeg: number; minorDeg: number; majorSec: number; minorSec: number } {
+    function chooseIntervalLng(): { majorDeg: number; minorDeg: number; majorSec: number; minorSec: number } {
       const table = [
-        { majorDeg: 5,        minorDeg: 1,         majorSec: 5 * 3600,     minorSec: 3600 },
-        { majorDeg: 1,        minorDeg: 1 / 6,     majorSec: 3600,         minorSec: 600 },
-        { majorDeg: 0.5,      minorDeg: 1 / 12,    majorSec: 1800,         minorSec: 300 },
-        { majorDeg: 1 / 6,    minorDeg: 1 / 30,    majorSec: 600,          minorSec: 120 },
-        { majorDeg: 1 / 12,   minorDeg: 1 / 60,    majorSec: 300,          minorSec: 60 },
-        { majorDeg: 1 / 60,   minorDeg: 1 / 360,   majorSec: 60,           minorSec: 10 },
-        { majorDeg: 0.5 / 60, minorDeg: 1 / 720,   majorSec: 30,           minorSec: 5 },
-        { majorDeg: 1 / 360,  minorDeg: 1 / 1800,  majorSec: 10,           minorSec: 2 },
+        { majorDeg: 5,       minorDeg: 1,        majorSec: 5*3600,    minorSec: 3600 },
+        { majorDeg: 2,       minorDeg: 0.5,      majorSec: 2*3600,    minorSec: 1800 },
+        { majorDeg: 1,       minorDeg: 1/6,      majorSec: 3600,      minorSec: 600 },
+        { majorDeg: 0.5,     minorDeg: 1/12,     majorSec: 1800,      minorSec: 300 },
+        { majorDeg: 1/6,      minorDeg: 1/30,     majorSec: 600,       minorSec: 120 },
+        { majorDeg: 1/12,     minorDeg: 1/60,     majorSec: 300,       minorSec: 60 },
+        { majorDeg: 1/30,      minorDeg: 1/120,    majorSec: 120,       minorSec: 30 },
+        { majorDeg: 1/60,      minorDeg: 1/360,    majorSec: 60,        minorSec: 10 },
+        { majorDeg: 0.5/60,    minorDeg: 1/720,    majorSec: 30,        minorSec: 5 },
+        { majorDeg: 1/360,     minorDeg: 1/1800,   majorSec: 10,        minorSec: 2 },
+        { majorDeg: 5/3600,    minorDeg: 1/3600,   majorSec: 5,         minorSec: 1 },
       ];
       const centerLatLng = map.getCenter();
-      const centerPt = map.latLngToContainerPoint(centerLatLng);
+      // For longitude, use horizontal pixel distance
+      const pt1 = map.latLngToContainerPoint({ lat: centerLatLng.lat, lng: centerLatLng.lng } as L.LatLngExpression);
       for (const entry of table) {
-        // Check pixel distance for major interval at current latitude
-        const testPt = map.latLngToContainerPoint({
-          lat: centerLatLng.lat + entry.majorDeg,
-          lng: centerLatLng.lng,
-        } as L.LatLngExpression);
-        const pxDist = Math.abs(testPt.y - centerPt.y);
-        if (pxDist >= 100) {
-          // Also check minor interval is not too dense (< 5px)
-          const testMinorPt = map.latLngToContainerPoint({
-            lat: centerLatLng.lat + entry.minorDeg,
-            lng: centerLatLng.lng,
-          } as L.LatLngExpression);
-          const minorPxDist = Math.abs(testMinorPt.y - centerPt.y);
-          if (minorPxDist >= 5) {
-            return entry;
-          }
+        const pt2 = map.latLngToContainerPoint({ lat: centerLatLng.lat, lng: centerLatLng.lng + entry.majorDeg } as L.LatLngExpression);
+        const majorPxDist = Math.abs(pt2.x - pt1.x);
+        if (majorPxDist >= 80) {
+          const pt3 = map.latLngToContainerPoint({ lat: centerLatLng.lat, lng: centerLatLng.lng + entry.minorDeg } as L.LatLngExpression);
+          const minorPxDist = Math.abs(pt3.x - pt1.x);
+          if (minorPxDist >= 5) return entry;
         }
       }
-      // Fallback to last entry (finest)
+      return table[table.length - 1];
+    }
+
+    function chooseIntervalLat(): { majorDeg: number; minorDeg: number; majorSec: number; minorSec: number } {
+      const table = [
+        { majorDeg: 5,       minorDeg: 1,        majorSec: 5*3600,    minorSec: 3600 },
+        { majorDeg: 2,       minorDeg: 0.5,      majorSec: 2*3600,    minorSec: 1800 },
+        { majorDeg: 1,       minorDeg: 1/6,      majorSec: 3600,      minorSec: 600 },
+        { majorDeg: 0.5,     minorDeg: 1/12,     majorSec: 1800,      minorSec: 300 },
+        { majorDeg: 1/6,      minorDeg: 1/30,     majorSec: 600,       minorSec: 120 },
+        { majorDeg: 1/12,     minorDeg: 1/60,     majorSec: 300,       minorSec: 60 },
+        { majorDeg: 1/30,      minorDeg: 1/120,    majorSec: 120,       minorSec: 30 },
+        { majorDeg: 1/60,      minorDeg: 1/360,    majorSec: 60,        minorSec: 10 },
+        { majorDeg: 0.5/60,    minorDeg: 1/720,    majorSec: 30,        minorSec: 5 },
+        { majorDeg: 1/360,     minorDeg: 1/1800,   majorSec: 10,        minorSec: 2 },
+        { majorDeg: 5/3600,    minorDeg: 1/3600,   majorSec: 5,         minorSec: 1 },
+      ];
+      const centerLatLng = map.getCenter();
+      const pt1 = map.latLngToContainerPoint(centerLatLng);
+      for (const entry of table) {
+        const pt2 = map.latLngToContainerPoint({ lat: centerLatLng.lat + entry.majorDeg, lng: centerLatLng.lng } as L.LatLngExpression);
+        const majorPxDist = Math.abs(pt2.y - pt1.y);
+        if (majorPxDist >= 40) {
+          const pt3 = map.latLngToContainerPoint({ lat: centerLatLng.lat + entry.minorDeg, lng: centerLatLng.lng } as L.LatLngExpression);
+          const minorPxDist = Math.abs(pt3.y - pt1.y);
+          if (minorPxDist >= 5) return entry;
+        }
+      }
       return table[table.length - 1];
     }
 
@@ -340,11 +357,12 @@ export default function SeaMap({
       ctx.clearRect(0, 0, w, h);
 
       const bw = BORDER_WIDTH;
-      const interval = chooseInterval();
-      const { majorDeg, minorDeg, majorSec, minorSec } = interval;
+      const lngInterval = chooseIntervalLng();
+      const latInterval = chooseIntervalLat();
       const bounds = map.getBounds();
 
-      const font = '8px "Courier New", monospace';
+      const font = '11px "Courier New", monospace';
+      const th = 14; // text height for background
 
       // Helper: draw a label text with white background pill + white outline
       function drawLabel(text: string, x: number, y: number, align: 'center' | 'left' | 'right', baseline: 'top' | 'middle' | 'bottom') {
@@ -352,41 +370,46 @@ export default function SeaMap({
         ctx.font = font;
         ctx.textAlign = align;
         ctx.textBaseline = baseline;
-        const tw = ctx.measureText(text).width + 4;
-        const th = 10;
-        // Background pill
+        const tw = ctx.measureText(text).width + 6;
         let bgX = x - tw / 2;
-        if (align === 'left') bgX = x - 2;
-        if (align === 'right') bgX = x - tw + 2;
+        if (align === 'left') bgX = x - 3;
+        if (align === 'right') bgX = x - tw + 3;
         const bgY = baseline === 'top' ? y : baseline === 'middle' ? y - th / 2 : y - th;
-        ctx.fillStyle = 'rgba(255,255,255,0.85)';
+        // Hide label if too close to edge (corner clipping)
+        if (bgX < bw || bgX + tw > w - bw || bgY < bw || bgY + th > h - bw) return;
+        // Background pill
+        ctx.fillStyle = 'rgba(255,255,255,0.9)';
         ctx.fillRect(bgX, bgY, tw, th);
         // Text outline
         ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 2;
-        ctx.strokeText(text, x, y + (baseline === 'middle' ? 0 : baseline === 'top' ? th - 2 : -2));
+        ctx.lineWidth = 3;
+        const textY = y + (baseline === 'middle' ? 0 : baseline === 'top' ? th - 3 : -3);
+        ctx.strokeText(text, x, textY);
         // Text
-        ctx.fillStyle = '#1e293b';
-        ctx.fillText(text, x, y + (baseline === 'middle' ? 0 : baseline === 'top' ? th - 2 : -2));
+        ctx.fillStyle = '#0f172a';
+        ctx.fillText(text, x, textY);
       }
+
+      // Track last label positions to avoid overlap
+      let lastTopLabelX = -999;
+      let lastLeftLabelY = -999;
 
       // ===== TOP & BOTTOM BORDERS (longitude) =====
       const westLng = bounds.getWest();
       const eastLng = bounds.getEast();
-      const startMinorLng = Math.ceil(westLng / minorDeg) * minorDeg;
+      const { majorDeg: lngMaj, minorDeg: lngMin, majorSec: lngMajSec } = lngInterval;
+      const startMinorLng = Math.ceil(westLng / lngMin) * lngMin;
       let segToggle = false;
-      for (let lng = startMinorLng; lng <= eastLng + minorDeg; lng += minorDeg) {
+      for (let lng = startMinorLng; lng <= eastLng + lngMin; lng += lngMin) {
         const wrappedLng = ((lng + 540) % 360) - 180;
-        // Use lat=0 for x position (longitude is linear in Web Mercator)
         const pt = map.latLngToContainerPoint({ lat: 0, lng: wrappedLng } as L.LatLngExpression);
         const x = pt.x;
         if (x < -20 || x > w + 20) continue;
 
-        const isMajor = Math.abs((lng / majorDeg) % 1) < 0.001 || Math.abs((lng / majorDeg) % 1 - 1) < 0.001;
+        const isMajor = Math.abs((lng / lngMaj) % 1) < 0.001 || Math.abs((lng / lngMaj) % 1 - 1) < 0.001;
 
-        // Draw segment fill (alternating black/white, full width of band)
-        // Fill the segment between previous tick and this tick
-        const prevLng = lng - minorDeg;
+        // Draw segment fill (alternating black/white)
+        const prevLng = lng - lngMin;
         const prevWrapped = ((prevLng + 540) % 360) - 180;
         const prevPt = map.latLngToContainerPoint({ lat: 0, lng: prevWrapped } as L.LatLngExpression);
         const prevX = prevPt.x;
@@ -394,50 +417,34 @@ export default function SeaMap({
         const segEnd = Math.min(w, x);
         if (segEnd > segStart) {
           ctx.fillStyle = segToggle ? '#1e293b' : '#f8fafc';
-          // Top band
           ctx.fillRect(segStart, 0, segEnd - segStart, bw);
-          // Bottom band
           ctx.fillRect(segStart, h - bw, segEnd - segStart, bw);
         }
         segToggle = !segToggle;
 
-        // Tick marks (inside the band, perpendicular to edge)
+        // Tick marks — ONLY inside the band, max 8px into map area
         ctx.strokeStyle = '#1e293b';
         ctx.lineWidth = 0.5;
-        // Minor tick: 4px inside band (top)
-        ctx.beginPath();
-        ctx.moveTo(x, bw - 4);
-        ctx.lineTo(x, bw);
-        ctx.stroke();
-        // Minor tick (bottom)
-        ctx.beginPath();
-        ctx.moveTo(x, h - bw);
-        ctx.lineTo(x, h - bw + 4);
-        ctx.stroke();
+        // Minor tick: 4px inside band
+        ctx.beginPath(); ctx.moveTo(x, bw - 4); ctx.lineTo(x, bw); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x, h - bw); ctx.lineTo(x, h - bw + 4); ctx.stroke();
 
         if (isMajor) {
-          // Major tick: extends 4px into map area (total 8px from inner edge)
+          // Major tick: extends 4px into map area
           ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(x, bw - 4);
-          ctx.lineTo(x, bw + 4);
-          ctx.stroke();
-          ctx.beginPath();
-          ctx.moveTo(x, h - bw - 4);
-          ctx.lineTo(x, h - bw + 4);
-          ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(x, bw - 4); ctx.lineTo(x, bw + 4); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(x, h - bw - 4); ctx.lineTo(x, h - bw + 4); ctx.stroke();
 
-          // Label
-          const label = formatDegMinSec(wrappedLng, 'lng', majorSec);
-          // Top label (below top border)
-          drawLabel(label, x, bw + 2, 'center', 'top');
-          // Bottom label (above bottom border)
-          drawLabel(label, x, h - bw - 2, 'center', 'bottom');
-        } else {
-          // Short label for minor intervals (minutes/seconds only)
-          const shortLabel = formatShortLabel(wrappedLng, 'lng', minorSec);
-          if (shortLabel) {
-            drawLabel(shortLabel, x, bw + 2, 'center', 'top');
+          // Full coordinate label (not hierarchical)
+          const label = formatDegMinSec(wrappedLng, 'lng', lngMajSec);
+          // Top label — skip if too close to previous or near corner
+          if (x - lastTopLabelX > 70 && x > bw + 20 && x < w - bw - 20) {
+            drawLabel(label, x, bw + 2, 'center', 'top');
+            lastTopLabelX = x;
+          }
+          // Bottom label
+          if (x > bw + 20 && x < w - bw - 20) {
+            drawLabel(label, x, h - bw - 2, 'center', 'bottom');
           }
         }
       }
@@ -445,64 +452,49 @@ export default function SeaMap({
       // ===== LEFT & RIGHT BORDERS (latitude) =====
       const southLat = Math.max(-85, bounds.getSouth());
       const northLat = Math.min(85, bounds.getNorth());
-      const startMinorLat = Math.ceil(southLat / minorDeg) * minorDeg;
+      const { majorDeg: latMaj, minorDeg: latMin, majorSec: latMajSec } = latInterval;
+      const startMinorLat = Math.ceil(southLat / latMin) * latMin;
       segToggle = false;
-      for (let lat = startMinorLat; lat <= northLat + minorDeg; lat += minorDeg) {
+      for (let lat = startMinorLat; lat <= northLat + latMin; lat += latMin) {
         const pt = map.latLngToContainerPoint({ lat, lng: 0 } as L.LatLngExpression);
         const y = pt.y;
         if (y < -20 || y > h + 20) continue;
 
-        const isMajor = Math.abs((lat / majorDeg) % 1) < 0.001 || Math.abs((lat / majorDeg) % 1 - 1) < 0.001;
+        const isMajor = Math.abs((lat / latMaj) % 1) < 0.001 || Math.abs((lat / latMaj) % 1 - 1) < 0.001;
 
         // Draw segment fill
-        const prevLat = lat - minorDeg;
+        const prevLat = lat - latMin;
         const prevPt = map.latLngToContainerPoint({ lat: prevLat, lng: 0 } as L.LatLngExpression);
         const prevY = prevPt.y;
         const segStart = Math.max(0, prevY);
         const segEnd = Math.min(h, y);
         if (segEnd > segStart) {
           ctx.fillStyle = segToggle ? '#1e293b' : '#f8fafc';
-          // Left band
           ctx.fillRect(0, segStart, bw, segEnd - segStart);
-          // Right band
           ctx.fillRect(w - bw, segStart, bw, segEnd - segStart);
         }
         segToggle = !segToggle;
 
-        // Tick marks
+        // Tick marks — ONLY inside the band
         ctx.strokeStyle = '#1e293b';
         ctx.lineWidth = 0.5;
-        // Minor tick: 4px inside band (left)
-        ctx.beginPath();
-        ctx.moveTo(bw - 4, y);
-        ctx.lineTo(bw, y);
-        ctx.stroke();
-        // Minor tick (right)
-        ctx.beginPath();
-        ctx.moveTo(w - bw, y);
-        ctx.lineTo(w - bw + 4, y);
-        ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(bw - 4, y); ctx.lineTo(bw, y); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(w - bw, y); ctx.lineTo(w - bw + 4, y); ctx.stroke();
 
         if (isMajor) {
           ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(bw - 4, y);
-          ctx.lineTo(bw + 4, y);
-          ctx.stroke();
-          ctx.beginPath();
-          ctx.moveTo(w - bw - 4, y);
-          ctx.lineTo(w - bw + 4, y);
-          ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(bw - 4, y); ctx.lineTo(bw + 4, y); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(w - bw - 4, y); ctx.lineTo(w - bw + 4, y); ctx.stroke();
 
-          const label = formatDegMinSec(lat, 'lat', majorSec);
-          // Left label (right of left border)
-          drawLabel(label, bw + 2, y, 'left', 'middle');
-          // Right label (left of right border)
-          drawLabel(label, w - bw - 2, y, 'right', 'middle');
-        } else {
-          const shortLabel = formatShortLabel(lat, 'lat', minorSec);
-          if (shortLabel) {
-            drawLabel(shortLabel, bw + 2, y, 'left', 'middle');
+          const label = formatDegMinSec(lat, 'lat', latMajSec);
+          // Left label — skip if too close to previous or near corner
+          if (y - lastLeftLabelY > 30 && y > bw + 14 && y < h - bw - 14) {
+            drawLabel(label, bw + 3, y, 'left', 'middle');
+            lastLeftLabelY = y;
+          }
+          // Right label
+          if (y > bw + 14 && y < h - bw - 14) {
+            drawLabel(label, w - bw - 3, y, 'right', 'middle');
           }
         }
       }
