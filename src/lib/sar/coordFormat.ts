@@ -1,24 +1,25 @@
 /**
  * Pure coordinate formatting function for nautical chart labels.
  *
- * Hierarchical labelling:
- *   - At full-degree boundary:   "106°E" or "6°S"
- *   - At minute interval:        "30′" or "15′"
- *   - At second interval:        "30″"
- *   - At minute boundary (when seconds are shown): "06°12′S"
+ * Rules:
+ *   - interval >= 60 arc-seconds (>= 1′): always show degrees + minutes
+ *     e.g. "105°30′E", "105°00′E", "6°30′S", "6°00′S"
+ *   - interval < 60 arc-seconds (< 1′): show degrees + minutes + seconds
+ *     e.g. "106°30′31″E"
+ *   - Never drop minutes when interval >= 1′
+ *   - Never use degree-only labels like "106°E" (always include minutes)
  *
  * Uses Unicode symbols: ° (U+00B0), ′ (U+2032), ″ (U+2033).
- * Never writes seconds with the minute symbol.
  */
 
 export type CoordAxis = 'lat' | 'lng';
 
 /**
- * Format a coordinate value as a hierarchical nautical chart label.
+ * Format a coordinate value as a nautical chart label.
  *
- * @param value   The coordinate value (decimal degrees)
- * @param axis    'lat' for latitude (N/S), 'lng' for longitude (E/W)
- * @param intervalSec  The interval size in seconds (0 = degree, 60 = minute, 3600 = degree)
+ * @param value       The coordinate value (decimal degrees)
+ * @param axis        'lat' for latitude (N/S), 'lng' for longitude (E/W)
+ * @param intervalSec The major interval size in arc-seconds
  * @returns Formatted label string
  */
 export function formatDegMinSec(
@@ -43,83 +44,42 @@ export function formatDegMinSec(
   if (s >= 60) { s -= 60; m += 1; }
   if (m >= 60) { m -= 60; d += 1; }
 
-  // Pad with zeros
+  // Pad with zeros — latitude 2 digits, longitude 3 digits
   const dStr = d.toString().padStart(axis === 'lat' ? 2 : 3, '0');
   const mStr = m.toString().padStart(2, '0');
   const sStr = s.toString().padStart(2, '0');
 
-  // Determine label hierarchy based on interval
-  if (intervalSec <= 1) {
-    // Second-level interval: show "06°12′30″S"
+  if (intervalSec < 60) {
+    // Second-level interval: show "106°30′31″E"
     return `${dStr}°${mStr}′${sStr}″${hemi}`;
   }
-  if (intervalSec <= 60) {
-    // Minute-level interval: at full-degree boundary show "106°00′E",
-    // at non-zero minutes show "06°12′S"
-    return `${dStr}°${mStr}′${hemi}`;
-  }
-  // Degree-level interval: show "106°E" or "6°S"
-  return `${dStr}°${hemi}`;
-}
-
-/**
- * Short label for minor intervals (minutes or seconds only).
- * Used between major labels.
- */
-export function formatShortLabel(
-  value: number,
-  axis: CoordAxis,
-  intervalSec: number,
-): string {
-  const abs = Math.abs(value);
-  const deg = Math.floor(abs);
-  const minFull = (abs - deg) * 60;
-  const min = Math.floor(minFull);
-  const sec = Math.round((minFull - min) * 60);
-
-  let m = min;
-  let s = sec;
-  if (s >= 60) { s -= 60; m += 1; }
-  if (m >= 60) { m -= 60; }
-
-  if (intervalSec <= 1) {
-    // Show seconds at minute boundary, otherwise just seconds
-    const mStr = m.toString().padStart(2, '0');
-    const sStr = s.toString().padStart(2, '0');
-    if (s === 0) {
-      return `${mStr}′`;
-    }
-    return `${sStr}″`;
-  }
-  // Show minutes only (at non-degree positions)
-  if (m === 0 && deg !== Math.floor(abs)) return '';
-  const mStr = m.toString().padStart(2, '0');
-  return `${mStr}′`;
+  // Minute-level or degree-level interval: always show degrees + minutes
+  // e.g. "105°30′E", "105°00′E", "6°30′S", "6°00′S"
+  return `${dStr}°${mStr}′${hemi}`;
 }
 
 // ============================================================================
-// Unit tests (run with: node --test or bun test)
+// Unit tests
 // ============================================================================
 
-/**
- * Test formatDegMinSec function.
- * Expected results:
- *   106.50861, 'lng', 0.1 → "106°30′31″E"
- *   -5.2045,   'lat', 0.1 → "05°12′16″S"
- *   107.0,     'lng', 1   → "107°00′00″E"
- *   106.5,     'lng', 60  → "106°30′E"
- *   -6.0,      'lat', 3600 → "06°S"
- */
 export function runFormatDegMinSecTests(): void {
   const tests: Array<{ input: [number, CoordAxis, number]; expected: string }> = [
-    { input: [106.50861, 'lng', 0.1], expected: '106°30′31″E' },
-    { input: [-5.2045, 'lat', 0.1], expected: '05°12′16″S' },
-    { input: [107.0, 'lng', 1], expected: '107°00′00″E' },
-    { input: [106.5, 'lng', 60], expected: '106°30′E' },
-    { input: [-6.0, 'lat', 3600], expected: '06°S' },
-    { input: [0, 'lat', 3600], expected: '00°N' },
-    { input: [0, 'lng', 60], expected: '000°00′E' },
-    { input: [-0.00833, 'lat', 1], expected: '00°00′30″S' },
+    // Test: 30′ interval
+    { input: [105.5, 'lng', 1800], expected: '105°30′E' },
+    { input: [105.0, 'lng', 1800], expected: '105°00′E' },
+    { input: [-6.5, 'lat', 1800], expected: '06°30′S' },
+    { input: [-6.0, 'lat', 1800], expected: '06°00′S' },
+    // Test: 1° interval (3600 sec) — should still show minutes
+    { input: [107.0, 'lng', 3600], expected: '107°00′E' },
+    { input: [106.0, 'lng', 3600], expected: '106°00′E' },
+    // Test: 30″ interval (< 60 sec) — should show seconds
+    { input: [106.508611, 'lng', 30], expected: '106°30′31″E' },
+    { input: [-5.2045, 'lat', 30], expected: '05°12′16″S' },
+    // Test: 10′ interval
+    { input: [106.16667, 'lng', 600], expected: '106°10′E' },
+    // Test: 0 values
+    { input: [0, 'lat', 3600], expected: '00°00′N' },
+    { input: [0, 'lng', 1800], expected: '000°00′E' },
   ];
 
   let passed = 0;

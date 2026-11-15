@@ -5,7 +5,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { type LatLng, distanceNm } from '@/lib/sar/sarCalculations';
 // Old graticule import removed — replaced by canvas-based nautical chart border
-import { formatDegMinSec, formatShortLabel } from '@/lib/sar/coordFormat';
+import { formatDegMinSec } from '@/lib/sar/coordFormat';
 import {
   getDepthAt,
   getPolygonDepths,
@@ -402,21 +402,27 @@ export default function SeaMap({
       let lastLeftLabelY = -999;
 
       // ===== TOP & BOTTOM BORDERS (longitude) =====
+      // Use integer arc-second positions to avoid floating-point drift
       const westLng = bounds.getWest();
       const eastLng = bounds.getEast();
       const { majorDeg: lngMaj, minorDeg: lngMin, majorSec: lngMajSec } = lngInterval;
-      const startMinorLng = Math.ceil(westLng / lngMin) * lngMin;
+      const lngMinSec = Math.round(lngMin * 3600);
+      const lngMajSecInt = Math.round(lngMaj * 3600);
+      const startSecLng = Math.ceil(westLng * 3600 / lngMinSec) * lngMinSec;
+      const endSecLng = Math.ceil(eastLng * 3600 / lngMinSec) * lngMinSec;
       let segToggle = false;
-      for (let lng = startMinorLng; lng <= eastLng + lngMin; lng += lngMin) {
+      for (let sec = startSecLng; sec <= endSecLng; sec += lngMinSec) {
+        const lng = sec / 3600;
         const wrappedLng = ((lng + 540) % 360) - 180;
         const pt = map.latLngToContainerPoint({ lat: 0, lng: wrappedLng } as L.LatLngExpression);
         const x = pt.x;
-        if (x < -20 || x > w + 20) continue;
+        if (x < -20 || x > w + 20) { segToggle = !segToggle; continue; }
 
-        const isMajor = Math.abs((lng / lngMaj) % 1) < 0.001 || Math.abs((lng / lngMaj) % 1 - 1) < 0.001;
+        const isMajor = (sec % lngMajSecInt) === 0;
 
         // Draw segment fill (alternating black/white)
-        const prevLng = lng - lngMin;
+        const prevSec = sec - lngMinSec;
+        const prevLng = prevSec / 3600;
         const prevWrapped = ((prevLng + 540) % 360) - 180;
         const prevPt = map.latLngToContainerPoint({ lat: 0, lng: prevWrapped } as L.LatLngExpression);
         const prevX = prevPt.x;
@@ -429,20 +435,19 @@ export default function SeaMap({
         }
         segToggle = !segToggle;
 
-        // Tick marks — ONLY inside the band, max 8px into map area
+        // Tick marks — minor tick: 4px inside band only
         ctx.strokeStyle = '#1e293b';
         ctx.lineWidth = 0.5;
-        // Minor tick: 4px inside band
         ctx.beginPath(); ctx.moveTo(x, bw - 4); ctx.lineTo(x, bw); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(x, h - bw); ctx.lineTo(x, h - bw + 4); ctx.stroke();
 
         if (isMajor) {
-          // Major tick: extends 4px into map area
+          // Major tick: extends 4px into map area (longer than minor)
           ctx.lineWidth = 1;
           ctx.beginPath(); ctx.moveTo(x, bw - 4); ctx.lineTo(x, bw + 4); ctx.stroke();
           ctx.beginPath(); ctx.moveTo(x, h - bw - 4); ctx.lineTo(x, h - bw + 4); ctx.stroke();
 
-          // Full coordinate label (not hierarchical)
+          // Full coordinate label — always shows degrees + minutes
           const label = formatDegMinSec(wrappedLng, 'lng', lngMajSec);
           // Top label — skip if too close to previous or near corner
           if (x - lastTopLabelX > 70 && x > bw + 20 && x < w - bw - 20) {
@@ -457,20 +462,26 @@ export default function SeaMap({
       }
 
       // ===== LEFT & RIGHT BORDERS (latitude) =====
+      // Use integer arc-second positions to avoid floating-point drift
       const southLat = Math.max(-85, bounds.getSouth());
       const northLat = Math.min(85, bounds.getNorth());
       const { majorDeg: latMaj, minorDeg: latMin, majorSec: latMajSec } = latInterval;
-      const startMinorLat = Math.ceil(southLat / latMin) * latMin;
+      const latMinSec = Math.round(latMin * 3600);
+      const latMajSecInt = Math.round(latMaj * 3600);
+      const startSecLat = Math.ceil(southLat * 3600 / latMinSec) * latMinSec;
+      const endSecLat = Math.ceil(northLat * 3600 / latMinSec) * latMinSec;
       segToggle = false;
-      for (let lat = startMinorLat; lat <= northLat + latMin; lat += latMin) {
+      for (let sec = startSecLat; sec <= endSecLat; sec += latMinSec) {
+        const lat = sec / 3600;
         const pt = map.latLngToContainerPoint({ lat, lng: 0 } as L.LatLngExpression);
         const y = pt.y;
-        if (y < -20 || y > h + 20) continue;
+        if (y < -20 || y > h + 20) { segToggle = !segToggle; continue; }
 
-        const isMajor = Math.abs((lat / latMaj) % 1) < 0.001 || Math.abs((lat / latMaj) % 1 - 1) < 0.001;
+        const isMajor = (sec % latMajSecInt) === 0;
 
         // Draw segment fill
-        const prevLat = lat - latMin;
+        const prevSec = sec - latMinSec;
+        const prevLat = prevSec / 3600;
         const prevPt = map.latLngToContainerPoint({ lat: prevLat, lng: 0 } as L.LatLngExpression);
         const prevY = prevPt.y;
         const segStart = Math.max(0, prevY);
@@ -482,13 +493,14 @@ export default function SeaMap({
         }
         segToggle = !segToggle;
 
-        // Tick marks — ONLY inside the band
+        // Tick marks — minor: 4px inside band
         ctx.strokeStyle = '#1e293b';
         ctx.lineWidth = 0.5;
         ctx.beginPath(); ctx.moveTo(bw - 4, y); ctx.lineTo(bw, y); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(w - bw, y); ctx.lineTo(w - bw + 4, y); ctx.stroke();
 
         if (isMajor) {
+          // Major tick: extends 4px into map area (longer)
           ctx.lineWidth = 1;
           ctx.beginPath(); ctx.moveTo(bw - 4, y); ctx.lineTo(bw + 4, y); ctx.stroke();
           ctx.beginPath(); ctx.moveTo(w - bw - 4, y); ctx.lineTo(w - bw + 4, y); ctx.stroke();
@@ -507,10 +519,10 @@ export default function SeaMap({
       }
 
       // ===== Outer border lines (1px black) =====
+      // Only draw the outermost border — no inner rectangle (that caused white lines)
       ctx.strokeStyle = '#1e293b';
       ctx.lineWidth = 1;
       ctx.strokeRect(0.5, 0.5, w - 1, h - 1);
-      ctx.strokeRect(bw - 0.5, bw - 0.5, w - bw * 2 + 1, h - bw * 2 + 1);
 
       ctx.restore();
     }
