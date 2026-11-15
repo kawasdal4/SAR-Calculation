@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import dynamic from 'next/dynamic';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -41,16 +40,10 @@ import {
   dirToCompass,
 } from '@/lib/sar/sarCalculations';
 import type { MapMarker, MapLine, MapPolygon, MapCircle } from '@/components/sar/SeaMap';
-
-// Leaflet must be loaded only in the browser
-const SeaMap = dynamic(() => import('@/components/sar/SeaMap'), {
-  ssr: false,
-  loading: () => (
-    <div className="h-[500px] w-full bg-slate-100 rounded-lg flex items-center justify-center text-slate-500">
-      Loading sea chart...
-    </div>
-  ),
-});
+// SeaMapMount = dynamic import + error boundary. Jika chunk peta gagal
+// dimuat (mis. setelah server dev restart), pengguna melihat tombol
+// "Muat ulang" — bukan spinner abadi.
+import SeaMapMount from '@/components/sar/SeaMapMount';
 
 const DEFAULT_CENTER: LatLng = { lat: -6.1, lng: 106.8 }; // Jakarta area
 
@@ -560,7 +553,7 @@ export default function Home() {
                 </div>
               )}
               <div className={pickMode ? 'ring-2 ring-emerald-500 ring-inset' : ''}>
-                <SeaMap
+                <SeaMapMount
                   center={mapCenter}
                   zoom={mapZoom}
                   markers={markers}
