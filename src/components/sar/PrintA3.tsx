@@ -23,18 +23,22 @@ interface PrintA3Props {
 }
 
 const WORKSHEET_OPTIONS = [
-  { id: '1', label: 'WS1: Average Wind Aloft (AWA)' },
-  { id: '2', label: 'WS2: Average Surface Wind (ASW)' },
-  { id: '3', label: 'WS3: Wind Current (WC)' },
-  { id: '4', label: 'WS4: Leeway (LW)' },
-  { id: '5', label: 'WS5: Total Water Current (TWC)' },
-  { id: '6', label: 'WS6: Datum Position' },
-  { id: '7', label: 'WS7: Total Search Effort (Zta)' },
-  { id: '8', label: 'WS8: Effort Allocation' },
+  { id: 'aero', label: 'Aeronautical Drift' },
+  { id: 'awa', label: 'Average Wind Aloft (AWA)' },
+  { id: 'asw', label: 'Average Surface Wind (ASW)' },
+  { id: 'wc', label: 'Wind Current (WC)' },
+  { id: 'twc', label: 'Total Water Current (TWC)' },
+  { id: 'lw', label: 'Leeway (LW)' },
+  { id: 'datum', label: 'Datum (Marine Environment)' },
+  { id: 'e', label: 'Total Probable Error of Position (E)' },
+  { id: 'zta', label: 'Total Available Search Effort (Zta)' },
+  { id: 'effort', label: 'Effort Allocation' },
+  { id: 'action', label: 'Search Action Plan' },
+  { id: 'eval', label: 'Search Evaluation' },
 ];
 
 export default function PrintA3({ worksheetData, mapCenter, markers, lines, polygons, circles }: PrintA3Props) {
-  const [selectedSheets, setSelectedSheets] = useState<string[]>(['1', '2', '3', '4', '5', '6', '7', '8']);
+  const [selectedSheets, setSelectedSheets] = useState<string[]>(WORKSHEET_OPTIONS.map(w => w.id));
   const [showMap, setShowMap] = useState(true);
 
   const toggleSheet = (id: string) => {

@@ -438,7 +438,7 @@ export default function Home() {
                 <Calculator className="h-3 w-3 mr-1" /> Alokasi Aset
               </TabsTrigger>
               <TabsTrigger value="worksheets" className="text-[10px] sm:text-xs px-2 py-1">
-                <FileText className="h-3 w-3 mr-1" /> WS 1-8
+                <FileText className="h-3 w-3 mr-1" /> Worksheets
               </TabsTrigger>
               <TabsTrigger value="briefing" className="text-[10px] sm:text-xs px-2 py-1">
                 <FileText className="h-3 w-3 mr-1" /> Briefing
