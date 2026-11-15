@@ -3,15 +3,9 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Wind, Waves, RefreshCw, Loader2, Download, Cloud, Anchor } from 'lucide-react';
+import { Wind, Waves, RefreshCw, Loader2, Download, Cloud } from 'lucide-react';
 import { toast } from 'sonner';
 import { type LatLng, dirToCompass } from '@/lib/sar/sarCalculations';
-import {
-  findBmkgArea,
-  fetchBmkgForecast,
-  aggregateBmkgForecast,
-  type BmkgAggregatedData,
-} from '@/lib/sar/bmkgApi';
 
 interface MarineData {
   windSpeedKts: number;
@@ -52,43 +46,42 @@ export default function WeatherPanel({ lkp, driftIntervalHours, onApplyAsw, onAp
   const [data, setData] = useState<MarineData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [source, setSource] = useState<'bmkg' | 'openmeteo'>('bmkg');
-  const [bmkgAreaName, setBmkgAreaName] = useState<string | null>(null);
-  const [bmkgIssued, setBmkgIssued] = useState<string | null>(null);
 
-  /** Fetch via Open-Meteo (global coverage). */
-  const fetchOpenMeteo = useCallback(
-    async (lat: number, lng: number): Promise<MarineData> => {
-      // 1) Wind + visibility from Open-Meteo forecast API (no API key required)
-      const windUrl =
-        `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lng.toFixed(4)}` +
-        `&hourly=wind_speed_10m,wind_direction_10m,visibility&wind_speed_unit=kn&timezone=UTC&forecast_days=2`;
-      // 2) Wave data + ocean current + SST from Open-Meteo marine API (no API key required)
-      //    Note: marine variables live on the marine-api subdomain, not api.open-meteo.com
-      const marineUrl =
-        `https://marine-api.open-meteo.com/v1/marine?latitude=${lat.toFixed(4)}&longitude=${lng.toFixed(4)}` +
-        `&hourly=wave_height,wave_direction,wave_period,swell_wave_height,ocean_current_velocity,ocean_current_direction,sea_surface_temperature&timezone=UTC&forecast_days=2`;
+  const fetchWeather = useCallback(
+    async (lat: number, lng: number) => {
+      setLoading(true);
+      setError(null);
+      try {
+        // 1) Wind + visibility from Open-Meteo forecast API (no API key required)
+        const windUrl =
+          `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lng.toFixed(4)}` +
+          `&hourly=wind_speed_10m,wind_direction_10m,visibility&wind_speed_unit=kn&timezone=UTC&forecast_days=2`;
+        // 2) Wave data + ocean current + SST from Open-Meteo marine API (no API key required)
+        //    Note: marine variables live on the marine-api subdomain, not api.open-meteo.com
+        const marineUrl =
+          `https://marine-api.open-meteo.com/v1/marine?latitude=${lat.toFixed(4)}&longitude=${lng.toFixed(4)}` +
+          `&hourly=wave_height,wave_direction,wave_period,swell_wave_height,ocean_current_velocity,ocean_current_direction,sea_surface_temperature&timezone=UTC&forecast_days=2`;
 
-      const [windRes, marineRes] = await Promise.all([
-        fetch(windUrl),
-        fetch(marineUrl),
-      ]);
+        const [windRes, marineRes] = await Promise.all([
+          fetch(windUrl),
+          fetch(marineUrl),
+        ]);
 
-      if (!windRes.ok) throw new Error(`Open-Meteo wind API HTTP ${windRes.status}`);
-      if (!marineRes.ok) throw new Error(`Open-Meteo marine API HTTP ${marineRes.status}`);
+        if (!windRes.ok) throw new Error(`Wind API HTTP ${windRes.status}`);
+        if (!marineRes.ok) throw new Error(`Marine API HTTP ${marineRes.status}`);
 
-      const windJson = await windRes.json();
-      const marineJson = await marineRes.json();
+        const windJson = await windRes.json();
+        const marineJson = await marineRes.json();
 
-      const windSpeeds: (number | null)[] = windJson.hourly?.wind_speed_10m ?? [];
-      const windDirs: (number | null)[] = windJson.hourly?.wind_direction_10m ?? [];
-      const visibilities: (number | null)[] = windJson.hourly?.visibility ?? [];
-      const waveHeights: (number | null)[] = marineJson.hourly?.wave_height ?? [];
-      const waveDirs: (number | null)[] = marineJson.hourly?.wave_direction ?? [];
-      const wavePeriods: (number | null)[] = marineJson.hourly?.wave_period ?? [];
-      const swellHeights: (number | null)[] = marineJson.hourly?.swell_wave_height ?? [];
-      const oceanCurrents: (number | null)[] = marineJson.hourly?.ocean_current_velocity ?? [];
-      const oceanCurrentDirs: (number | null)[] = marineJson.hourly?.ocean_current_direction ?? [];
+        const windSpeeds: (number | null)[] = windJson.hourly?.wind_speed_10m ?? [];
+        const windDirs: (number | null)[] = windJson.hourly?.wind_direction_10m ?? [];
+        const visibilities: (number | null)[] = windJson.hourly?.visibility ?? [];
+        const waveHeights: (number | null)[] = marineJson.hourly?.wave_height ?? [];
+        const waveDirs: (number | null)[] = marineJson.hourly?.wave_direction ?? [];
+        const wavePeriods: (number | null)[] = marineJson.hourly?.wave_period ?? [];
+        const swellHeights: (number | null)[] = marineJson.hourly?.swell_wave_height ?? [];
+        const oceanCurrents: (number | null)[] = marineJson.hourly?.ocean_current_velocity ?? [];
+        const oceanCurrentDirs: (number | null)[] = marineJson.hourly?.ocean_current_direction ?? [];
         const ssts: (number | null)[] = marineJson.hourly?.sea_surface_temperature ?? [];
         const times: string[] = windJson.hourly?.time ?? [];
 
@@ -186,7 +179,7 @@ export default function WeatherPanel({ lkp, driftIntervalHours, onApplyAsw, onAp
           });
         }
 
-        return {
+        setData({
           windSpeedKts: avgWindSpeed,
           windDirFromDeg: avgWindDirFrom,
           visibilityNm: avgVisibility,
@@ -199,80 +192,8 @@ export default function WeatherPanel({ lkp, driftIntervalHours, onApplyAsw, onAp
           sstC: avgSst,
           fetchTime: now.toISOString(),
           hourly,
-        };
-      },
-      [driftIntervalHours],
-    );
-
-  /** Fetch via BMKG (Indonesian waters only). Falls back to Open-Meteo if outside coverage. */
-  const fetchBmkg = useCallback(
-    async (lat: number, lng: number): Promise<{ data: MarineData; areaName: string; issued: string }> => {
-      // 1) Find which BMKG perairan polygon contains this point
-      const area = await findBmkgArea(lat, lng);
-      if (!area) {
-        // Give a more helpful message: LKP is likely on land or outside Indonesian waters
-        throw new Error(
-          'LKP di darat atau di luar wilayah perairan Indonesia. Pilih titik di laut (klik "Pick LKP on map" di tab Datum), atau switch ke Open-Meteo untuk cakupan global.',
-        );
-      }
-      // 2) Fetch the forecast for that area
-      const forecast = await fetchBmkgForecast(area.id);
-      if (!forecast) {
-        throw new Error(`BMKG fetch failed for ${area.id} (${area.name})`);
-      }
-      // 3) Aggregate over the drift interval
-      const agg: BmkgAggregatedData = aggregateBmkgForecast(forecast, driftIntervalHours);
-      const data: MarineData = {
-        windSpeedKts: agg.windSpeedKts,
-        windDirFromDeg: agg.windDirFromDeg,
-        visibilityNm: agg.visibilityNm,
-        waveHeightM: agg.waveHeightM,
-        waveDirectionDeg: agg.waveDirectionDeg,
-        wavePeriodS: agg.wavePeriodS,
-        swellHeightM: 0,
-        oceanCurrentMs: agg.currentSpeedKts / 1.94384, // store as m/s for consistency
-        oceanCurrentDirDeg: agg.currentDirDeg,
-        sstC: agg.sstC,
-        fetchTime: agg.fetchTime,
-        hourly: [],
-      };
-      return { data, areaName: area.name, issued: agg.issued };
-    },
-    [driftIntervalHours],
-  );
-
-  /** Dispatcher: pick source, fallback to Open-Meteo if BMKG fails. */
-  const fetchWeather = useCallback(
-    async (lat: number, lng: number) => {
-      setLoading(true);
-      setError(null);
-      try {
-        if (source === 'bmkg') {
-          try {
-            const { data: bmkgData, areaName, issued } = await fetchBmkg(lat, lng);
-            setData(bmkgData);
-            setBmkgAreaName(areaName);
-            setBmkgIssued(issued);
-            toast.success(`Fetched BMKG forecast for ${areaName}`);
-            return;
-          } catch (bmkgErr) {
-            // Fallback to Open-Meteo if BMKG fails (outside coverage or fetch error)
-            const reason = (bmkgErr as Error).message;
-            toast.warning('BMKG unavailable, falling back to Open-Meteo', { description: reason });
-            const omData = await fetchOpenMeteo(lat, lng);
-            setData(omData);
-            setBmkgAreaName(null);
-            setBmkgIssued(null);
-            toast.success(`Fetched Open-Meteo weather at ${lat.toFixed(3)}, ${lng.toFixed(3)}`);
-            return;
-          }
-        }
-        // Open-Meteo source
-        const omData = await fetchOpenMeteo(lat, lng);
-        setData(omData);
-        setBmkgAreaName(null);
-        setBmkgIssued(null);
-        toast.success(`Fetched Open-Meteo weather at ${lat.toFixed(3)}, ${lng.toFixed(3)}`);
+        });
+        toast.success(`Fetched live weather at ${lat.toFixed(3)}, ${lng.toFixed(3)}`);
       } catch (e) {
         const msg = (e as Error).message;
         setError(msg);
@@ -281,13 +202,14 @@ export default function WeatherPanel({ lkp, driftIntervalHours, onApplyAsw, onAp
         setLoading(false);
       }
     },
-    [source, fetchBmkg, fetchOpenMeteo],
+    [driftIntervalHours],
   );
 
-  // Auto-fetch on first mount and whenever LKP changes significantly or source switches
+  // Auto-fetch on first mount and whenever LKP changes significantly
   useEffect(() => {
     void fetchWeather(lkp.lat, lkp.lng);
-  }, [lkp.lat, lkp.lng, source, fetchWeather]);
+     
+  }, [lkp.lat, lkp.lng]);
 
   const handleApplyAsw = () => {
     if (!data) return;
@@ -315,55 +237,26 @@ export default function WeatherPanel({ lkp, driftIntervalHours, onApplyAsw, onAp
   return (
     <Card className="border-sky-200 shadow-sm">
       <CardHeader className="bg-sky-50 pb-3">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center justify-between gap-2">
           <div>
             <CardTitle className="text-base flex items-center gap-2">
               <Cloud className="h-4 w-4 text-sky-600" /> Live Weather at LKP
             </CardTitle>
             <CardDescription className="text-xs">
-              {source === 'bmkg' ? 'BMKG' : 'Open-Meteo'} forecast • wind + waves averaged over {driftIntervalHours}h drift interval
+              Open-Meteo forecast • wind + waves averaged over {driftIntervalHours}h drift interval
             </CardDescription>
           </div>
-          <div className="flex items-center gap-1">
-            {/* Source toggle */}
-            <div className="inline-flex rounded-md border border-slate-300 bg-white overflow-hidden text-[10px]">
-              <button
-                type="button"
-                onClick={() => setSource('bmkg')}
-                className={`px-2 py-1 font-medium transition-colors ${
-                  source === 'bmkg'
-                    ? 'bg-emerald-600 text-white'
-                    : 'text-slate-600 hover:bg-slate-100'
-                }`}
-                title="BMKG — Badan Meteorologi, Klimatologi, dan Geofisika (Indonesian waters)"
-              >
-                <Anchor className="h-3 w-3 inline mr-0.5" /> BMKG
-              </button>
-              <button
-                type="button"
-                onClick={() => setSource('openmeteo')}
-                className={`px-2 py-1 font-medium transition-colors ${
-                  source === 'openmeteo'
-                    ? 'bg-sky-600 text-white'
-                    : 'text-slate-600 hover:bg-slate-100'
-                }`}
-                title="Open-Meteo — global coverage"
-              >
-                <Cloud className="h-3 w-3 inline mr-0.5" /> Open-Meteo
-              </button>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => fetchWeather(lkp.lat, lkp.lng)}
-              disabled={loading}
-              className="h-7 text-xs"
-            >
-              {loading ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <RefreshCw className="h-3 w-3 mr-1" />}
-              Refresh
-            </Button>
-          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => fetchWeather(lkp.lat, lkp.lng)}
+            disabled={loading}
+            className="h-7 text-xs"
+          >
+            {loading ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+            Refresh
+          </Button>
         </div>
       </CardHeader>
       <CardContent className="pt-3">
@@ -408,20 +301,8 @@ export default function WeatherPanel({ lkp, driftIntervalHours, onApplyAsw, onAp
                 value={`${data.sstC.toFixed(1)} °C`}
               />
             </div>
-            <div className="text-[10px] text-slate-500 space-y-0.5">
-              <div>
-                Fetched: {new Date(data.fetchTime).toLocaleTimeString()} • Source:{' '}
-                {source === 'bmkg' && bmkgAreaName ? 'BMKG (no API key)' : 'Open-Meteo (no API key)'}
-              </div>
-              {source === 'bmkg' && bmkgAreaName && (
-                <div className="text-emerald-700 font-medium">
-                  <Anchor className="h-2.5 w-2.5 inline mr-0.5" />
-                  BMKG Area: {bmkgAreaName}
-                </div>
-              )}
-              {source === 'bmkg' && bmkgIssued && (
-                <div>Bulletin issued: {bmkgIssued}</div>
-              )}
+            <div className="text-[10px] text-slate-500">
+              Fetched: {new Date(data.fetchTime).toLocaleTimeString()} • Source: Open-Meteo (no API key)
             </div>
             <div className="flex flex-wrap gap-2">
               {onApplyAsw && (

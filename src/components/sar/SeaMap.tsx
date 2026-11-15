@@ -1,20 +1,30 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { type LatLng, distanceNm } from '@/lib/sar/sarCalculations';
-// Old graticule import removed — replaced by canvas-based nautical chart border
-import { formatDegMinSec } from '@/lib/sar/coordFormat';
+import { formatDegMinSec, type CoordAxis } from '@/lib/sar/coordFormat';
 import {
-  getDepthAt,
-  getPolygonDepths,
-  summariseDepths,
-  getDepthSourceInfo,
+  chooseGridInterval,
+  enumerateGridPoints,
+  formatDepth,
+  shouldRenderDepth,
+  type Density,
+  type DepthSource,
+  type GridInterval,
+  type GridPoint,
+} from '@/lib/sar/depthLabels';
+import {
+  fetchDepths,
+  getActiveDepthSource,
+  getCachedDepth,
+  getDepthSourceLabel,
+  type DepthStatus,
 } from '@/lib/sar/depthSources';
 
 // ============================================================================
-// Public types — kept stable with the original SeaMap API so callers (page.tsx)
+// Public types — kept stable with the SeaMap API so callers (page.tsx)
 // don't need to change.
 // ============================================================================
 
@@ -118,18 +128,10 @@ function formatDMS(value: number, isLat: boolean): string {
   return `${dStr}°${mStr}′${sec.padStart(4, '0')}″${hemi}`;
 }
 
-function formatDepth(m: number | null): string {
-  if (m == null) return 'N/A';
-  if (m < 0) return `${Math.abs(m).toFixed(1)} m (depth)`;
-  if (m === 0) return '0 m (sea level)';
-  return `+${m.toFixed(1)} m (land)`;
-}
-
 // ============================================================================
 // Constants for the map layers (all client-side; no proxy)
 // ============================================================================
 
-// Base + overlay layers (all free, no API key)
 const OSM_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 const OSM_ATTR = '© OpenStreetMap contributors';
 const OSM_MAX_ZOOM = 19;
@@ -138,33 +140,82 @@ const SEAMARK_URL = 'https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png';
 const SEAMARK_ATTR = '© OpenSeaMap';
 const SEAMARK_MAX_ZOOM = 18;
 
-// GEBCO WMS — current URL & layer names verified via GetCapabilities (Nov 2026):
-//   https://wms.gebco.net/mapserv?service=WMS&request=GetCapabilities&version=1.3.0
-// Layers served:
-//   GEBCO_LATEST       — shaded relief image
-//   GEBCO_LATEST_2     — flat colour-coded for elevation (this is what we use)
-//   GEBCO_LATEST_3     — measured-data-only overlay
-const GEBCO_WMS_URL = 'https://wms.gebco.net/mapserv?';
-const GEBCO_LAYER = 'GEBCO_LATEST_2';
-const GEBCO_ATTR = 'Imagery reproduced from the GEBCO Grid, GEBCO (https://www.gebco.net/)';
+// ============================================================================
+// Tampilan (view) preferences — persisted in localStorage as one object.
+// ============================================================================
 
-// Open-Topo-Data was originally planned for depth lookup, but its public
-// endpoint doesn't return CORS headers (`Access-Control-Allow-Origin`),
-// so browser-side fetch fails. GEBCO WMS GetFeatureInfo returns `*` CORS
-// and uses the same grid as the bathymetry tiles — better fit.
-const DEPTH_ATTR = 'Depth: GEBCO WMS GetFeatureInfo';
+interface ViewPrefs {
+  layers: boolean;
+  coord: boolean;
+  zoom: boolean;
+  disclaimer: boolean;
+  depth: boolean; // "Angka kedalaman" overlay (canvas-based soundings)
+}
 
-// ----------------------------------------------------------------------------
-// BATNAS (BIG Indonesia) layer — optional, env-var driven.
-// If NEXT_PUBLIC_BATNAS_TILES_URL is set, the tile PNG layer + checkbox +
-// opacity slider are shown. If NEXT_PUBLIC_BATNAS_COG_URL is set, click-to-depth
-// and polygon-depth-sampling use BATNAS COG (via geotiff.js) instead of GEBCO.
-// If both are unset, BATNAS is hidden and the app falls back to GEBCO WMS.
-// ----------------------------------------------------------------------------
-const BATNAS_TILES_URL = process.env.NEXT_PUBLIC_BATNAS_TILES_URL;
-const BATNAS_TILES_CONFIGURED = !!BATNAS_TILES_URL;
-const BATNAS_ATTR = 'BATNAS: Badan Informasi Geospasial (BIG) Indonesia';
-const BATNAS_RESOLUTION_NOTE = 'BATNAS resolusi sekitar 180 m, hanya untuk perkiraan awal.';
+const DEFAULT_VIEW_PREFS: ViewPrefs = {
+  layers: true,
+  coord: true,
+  zoom: true,
+  disclaimer: true,
+  depth: false, // off by default — opt-in to avoid surprise fetches
+};
+
+const VIEW_PREFS_KEY = 'seamap:viewPrefs';
+const DEPTH_DENSITY_KEY = 'seamap:depthDensity';
+
+function loadViewPrefs(): ViewPrefs {
+  try {
+    if (typeof window === 'undefined') return { ...DEFAULT_VIEW_PREFS };
+    const raw = window.localStorage.getItem(VIEW_PREFS_KEY);
+    if (!raw) return { ...DEFAULT_VIEW_PREFS };
+    const parsed = JSON.parse(raw) as Partial<ViewPrefs>;
+    return {
+      layers: typeof parsed.layers === 'boolean' ? parsed.layers : true,
+      coord: typeof parsed.coord === 'boolean' ? parsed.coord : true,
+      zoom: typeof parsed.zoom === 'boolean' ? parsed.zoom : true,
+      disclaimer: typeof parsed.disclaimer === 'boolean' ? parsed.disclaimer : true,
+      depth: typeof parsed.depth === 'boolean' ? parsed.depth : false,
+    };
+  } catch {
+    return { ...DEFAULT_VIEW_PREFS };
+  }
+}
+
+function saveViewPrefs(prefs: ViewPrefs): void {
+  try {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(VIEW_PREFS_KEY, JSON.stringify(prefs));
+  } catch {
+    // ignore write failures (private mode, sandbox, etc.)
+  }
+}
+
+function allHidden(p: ViewPrefs): boolean {
+  // "Hide all" only hides the in-map overlays (layers/coord/zoom/disclaimer).
+  // The depth layer has its own checkbox in the Layers panel — it's not
+  // affected by the Tampilan "hide all" toggle.
+  return !p.layers && !p.coord && !p.zoom && !p.disclaimer;
+}
+
+function loadDepthDensity(): Density {
+  try {
+    if (typeof window === 'undefined') return 'sedang';
+    const raw = window.localStorage.getItem(DEPTH_DENSITY_KEY);
+    if (raw === 'rapat' || raw === 'sedang' || raw === 'jarang') return raw;
+  } catch {
+    // ignore
+  }
+  return 'sedang';
+}
+
+function saveDepthDensity(d: Density): void {
+  try {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(DEPTH_DENSITY_KEY, d);
+  } catch {
+    // ignore
+  }
+}
 
 // ============================================================================
 // Main SeaMap component
@@ -201,21 +252,94 @@ export default function SeaMap({
 
   // Stable refs to layer objects so we can re-render without re-creating the map
   const layersRef = useRef<{
-    osm?: L.TileLayer;
-    seamark?: L.TileLayer;
-    gebco?: L.TileLayer.WMS;
-    scaleBorderCanvas?: HTMLCanvasElement | null;
-    scaleBorderEnabled?: boolean;
     markers?: L.LayerGroup;
     lines?: L.LayerGroup;
     polygons?: L.LayerGroup;
     circles?: L.LayerGroup;
-    depthMarkers?: L.LayerGroup;
-    measureLine?: L.Polyline | null;
     measureMarkers?: L.Marker[];
-    coordReadout?: HTMLDivElement;
-    depthSummaryPopup?: L.Popup | null;
+    measureLine?: L.Polyline | null;
   }>({});
+
+  // ---- Tampilan (view) preferences ----
+  // Per-element toggles for showing/hiding overlays that cover the map.
+  // Default: everything visible. Persisted in localStorage as one object.
+  // SeaMap is loaded via next/dynamic with ssr:false, so the lazy initialiser
+  // only runs in the browser.
+  const [viewPrefs, setViewPrefs] = useState<ViewPrefs>(() => loadViewPrefs());
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  // Persist on change.
+  useEffect(() => {
+    saveViewPrefs(viewPrefs);
+  }, [viewPrefs]);
+
+  // Keyboard shortcut: H toggles ALL elements (hide-all ↔ show-all).
+  // Ignores modifier keys (Ctrl/Meta/Alt) and any editable focus target.
+  // Note: the depth layer is NOT toggled by H — it has its own checkbox in
+  // the Layers panel.
+  useEffect(() => {
+    const isEditable = (el: Element | null): boolean => {
+      if (!el) return false;
+      const tag = el.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+      const ce = (el as HTMLElement).isContentEditable;
+      return ce === true;
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'h' && e.key !== 'H') return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (isEditable(document.activeElement)) return;
+      e.preventDefault();
+      setViewPrefs((prev) => {
+        if (allHidden(prev)) return { ...DEFAULT_VIEW_PREFS, depth: prev.depth };
+        return { layers: false, coord: false, zoom: false, disclaimer: false, depth: prev.depth };
+      });
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  // Build the className applied to the map container, based on view prefs.
+  // Each class triggers a CSS rule that hides the corresponding Leaflet
+  // control with `display: none`. The map's own pan/zoom/click handlers are
+  // attached to the map pane, not the control container, so they keep working
+  // when controls are hidden.
+  const mapClassName = [
+    'seamap-map',
+    !viewPrefs.layers && 'seamap-hide-layers',
+    !viewPrefs.coord && 'seamap-hide-coord',
+    !viewPrefs.zoom && 'seamap-hide-zoom',
+    !viewPrefs.disclaimer && 'seamap-hide-disclaimer',
+  ].filter(Boolean).join(' ');
+
+  // ---- Depth layer state ----
+  // Mirrors viewPrefs.depth so we can pass a stable ref into the map's
+  // once-bound moveend handler.
+  const depthEnabledRef = useRef<boolean>(viewPrefs.depth);
+  const depthDensityRef = useRef<Density>('sedang');
+  const [depthDensity, setDepthDensityState] = useState<Density>(() => loadDepthDensity());
+  const [depthStatus, setDepthStatus] = useState<DepthStatus>('idle');
+  const [depthHint, setDepthHint] = useState<string | null>(null);
+
+  useEffect(() => {
+    depthEnabledRef.current = viewPrefs.depth;
+    // Trigger an immediate redraw of the depth canvas when toggled on.
+    if (mapRef.current) {
+      // The map's moveend handler will run scheduleDepthRedraw; but the user
+      // just toggled the checkbox, so fire it manually.
+      window.dispatchEvent(new Event('seamap:depth-toggle'));
+    }
+  }, [viewPrefs.depth]);
+
+  useEffect(() => {
+    depthDensityRef.current = depthDensity;
+    saveDepthDensity(depthDensity);
+    // Trigger redraw on density change.
+    window.dispatchEvent(new Event('seamap:depth-toggle'));
+  }, [depthDensity]);
+
+  const setDepthDensity = (d: Density) => setDepthDensityState(d);
+  const activeDepthSource: DepthSource = getActiveDepthSource();
 
   // ---- Initialise the map ONCE ----
   useEffect(() => {
@@ -229,125 +353,217 @@ export default function SeaMap({
     });
 
     // Base OSM layer
-    const osm = L.tileLayer(OSM_URL, {
+    L.tileLayer(OSM_URL, {
       attribution: OSM_ATTR,
       maxZoom: OSM_MAX_ZOOM,
     }).addTo(map);
 
     // OpenSeaMap seamark overlay
-    const seamark = L.tileLayer(SEAMARK_URL, {
+    L.tileLayer(SEAMARK_URL, {
       attribution: SEAMARK_ATTR,
       maxZoom: SEAMARK_MAX_ZOOM,
       tileSize: 256,
       opacity: 0.9,
     }).addTo(map);
 
-    // GEBCO bathymetry WMS — added but OFF by default (user can toggle on)
-    const gebco = L.tileLayer.wms(GEBCO_WMS_URL, {
-      layers: GEBCO_LAYER,
-      format: 'image/png',
-      transparent: true,
-      attribution: GEBCO_ATTR,
-      opacity: 0.65,
-      maxZoom: 12,
-    });
-
-    // BATNAS tiles layer — only created if NEXT_PUBLIC_BATNAS_TILES_URL is set.
-    // Off by default; user toggles on. Reads tile PNGs at {z}/{x}/{y}.png from
-    // the URL configured in env var.
-    const batnas = BATNAS_TILES_CONFIGURED && BATNAS_TILES_URL
-      ? L.tileLayer(BATNAS_TILES_URL, {
-          attribution: BATNAS_ATTR,
-          opacity: 0.7,
-          maxZoom: 14,
-          tileSize: 256,
-          // TMS vs XYZ detection: BIG publishes in XYZ (standard Leaflet) by default.
-          // If the host serves TMS, set tms: true here.
-        })
-      : null;
-
     // ---- Nautical chart scale border (canvas-based) ----
-    // Draws a Pushidrosal-style scale border: thin 8px band, black/white
-    // segments, tick marks inside the band, hierarchical labels outside.
-    // No grid lines inside the map area.
-    const BORDER_WIDTH = 8; // px — thin band
+    // Style: NO black/white band. Each side is a 1 px outline at the very
+    // edge, with short tick marks projecting INTO the map area:
+    //   - minor tick: 5 px long, every `minorSec` arc-seconds
+    //   - major tick: 10 px long, every 30′ (or coarser at very far zoom)
+    // Ticks are dark (#1a1a1a) with a thin white halo (3 px stroke first,
+    // then 1 px dark on top) so they read on both the road map and satellite
+    // tiles. Labels (every major interval) sit just inside the map, with a
+    // white pill background.
+    //
+    // Label-interval contract:
+    //   - Major (labelled) interval is LOCKED to multiples of 30′
+    //     (1800″, 3600″, 7200″, 18000″ — i.e. 30′, 1°, 2°, 5°).
+    //   - Default major interval is 30′. Step up to 1°/2°/5° ONLY when 30′
+    //     labels would be too tight (per-axis threshold: 60 px for lng,
+    //     30 px for lat — lat threshold is lower so 30′ labels appear on
+    //     left/right even at wide zoom).
+    //   - At very close zoom, major interval stays at 30′; minor ticks
+    //     densify (1′, 30″, …) as long as they stay ≥ 5 px apart on screen.
+    //   - Labels are NEVER shown at 20′, 10′, 5′, 2′ or 1′.
+    //
+    // The four sides share one `drawBand` function — no per-side duplication.
+    const MAJOR_TICK_PX = 10;
+    const MINOR_TICK_PX = 5;
+    const LABEL_MIN_PX_LNG = 60;
+    const LABEL_MIN_PX_LAT = 30;
+    const MINOR_MIN_PX = 5;
+    const MINOR_DENSIFY_PX = 60;
+
+    const MAJOR_LABEL_STEPS_SEC = [1800, 3600, 7200, 18000];
+
     let scaleBorderCanvas: HTMLCanvasElement | null = null;
-    let scaleBorderEnabled = true;
     let scaleBorderRAF: number | null = null;
 
-    /**
-     * Pixel-based interval selection.
-     * STEPS_DEG ordered from FINEST to COARSEST.
-     * Major interval = SMALLEST step where step * pxPerDeg >= threshold.
-     * Minor = major / 5 (or / 10 if that gives >= 5px per tick), min 5px.
-     */
-    const STEPS_DEG = [1/3600, 1/1800, 1/720, 1/360, 1/120, 1/60, 1/30, 1/12, 1/6, 0.5, 1, 2, 5];
-
-    function chooseIntervalLng(): { majorDeg: number; minorDeg: number; majorSec: number; minorSec: number } {
-      const center = map.getCenter();
-      const pt1 = map.latLngToContainerPoint(center);
-      const pt2 = map.latLngToContainerPoint({ lat: center.lat, lng: center.lng + 1 } as L.LatLngExpression);
-      const pxPerDegLng = Math.abs(pt2.x - pt1.x);
-
-      // Major = smallest step where step * pxPerDegLng >= 80
-      let majorDeg = STEPS_DEG[STEPS_DEG.length - 1]; // fallback: 5°
-      for (const step of STEPS_DEG) {
-        if (step * pxPerDegLng >= 80) {
-          majorDeg = step;
-          break;
-        }
+    function chooseMajorInterval(pxPerDeg: number, minLabelPx: number): number {
+      for (const step of MAJOR_LABEL_STEPS_SEC) {
+        if (step * pxPerDeg / 3600 >= minLabelPx) return step;
       }
-
-      // Minor = major / 5 (or / 10 if that gives >= 5px per tick)
-      let minorDivisor = 5;
-      const minorCandidate = majorDeg / 10;
-      if (minorCandidate * pxPerDegLng >= 5) {
-        minorDivisor = 10;
-      }
-      // Ensure minor ticks are at least 5px apart
-      let minorDeg = majorDeg / minorDivisor;
-      while (minorDeg * pxPerDegLng < 5 && minorDeg < majorDeg) {
-        minorDeg *= 2; // double until >= 5px
-      }
-
-      const majorSec = majorDeg * 3600;
-      const minorSec = minorDeg * 3600;
-      return { majorDeg, minorDeg, majorSec, minorSec };
+      return MAJOR_LABEL_STEPS_SEC[MAJOR_LABEL_STEPS_SEC.length - 1];
     }
 
-    function chooseIntervalLat(): { majorDeg: number; minorDeg: number; majorSec: number; minorSec: number } {
-      const center = map.getCenter();
-      const pt1 = map.latLngToContainerPoint(center);
-      const pt2 = map.latLngToContainerPoint({ lat: center.lat + 1, lng: center.lng } as L.LatLngExpression);
-      const pxPerDegLat = Math.abs(pt2.y - pt1.y);
+    function chooseMinorInterval(majorSec: number, pxPerDeg: number): number {
+      const spacing5 = 300 * pxPerDeg / 3600;
+      if (spacing5 >= MINOR_MIN_PX) {
+        if (spacing5 > MINOR_DENSIFY_PX) {
+          for (const c of [30, 60]) {
+            if (c * pxPerDeg / 3600 >= MINOR_MIN_PX && c < majorSec) return c;
+          }
+          return 300;
+        }
+        return 300;
+      }
+      for (const c of [600, 900]) {
+        if (c < majorSec && c * pxPerDeg / 3600 >= MINOR_MIN_PX) return c;
+      }
+      return majorSec;
+    }
 
-      // Major = smallest step where step * pxPerDegLat >= 40
-      let majorDeg = STEPS_DEG[STEPS_DEG.length - 1]; // fallback: 5°
-      for (const step of STEPS_DEG) {
-        if (step * pxPerDegLat >= 40) {
-          majorDeg = step;
-          break;
+    /**
+     * Unified tick-drawing routine used by all four sides of the chart border.
+     * Top/bottom iterate along the longitude axis; left/right iterate along
+     * the latitude axis. The exact same tick + label rules apply to every
+     * side — only the orientation differs.
+     *
+     * No black/white band fill is drawn — only:
+     *   - tick marks (with white halo) projecting INTO the map from the edge,
+     *   - labels at major ticks (just inside the map, with black pill bg).
+     * The outer 1 px outline is drawn separately in drawScaleBorder().
+     *
+     * Labels are collected (not drawn immediately) so drawScaleBorder() can
+     * run a single bounding-box collision pass over ALL labels of ALL four
+     * sides together — a label that overlaps another label, or overlaps the
+     * scale/attribution controls, is dropped instead of stacked.
+     */
+    function drawBand(args: {
+      ctx: CanvasRenderingContext2D;
+      orientation: 'top' | 'bottom' | 'left' | 'right';
+      axis: CoordAxis;
+      axisStart: number;
+      axisEnd: number;
+      majorSec: number;
+      minorSec: number;
+      w: number;
+      h: number;
+      toScreenPos: (axisValueDeg: number) => number;
+      // Collect a label candidate (returns the bounding box that would be
+      // drawn, or null if the label would not fit inside the map area).
+      collectLabel: (text: string, x: number, y: number, align: 'center' | 'left' | 'right', baseline: 'top' | 'middle' | 'bottom', side: 'top' | 'bottom' | 'left' | 'right') => void;
+    }): void {
+      const {
+        ctx, orientation, axis, axisStart, axisEnd,
+        majorSec, minorSec, w, h,
+        toScreenPos, collectLabel,
+      } = args;
+
+      const isHorizontal = orientation === 'top' || orientation === 'bottom';
+      const viewportSpan = isHorizontal ? w : h;
+      const majSec = Math.round(majorSec);
+      const minSec = Math.round(minorSec);
+
+      // Iterate in integer arc-seconds to avoid floating-point drift.
+      // For latitude, axisStart = south (most negative), axisEnd = north
+      // (least negative / positive). startSec ≤ endSec because ceil() of a
+      // more-negative number divided by a positive step yields a smaller
+      // (more negative) integer.
+      const startSec = Math.ceil(axisStart * 3600 / minSec) * minSec;
+      const endSec = Math.ceil(axisEnd * 3600 / minSec) * minSec;
+
+      const LABEL_OFFSET = MAJOR_TICK_PX + 4;
+
+      for (let sec = startSec; sec <= endSec; sec += minSec) {
+        const axisValue = sec / 3600;
+        const wrappedAxisValue = axis === 'lng'
+          ? (((axisValue + 540) % 360) + 360) % 360 - 180
+          : axisValue;
+        const pos = toScreenPos(wrappedAxisValue);
+
+        if (pos < -40 || pos > viewportSpan + 40) continue;
+
+        const isMajor = (sec % majSec) === 0;
+        const tickLen = isMajor ? MAJOR_TICK_PX : MINOR_TICK_PX;
+
+        let x0: number, y0: number, x1: number, y1: number;
+        if (orientation === 'top') {
+          x0 = pos; y0 = 0; x1 = pos; y1 = tickLen;
+        } else if (orientation === 'bottom') {
+          x0 = pos; y0 = h - tickLen; x1 = pos; y1 = h;
+        } else if (orientation === 'left') {
+          x0 = 0; y0 = pos; x1 = tickLen; y1 = pos;
+        } else {
+          x0 = w - tickLen; y0 = pos; x1 = w; y1 = pos;
+        }
+
+        // Halo first (white, 3 px, round caps).
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x1, y1);
+        ctx.stroke();
+
+        // Then the dark tick on top (1 px).
+        ctx.strokeStyle = '#1a1a1a';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x1, y1);
+        ctx.stroke();
+
+        // Collect label candidate at major ticks. Spacing/collision is
+        // resolved later by the caller — here we just collect every
+        // candidate whose tick position is inside the visible area (with a
+        // 14 px / 20 px margin so the label has room near the corners).
+        if (isMajor) {
+          const label = formatDegMinSec(wrappedAxisValue, axis, majorSec);
+          if (isHorizontal) {
+            if (orientation === 'top') {
+              if (pos > MAJOR_TICK_PX + 20 && pos < w - MAJOR_TICK_PX - 20) {
+                collectLabel(label, pos, LABEL_OFFSET, 'center', 'top', 'top');
+              }
+            } else {
+              if (pos > MAJOR_TICK_PX + 20 && pos < w - MAJOR_TICK_PX - 20) {
+                collectLabel(label, pos, h - LABEL_OFFSET, 'center', 'bottom', 'bottom');
+              }
+            }
+          } else {
+            if (orientation === 'left') {
+              if (pos > MAJOR_TICK_PX + 14 && pos < h - MAJOR_TICK_PX - 14) {
+                collectLabel(label, LABEL_OFFSET, pos, 'left', 'middle', 'left');
+              }
+            } else {
+              if (pos > MAJOR_TICK_PX + 14 && pos < h - MAJOR_TICK_PX - 14) {
+                collectLabel(label, w - LABEL_OFFSET, pos, 'right', 'middle', 'right');
+              }
+            }
+          }
         }
       }
+    }
 
-      // Minor = major / 5 (or / 10 if that gives >= 5px per tick)
-      let minorDivisor = 5;
-      const minorCandidate = majorDeg / 10;
-      if (minorCandidate * pxPerDegLat >= 5) {
-        minorDivisor = 10;
-      }
-      let minorDeg = majorDeg / minorDivisor;
-      while (minorDeg * pxPerDegLat < 5 && minorDeg < majorDeg) {
-        minorDeg *= 2;
-      }
-
-      const majorSec = majorDeg * 3600;
-      const minorSec = minorDeg * 3600;
-      return { majorDeg, minorDeg, majorSec, minorSec };
+    // A label candidate collected by drawBand. Bounding box is computed up
+    // front so the collision pass doesn't need to re-measure text.
+    interface LabelCandidate {
+      text: string;
+      x: number;          // text anchor x
+      y: number;          // text anchor y
+      align: 'center' | 'left' | 'right';
+      baseline: 'top' | 'middle' | 'bottom';
+      side: 'top' | 'bottom' | 'left' | 'right';
+      bgX: number;       // background rect left
+      bgY: number;       // background rect top
+      tw: number;        // background rect width
+      th: number;        // background rect height
     }
 
     function drawScaleBorder() {
-      if (!scaleBorderCanvas || !scaleBorderEnabled) return;
+      if (!scaleBorderCanvas) return;
       const mapEl = map.getContainer();
       const w = mapEl.clientWidth;
       const h = mapEl.clientHeight;
@@ -363,168 +579,190 @@ export default function SeaMap({
       ctx.scale(dpr, dpr);
       ctx.clearRect(0, 0, w, h);
 
-      const bw = BORDER_WIDTH;
-      const lngInterval = chooseIntervalLng();
-      const latInterval = chooseIntervalLat();
+      const centerPt = map.getCenter();
+
+      const pt1 = map.latLngToContainerPoint(centerPt);
+      const pt2Lng = map.latLngToContainerPoint({
+        lat: centerPt.lat,
+        lng: centerPt.lng + 1,
+      } as L.LatLngExpression);
+      const pt2Lat = map.latLngToContainerPoint({
+        lat: centerPt.lat + 1,
+        lng: centerPt.lng,
+      } as L.LatLngExpression);
+      const pxPerDegLng = Math.abs(pt2Lng.x - pt1.x);
+      const pxPerDegLat = Math.abs(pt2Lat.y - pt1.y);
+
+      const lngMajSec = chooseMajorInterval(pxPerDegLng, LABEL_MIN_PX_LNG);
+      const lngMinSec = chooseMinorInterval(lngMajSec, pxPerDegLng);
+      const latMajSec = chooseMajorInterval(pxPerDegLat, LABEL_MIN_PX_LAT);
+      const latMinSec = chooseMinorInterval(latMajSec, pxPerDegLat);
+
       const bounds = map.getBounds();
-
-      const font = '11px "Courier New", monospace';
-      const th = 14; // text height for background
-
-      // Helper: draw a label text with white background pill + white outline
-      function drawLabel(text: string, x: number, y: number, align: 'center' | 'left' | 'right', baseline: 'top' | 'middle' | 'bottom') {
-        if (!ctx) return;
-        ctx.font = font;
-        ctx.textAlign = align;
-        ctx.textBaseline = baseline;
-        const tw = ctx.measureText(text).width + 6;
-        let bgX = x - tw / 2;
-        if (align === 'left') bgX = x - 3;
-        if (align === 'right') bgX = x - tw + 3;
-        const bgY = baseline === 'top' ? y : baseline === 'middle' ? y - th / 2 : y - th;
-        // Hide label if too close to edge (corner clipping)
-        if (bgX < bw || bgX + tw > w - bw || bgY < bw || bgY + th > h - bw) return;
-        // Background pill
-        ctx.fillStyle = 'rgba(255,255,255,0.9)';
-        ctx.fillRect(bgX, bgY, tw, th);
-        // Text outline
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 3;
-        const textY = y + (baseline === 'middle' ? 0 : baseline === 'top' ? th - 3 : -3);
-        ctx.strokeText(text, x, textY);
-        // Text
-        ctx.fillStyle = '#0f172a';
-        ctx.fillText(text, x, textY);
-      }
-
-      // Track last label positions to avoid overlap
-      let lastTopLabelX = -999;
-      let lastLeftLabelY = -999;
-
-      // ===== TOP & BOTTOM BORDERS (longitude) =====
-      // Use integer arc-second positions to avoid floating-point drift
       const westLng = bounds.getWest();
       const eastLng = bounds.getEast();
-      const { majorDeg: lngMaj, minorDeg: lngMin, majorSec: lngMajSec } = lngInterval;
-      const lngMinSec = Math.round(lngMin * 3600);
-      const lngMajSecInt = Math.round(lngMaj * 3600);
-      const startSecLng = Math.ceil(westLng * 3600 / lngMinSec) * lngMinSec;
-      const endSecLng = Math.ceil(eastLng * 3600 / lngMinSec) * lngMinSec;
-      let segToggle = false;
-      for (let sec = startSecLng; sec <= endSecLng; sec += lngMinSec) {
-        const lng = sec / 3600;
-        const wrappedLng = ((lng + 540) % 360) - 180;
-        const pt = map.latLngToContainerPoint({ lat: 0, lng: wrappedLng } as L.LatLngExpression);
-        const x = pt.x;
-        if (x < -20 || x > w + 20) { segToggle = !segToggle; continue; }
-
-        const isMajor = (sec % lngMajSecInt) === 0;
-
-        // Draw segment fill (alternating black/white)
-        const prevSec = sec - lngMinSec;
-        const prevLng = prevSec / 3600;
-        const prevWrapped = ((prevLng + 540) % 360) - 180;
-        const prevPt = map.latLngToContainerPoint({ lat: 0, lng: prevWrapped } as L.LatLngExpression);
-        const prevX = prevPt.x;
-        const segStart = Math.max(0, prevX);
-        const segEnd = Math.min(w, x);
-        if (segEnd > segStart) {
-          ctx.fillStyle = segToggle ? '#1e293b' : '#f8fafc';
-          ctx.fillRect(segStart, 0, segEnd - segStart, bw);
-          ctx.fillRect(segStart, h - bw, segEnd - segStart, bw);
-        }
-        segToggle = !segToggle;
-
-        // Tick marks — minor tick: 4px inside band only
-        ctx.strokeStyle = '#1e293b';
-        ctx.lineWidth = 0.5;
-        ctx.beginPath(); ctx.moveTo(x, bw - 4); ctx.lineTo(x, bw); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(x, h - bw); ctx.lineTo(x, h - bw + 4); ctx.stroke();
-
-        if (isMajor) {
-          // Major tick: extends 4px into map area (longer than minor)
-          ctx.lineWidth = 1;
-          ctx.beginPath(); ctx.moveTo(x, bw - 4); ctx.lineTo(x, bw + 4); ctx.stroke();
-          ctx.beginPath(); ctx.moveTo(x, h - bw - 4); ctx.lineTo(x, h - bw + 4); ctx.stroke();
-
-          // Full coordinate label — always shows degrees + minutes
-          const label = formatDegMinSec(wrappedLng, 'lng', lngMajSec);
-          // Top label — skip if too close to previous or near corner
-          if (x - lastTopLabelX > 70 && x > bw + 20 && x < w - bw - 20) {
-            drawLabel(label, x, bw + 2, 'center', 'top');
-            lastTopLabelX = x;
-          }
-          // Bottom label
-          if (x > bw + 20 && x < w - bw - 20) {
-            drawLabel(label, x, h - bw - 2, 'center', 'bottom');
-          }
-        }
-      }
-
-      // ===== LEFT & RIGHT BORDERS (latitude) =====
-      // Use integer arc-second positions to avoid floating-point drift
       const southLat = Math.max(-85, bounds.getSouth());
       const northLat = Math.min(85, bounds.getNorth());
-      const { majorDeg: latMaj, minorDeg: latMin, majorSec: latMajSec } = latInterval;
-      const latMinSec = Math.round(latMin * 3600);
-      const latMajSecInt = Math.round(latMaj * 3600);
-      const startSecLat = Math.ceil(southLat * 3600 / latMinSec) * latMinSec;
-      const endSecLat = Math.ceil(northLat * 3600 / latMinSec) * latMinSec;
-      segToggle = false;
-      for (let sec = startSecLat; sec <= endSecLat; sec += latMinSec) {
-        const lat = sec / 3600;
-        const pt = map.latLngToContainerPoint({ lat, lng: 0 } as L.LatLngExpression);
-        const y = pt.y;
-        if (y < -20 || y > h + 20) { segToggle = !segToggle; continue; }
 
-        const isMajor = (sec % latMajSecInt) === 0;
+      const font = '11px "Courier New", ui-monospace, monospace';
+      const padX = 4;   // horizontal padding inside the label pill
+      const padY = 2;   // vertical padding inside the label pill
+      const th = 14 + padY * 2; // text height + padding = bg height
 
-        // Draw segment fill
-        const prevSec = sec - latMinSec;
-        const prevLat = prevSec / 3600;
-        const prevPt = map.latLngToContainerPoint({ lat: prevLat, lng: 0 } as L.LatLngExpression);
-        const prevY = prevPt.y;
-        const segStart = Math.max(0, prevY);
-        const segEnd = Math.min(h, y);
-        if (segEnd > segStart) {
-          ctx.fillStyle = segToggle ? '#1e293b' : '#f8fafc';
-          ctx.fillRect(0, segStart, bw, segEnd - segStart);
-          ctx.fillRect(w - bw, segStart, bw, segEnd - segStart);
+      // Measure helper: returns bounding rect for a label at (x, y) with the
+      // given alignment/baseline. The pill width follows the text width
+      // (ctx.measureText) — no fixed width.
+      function measureLabel(
+        text: string,
+        x: number,
+        y: number,
+        align: 'center' | 'left' | 'right',
+        baseline: 'top' | 'middle' | 'bottom',
+      ): { bgX: number; bgY: number; tw: number; th: number } {
+        if (!ctx) return { bgX: 0, bgY: 0, tw: 0, th: 0 };
+        ctx.font = font;
+        const tw = ctx.measureText(text).width + padX * 2;
+        let bgX = x - tw / 2;
+        if (align === 'left') bgX = x - padX;
+        if (align === 'right') bgX = x - tw + padX;
+        const bgY = baseline === 'top' ? y - padY : baseline === 'middle' ? y - th / 2 : y - th + padY;
+        return { bgX, bgY, tw, th };
+      }
+
+      // Collect candidates from all four sides first. drawBand pushes into
+      // this array via the collectLabel closure.
+      const candidates: LabelCandidate[] = [];
+
+      function collectLabel(
+        text: string,
+        x: number,
+        y: number,
+        align: 'center' | 'left' | 'right',
+        baseline: 'top' | 'middle' | 'bottom',
+        side: 'top' | 'bottom' | 'left' | 'right',
+      ) {
+        const { bgX, bgY, tw, th: ths } = measureLabel(text, x, y, align, baseline);
+        // Reject candidates whose bounding box would extend past the map
+        // edges (would overlap the perpendicular border).
+        if (bgX < 1 || bgX + tw > w - 1 || bgY < 1 || bgY + ths > h - 1) return;
+        candidates.push({ text, x, y, align, baseline, side, bgX, bgY, tw, th: ths });
+      }
+
+      drawBand({
+        ctx, orientation: 'top', axis: 'lng',
+        axisStart: westLng, axisEnd: eastLng,
+        majorSec: lngMajSec, minorSec: lngMinSec,
+        w, h,
+        toScreenPos: (lng: number) =>
+          map.latLngToContainerPoint({ lat: 0, lng } as L.LatLngExpression).x,
+        collectLabel,
+      });
+      drawBand({
+        ctx, orientation: 'bottom', axis: 'lng',
+        axisStart: westLng, axisEnd: eastLng,
+        majorSec: lngMajSec, minorSec: lngMinSec,
+        w, h,
+        toScreenPos: (lng: number) =>
+          map.latLngToContainerPoint({ lat: 0, lng } as L.LatLngExpression).x,
+        collectLabel,
+      });
+      drawBand({
+        ctx, orientation: 'left', axis: 'lat',
+        axisStart: southLat, axisEnd: northLat,
+        majorSec: latMajSec, minorSec: latMinSec,
+        w, h,
+        toScreenPos: (lat: number) =>
+          map.latLngToContainerPoint({ lat, lng: 0 } as L.LatLngExpression).y,
+        collectLabel,
+      });
+      drawBand({
+        ctx, orientation: 'right', axis: 'lat',
+        axisStart: southLat, axisEnd: northLat,
+        majorSec: latMajSec, minorSec: latMinSec,
+        w, h,
+        toScreenPos: (lat: number) =>
+          map.latLngToContainerPoint({ lat, lng: 0 } as L.LatLngExpression).y,
+        collectLabel,
+      });
+
+      // ---- Collision resolution ----
+      // Reserved rectangles: the Leaflet scale control (bottom-left) and
+      // attribution (bottom-right) live inside the map. We don't want labels
+      // to overlap them. The actual control sizes vary, so reserve a generous
+      // strip in the bottom-left and bottom-right corners.
+      const reservedRects: Array<{ x: number; y: number; w: number; h: number }> = [
+        // Bottom-left: scale control (metric + nautical ≈ 110×34 px).
+        { x: 0, y: h - 40, w: 130, h: 40 },
+        // Bottom-right: attribution (text varies; reserve 220×24 px).
+        { x: w - 220, y: h - 28, w: 220, h: 28 },
+      ];
+
+      // Sort candidates by priority: top/bottom first (they're spread along
+      // the longer edge), then left/right. Within a side, keep iteration
+      // order (which is ascending latitude for left/right, ascending
+      // longitude for top/bottom). Stable sort preserves insertion order
+      // for ties.
+      const sideOrder: Record<string, number> = { top: 0, bottom: 1, left: 2, right: 3 };
+      candidates.sort((a, b) => sideOrder[a.side] - sideOrder[b.side]);
+
+      function rectsOverlap(
+        a: { x: number; y: number; w: number; h: number },
+        b: { x: number; y: number; w: number; h: number },
+      ): boolean {
+        return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+      }
+
+      const placedRects: Array<{ x: number; y: number; w: number; h: number }> = [...reservedRects];
+      const kept: LabelCandidate[] = [];
+      for (const cand of candidates) {
+        const rect = { x: cand.bgX, y: cand.bgY, w: cand.tw, h: cand.th };
+        let collides = false;
+        for (const placed of placedRects) {
+          if (rectsOverlap(rect, placed)) { collides = true; break; }
         }
-        segToggle = !segToggle;
+        if (collides) continue;
+        kept.push(cand);
+        placedRects.push(rect);
+      }
 
-        // Tick marks — minor: 4px inside band
-        ctx.strokeStyle = '#1e293b';
-        ctx.lineWidth = 0.5;
-        ctx.beginPath(); ctx.moveTo(bw - 4, y); ctx.lineTo(bw, y); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(w - bw, y); ctx.lineTo(w - bw + 4, y); ctx.stroke();
-
-        if (isMajor) {
-          // Major tick: extends 4px into map area (longer)
-          ctx.lineWidth = 1;
-          ctx.beginPath(); ctx.moveTo(bw - 4, y); ctx.lineTo(bw + 4, y); ctx.stroke();
-          ctx.beginPath(); ctx.moveTo(w - bw - 4, y); ctx.lineTo(w - bw + 4, y); ctx.stroke();
-
-          const label = formatDegMinSec(lat, 'lat', latMajSec);
-          // Left label — skip if too close to previous or near corner
-          if (y - lastLeftLabelY > 30 && y > bw + 14 && y < h - bw - 14) {
-            drawLabel(label, bw + 3, y, 'left', 'middle');
-            lastLeftLabelY = y;
+      // ---- Draw kept labels ----
+      // Style: black bg (#000, opacity 0.85), white text, no outline,
+      // padding 4 px / 2 px, border-radius 2 px, font 11 px monospace.
+      // Sized to text via measureText (already done in measureLabel).
+      if (ctx) {
+        ctx.font = font;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        for (const cand of kept) {
+          // Background pill: black, opacity 0.85.
+          ctx.fillStyle = 'rgba(0,0,0,0.85)';
+          // Border-radius 2 px is approximated by drawing a rect (canvas v1
+          // supports roundRect, but the type defs in older @types/canvas
+          // don't — fall back to plain fillRect for portability).
+          if (typeof ctx.roundRect === 'function') {
+            ctx.beginPath();
+            ctx.roundRect(cand.bgX, cand.bgY, cand.tw, cand.th, 2);
+            ctx.fill();
+          } else {
+            ctx.fillRect(cand.bgX, cand.bgY, cand.tw, cand.th);
           }
-          // Right label
-          if (y > bw + 14 && y < h - bw - 14) {
-            drawLabel(label, w - bw - 3, y, 'right', 'middle');
-          }
+          // Text: white, no outline. Position by textBaseline=text-top
+          // inside the pill.
+          ctx.fillStyle = '#ffffff';
+          // Place text inside the pill: left edge = bgX + padX, vertical
+          // center = bgY + th/2 + ~3 (font ascent correction for 11 px).
+          ctx.fillText(cand.text, cand.bgX + padX, cand.bgY + padY + 1);
         }
       }
 
-      // ===== Outer border lines (1px black) =====
-      // Only draw the outermost border — no inner rectangle (that caused white lines)
-      ctx.strokeStyle = '#1e293b';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(0.5, 0.5, w - 1, h - 1);
+      // ===== Outer 1 px black outline around the whole map =====
+      if (ctx) {
+        ctx.strokeStyle = '#1a1a1a';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(0.5, 0.5, w - 1, h - 1);
+      }
 
-      ctx.restore();
+      ctx?.restore();
     }
 
     function scheduleScaleBorderRedraw() {
@@ -535,38 +773,248 @@ export default function SeaMap({
       });
     }
 
-    // Create canvas element and insert it above tile pane but below controls
     scaleBorderCanvas = document.createElement('canvas');
     scaleBorderCanvas.style.position = 'absolute';
     scaleBorderCanvas.style.top = '0';
     scaleBorderCanvas.style.left = '0';
     scaleBorderCanvas.style.pointerEvents = 'none';
-    scaleBorderCanvas.style.zIndex = '400'; // Above tile panes (200-400), below controls (500+)
+    scaleBorderCanvas.style.zIndex = '400';
     scaleBorderCanvas.style.width = '100%';
     scaleBorderCanvas.style.height = '100%';
     map.getContainer().appendChild(scaleBorderCanvas);
 
-    // Offset Leaflet controls so they don't overlap the border
-    // We add CSS padding to the map container
-    const mapContainer = map.getContainer();
-    mapContainer.style.paddingTop = `${BORDER_WIDTH}px`;
-    mapContainer.style.paddingLeft = `${BORDER_WIDTH}px`;
-    mapContainer.style.paddingRight = `${BORDER_WIDTH}px`;
-    mapContainer.style.paddingBottom = `${BORDER_WIDTH}px`;
-    // Need to invalidate size after padding change
-    setTimeout(() => map.invalidateSize(), 0);
-
-    // Draw on move/zoom/resize
     map.on('move zoom moveend zoomend resize viewreset', scheduleScaleBorderRedraw);
-    // Also redraw when map is first ready
     setTimeout(() => drawScaleBorder(), 100);
 
-    // Layer groups for SAR overlays (markers, lines, polygons, circles)
+    // ---- Depth numbers overlay ("Angka kedalaman") ----
+    // A separate canvas that sits ABOVE the tile panes but BELOW the
+    // scale-border canvas (so the chart frame is on top of the soundings).
+    // Pointer-events: none so the map remains draggable/clickable.
+    //
+    // The canvas is redrawn on every moveend/zoomend (debounced 400 ms after
+    // the map stops moving — see scheduleDepthRedraw below). Each redraw:
+    //   1. Computes the grid interval for the current zoom + density.
+    //   2. Enumerates grid points inside the viewport.
+    //   3. Looks up each point's elevation in the in-memory cache (sync).
+    //   4. Draws every cached ocean point as a number with white halo.
+    //   5. If the layer is enabled and there are uncached points, kicks off
+    //      a fetch (AbortController; supersedes any in-flight one).
+    //
+    // As fetches resolve, the next redraw picks up the new cached values.
+    let depthCanvas: HTMLCanvasElement | null = null;
+    let depthRAF: number | null = null;
+    let depthDebounce: ReturnType<typeof setTimeout> | null = null;
+    let depthFetchAbort: AbortController | null = null;
+
+    function drawDepthOverlay() {
+      if (!depthCanvas) return;
+      // The depth canvas is hidden by CSS when the layer is disabled
+      // (`.seamap-hide-depth`), but we also bail here so we don't waste CPU
+      // drawing on a hidden canvas.
+      if (!depthEnabledRef.current) {
+        const ctx0 = depthCanvas.getContext('2d');
+        ctx0?.clearRect(0, 0, depthCanvas.width, depthCanvas.height);
+        return;
+      }
+      const mapEl = map.getContainer();
+      const w = mapEl.clientWidth;
+      const h = mapEl.clientHeight;
+      const dpr = window.devicePixelRatio || 1;
+      depthCanvas.width = w * dpr;
+      depthCanvas.height = h * dpr;
+      depthCanvas.style.width = w + 'px';
+      depthCanvas.style.height = h + 'px';
+
+      const ctx = depthCanvas.getContext('2d');
+      if (!ctx) return;
+      ctx.save();
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, w, h);
+
+      // Compute px-per-degree at the current map centre.
+      const center = map.getCenter();
+      const pt1 = map.latLngToContainerPoint(center);
+      const pt2Lng = map.latLngToContainerPoint({
+        lat: center.lat,
+        lng: center.lng + 1,
+      } as L.LatLngExpression);
+      const pt2Lat = map.latLngToContainerPoint({
+        lat: center.lat + 1,
+        lng: center.lng,
+      } as L.LatLngExpression);
+      const pxPerDegLng = Math.abs(pt2Lng.x - pt1.x);
+      const pxPerDegLat = Math.abs(pt2Lat.y - pt1.y);
+      // For interval picking we use the average; the grid is square in degrees
+      // anyway, so spacing is roughly the same on both axes near the equator.
+      const pxPerDeg = (pxPerDegLng + pxPerDegLat) / 2;
+
+      const source: DepthSource = activeDepthSource;
+      const density = depthDensityRef.current;
+      const interval: GridInterval = chooseGridInterval(pxPerDeg, density, source);
+
+      const bounds = map.getBounds();
+      const west = bounds.getWest();
+      const east = bounds.getEast();
+      const south = Math.max(-85, bounds.getSouth());
+      const north = Math.min(85, bounds.getNorth());
+
+      const points: GridPoint[] = enumerateGridPoints(south, north, west, east, interval.sec);
+
+      // Suppress overlay if there are too many points — show a hint instead.
+      const { render, hint } = shouldRenderDepth(points.length);
+      setDepthHint(hint);
+      if (!render) {
+        ctx.restore();
+        return;
+      }
+
+      // Update the source label so the Layers panel can show it.
+      // (We don't need to setState every frame — only when interval changes.)
+      // For simplicity we leave the source label static (it depends on env
+      // vars, not on zoom).
+
+      // Draw every cached ocean point as a number with white halo.
+      ctx.font = '11px "Courier New", ui-monospace, monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const EDGE_MARGIN = 14; // px — skip points within 14 px of map edges
+      for (const p of points) {
+        const elev = getCachedDepth(p.lat, p.lng);
+        if (elev === null) continue; // not yet cached — will appear next redraw
+        const text = formatDepth(elev, source);
+        if (text === null) continue; // land — skip
+
+        const pt = map.latLngToContainerPoint({ lat: p.lat, lng: p.lng } as L.LatLngExpression);
+        if (pt.x < EDGE_MARGIN || pt.x > w - EDGE_MARGIN) continue;
+        if (pt.y < EDGE_MARGIN || pt.y > h - EDGE_MARGIN) continue;
+
+        // White halo (3 px stroke first), then dark blue-gray text on top.
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+        ctx.lineWidth = 3;
+        ctx.strokeText(text, pt.x, pt.y);
+        ctx.fillStyle = '#1e3a5f'; // dark blue-gray, reads on road + satellite
+        ctx.fillText(text, pt.x, pt.y);
+      }
+      ctx.restore();
+    }
+
+    function scheduleDepthRedraw() {
+      if (depthDebounce !== null) {
+        clearTimeout(depthDebounce);
+      }
+      // Debounce 400 ms after the map stops moving, then redraw via RAF.
+      depthDebounce = setTimeout(() => {
+        depthDebounce = null;
+        if (depthRAF !== null) return;
+        depthRAF = requestAnimationFrame(() => {
+          depthRAF = null;
+          drawDepthOverlay();
+          // Kick off a fetch for any uncached points in the current viewport.
+          // The fetch resolves asynchronously; when it does, we redraw again
+          // so the new values appear.
+          void maybeFetchDepths();
+        });
+      }, 400);
+    }
+
+    /**
+     * Fire a depth fetch for the current viewport if the layer is enabled
+     * and there are uncached grid points. Supersedes any in-flight fetch via
+     * AbortController. On error/rate-limit, sets `depthStatus` so the UI
+     * can show a non-blocking notice and continues using cached values.
+     */
+    async function maybeFetchDepths(): Promise<void> {
+      if (!depthEnabledRef.current) return;
+      if (activeDepthSource === 'NONE') return;
+      // Abort the previous in-flight fetch.
+      if (depthFetchAbort) {
+        depthFetchAbort.abort();
+      }
+      const ctrl = new AbortController();
+      depthFetchAbort = ctrl;
+
+      // Re-enumerate points (cheap) — the viewport may have shifted during
+      // the debounce window.
+      const center = map.getCenter();
+      const pt1 = map.latLngToContainerPoint(center);
+      const pt2Lng = map.latLngToContainerPoint({
+        lat: center.lat,
+        lng: center.lng + 1,
+      } as L.LatLngExpression);
+      const pt2Lat = map.latLngToContainerPoint({
+        lat: center.lat + 1,
+        lng: center.lng,
+      } as L.LatLngExpression);
+      const pxPerDeg = (Math.abs(pt2Lng.x - pt1.x) + Math.abs(pt2Lat.y - pt1.y)) / 2;
+      const interval = chooseGridInterval(pxPerDeg, depthDensityRef.current, activeDepthSource);
+      const bounds = map.getBounds();
+      const points = enumerateGridPoints(
+        Math.max(-85, bounds.getSouth()),
+        Math.min(85, bounds.getNorth()),
+        bounds.getWest(),
+        bounds.getEast(),
+        interval.sec,
+      );
+      if (points.length === 0) return;
+      if (points.length > 400) return; // would be suppressed anyway
+
+      setDepthStatus('loading');
+      try {
+        const result = await fetchDepths(points, ctrl.signal);
+        if (ctrl.signal.aborted) return;
+        setDepthStatus(result.status);
+        // Force a redraw so the new values appear.
+        if (depthRAF !== null) return;
+        depthRAF = requestAnimationFrame(() => {
+          depthRAF = null;
+          drawDepthOverlay();
+        });
+      } catch {
+        if (!ctrl.signal.aborted) {
+          setDepthStatus('error');
+        }
+      }
+    }
+
+    depthCanvas = document.createElement('canvas');
+    depthCanvas.style.position = 'absolute';
+    depthCanvas.style.top = '0';
+    depthCanvas.style.left = '0';
+    depthCanvas.style.pointerEvents = 'none';
+    depthCanvas.style.zIndex = '350'; // BELOW scale border (400), ABOVE tiles (200-300)
+    depthCanvas.style.width = '100%';
+    depthCanvas.style.height = '100%';
+    map.getContainer().appendChild(depthCanvas);
+
+    // Redraw on map move (debounced) — same trigger as the scale border.
+    map.on('moveend zoomend resize viewreset', scheduleDepthRedraw);
+
+    // Also redraw when the user toggles the layer or changes density.
+    const onDepthToggle = () => {
+      if (depthEnabledRef.current) {
+        scheduleDepthRedraw();
+      } else {
+        // Layer disabled — clear the canvas immediately.
+        if (depthCanvas) {
+          const ctx = depthCanvas.getContext('2d');
+          ctx?.clearRect(0, 0, depthCanvas.width, depthCanvas.height);
+        }
+        setDepthHint(null);
+        setDepthStatus('idle');
+        if (depthFetchAbort) depthFetchAbort.abort();
+      }
+    };
+    window.addEventListener('seamap:depth-toggle', onDepthToggle);
+
+    // Initial draw (after a tick so the canvas has a real size).
+    setTimeout(() => drawDepthOverlay(), 200);
+
+    // Layer groups for SAR overlays
     const markersLayer = L.layerGroup().addTo(map);
     const linesLayer = L.layerGroup().addTo(map);
     const polygonsLayer = L.layerGroup().addTo(map);
     const circlesLayer = L.layerGroup().addTo(map);
-    const depthMarkersLayer = L.layerGroup().addTo(map);
 
     // ---- Cursor coordinate readout (top-left) ----
     const CoordControl = L.Control.extend({
@@ -582,17 +1030,15 @@ export default function SeaMap({
 
     map.on('mousemove', (e: L.LeafletMouseEvent) => {
       const lat = e.latlng.lat;
-      const lng = ((e.latlng.lng + 540) % 360) - 180; // normalise to [-180, 180]
+      const lng = ((e.latlng.lng + 540) % 360) - 180;
       readoutEl.textContent = `${formatDMS(lat, true)}  ${formatDMS(lng, false)}`;
     });
     map.on('mouseout', () => {
       readoutEl.textContent = '— · —';
     });
 
-    // ---- Scale control: metric + nautical ----
-    // Leaflet's built-in L.control.scale only shows metric + imperial; we add nautical too.
+    // ---- Scale control (metric + nautical) ----
     L.control.scale({ metric: true, imperial: false, position: 'bottomleft' }).addTo(map);
-    addNauticalScale(map);
 
     // ---- Disclaimer badge (top-right) ----
     const DisclaimerControl = L.Control.extend({
@@ -605,19 +1051,11 @@ export default function SeaMap({
     });
     new DisclaimerControl({ position: 'topright' }).addTo(map);
 
-    // ---- Custom layer-control panel with toggle + opacity slider ----
+    // ---- Custom layer-control panel ----
     const LayerPanelControl = L.Control.extend({
       onAdd: () => {
         const div = L.DomUtil.create('div', 'sar-layer-controls');
-        const batnasRow = BATNAS_TILES_CONFIGURED
-          ? `
-            <div class="layer-row">
-              <label><input type="checkbox" id="lyr-batnas" /> BATNAS (BIG)</label>
-              <input type="range" id="lyr-batnas-opacity" min="0" max="100" value="70" />
-              <div style="font-size:9px;color:#64748b;margin-top:2px;">${BATNAS_RESOLUTION_NOTE}</div>
-            </div>
-          `
-          : '';
+        const depthSourceLabel = getDepthSourceLabel();
         div.innerHTML = `
           <h4>Map Layers</h4>
           <div class="layer-row">
@@ -627,12 +1065,22 @@ export default function SeaMap({
             <label><input type="checkbox" id="lyr-seamark" checked /> OpenSeaMap (seamark)</label>
           </div>
           <div class="layer-row">
-            <label><input type="checkbox" id="lyr-gebco" /> GEBCO bathymetry</label>
-            <input type="range" id="lyr-gebco-opacity" min="0" max="100" value="65" />
-          </div>
-          ${batnasRow}
-          <div class="layer-row">
             <label><input type="checkbox" id="lyr-grid" checked /> Bingkai skala</label>
+          </div>
+          <div class="layer-row">
+            <label><input type="checkbox" id="lyr-depth" /> Angka kedalaman</label>
+            <div class="layer-density" id="lyr-density-wrap" style="display:none; margin-top:4px;">
+              <label class="layer-density-label">Kepadatan:
+                <select id="lyr-density" style="font-size:10px; margin-left:4px;">
+                  <option value="rapat">Rapat</option>
+                  <option value="sedang" selected>Sedang</option>
+                  <option value="jarang">Jarang</option>
+                </select>
+              </label>
+              <div class="layer-source" id="lyr-depth-source">${depthSourceLabel}</div>
+              <div class="layer-source-hint">Interpolasi grid; bukan hasil survei. Tidak untuk navigasi.</div>
+              <div class="layer-status" id="lyr-depth-status"></div>
+            </div>
           </div>
         `;
         return div;
@@ -641,38 +1089,92 @@ export default function SeaMap({
     new LayerPanelControl({ position: 'topright' }).addTo(map);
 
     // Wire up the layer-control panel after it's added to DOM
+    const osmTile = (map as unknown as { _layers: Record<string, { _url?: string }> })._layers;
     setTimeout(() => {
+      const gridCb = document.getElementById('lyr-grid') as HTMLInputElement | null;
+      if (gridCb && scaleBorderCanvas) {
+        gridCb.addEventListener('change', () => {
+          scaleBorderCanvas!.style.display = gridCb.checked ? 'block' : 'none';
+          if (gridCb.checked) drawScaleBorder();
+        });
+      }
+      // Depth checkbox + density dropdown.
+      const depthCb = document.getElementById('lyr-depth') as HTMLInputElement | null;
+      const densityWrap = document.getElementById('lyr-density-wrap');
+      const densitySel = document.getElementById('lyr-density') as HTMLSelectElement | null;
+      if (depthCb) {
+        // Reflect initial viewPrefs state.
+        depthCb.checked = depthEnabledRef.current;
+        if (densityWrap) densityWrap.style.display = depthCb.checked ? 'block' : 'none';
+        depthCb.addEventListener('change', () => {
+          const next = depthCb.checked;
+          // Sync React state — this triggers the useEffect that updates
+          // depthEnabledRef.current and dispatches the toggle event.
+          setViewPrefs((prev) => ({ ...prev, depth: next }));
+          if (densityWrap) densityWrap.style.display = next ? 'block' : 'none';
+        });
+      }
+      if (densitySel) {
+        densitySel.value = depthDensityRef.current;
+        densitySel.addEventListener('change', () => {
+          const v = densitySel.value;
+          if (v === 'rapat' || v === 'sedang' || v === 'jarang') {
+            setDepthDensity(v);
+          }
+        });
+      }
+      // osm/seamark toggles: locate the tile layers by URL
       const osmCb = document.getElementById('lyr-osm') as HTMLInputElement | null;
       const seamarkCb = document.getElementById('lyr-seamark') as HTMLInputElement | null;
-      const gebcoCb = document.getElementById('lyr-gebco') as HTMLInputElement | null;
-      const gebcoOp = document.getElementById('lyr-gebco-opacity') as HTMLInputElement | null;
-      const gridCb = document.getElementById('lyr-grid') as HTMLInputElement | null;
-      const batnasCb = document.getElementById('lyr-batnas') as HTMLInputElement | null;
-      const batnasOp = document.getElementById('lyr-batnas-opacity') as HTMLInputElement | null;
-
-      if (osmCb) osmCb.addEventListener('change', () => (osmCb.checked ? osm.addTo(map) : map.removeLayer(osm)));
-      if (seamarkCb) seamarkCb.addEventListener('change', () => (seamarkCb.checked ? seamark.addTo(map) : map.removeLayer(seamark)));
-      if (gebcoCb) gebcoCb.addEventListener('change', () => (gebcoCb.checked ? gebco.addTo(map) : map.removeLayer(gebco)));
-      if (gebcoOp) gebcoOp.addEventListener('input', () => gebco.setOpacity(parseInt(gebcoOp.value, 10) / 100));
-      if (gridCb) gridCb.addEventListener('change', () => {
-        scaleBorderEnabled = gridCb.checked;
-        if (scaleBorderCanvas) {
-          scaleBorderCanvas.style.display = gridCb.checked ? 'block' : 'none';
+      if (osmTile) {
+        for (const key of Object.keys(osmTile)) {
+          const layer = osmTile[key];
+          if (!layer || !layer._url) continue;
+          if (layer._url === OSM_URL && osmCb) {
+            osmCb.addEventListener('change', () =>
+              osmCb.checked ? map.addLayer(layer as unknown as L.Layer) : map.removeLayer(layer as unknown as L.Layer));
+          } else if (layer._url === SEAMARK_URL && seamarkCb) {
+            seamarkCb.addEventListener('change', () =>
+              seamarkCb.checked ? map.addLayer(layer as unknown as L.Layer) : map.removeLayer(layer as unknown as L.Layer));
+          }
         }
-        if (gridCb.checked) drawScaleBorder();
-      });
-      if (batnasCb && batnas) {
-        batnasCb.addEventListener('change', () => (batnasCb.checked ? batnas.addTo(map) : map.removeLayer(batnas)));
       }
-      if (batnasOp && batnas) {
-        batnasOp.addEventListener('input', () => batnas.setOpacity(parseInt(batnasOp.value, 10) / 100));
-      }
+      void osmTile;
     }, 50);
 
+    // Sync depth status text + checkbox state from React state → DOM.
+    // The Layers panel is built imperatively (Leaflet Control), so we need
+    // a side-channel to push state updates into it.
+    const syncDepthPanel = () => {
+      const cb = document.getElementById('lyr-depth') as HTMLInputElement | null;
+      if (cb && cb.checked !== depthEnabledRef.current) cb.checked = depthEnabledRef.current;
+      const wrap = document.getElementById('lyr-density-wrap');
+      if (wrap) wrap.style.display = depthEnabledRef.current ? 'block' : 'none';
+      const sel = document.getElementById('lyr-density') as HTMLSelectElement | null;
+      if (sel && sel.value !== depthDensityRef.current) sel.value = depthDensityRef.current;
+      const statusEl = document.getElementById('lyr-depth-status');
+      if (statusEl) {
+        const s = depthStatus;
+        const statusText =
+          s === 'loading' ? 'Memuat…'
+          : s === 'rate-limited' ? 'Rate limit — pakai cache'
+          : s === 'error' ? 'Data kedalaman gagal dimuat'
+          : '';
+        statusEl.textContent = statusText;
+        statusEl.style.display = statusText ? 'block' : 'none';
+      }
+      const hintEl = document.getElementById('lyr-depth-hint');
+      if (hintEl) {
+        hintEl.textContent = depthHint ?? '';
+        hintEl.style.display = depthHint ? 'block' : 'none';
+      }
+    };
+    // Subscribe to React state changes — but the panel DOM is owned by Leaflet,
+    // so we just re-sync on every render. We do this via a window event the
+    // SeaMap component dispatches from a useEffect below.
+    window.addEventListener('seamap:depth-panel-sync', syncDepthPanel);
+
     // ---- Map click handler ----
-    // Two modes:
-    //   - Normal: call onMapClick (used for "Pick LKP" feature)
-    //   - Measure: append point to a measurement polyline, show cumulative distance
     const measureMarkers: L.Marker[] = [];
     let measureLine: L.Polyline | null = null;
 
@@ -681,9 +1183,8 @@ export default function SeaMap({
       const lng = ((e.latlng.lng + 540) % 360) - 180;
       const latlng: LatLng = { lat, lng };
 
-      // Measure mode: append vertex to measurement polyline
+      // Measure mode: append vertex to a measurement polyline
       if (measureModeRef.current) {
-        // Add a vertex to the measurement polyline
         const marker = L.marker([lat, lng], {
           icon: L.divIcon({
             className: 'sar-measure-vertex',
@@ -707,7 +1208,6 @@ export default function SeaMap({
               interactive: false,
             }).addTo(map);
           }
-          // Cumulative distance
           let totalNm = 0;
           for (let i = 1; i < pts.length; i++) {
             totalNm += distanceNm(
@@ -731,9 +1231,6 @@ export default function SeaMap({
         onMapClickRef.current(latlng);
         return;
       }
-
-      // Default: fetch depth at clicked point (GEBCO WMS GetFeatureInfo)
-      void showDepthAt(map, depthMarkersLayer, lat, lng);
     });
 
     // Double-click clears measurement
@@ -746,30 +1243,20 @@ export default function SeaMap({
       }
     });
 
-    // Persist refs for later updates
     layersRef.current = {
-      osm,
-      seamark,
-      gebco,
-      scaleBorderCanvas,
-      scaleBorderEnabled,
       markers: markersLayer,
       lines: linesLayer,
       polygons: polygonsLayer,
       circles: circlesLayer,
-      depthMarkers: depthMarkersLayer,
-      measureLine,
       measureMarkers,
-      coordReadout: readoutEl,
+      measureLine,
     };
 
     mapRef.current = map;
 
-    // Force Leaflet to compute tile layout correctly after mount
     setTimeout(() => map.invalidateSize(), 200);
 
     return () => {
-      // Clean up canvas and RAF
       if (scaleBorderRAF !== null) {
         cancelAnimationFrame(scaleBorderRAF);
         scaleBorderRAF = null;
@@ -777,11 +1264,25 @@ export default function SeaMap({
       if (scaleBorderCanvas && scaleBorderCanvas.parentNode) {
         scaleBorderCanvas.parentNode.removeChild(scaleBorderCanvas);
       }
-      // Reset container padding
-      mapContainer.style.paddingTop = '';
-      mapContainer.style.paddingLeft = '';
-      mapContainer.style.paddingRight = '';
-      mapContainer.style.paddingBottom = '';
+      // Depth overlay cleanup: abort in-flight fetch, cancel pending RAF,
+      // remove canvas + event listener.
+      if (depthFetchAbort) {
+        depthFetchAbort.abort();
+        depthFetchAbort = null;
+      }
+      if (depthDebounce !== null) {
+        clearTimeout(depthDebounce);
+        depthDebounce = null;
+      }
+      if (depthRAF !== null) {
+        cancelAnimationFrame(depthRAF);
+        depthRAF = null;
+      }
+      window.removeEventListener('seamap:depth-toggle', onDepthToggle);
+      window.removeEventListener('seamap:depth-panel-sync', syncDepthPanel);
+      if (depthCanvas && depthCanvas.parentNode) {
+        depthCanvas.parentNode.removeChild(depthCanvas);
+      }
       map.remove();
       mapRef.current = null;
       layersRef.current = {};
@@ -797,9 +1298,8 @@ export default function SeaMap({
   // ---- Toggle measure mode: clear measurement when leaving measure mode ----
   useEffect(() => {
     const layers = layersRef.current;
-    if (!layers || !mapRef.current) return;
+    if (!mapRef.current || !layers) return;
     if (!measureMode) {
-      // Clear any in-progress measurement
       for (const m of layers.measureMarkers ?? []) mapRef.current.removeLayer(m);
       layers.measureMarkers = [];
       if (layers.measureLine) {
@@ -878,28 +1378,6 @@ export default function SeaMap({
           .setLatLng(c)
           .addTo(layer);
       }
-      // Fetch depth summary inside polygon (sample grid up to 100 points)
-      // Dispatches to BATNAS COG (if configured) or GEBCO WMS GetFeatureInfo.
-      if (p.points.length >= 3) {
-        void getPolygonDepths(p.points, 100).then((results) => {
-          const summary = summariseDepths(results);
-          if (summary.count === 0) return;
-          const info = getDepthSourceInfo();
-          const sourceLabel = info.source === 'BATNAS'
-            ? 'Bathymetri (BATNAS — BIG, ~180 m)'
-            : 'Bathymetri (GEBCO Grid)';
-          const label = `Depth inside area: min ${formatDepth(summary.min)} · max ${formatDepth(summary.max)} · mean ${formatDepth(summary.mean)} (${summary.count} samples)`;
-          L.popup({ className: 'sar-depth-popup', closeButton: false, offset: [0, 0] })
-            .setLatLng(L.latLngBounds(latlngs).getCenter())
-            .setContent(
-              `<div class="depth-label">${sourceLabel}</div>` +
-              `<div class="depth-value">${formatDepth(summary.min)} … ${formatDepth(summary.max)}</div>` +
-              `<div class="depth-label">mean ${formatDepth(summary.mean)} · ${summary.count} samples</div>`,
-            )
-            .addTo(layer);
-          void label;
-        });
-      }
     });
   }, [polygons]);
 
@@ -909,7 +1387,7 @@ export default function SeaMap({
     const layer = layersRef.current.circles;
     layer.clearLayers();
     circles.forEach((c) => {
-      const radiusMeters = c.radiusNm * 1852; // 1 NM = 1852 m
+      const radiusMeters = c.radiusNm * 1852;
       const circle = L.circle([c.center.lat, c.center.lng], {
         radius: radiusMeters,
         color: c.color,
@@ -927,103 +1405,147 @@ export default function SeaMap({
     });
   }, [circles]);
 
+  // ---- Tampilan menu handlers ----
+  const togglePref = (key: keyof ViewPrefs) => {
+    setViewPrefs((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+  const hideAll = () => {
+    setViewPrefs((prev) => ({
+      layers: false, coord: false, zoom: false, disclaimer: false,
+      depth: prev.depth, // depth has its own checkbox in Layers — preserved
+    }));
+    setMenuOpen(false);
+  };
+  const showAll = () => {
+    setViewPrefs((prev) => ({
+      ...DEFAULT_VIEW_PREFS,
+      depth: prev.depth, // depth has its own checkbox — preserved
+    }));
+    setMenuOpen(false);
+  };
+
+  // Push depth status/hint changes into the imperative Layers panel DOM.
+  useEffect(() => {
+    window.dispatchEvent(new Event('seamap:depth-panel-sync'));
+  }, [depthStatus, depthHint, viewPrefs.depth, depthDensity]);
+
+  const everythingHidden = allHidden(viewPrefs);
+
   return (
     <div
-      ref={containerRef}
-      style={{ height, width: '100%', borderRadius: '0.5rem', overflow: 'hidden' }}
+      style={{ display: 'flex', flexDirection: 'column', height, width: '100%' }}
       role="application"
       aria-label="Interactive sea map showing search and rescue datum, search areas, and bathymetry"
-    />
+    >
+      <div
+        style={{
+          position: 'relative',
+          flex: '1 1 auto',
+          minHeight: 0,
+          overflow: 'hidden',
+          borderRadius: '0.5rem 0.5rem 0 0',
+        }}
+      >
+        <div
+          ref={containerRef}
+          className={mapClassName}
+          style={{ height: '100%', width: '100%' }}
+        />
+
+        {/* Tampilan (view) toggle button + menu.
+         * Sibling of the map container so it survives the per-element hide
+         * classes (which only target Leaflet controls, not this button).
+         * Auto-collapses to a translucent icon when every element is hidden,
+         * and returns to full opacity on hover. */}
+        <div
+          className={`seamap-tampilan${everythingHidden ? ' is-collapsed' : ''}${menuOpen ? ' is-open' : ''}`}
+        >
+          <button
+            type="button"
+            onClick={() => setMenuOpen((o) => !o)}
+            className="seamap-tampilan-btn"
+            aria-haspopup="true"
+            aria-expanded={menuOpen}
+            aria-label={menuOpen ? 'Tutup menu Tampilan' : 'Buka menu Tampilan'}
+            title="Tampilan — sembunyikan/tampilkan elemen peta (H)"
+          >
+            <svg
+              className="seamap-tampilan-btn__icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+          </button>
+
+          {menuOpen && (
+            <div className="seamap-tampilan-menu" role="menu" aria-label="Pilihan tampilan">
+              <label className="seamap-tampilan-row">
+                <input
+                  type="checkbox"
+                  checked={viewPrefs.layers}
+                  onChange={() => togglePref('layers')}
+                />
+                <span>Panel layer</span>
+              </label>
+              <label className="seamap-tampilan-row">
+                <input
+                  type="checkbox"
+                  checked={viewPrefs.coord}
+                  onChange={() => togglePref('coord')}
+                />
+                <span>Koordinat mouse</span>
+              </label>
+              <label className="seamap-tampilan-row">
+                <input
+                  type="checkbox"
+                  checked={viewPrefs.zoom}
+                  onChange={() => togglePref('zoom')}
+                />
+                <span>Zoom +/−</span>
+              </label>
+              <label className="seamap-tampilan-row">
+                <input
+                  type="checkbox"
+                  checked={viewPrefs.disclaimer}
+                  onChange={() => togglePref('disclaimer')}
+                />
+                <span>Peringatan</span>
+              </label>
+              <button
+                type="button"
+                className="seamap-tampilan-all"
+                onClick={everythingHidden ? showAll : hideAll}
+                aria-pressed={everythingHidden}
+                aria-label={everythingHidden ? 'Tampilkan semua' : 'Sembunyikan semua'}
+              >
+                {everythingHidden ? 'Tampilkan semua' : 'Sembunyikan semua'}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+      {/* Disclaimer strip below the map — always visible (even when the
+       * top-right badge is hidden), since it lives outside the map area.
+       * When the depth layer is active, also show the data-source
+       * attribution (GEBCO / BIG) and the "interpolasi grid" note here. */}
+      <div className="seamap-disclaimer-strip">
+        <strong>⚠ Bukan untuk navigasi pelayaran</strong>; akurasi tidak dijamin.
+        {viewPrefs.depth && (
+          <>
+            {' '}
+            Angka kedalaman hasil interpolasi grid (GEBCO sekitar 450 m / BATNAS sekitar 180 m), bukan hasil survei.
+            {activeDepthSource === 'BATNAS_COG' && ' Sumber: BIG Indonesia.'}
+            {(activeDepthSource === 'GEBCO_COG' || activeDepthSource === 'OPENTOPO_GEBCO') && ' Sumber: GEBCO Grid.'}
+          </>
+        )}
+      </div>
+    </div>
   );
-}
-
-// ============================================================================
-// Helper: show depth at a clicked point (single-point query).
-// Dispatches to BATNAS COG (if configured) or GEBCO WMS GetFeatureInfo.
-// ============================================================================
-
-async function showDepthAt(map: L.Map, layer: L.LayerGroup, lat: number, lng: number): Promise<void> {
-  // Show a temporary "loading" marker
-  const loadingMarker = L.circleMarker([lat, lng], {
-    radius: 5,
-    color: '#0369a1',
-    fillColor: '#0369a1',
-    fillOpacity: 0.6,
-    weight: 2,
-  }).addTo(layer);
-  loadingMarker.bindTooltip('Fetching depth…', { permanent: true, direction: 'top' });
-
-  try {
-    const result = await getDepthAt(lat, lng);
-    layer.removeLayer(loadingMarker);
-    if (!result) {
-      L.popup({ className: 'sar-depth-popup', closeButton: true })
-        .setLatLng([lat, lng])
-        .setContent(
-          `<div class="depth-label">Depth unavailable</div>` +
-          `<div style="color:#475569;">Tidak ada data kedalaman untuk titik ini.</div>`,
-        )
-        .addTo(map);
-      return;
-    }
-    // Use the actual dataset from result (may be BATNAS or GEBCO fallback)
-    const sourceLabel = result.dataset.startsWith('BATNAS')
-      ? 'Depth (BATNAS — BIG Indonesia, ~180 m resolution)'
-      : result.dataset.startsWith('GEBCO WMS (fallback)')
-      ? 'Depth (GEBCO Grid, WMS GetFeatureInfo — BATNAS fallback)'
-      : `Depth (${result.dataset})`;
-    const popup = L.popup({ className: 'sar-depth-popup', closeButton: true, autoPan: true })
-      .setLatLng([lat, lng])
-      .setContent(
-        `<div class="depth-label">${sourceLabel}</div>` +
-        `<div class="depth-value">${formatDepth(result.elevation)}</div>` +
-        `<div class="depth-label">${formatDMS(lat, true)} · ${formatDMS(lng, false)}</div>`,
-      )
-      .addTo(map);
-    void popup;
-  } catch (e) {
-    layer.removeLayer(loadingMarker);
-    const msg = (e as Error).message;
-    L.popup({ className: 'sar-depth-popup', closeButton: true })
-      .setLatLng([lat, lng])
-      .setContent(
-        `<div class="depth-label">Depth fetch failed</div>` +
-        `<div style="color:#b91c1c;font-weight:600;">${msg}</div>`,
-      )
-      .addTo(map);
-  }
-}
-
-// ============================================================================
-// Helper: add a nautical scale to the metric Leaflet scale control
-// ============================================================================
-
-function addNauticalScale(map: L.Map): void {
-  // The Leaflet L.Control.Scale builds its DOM after addTo(). We hook into
-  // 'zoomend moveend' to also update a nautical label below it.
-  const update = () => {
-    const metricEl = document.querySelector('.leaflet-control-scale-line') as HTMLElement | null;
-    if (!metricEl) return;
-    // Parse "100 m" / "1 km" / "500 km" style
-    const text = metricEl.textContent ?? '';
-    const match = text.match(/^([\d.]+)\s*(m|km)$/);
-    let nm: number | null = null;
-    if (match) {
-      const value = parseFloat(match[1]);
-      const unit = match[2];
-      const meters = unit === 'km' ? value * 1000 : value;
-      nm = meters / 1852;
-    }
-    let nauticalEl = document.querySelector('.leaflet-control-scale-nautical') as HTMLElement | null;
-    if (!nauticalEl) {
-      nauticalEl = document.createElement('div');
-      nauticalEl.className = 'leaflet-control-scale-line leaflet-control-scale-nautical';
-      nauticalEl.style.borderTop = 'none';
-      nauticalEl.style.paddingTop = '0';
-      metricEl.parentElement?.appendChild(nauticalEl);
-    }
-    nauticalEl.textContent = nm != null ? `${nm.toFixed(nm < 10 ? 2 : 1)} NM` : '';
-  };
-  map.on('zoomend moveend', update);
-  setTimeout(update, 100);
 }

@@ -159,14 +159,7 @@
   font-size: 10px !important;
 }
 
-/* Graticule (lat/lon grid) labels */
-.sar-graticule-label {
-  background: transparent !important;
-  border: none !important;
-  pointer-events: none;
-}
-
-/* Custom layer-control panel for opacity sliders */
+/* ---- Custom layer-control panel ---- */
 .sar-layer-controls {
   background: #fff;
   padding: 10px 12px;
@@ -206,11 +199,47 @@
   color: #334155;
 }
 
-.sar-layer-controls input[type="range"] {
-  width: 100%;
-  height: 4px;
+/* Density dropdown + source text inside the "Angka kedalaman" row. */
+.sar-layer-controls .layer-density {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 3px;
+  padding: 4px 6px;
+  margin-top: 4px;
+}
+
+.sar-layer-controls .layer-density-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: #475569;
+  margin-bottom: 4px;
+  cursor: default;
+}
+
+.sar-layer-controls .layer-source {
+  font-size: 9px;
+  color: #64748b;
   margin-top: 2px;
-  cursor: pointer;
+  font-style: italic;
+}
+
+.sar-layer-controls .layer-source-hint {
+  font-size: 9px;
+  color: #94a3b8;
+  margin-top: 2px;
+  line-height: 1.3;
+}
+
+.sar-layer-controls .layer-status {
+  font-size: 9px;
+  color: #b45309;
+  margin-top: 4px;
+  padding: 2px 4px;
+  background: #fef3c7;
+  border-radius: 2px;
+  display: none;
 }
 
 /* Cursor coordinate readout (top-left of map) */
@@ -226,33 +255,7 @@
   pointer-events: none;
 }
 
-/* Depth info popup */
-.sar-depth-popup {
-  background: #fff;
-  border: 1px solid #cbd5e1;
-  border-radius: 4px;
-  padding: 6px 10px;
-  font-family: var(--font-geist-mono, ui-monospace, monospace);
-  font-size: 11px;
-  color: #1e293b;
-  white-space: nowrap;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
-}
-
-.sar-depth-popup .depth-value {
-  font-size: 14px;
-  font-weight: 700;
-  color: #0369a1;
-}
-
-.sar-depth-popup .depth-label {
-  font-size: 9px;
-  text-transform: uppercase;
-  color: #64748b;
-  letter-spacing: 0.05em;
-}
-
-/* "Not for navigation" disclaimer badge */
+/* "Not for navigation" disclaimer badge (top-right) */
 .sar-disclaimer-badge {
   background: rgba(254, 226, 226, 0.95);
   color: #991b1b;
@@ -264,200 +267,146 @@
   pointer-events: none;
 }
 
-/* Print styles for IAMSAR worksheet forms */
-@media print {
-  /* Hide navigation, header, sidebar — only show form content */
-  header, nav, aside, .print\:hidden {
-    display: none !important;
-  }
-
-  /* Ensure forms don't break across pages */
-  .print-break-inside-avoid {
-    break-inside: avoid;
-    page-break-inside: avoid;
-  }
-
-  /* A4 portrait */
-  @page {
-    size: A4 portrait;
-    margin: 15mm;
-  }
-
-  /* A3 landscape for print layouts that need it */
-  @page A3 {
-    size: A3 landscape;
-    margin: 10mm;
-  }
+/* ---- SeaMap Tampilan (view) per-element hide classes ----
+ * When applied to the map container, these classes hide the corresponding
+ * Leaflet control with display: none. The map's own pan/zoom/click handlers
+ * are attached to the map pane (not the control container), so they keep
+ * working when controls are hidden.
+ */
+.seamap-hide-layers .leaflet-top.leaflet-right .sar-layer-controls,
+.seamap-hide-layers .leaflet-control.sar-layer-controls {
+  display: none !important;
+}
+.seamap-hide-coord .leaflet-top.leaflet-left .sar-coord-readout,
+.seamap-hide-coord .leaflet-control.sar-coord-readout {
+  display: none !important;
+}
+.seamap-hide-zoom .leaflet-control-zoom {
+  display: none !important;
+}
+.seamap-hide-disclaimer .leaflet-top.leaflet-right .sar-disclaimer-badge,
+.seamap-hide-disclaimer .leaflet-control.sar-disclaimer-badge {
+  display: none !important;
 }
 
-/* Authentic IAMSAR form styling — visible both on screen and in print */
-.iamsar-form {
+/* ---- Tampilan (view) menu button + dropdown ----
+ * Sibling of the map container so it survives the per-element hide classes.
+ * Always visible. Auto-collapses to a translucent icon when every element
+ * is hidden AND the menu is closed; returns to full opacity on hover or
+ * when the menu is open (so the user can see and click "Tampilkan semua").
+ */
+.seamap-tampilan {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  z-index: 1200;
+  opacity: 1;
+  transition: opacity 200ms ease;
+}
+
+.seamap-tampilan.is-collapsed:not(.is-open) {
+  opacity: 0.4;
+}
+
+.seamap-tampilan.is-collapsed:hover,
+.seamap-tampilan:hover,
+.seamap-tampilan.is-open {
+  opacity: 1;
+}
+
+.seamap-tampilan-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  color: #0f172a;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.seamap-tampilan-btn:hover {
+  background: #f1f5f9;
+}
+
+.seamap-tampilan-btn:focus-visible {
+  outline: 2px solid #0ea5e9;
+  outline-offset: 2px;
+}
+
+.seamap-tampilan-btn__icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.seamap-tampilan-menu {
+  position: absolute;
+  bottom: 36px;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  min-width: 180px;
   background: #fff;
-  border: 1.5px solid #334155;
-  border-radius: 2px;
-  font-family: 'Times New Roman', Georgia, serif;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
   font-size: 11px;
   color: #1e293b;
-  overflow: hidden;
 }
 
-.iamsar-form-header {
-  background: #e2e8f0;
-  border-bottom: 1.5px solid #334155;
-  padding: 6px 10px;
-  font-weight: bold;
-  font-size: 12px;
-  text-align: center;
-  letter-spacing: 0.5px;
-}
-
-.iamsar-form-meta {
-  border-bottom: 1px solid #94a3b8;
-  padding: 4px 10px;
-  font-size: 9px;
-}
-
-.iamsar-form-meta table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.iamsar-form-meta td {
-  padding: 1px 4px;
-  border: none;
-  vertical-align: bottom;
-}
-
-.iamsar-form-meta td:first-child {
-  white-space: nowrap;
-  color: #64748b;
-  font-weight: 600;
-  width: 1%;
-  padding-right: 8px;
-}
-
-.iamsar-form-meta .fill-line {
-  border-bottom: 1px solid #475569;
-  display: inline-block;
-  min-width: 200px;
-  padding-bottom: 1px;
-}
-
-.iamsar-form-section {
-  border-bottom: 1px solid #cbd5e1;
-  padding: 4px 10px;
-}
-
-.iamsar-form-section:last-child {
-  border-bottom: none;
-}
-
-.iamsar-form-section-title {
-  font-weight: bold;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-  color: #334155;
-  border-bottom: 1px solid #94a3b8;
-  padding-bottom: 2px;
-  margin-bottom: 3px;
-}
-
-.iamsar-form-row {
+.seamap-tampilan-row {
   display: flex;
-  align-items: baseline;
-  padding: 1.5px 0;
-  border-bottom: 1px dotted #cbd5e1;
-  min-height: 18px;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
 }
 
-.iamsar-form-row:last-child {
-  border-bottom: none;
+.seamap-tampilan-row input[type="checkbox"] {
+  cursor: pointer;
 }
 
-.iamsar-form-row .row-num {
-  width: 22px;
-  flex-shrink: 0;
-  font-weight: 600;
-  color: #475569;
-  text-align: right;
-  padding-right: 6px;
-}
-
-.iamsar-form-row .row-label {
-  flex: 1;
-  color: #334155;
-  padding-right: 8px;
-}
-
-.iamsar-form-row .row-value {
-  min-width: 120px;
-  text-align: right;
-  font-family: 'Courier New', monospace;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.iamsar-form-row .row-value.filled {
-  color: #047857;
-}
-
-.iamsar-form-row .row-value .unit {
-  font-weight: 400;
-  font-size: 9px;
-  color: #64748b;
-  margin-left: 2px;
-}
-
-.iamsar-form-row .row-blank {
-  min-width: 120px;
-  text-align: right;
-  color: #cbd5e1;
-  letter-spacing: 1px;
-}
-
-.iamsar-form-row .row-blank::after {
-  content: '────────────────';
-}
-
-.iamsar-form-row.result .row-value {
-  color: #047857;
-  font-weight: 700;
-  font-size: 12px;
-}
-
-.iamsar-form-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 4px 0;
-  font-size: 9px;
-}
-
-.iamsar-form-table th {
+.seamap-tampilan-all {
+  margin-top: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  color: #0f172a;
   background: #f1f5f9;
-  border: 1px solid #94a3b8;
-  padding: 2px 4px;
-  text-align: center;
-  font-weight: 600;
-  color: #334155;
-}
-
-.iamsar-form-table td {
   border: 1px solid #cbd5e1;
-  padding: 2px 4px;
-  text-align: center;
-  font-family: 'Courier New', monospace;
+  border-radius: 3px;
+  cursor: pointer;
 }
 
-.iamsar-form-table td.filled {
-  color: #047857;
+.seamap-tampilan-all:hover {
+  background: #e2e8f0;
+}
+
+/* Disclaimer strip below the map (always visible, even when the top-right
+ * badge is hidden). Lives outside the map area. */
+.seamap-disclaimer-strip {
+  display: block;
+  padding: 4px 10px;
+  font-size: 10px;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  color: #92400e;
+  background: #fef3c7;
+  border-top: 1px solid #fde68a;
+  border-radius: 0 0 6px 6px;
+  line-height: 1.4;
+}
+
+.seamap-disclaimer-strip strong {
   font-weight: 600;
 }
 
-.iamsar-form-footer {
-  border-top: 1px solid #94a3b8;
-  padding: 3px 10px;
-  font-size: 9px;
-  color: #64748b;
-  font-style: italic;
-}

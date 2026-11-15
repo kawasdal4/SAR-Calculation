@@ -9,12 +9,12 @@ import { Ship, Wind, Map as MapIcon, Compass, Calculator, FileText } from 'lucid
 import AWAWorksheet, {
   type AWAData,
   type AWAInitialState,
+  type AWAObservation,
 } from '@/components/sar/AWAWorksheet';
-import { type AWAObservation } from '@/lib/sar/sarCalculations';
-import { type ASWObservation } from '@/lib/sar/sarCalculations';
 import ASWWorksheet, {
   type ASWData,
   type ASWInitialState,
+  type ASWObservation,
 } from '@/components/sar/ASWWorksheet';
 import DatumWorksheet, {
   type DatumData,
@@ -31,15 +31,6 @@ import { PodChart, PoscChart, PointDatumProbMap } from '@/components/sar/PodChar
 import { LeewayChart } from '@/components/sar/LeewayChart';
 import CompareScenarios from '@/components/sar/CompareScenarios';
 import WeatherPanel from '@/components/sar/WeatherPanel';
-import InterceptWorksheet from '@/components/sar/InterceptWorksheet';
-import ManeuveringBoard from '@/components/sar/ManeuveringBoard';
-import UPSWorksheet from '@/components/sar/UPSWorksheet';
-import WorksheetDisplay, { type WorksheetData } from '@/components/sar/WorksheetDisplay';
-import FormWorksheets from '@/components/sar/FormWorksheets';
-import BriefingForm from '@/components/sar/BriefingForm';
-import RenopsForm from '@/components/sar/RenopsForm';
-import PrintA3 from '@/components/sar/PrintA3';
-import AssetAllocationWorksheet from '@/components/sar/AssetAllocationWorksheet';
 import { buildSearchActionPlanData } from '@/lib/sar/searchActionPlan';
 import {
   type LatLng,
@@ -77,10 +68,8 @@ export default function Home() {
   const [searchResults, setSearchResults] = useState<SearchPlanResults | null>(null);
 
   // Controlled LKP — set by Datum worksheet inputs OR by clicking on the map
-  // Default: Laut Jawa bagian barat (off Jakarta/Kepulauan Seribu) — falls inside BMKG coverage
-  const [lkp, setLkp] = useState<LatLng>({ lat: -5.8, lng: 106.9 });
+  const [lkp, setLkp] = useState<LatLng>({ lat: -6.1, lng: 106.8 });
   const [pickMode, setPickMode] = useState<boolean>(false);
-  const [measureMode, setMeasureMode] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>('awa');
 
   // Raw state snapshots — captured by parent from each worksheet for save/load
@@ -293,56 +282,6 @@ export default function Home() {
 
   const mapZoom = 8;
 
-  /** Build WorksheetData for WorksheetDisplay and PrintA3 from current state. */
-  const buildWorksheetData = useCallback((): WorksheetData => {
-    return {
-      awaDirFrom: awa.aswDirFrom,
-      awaSpeed: awa.aswSpeed,
-      awaObservations: awaObservations.length > 0 ? awaObservations.map((o, i) => ({
-        altitudeKft: (o.altHigh - o.altLow) / 1000,
-        windDirFrom: o.windDirFrom,
-        windSpeed: o.windSpeed,
-        contribution: {
-          dir: (o.windDirFrom + 180) % 360,
-          mag: ((o.altHigh - o.altLow) / 1000) * o.windSpeed,
-        },
-      })) : undefined,
-      aswDirFrom: asw.aswDirFrom,
-      aswSpeed: asw.aswSpeed,
-      aswObservations: aswState.observations.length > 0 ? aswState.observations.map((o) => ({
-        hours: o.hours,
-        windDirFrom: o.windDirFrom,
-        windSpeed: o.windSpeed,
-      })) : undefined,
-      lkp: lkp,
-      datumLeft: datumResults?.datumLeft,
-      datumRight: datumResults?.datumRight,
-      driftDistance: datumResults?.driftDistance,
-      divergenceDistance: datumResults?.divergenceDistance,
-      E: datumResults?.E,
-      twcDir: datumResults?.twc?.twc.dir,
-      twcSpeed: datumResults?.twc?.twc.mag,
-      lwLeftDir: datumResults?.lw?.lwLeftDir,
-      lwRightDir: datumResults?.lw?.lwRightDir,
-      lwSpeed: datumResults?.lw?.leewaySpeed,
-      aswdve: asw.aswdve,
-      dve: datumResults?.dve,
-      De: datumResults?.De,
-      X: datumState?.X ?? 2.0,
-      Y: datumState?.Y ?? 1.5,
-      Zta: searchResults?.Zta,
-      Ro: searchResults?.Ro,
-      Ao: searchResults?.Ao,
-      C: searchResults?.C,
-      fs: searchResults?.fs,
-      POD: searchResults?.POD,
-      trackSpacing: searchResults?.trackSpacing,
-      searchAreaLength: searchResults?.searchAreaLength,
-      searchAreaWidth: searchResults?.searchAreaWidth,
-      searchAreaCenter: searchResults?.searchAreaCenter,
-    };
-  }, [awa, awaObservations, asw, aswState, lkp, datumResults, datumState, searchResults]);
-
   // Build the Search Action Plan payload (Appendix L-23) from the current state.
   const searchActionPlanData = useMemo(() => {
     if (!datumResults || !searchResults || !datumData) return null;
@@ -416,42 +355,18 @@ export default function Home() {
         {/* Left: worksheets */}
         <section className="lg:col-span-3 space-y-4">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="flex flex-wrap h-auto gap-1 mb-4 bg-slate-100 p-1">
-              <TabsTrigger value="awa" className="text-[10px] sm:text-xs px-2 py-1">
-                <Wind className="h-3 w-3 mr-1" /> AWA+Mnv Board
+            <TabsList className="grid grid-cols-2 sm:grid-cols-4 mb-4 bg-slate-100">
+              <TabsTrigger value="awa" className="text-xs sm:text-sm">
+                <Wind className="h-4 w-4 mr-1.5" /> AWA
               </TabsTrigger>
-              <TabsTrigger value="ups" className="text-[10px] sm:text-xs px-2 py-1">
-                <MapIcon className="h-3 w-3 mr-1" /> UPS
+              <TabsTrigger value="asw" className="text-xs sm:text-sm">
+                <Wind className="h-4 w-4 mr-1.5" /> ASW
               </TabsTrigger>
-              <TabsTrigger value="asw" className="text-[10px] sm:text-xs px-2 py-1">
-                <Wind className="h-3 w-3 mr-1" /> ASW+Mnv Board
+              <TabsTrigger value="datum" className="text-xs sm:text-sm">
+                <Ship className="h-4 w-4 mr-1.5" /> Datum
               </TabsTrigger>
-              <TabsTrigger value="datum" className="text-[10px] sm:text-xs px-2 py-1">
-                <Ship className="h-3 w-3 mr-1" /> Datum
-              </TabsTrigger>
-              <TabsTrigger value="search" className="text-[10px] sm:text-xs px-2 py-1">
-                <Calculator className="h-3 w-3 mr-1" /> Search Plan
-              </TabsTrigger>
-              <TabsTrigger value="intercept" className="text-[10px] sm:text-xs px-2 py-1">
-                <Compass className="h-3 w-3 mr-1" /> Intercept
-              </TabsTrigger>
-              <TabsTrigger value="alokasi" className="text-[10px] sm:text-xs px-2 py-1">
-                <Calculator className="h-3 w-3 mr-1" /> Alokasi Aset
-              </TabsTrigger>
-              <TabsTrigger value="worksheets" className="text-[10px] sm:text-xs px-2 py-1">
-                <FileText className="h-3 w-3 mr-1" /> Worksheets
-              </TabsTrigger>
-              <TabsTrigger value="forms" className="text-[10px] sm:text-xs px-2 py-1">
-                <FileText className="h-3 w-3 mr-1" /> Form IAMSAR
-              </TabsTrigger>
-              <TabsTrigger value="briefing" className="text-[10px] sm:text-xs px-2 py-1">
-                <FileText className="h-3 w-3 mr-1" /> Briefing
-              </TabsTrigger>
-              <TabsTrigger value="renops" className="text-[10px] sm:text-xs px-2 py-1">
-                <FileText className="h-3 w-3 mr-1" /> Renops
-              </TabsTrigger>
-              <TabsTrigger value="print" className="text-[10px] sm:text-xs px-2 py-1">
-                <FileText className="h-3 w-3 mr-1" /> Print A3
+              <TabsTrigger value="search" className="text-xs sm:text-sm">
+                <Calculator className="h-4 w-4 mr-1.5" /> Search
               </TabsTrigger>
             </TabsList>
 
@@ -461,10 +376,6 @@ export default function Home() {
                 onDataChange={setAwa}
                 onObservationsChange={setAwaObservations}
                 initialState={loadedInitialState?.awa}
-              />
-              <ManeuveringBoard
-                title="Maneuvering Board — AWA Vector Diagram"
-                description="Visualisasi vektor angin dari berbagai ketinggian dan resultannya"
               />
               <ReferenceCard
                 title="Average Wind Aloft (AWA)"
@@ -486,10 +397,6 @@ export default function Home() {
                 onStateChange={setAswState}
                 windOverride={windOverride}
                 initialState={loadedInitialState?.asw}
-              />
-              <ManeuveringBoard
-                title="Vector Maneuvering Board — ASW Vector Diagram"
-                description="Visualisasi vektor angin permukaan dari berbagai waktu dan resultannya"
               />
               <ReferenceCard
                 title="Average Surface Wind (ASW)"
@@ -610,53 +517,6 @@ export default function Home() {
                 </Card>
               )}
             </TabsContent>
-
-            {/* Tab: Intercept */}
-            <TabsContent value="intercept" className="mt-0">
-              <InterceptWorksheet />
-            </TabsContent>
-
-            {/* Tab: Alokasi Aset */}
-            <TabsContent value="alokasi" className="mt-0">
-              <AssetAllocationWorksheet />
-            </TabsContent>
-
-            {/* Tab: Universal Plotting Sheet */}
-            <TabsContent value="ups" className="mt-0">
-              <UPSWorksheet centerLat={lkp.lat} centerLng={lkp.lng} />
-            </TabsContent>
-
-            {/* Tab: All Worksheets (summary view) */}
-            <TabsContent value="worksheets" className="mt-0">
-              <WorksheetDisplay data={buildWorksheetData()} />
-            </TabsContent>
-
-            {/* Tab: Form IAMSAR (authentic blank forms with auto-filled values) */}
-            <TabsContent value="forms" className="mt-0">
-              <FormWorksheets data={buildWorksheetData()} />
-            </TabsContent>
-
-            {/* Tab: Briefing */}
-            <TabsContent value="briefing" className="mt-0">
-              <BriefingForm />
-            </TabsContent>
-
-            {/* Tab: Renops */}
-            <TabsContent value="renops" className="mt-0">
-              <RenopsForm />
-            </TabsContent>
-
-            {/* Tab: Print A3 */}
-            <TabsContent value="print" className="mt-0">
-              <PrintA3
-                worksheetData={buildWorksheetData()}
-                mapCenter={mapCenter}
-                markers={markers}
-                lines={[...lines, ...envLines]}
-                polygons={polygons}
-                circles={circles}
-              />
-            </TabsContent>
           </Tabs>
         </section>
 
@@ -682,7 +542,7 @@ export default function Home() {
                   <MapIcon className="h-4 w-4 text-slate-600" /> Live Sea Chart
                 </CardTitle>
                 <span className="text-[10px] text-slate-500 font-mono">
-                  OSM + OpenSeaMap + GEBCO
+                  OSM + OpenSeaMap
                 </span>
               </div>
             </CardHeader>
@@ -709,44 +569,25 @@ export default function Home() {
                   circles={circles}
                   height="460px"
                   onMapClick={handleMapClick}
-                  pickMode={pickMode}
-                  measureMode={measureMode}
                 />
               </div>
-              <div className="px-3 py-2 bg-slate-50 border-t border-slate-200 text-[11px] text-slate-600 flex flex-wrap items-center gap-2 justify-between">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-semibold">Legend:</span>{' '}
-                  <span className="inline-flex items-center gap-1">
-                    <span className="w-2.5 h-2.5 rounded-full bg-sky-500 inline-block" /> LKP
-                  </span>{' '}
-                  ·{' '}
-                  <span className="inline-flex items-center gap-1">
-                    <span className="w-2.5 h-2.5 rounded-full bg-red-600 inline-block" /> Datum
-                  </span>{' '}
-                  ·{' '}
-                  <span className="inline-flex items-center gap-1">
-                    <span className="w-2.5 h-2.5 bg-amber-500 inline-block" /> Drift
-                  </span>{' '}
-                  ·{' '}
-                  <span className="inline-flex items-center gap-1">
-                    <span className="w-2.5 h-2.5 bg-emerald-600 inline-block" /> Search area
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setMeasureMode(!measureMode)}
-                  className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium border transition-colors ${
-                    measureMode
-                      ? 'bg-red-600 text-white border-red-600'
-                      : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
-                  }`}
-                  title="Klik untuk mulai mengukur jarak. Klik ganda untuk reset."
-                >
-                  {measureMode ? '◉ Measure: ON (double-click to reset)' : '📏 Measure distance'}
-                </button>
-              </div>
-              <div className="px-3 py-2 bg-amber-50 border-t border-amber-200 text-[10px] text-amber-800">
-                ⚠ <strong>Bukan untuk navigasi pelayaran</strong>; akurasi tidak dijamin. Sumber data: OpenStreetMap, OpenSeaMap, GEBCO (batimetri &amp; kedalaman titik). Aktifkan layer "GEBCO bathymetry" dari panel Layers di kanan atas peta untuk melihat batimetetri berwarna. Klik peta (di luar mode Pick LKP) untuk menampilkan kedalaman titik.
+              <div className="px-3 py-2 bg-slate-50 border-t border-slate-200 text-[11px] text-slate-600">
+                <span className="font-semibold">Legend:</span>{' '}
+                <span className="inline-flex items-center gap-1">
+                  <span className="w-2.5 h-2.5 rounded-full bg-sky-500 inline-block" /> LKP
+                </span>{' '}
+                ·{' '}
+                <span className="inline-flex items-center gap-1">
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-600 inline-block" /> Datum
+                </span>{' '}
+                ·{' '}
+                <span className="inline-flex items-center gap-1">
+                  <span className="w-2.5 h-2.5 bg-amber-500 inline-block" /> Drift
+                </span>{' '}
+                ·{' '}
+                <span className="inline-flex items-center gap-1">
+                  <span className="w-2.5 h-2.5 bg-emerald-600 inline-block" /> Search area
+                </span>
               </div>
             </CardContent>
           </Card>
