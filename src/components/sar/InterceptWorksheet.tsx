@@ -226,10 +226,12 @@ function buildInterceptDiagram(
   // SVG coordinate system: x = longitude (left→right), y = latitude (bottom→top, inverted)
   const width = 500;
   const height = 400;
+  // Round to 2 decimals to prevent SSR hydration mismatch
+  const r2 = (n: number) => Math.round(n * 100) / 100;
   const xScale = (lng: number) =>
-    ((lng - minLng + padLng) / (lngRange + 2 * padLng)) * width;
+    r2(((lng - minLng + padLng) / (lngRange + 2 * padLng)) * width);
   const yScale = (lat: number) =>
-    height - ((lat - minLat + padLat) / (latRange + 2 * padLat)) * height;
+    r2(height - ((lat - minLat + padLat) / (latRange + 2 * padLat)) * height);
 
   const elements: React.ReactNode[] = [];
 
@@ -271,10 +273,10 @@ function buildInterceptDiagram(
 
   // Speed annotations
   elements.push(
-    <text key="speedA" x={xScale(A.lng) + 8} y={yScale(A.lat) + 14} fontSize="9" fontFamily="monospace" fill="#dc2626">
+    <text key="speedA" x={r2(xScale(A.lng) + 8)} y={r2(yScale(A.lat) + 14)} fontSize="9" fontFamily="monospace" fill="#dc2626">
       {result.targetHalfHourDist.toFixed(1)} NM
     </text>,
-    <text key="speedB" x={xScale(B.lng) + 8} y={yScale(B.lat) + 14} fontSize="9" fontFamily="monospace" fill="#2563eb">
+    <text key="speedB" x={r2(xScale(B.lng) + 8)} y={r2(yScale(B.lat) + 14)} fontSize="9" fontFamily="monospace" fill="#2563eb">
       {result.sruHalfHourDist.toFixed(1)} NM
     </text>,
   );

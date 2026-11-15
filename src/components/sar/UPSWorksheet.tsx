@@ -65,8 +65,10 @@ export default function UPSWorksheet({
   const latRange = (scale / 60) * 2; // total lat range visible (±scale from center)
   const lngRange = latRange * Math.cos((center.lat * Math.PI) / 180);
 
-  const toX = (lng: number) => cx + ((lng - center.lng) / (lngRange / 2)) * maxRadius;
-  const toY = (lat: number) => cy - ((lat - center.lat) / (latRange / 2)) * maxRadius;
+  // Round to 2 decimals to prevent SSR hydration mismatch
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  const toX = (lng: number) => r2(cx + ((lng - center.lng) / (lngRange / 2)) * maxRadius);
+  const toY = (lat: number) => r2(cy - ((lat - center.lat) / (latRange / 2)) * maxRadius);
 
   // Distance + bearing between first two points
   const measurement = useMemo(() => {
@@ -107,9 +109,9 @@ export default function UPSWorksheet({
               {[-0.5, -0.25, 0, 0.25, 0.5].map((f) => {
                 const lat = center.lat + f * latRange / 2;
                 const y = toY(lat);
-                const halfWidth = Math.sqrt(Math.max(0, maxRadius * maxRadius - (y - cy) * (y - cy)));
+                const halfWidth = r2(Math.sqrt(Math.max(0, maxRadius * maxRadius - (y - cy) * (y - cy))));
                 return (
-                  <line key={`lat-${f}`} x1={cx - halfWidth} y1={y} x2={cx + halfWidth} y2={y} stroke="#e2e8f0" strokeWidth="0.5" />
+                  <line key={`lat-${f}`} x1={r2(cx - halfWidth)} y1={y} x2={r2(cx + halfWidth)} y2={y} stroke="#e2e8f0" strokeWidth="0.5" />
                 );
               })}
 
@@ -117,9 +119,9 @@ export default function UPSWorksheet({
               {[-0.5, -0.25, 0, 0.25, 0.5].map((f) => {
                 const lng = center.lng + f * lngRange / 2;
                 const x = toX(lng);
-                const halfHeight = Math.sqrt(Math.max(0, maxRadius * maxRadius - (x - cx) * (x - cx)));
+                const halfHeight = r2(Math.sqrt(Math.max(0, maxRadius * maxRadius - (x - cx) * (x - cx))));
                 return (
-                  <line key={`lng-${f}`} x1={x} y1={cy - halfHeight} x2={x} y2={cy + halfHeight} stroke="#e2e8f0" strokeWidth="0.5" />
+                  <line key={`lng-${f}`} x1={x} y1={r2(cy - halfHeight)} x2={x} y2={r2(cy + halfHeight)} stroke="#e2e8f0" strokeWidth="0.5" />
                 );
               })}
 

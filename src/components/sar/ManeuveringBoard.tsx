@@ -87,28 +87,34 @@ export default function ManeuveringBoard({
   const scale = maxRadius / (maxMag * 1.2);
 
   // Convert direction+mag to SVG coordinates
+  // Round to 2 decimals to prevent SSR hydration mismatch (floating-point
+  // precision differs between server and client V8 engines).
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+
   const toXY = (dir: number, mag: number) => {
     const rad = (dir * Math.PI) / 180;
     return {
-      x: center + mag * scale * Math.sin(rad),
-      y: center - mag * scale * Math.cos(rad),
+      x: r2(center + mag * scale * Math.sin(rad)),
+      y: r2(center - mag * scale * Math.cos(rad)),
     };
   };
 
   // Build SVG grid
   const circles = [0.25, 0.5, 0.75, 1.0].map((f) => (
-    <circle key={f} cx={center} cy={center} r={maxRadius * f} fill="none" stroke="#e2e8f0" strokeWidth="0.5" />
+    <circle key={f} cx={center} cy={center} r={r2(maxRadius * f)} fill="none" stroke="#e2e8f0" strokeWidth="0.5" />
   ));
   const radials: React.ReactNode[] = [];
   for (let deg = 0; deg < 360; deg += 30) {
     const rad = (deg * Math.PI) / 180;
+    const x2 = r2(center + maxRadius * Math.sin(rad));
+    const y2 = r2(center - maxRadius * Math.cos(rad));
     radials.push(
       <line
         key={deg}
         x1={center}
         y1={center}
-        x2={center + maxRadius * Math.sin(rad)}
-        y2={center - maxRadius * Math.cos(rad)}
+        x2={x2}
+        y2={y2}
         stroke="#f1f5f9"
         strokeWidth="0.5"
       />,
@@ -118,8 +124,8 @@ export default function ManeuveringBoard({
     radials.push(
       <text
         key={`label-${deg}`}
-        x={center + labelR * Math.sin(rad)}
-        y={center - labelR * Math.cos(rad) + 3}
+        x={r2(center + labelR * Math.sin(rad))}
+        y={r2(center - labelR * Math.cos(rad) + 3)}
         fontSize="8"
         fontFamily="monospace"
         fill="#94a3b8"
