@@ -229,6 +229,7 @@ export default function ManeuveringBoard({
                   value={v.label}
                   onChange={(e) => updateVector(v.id, 'label', e.target.value)}
                   className="w-12 h-7 text-xs px-1 rounded border border-slate-200"
+                  suppressHydrationWarning
                 />
                 <input
                   type="number"
