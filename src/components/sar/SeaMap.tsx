@@ -276,67 +276,74 @@ export default function SeaMap({
     let scaleBorderRAF: number | null = null;
 
     /**
-     * Choose major/minor intervals independently for each axis.
-     * Table: major / minor
-     *   5° / 1°, 2° / 30', 1° / 10', 30' / 5', 10' / 2', 5' / 1', 2' / 30", 1' / 10", 30" / 5", 10" / 2", 5" / 1"
-     * Min label distance: 80px for longitude (horizontal text), 40px for latitude.
-     * Min tick distance: 5px for minor.
+     * Pixel-based interval selection.
+     * STEPS_DEG ordered from FINEST to COARSEST.
+     * Major interval = SMALLEST step where step * pxPerDeg >= threshold.
+     * Minor = major / 5 (or / 10 if that gives >= 5px per tick), min 5px.
      */
+    const STEPS_DEG = [1/3600, 1/1800, 1/720, 1/360, 1/120, 1/60, 1/30, 1/12, 1/6, 0.5, 1, 2, 5];
+
     function chooseIntervalLng(): { majorDeg: number; minorDeg: number; majorSec: number; minorSec: number } {
-      const table = [
-        { majorDeg: 5,       minorDeg: 1,        majorSec: 5*3600,    minorSec: 3600 },
-        { majorDeg: 2,       minorDeg: 0.5,      majorSec: 2*3600,    minorSec: 1800 },
-        { majorDeg: 1,       minorDeg: 1/6,      majorSec: 3600,      minorSec: 600 },
-        { majorDeg: 0.5,     minorDeg: 1/12,     majorSec: 1800,      minorSec: 300 },
-        { majorDeg: 1/6,      minorDeg: 1/30,     majorSec: 600,       minorSec: 120 },
-        { majorDeg: 1/12,     minorDeg: 1/60,     majorSec: 300,       minorSec: 60 },
-        { majorDeg: 1/30,      minorDeg: 1/120,    majorSec: 120,       minorSec: 30 },
-        { majorDeg: 1/60,      minorDeg: 1/360,    majorSec: 60,        minorSec: 10 },
-        { majorDeg: 0.5/60,    minorDeg: 1/720,    majorSec: 30,        minorSec: 5 },
-        { majorDeg: 1/360,     minorDeg: 1/1800,   majorSec: 10,        minorSec: 2 },
-        { majorDeg: 5/3600,    minorDeg: 1/3600,   majorSec: 5,         minorSec: 1 },
-      ];
-      const centerLatLng = map.getCenter();
-      // For longitude, use horizontal pixel distance
-      const pt1 = map.latLngToContainerPoint({ lat: centerLatLng.lat, lng: centerLatLng.lng } as L.LatLngExpression);
-      for (const entry of table) {
-        const pt2 = map.latLngToContainerPoint({ lat: centerLatLng.lat, lng: centerLatLng.lng + entry.majorDeg } as L.LatLngExpression);
-        const majorPxDist = Math.abs(pt2.x - pt1.x);
-        if (majorPxDist >= 80) {
-          const pt3 = map.latLngToContainerPoint({ lat: centerLatLng.lat, lng: centerLatLng.lng + entry.minorDeg } as L.LatLngExpression);
-          const minorPxDist = Math.abs(pt3.x - pt1.x);
-          if (minorPxDist >= 5) return entry;
+      const center = map.getCenter();
+      const pt1 = map.latLngToContainerPoint(center);
+      const pt2 = map.latLngToContainerPoint({ lat: center.lat, lng: center.lng + 1 } as L.LatLngExpression);
+      const pxPerDegLng = Math.abs(pt2.x - pt1.x);
+
+      // Major = smallest step where step * pxPerDegLng >= 80
+      let majorDeg = STEPS_DEG[STEPS_DEG.length - 1]; // fallback: 5°
+      for (const step of STEPS_DEG) {
+        if (step * pxPerDegLng >= 80) {
+          majorDeg = step;
+          break;
         }
       }
-      return table[table.length - 1];
+
+      // Minor = major / 5 (or / 10 if that gives >= 5px per tick)
+      let minorDivisor = 5;
+      const minorCandidate = majorDeg / 10;
+      if (minorCandidate * pxPerDegLng >= 5) {
+        minorDivisor = 10;
+      }
+      // Ensure minor ticks are at least 5px apart
+      let minorDeg = majorDeg / minorDivisor;
+      while (minorDeg * pxPerDegLng < 5 && minorDeg < majorDeg) {
+        minorDeg *= 2; // double until >= 5px
+      }
+
+      const majorSec = majorDeg * 3600;
+      const minorSec = minorDeg * 3600;
+      return { majorDeg, minorDeg, majorSec, minorSec };
     }
 
     function chooseIntervalLat(): { majorDeg: number; minorDeg: number; majorSec: number; minorSec: number } {
-      const table = [
-        { majorDeg: 5,       minorDeg: 1,        majorSec: 5*3600,    minorSec: 3600 },
-        { majorDeg: 2,       minorDeg: 0.5,      majorSec: 2*3600,    minorSec: 1800 },
-        { majorDeg: 1,       minorDeg: 1/6,      majorSec: 3600,      minorSec: 600 },
-        { majorDeg: 0.5,     minorDeg: 1/12,     majorSec: 1800,      minorSec: 300 },
-        { majorDeg: 1/6,      minorDeg: 1/30,     majorSec: 600,       minorSec: 120 },
-        { majorDeg: 1/12,     minorDeg: 1/60,     majorSec: 300,       minorSec: 60 },
-        { majorDeg: 1/30,      minorDeg: 1/120,    majorSec: 120,       minorSec: 30 },
-        { majorDeg: 1/60,      minorDeg: 1/360,    majorSec: 60,        minorSec: 10 },
-        { majorDeg: 0.5/60,    minorDeg: 1/720,    majorSec: 30,        minorSec: 5 },
-        { majorDeg: 1/360,     minorDeg: 1/1800,   majorSec: 10,        minorSec: 2 },
-        { majorDeg: 5/3600,    minorDeg: 1/3600,   majorSec: 5,         minorSec: 1 },
-      ];
-      const centerLatLng = map.getCenter();
-      const pt1 = map.latLngToContainerPoint(centerLatLng);
-      for (const entry of table) {
-        const pt2 = map.latLngToContainerPoint({ lat: centerLatLng.lat + entry.majorDeg, lng: centerLatLng.lng } as L.LatLngExpression);
-        const majorPxDist = Math.abs(pt2.y - pt1.y);
-        if (majorPxDist >= 40) {
-          const pt3 = map.latLngToContainerPoint({ lat: centerLatLng.lat + entry.minorDeg, lng: centerLatLng.lng } as L.LatLngExpression);
-          const minorPxDist = Math.abs(pt3.y - pt1.y);
-          if (minorPxDist >= 5) return entry;
+      const center = map.getCenter();
+      const pt1 = map.latLngToContainerPoint(center);
+      const pt2 = map.latLngToContainerPoint({ lat: center.lat + 1, lng: center.lng } as L.LatLngExpression);
+      const pxPerDegLat = Math.abs(pt2.y - pt1.y);
+
+      // Major = smallest step where step * pxPerDegLat >= 40
+      let majorDeg = STEPS_DEG[STEPS_DEG.length - 1]; // fallback: 5°
+      for (const step of STEPS_DEG) {
+        if (step * pxPerDegLat >= 40) {
+          majorDeg = step;
+          break;
         }
       }
-      return table[table.length - 1];
+
+      // Minor = major / 5 (or / 10 if that gives >= 5px per tick)
+      let minorDivisor = 5;
+      const minorCandidate = majorDeg / 10;
+      if (minorCandidate * pxPerDegLat >= 5) {
+        minorDivisor = 10;
+      }
+      let minorDeg = majorDeg / minorDivisor;
+      while (minorDeg * pxPerDegLat < 5 && minorDeg < majorDeg) {
+        minorDeg *= 2;
+      }
+
+      const majorSec = majorDeg * 3600;
+      const minorSec = minorDeg * 3600;
+      return { majorDeg, minorDeg, majorSec, minorSec };
     }
 
     function drawScaleBorder() {
