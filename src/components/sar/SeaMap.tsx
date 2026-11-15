@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { type LatLng, distanceNm } from '@/lib/sar/sarCalculations';
-import { drawGraticule } from '@/lib/sar/latLonGrid';
+// Old graticule import removed — replaced by canvas-based nautical chart border
 import {
   getDepthAt,
   getPolygonDepths,
@@ -201,7 +201,8 @@ export default function SeaMap({
     osm?: L.TileLayer;
     seamark?: L.TileLayer;
     gebco?: L.TileLayer.WMS;
-    graticule?: L.LayerGroup;
+    scaleBorderCanvas?: HTMLCanvasElement | null;
+    scaleBorderEnabled?: boolean;
     markers?: L.LayerGroup;
     lines?: L.LayerGroup;
     polygons?: L.LayerGroup;
@@ -262,14 +263,264 @@ export default function SeaMap({
         })
       : null;
 
-    // Graticule (lat/lon grid) — built once, redrawn on zoom/move
-    const graticule = L.layerGroup().addTo(map);
-    const redrawGraticule = () => {
-      graticule.clearLayers();
-      drawGraticule(map, graticule, {});
-    };
-    redrawGraticule();
-    map.on('zoomend moveend', redrawGraticule);
+    // ---- Nautical chart scale border (canvas-based) ----
+    // Draws a black/white segmented border with tick marks and degree-minute
+    // labels on the edges. No grid lines inside the map area.
+    const BORDER_WIDTH = 14; // px
+    let scaleBorderCanvas: HTMLCanvasElement | null = null;
+    let scaleBorderEnabled = true;
+    let scaleBorderRAF: number | null = null;
+
+    function chooseInterval(zoom: number): { major: number; minorCount: number } {
+      // Target ~80-150px between major ticks
+      const intervals = [
+        { deg: 10, label: '10°' },
+        { deg: 5, label: '5°' },
+        { deg: 2, label: '2°' },
+        { deg: 1, label: '1°' },
+        { deg: 0.5, label: "30'" },
+        { deg: 1 / 6, label: "10'" },
+        { deg: 1 / 12, label: "5'" },
+        { deg: 1 / 30, label: "2'" },
+        { deg: 1 / 60, label: "1'" },
+        { deg: 0.5 / 60, label: "30\"" },
+        { deg: 1 / 360, label: "10\"" },
+      ];
+      const centerLatLng = map.getCenter();
+      const centerPt = map.latLngToContainerPoint(centerLatLng);
+      for (const interval of intervals) {
+        // Check pixel distance for this interval at current latitude
+        const testPt = map.latLngToContainerPoint({ lat: centerLatLng.lat + interval.deg, lng: centerLatLng.lng } as L.LatLngExpression);
+        const pxDist = Math.abs(testPt.y - centerPt.y);
+        if (pxDist >= 80 && pxDist <= 200) {
+          return { major: interval.deg, minorCount: 5 };
+        }
+      }
+      // Fallback
+      return { major: intervals[3].deg, minorCount: 5 };
+    }
+
+    function formatDegMin(value: number, isLat: boolean): string {
+      const hemi = isLat ? (value >= 0 ? 'N' : 'S') : value >= 0 ? 'E' : 'W';
+      const abs = Math.abs(value);
+      const deg = Math.floor(abs);
+      const min = (abs - deg) * 60;
+      if (min < 0.01) return `${deg}°00′${hemi}`;
+      if (min < 1) {
+        const sec = Math.round(min * 60);
+        return `${deg}°00′${sec.toString().padStart(2, '0')}″${hemi}`;
+      }
+      return `${deg}°${min.toFixed(min < 10 ? 1 : 0).padStart(4, '0')}′${hemi}`;
+    }
+
+    function drawScaleBorder() {
+      if (!scaleBorderCanvas || !scaleBorderEnabled) return;
+      const mapEl = map.getContainer();
+      const w = mapEl.clientWidth;
+      const h = mapEl.clientHeight;
+      const dpr = window.devicePixelRatio || 1;
+      scaleBorderCanvas.width = w * dpr;
+      scaleBorderCanvas.height = h * dpr;
+      scaleBorderCanvas.style.width = w + 'px';
+      scaleBorderCanvas.style.height = h + 'px';
+
+      const ctx = scaleBorderCanvas.getContext('2d');
+      if (!ctx) return;
+      ctx.save();
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, w, h);
+
+      const bw = BORDER_WIDTH;
+      const { major, minorCount } = chooseInterval(map.getZoom());
+      const minor = major / minorCount;
+
+      // ---- Top and bottom borders (longitude ticks) ----
+      const bounds = map.getBounds();
+      const westLng = bounds.getWest();
+      const eastLng = bounds.getEast();
+
+      // Draw border bands (black/white segments along top and bottom)
+      const startLngMinor = Math.ceil(westLng / minor) * minor;
+      let toggle = false;
+      for (let lng = startLngMinor; lng <= eastLng; lng += minor) {
+        const wrappedLng = ((lng + 540) % 360) - 180;
+        const pt = map.latLngToContainerPoint({ lat: 0, lng: wrappedLng } as L.LatLngExpression);
+        const x = pt.x;
+        if (x < -10 || x > w + 10) continue;
+
+        const isMajor = Math.abs(((lng / major) % 1)) < 0.001 || Math.abs(((lng / major) % 1) - 1) < 0.001;
+
+        // Draw segment fill (black/white toggle for each minor interval)
+        ctx.fillStyle = toggle ? '#1e293b' : '#f8fafc';
+        // Top border band
+        ctx.fillRect(x - 0.5, 0, 2, bw);
+        // Bottom border band
+        ctx.fillRect(x - 0.5, h - bw, 2, bw);
+        toggle = !toggle;
+
+        // Tick marks
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 0.5;
+        // Top minor tick (short)
+        ctx.beginPath();
+        ctx.moveTo(x, bw - 4);
+        ctx.lineTo(x, bw);
+        ctx.stroke();
+        // Bottom minor tick (short)
+        ctx.beginPath();
+        ctx.moveTo(x, h - bw);
+        ctx.lineTo(x, h - bw + 4);
+        ctx.stroke();
+
+        if (isMajor) {
+          // Major tick (longer)
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(x, bw - 8);
+          ctx.lineTo(x, bw);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(x, h - bw);
+          ctx.lineTo(x, h - bw + 8);
+          ctx.stroke();
+
+          // Label (top and bottom)
+          const label = formatDegMin(wrappedLng, false);
+          ctx.font = '9px "Courier New", monospace';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'bottom';
+          // White background pill
+          const tw = ctx.measureText(label).width + 6;
+          ctx.fillStyle = 'rgba(255,255,255,0.85)';
+          ctx.fillRect(x - tw / 2, bw + 1, tw, 12);
+          // Text with outline
+          ctx.strokeStyle = '#fff';
+          ctx.lineWidth = 2;
+          ctx.strokeText(label, x, bw + 11);
+          ctx.fillStyle = '#1e293b';
+          ctx.fillText(label, x, bw + 11);
+          // Bottom label
+          ctx.fillStyle = 'rgba(255,255,255,0.85)';
+          ctx.fillRect(x - tw / 2, h - bw - 14, tw, 12);
+          ctx.strokeStyle = '#fff';
+          ctx.lineWidth = 2;
+          ctx.strokeText(label, x, h - bw - 4);
+          ctx.fillStyle = '#1e293b';
+          ctx.fillText(label, x, h - bw - 4);
+        }
+      }
+
+      // ---- Left and right borders (latitude ticks) ----
+      const southLat = Math.max(-85, bounds.getSouth());
+      const northLat = Math.min(85, bounds.getNorth());
+      const startLatMinor = Math.ceil(southLat / minor) * minor;
+      toggle = false;
+      for (let lat = startLatMinor; lat <= northLat; lat += minor) {
+        const pt = map.latLngToContainerPoint({ lat, lng: 0 } as L.LatLngExpression);
+        const y = pt.y;
+        if (y < -10 || y > h + 10) continue;
+
+        const isMajor = Math.abs(((lat / major) % 1)) < 0.001 || Math.abs(((lat / major) % 1) - 1) < 0.001;
+
+        // Draw segment fill
+        ctx.fillStyle = toggle ? '#1e293b' : '#f8fafc';
+        ctx.fillRect(0, y - 0.5, bw, 2);
+        ctx.fillRect(w - bw, y - 0.5, bw, 2);
+        toggle = !toggle;
+
+        // Tick marks
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        ctx.moveTo(bw - 4, y);
+        ctx.lineTo(bw, y);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(w - bw, y);
+        ctx.lineTo(w - bw + 4, y);
+        ctx.stroke();
+
+        if (isMajor) {
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(bw - 8, y);
+          ctx.lineTo(bw, y);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(w - bw, y);
+          ctx.lineTo(w - bw + 8, y);
+          ctx.stroke();
+
+          // Label (left and right)
+          const label = formatDegMin(lat, true);
+          ctx.font = '9px "Courier New", monospace';
+          ctx.textAlign = 'right';
+          ctx.textBaseline = 'middle';
+          const tw = ctx.measureText(label).width + 6;
+          // Left label
+          ctx.fillStyle = 'rgba(255,255,255,0.85)';
+          ctx.fillRect(bw + 1, y - 6, tw, 12);
+          ctx.strokeStyle = '#fff';
+          ctx.lineWidth = 2;
+          ctx.strokeText(label, bw + tw - 3, y);
+          ctx.fillStyle = '#1e293b';
+          ctx.fillText(label, bw + tw - 3, y);
+          // Right label
+          ctx.textAlign = 'left';
+          ctx.fillStyle = 'rgba(255,255,255,0.85)';
+          ctx.fillRect(w - bw - tw - 1, y - 6, tw, 12);
+          ctx.strokeStyle = '#fff';
+          ctx.lineWidth = 2;
+          ctx.strokeText(label, w - bw - tw + 3, y);
+          ctx.fillStyle = '#1e293b';
+          ctx.fillText(label, w - bw - tw + 3, y);
+        }
+      }
+
+      // ---- Draw outer border lines ----
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(0.5, 0.5, w - 1, h - 1);
+      // Inner border line (separates border band from map area)
+      ctx.lineWidth = 1;
+      ctx.strokeRect(bw - 0.5, bw - 0.5, w - bw * 2 + 1, h - bw * 2 + 1);
+
+      ctx.restore();
+    }
+
+    function scheduleScaleBorderRedraw() {
+      if (scaleBorderRAF !== null) return;
+      scaleBorderRAF = requestAnimationFrame(() => {
+        scaleBorderRAF = null;
+        drawScaleBorder();
+      });
+    }
+
+    // Create canvas element and insert it above tile pane but below controls
+    scaleBorderCanvas = document.createElement('canvas');
+    scaleBorderCanvas.style.position = 'absolute';
+    scaleBorderCanvas.style.top = '0';
+    scaleBorderCanvas.style.left = '0';
+    scaleBorderCanvas.style.pointerEvents = 'none';
+    scaleBorderCanvas.style.zIndex = '400'; // Above tile panes (200-400), below controls (500+)
+    scaleBorderCanvas.style.width = '100%';
+    scaleBorderCanvas.style.height = '100%';
+    map.getContainer().appendChild(scaleBorderCanvas);
+
+    // Offset Leaflet controls so they don't overlap the border
+    // We add CSS padding to the map container
+    const mapContainer = map.getContainer();
+    mapContainer.style.paddingTop = `${BORDER_WIDTH}px`;
+    mapContainer.style.paddingLeft = `${BORDER_WIDTH}px`;
+    mapContainer.style.paddingRight = `${BORDER_WIDTH}px`;
+    mapContainer.style.paddingBottom = `${BORDER_WIDTH}px`;
+    // Need to invalidate size after padding change
+    setTimeout(() => map.invalidateSize(), 0);
+
+    // Draw on move/zoom/resize
+    map.on('move zoom moveend zoomend resize viewreset', scheduleScaleBorderRedraw);
+    // Also redraw when map is first ready
+    setTimeout(() => drawScaleBorder(), 100);
 
     // Layer groups for SAR overlays (markers, lines, polygons, circles)
     const markersLayer = L.layerGroup().addTo(map);
@@ -342,7 +593,7 @@ export default function SeaMap({
           </div>
           ${batnasRow}
           <div class="layer-row">
-            <label><input type="checkbox" id="lyr-grid" checked /> Lat/Lon grid</label>
+            <label><input type="checkbox" id="lyr-grid" checked /> Bingkai skala</label>
           </div>
         `;
         return div;
@@ -364,7 +615,13 @@ export default function SeaMap({
       if (seamarkCb) seamarkCb.addEventListener('change', () => (seamarkCb.checked ? seamark.addTo(map) : map.removeLayer(seamark)));
       if (gebcoCb) gebcoCb.addEventListener('change', () => (gebcoCb.checked ? gebco.addTo(map) : map.removeLayer(gebco)));
       if (gebcoOp) gebcoOp.addEventListener('input', () => gebco.setOpacity(parseInt(gebcoOp.value, 10) / 100));
-      if (gridCb) gridCb.addEventListener('change', () => (gridCb.checked ? graticule.addTo(map) : map.removeLayer(graticule)));
+      if (gridCb) gridCb.addEventListener('change', () => {
+        scaleBorderEnabled = gridCb.checked;
+        if (scaleBorderCanvas) {
+          scaleBorderCanvas.style.display = gridCb.checked ? 'block' : 'none';
+        }
+        if (gridCb.checked) drawScaleBorder();
+      });
       if (batnasCb && batnas) {
         batnasCb.addEventListener('change', () => (batnasCb.checked ? batnas.addTo(map) : map.removeLayer(batnas)));
       }
@@ -455,7 +712,8 @@ export default function SeaMap({
       osm,
       seamark,
       gebco,
-      graticule,
+      scaleBorderCanvas,
+      scaleBorderEnabled,
       markers: markersLayer,
       lines: linesLayer,
       polygons: polygonsLayer,
@@ -472,6 +730,19 @@ export default function SeaMap({
     setTimeout(() => map.invalidateSize(), 200);
 
     return () => {
+      // Clean up canvas and RAF
+      if (scaleBorderRAF !== null) {
+        cancelAnimationFrame(scaleBorderRAF);
+        scaleBorderRAF = null;
+      }
+      if (scaleBorderCanvas && scaleBorderCanvas.parentNode) {
+        scaleBorderCanvas.parentNode.removeChild(scaleBorderCanvas);
+      }
+      // Reset container padding
+      mapContainer.style.paddingTop = '';
+      mapContainer.style.paddingLeft = '';
+      mapContainer.style.paddingRight = '';
+      mapContainer.style.paddingBottom = '';
       map.remove();
       mapRef.current = null;
       layersRef.current = {};
