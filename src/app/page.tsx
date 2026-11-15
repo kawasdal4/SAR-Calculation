@@ -38,6 +38,7 @@ import WorksheetDisplay, { type WorksheetData } from '@/components/sar/Worksheet
 import BriefingForm from '@/components/sar/BriefingForm';
 import RenopsForm from '@/components/sar/RenopsForm';
 import PrintA3 from '@/components/sar/PrintA3';
+import AssetAllocationWorksheet from '@/components/sar/AssetAllocationWorksheet';
 import { buildSearchActionPlanData } from '@/lib/sar/searchActionPlan';
 import {
   type LatLng,
@@ -433,6 +434,9 @@ export default function Home() {
               <TabsTrigger value="intercept" className="text-[10px] sm:text-xs px-2 py-1">
                 <Compass className="h-3 w-3 mr-1" /> Intercept
               </TabsTrigger>
+              <TabsTrigger value="alokasi" className="text-[10px] sm:text-xs px-2 py-1">
+                <Calculator className="h-3 w-3 mr-1" /> Alokasi Aset
+              </TabsTrigger>
               <TabsTrigger value="worksheets" className="text-[10px] sm:text-xs px-2 py-1">
                 <FileText className="h-3 w-3 mr-1" /> WS 1-8
               </TabsTrigger>
@@ -606,6 +610,11 @@ export default function Home() {
             {/* Tab: Intercept */}
             <TabsContent value="intercept" className="mt-0">
               <InterceptWorksheet />
+            </TabsContent>
+
+            {/* Tab: Alokasi Aset */}
+            <TabsContent value="alokasi" className="mt-0">
+              <AssetAllocationWorksheet />
             </TabsContent>
 
             {/* Tab: Universal Plotting Sheet */}
