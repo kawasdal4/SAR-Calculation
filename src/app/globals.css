@@ -263,3 +263,33 @@
   font-weight: 600;
   pointer-events: none;
 }
+
+/* Print styles for IAMSAR worksheet forms */
+@media print {
+  /* Hide everything except the active tab content */
+  body * {
+    visibility: hidden;
+  }
+  .print\:block,
+  .print\:block * {
+    visibility: visible;
+  }
+
+  /* Ensure forms don't break across pages */
+  .print-break-inside-avoid {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* A4 portrait */
+  @page {
+    size: A4 portrait;
+    margin: 15mm;
+  }
+
+  /* A3 landscape for print layouts that need it */
+  @page A3 {
+    size: A3 landscape;
+    margin: 10mm;
+  }
+}

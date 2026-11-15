@@ -35,6 +35,7 @@ import InterceptWorksheet from '@/components/sar/InterceptWorksheet';
 import ManeuveringBoard from '@/components/sar/ManeuveringBoard';
 import UPSWorksheet from '@/components/sar/UPSWorksheet';
 import WorksheetDisplay, { type WorksheetData } from '@/components/sar/WorksheetDisplay';
+import FormWorksheets from '@/components/sar/FormWorksheets';
 import BriefingForm from '@/components/sar/BriefingForm';
 import RenopsForm from '@/components/sar/RenopsForm';
 import PrintA3 from '@/components/sar/PrintA3';
@@ -440,6 +441,9 @@ export default function Home() {
               <TabsTrigger value="worksheets" className="text-[10px] sm:text-xs px-2 py-1">
                 <FileText className="h-3 w-3 mr-1" /> Worksheets
               </TabsTrigger>
+              <TabsTrigger value="forms" className="text-[10px] sm:text-xs px-2 py-1">
+                <FileText className="h-3 w-3 mr-1" /> Form IAMSAR
+              </TabsTrigger>
               <TabsTrigger value="briefing" className="text-[10px] sm:text-xs px-2 py-1">
                 <FileText className="h-3 w-3 mr-1" /> Briefing
               </TabsTrigger>
@@ -622,9 +626,14 @@ export default function Home() {
               <UPSWorksheet centerLat={lkp.lat} centerLng={lkp.lng} />
             </TabsContent>
 
-            {/* Tab: All Worksheets 1-8 */}
+            {/* Tab: All Worksheets (summary view) */}
             <TabsContent value="worksheets" className="mt-0">
               <WorksheetDisplay data={buildWorksheetData()} />
+            </TabsContent>
+
+            {/* Tab: Form IAMSAR (authentic blank forms with auto-filled values) */}
+            <TabsContent value="forms" className="mt-0">
+              <FormWorksheets data={buildWorksheetData()} />
             </TabsContent>
 
             {/* Tab: Briefing */}
