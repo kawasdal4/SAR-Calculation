@@ -1,0 +1,1498 @@
+           Appendix K – Determining datum
+
+
+           Wind current (WC) worksheet
+
+           Case title 											                                Case number 			            Date 
+           Planner’s name 									                              Datum number        Search plan A
+                                                                                                  BC
+
+           Wind current (WC)
+           1	Average surface wind (ASW)
+              (From Datum worksheet, line C.1)                                  °T                       kts
+
+           2       Downwind direction (ASW direction ± 180°)			                                          °T
+
+           3	Wind current drift
+              (from figure N-1)			                                                                       kts
+
+           4	Divergence of wind current
+              (from figure N-1)			       ±                                                               °
+
+           5	Wind current set
+              (Downwind direction ± divergence of wind current)
+              (add divergence in northern hemisphere,
+              subtract in southern hemisphere)			                                                        °T
+
+           6       Wind current (WC) set/drift                                  °T                       kts
+
+           7       Probable error of wind current (WCe)			                                               kts
+
+           8       Go to line B.3 on the Total water current (TWC) worksheet.
+
+
+
+
+           K-26                                                                IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 26                                                                                                 5/20/2016 3:18:30 PM
+                                                                                                  Appendix K – Determining datum
+
+
+                 Wind current (WC) worksheet instructions
+
+                 Introduction
+
+                 Local wind blowing over the ocean’s surface generates a current in the water. Usually this current is in addition
+                 to the average sea current found in atlases and on pilot charts. Therefore, it is necessary to estimate this current
+                 and the probable error of the estimated value.
+
+                 Wind current (WC)                        Caution: In areas where the wind is nearly constant over long periods,
+                                                          like the trade winds, it may not be appropriate to add wind current to
+                                                          the average sea current. Also, the sea current values estimated by some
+                                                          computer models include the local wind current. Search planners
+                                                          should not compute and add wind current to this type of data.
+                 1       Average surface wind (ASW) Enter the computed average surface wind from the Datum worksheet
+                                                    (line C.1).
+                 2       Downwind direction               Add (or subtract) 180° to (from) the average surface wind direction to
+                                                          get the downwind direction.
+                 3       Wind current drift               Go to figure N-1, Local wind current graph and table, find the wind
+                                                          current that corresponds to the speed of the average surface wind on
+                                                          line 1.
+                 4       Divergence of wind current       Go to figure N-1 and find the appropriate value for the divergence
+                                                          of the wind current from the downwind direction based on the
+                                                          approximate latitude of the search object.
+                 5       Wind current set                 In the northern hemisphere, add the divergence from line 4 to the
+                                                          downwind direction from line 2. If the result is greater than 360°,
+                                                          subtract 360°. In the southern hemisphere, subtract the divergence on
+                                                          line 4 from the downwind direction on line 2. If the result is less than
+                                                          zero, add 360°.
+                 6       Wind current (WC) set/drift      Enter the set from line 5 and the drift from line 3.
+                 7       Probable wind current error      Enter the estimated probable error of the wind current. Factors to
+                         (WCe)                            consider include the distance between the wind observations and the
+                                                          search object’s probable starting position, the amount of time since
+                                                          the last wind observation, and the amount of variability of the winds
+                                                          in the area of interest during the drift interval. Wind current estimates
+                                                          based on the average of highly variable winds tend to have larger
+                                                          probable errors than those based on steady winds. If no better estimate
+                                                          is available, enter 0.3 knots. See note below for more information.
+                 8       Go to line B.3 on the Total      Enter the wind current set and drift (line 6) on line B.3.a of the Total
+                         water current (TWC)              water current (TWC) worksheet. Enter the probable error of the
+                         worksheet                        wind current (line 7) on line B.3.b of the Total water current (TWC)
+                                                          worksheet.
+
+                 Note: The relationship between wind and wind current is not precisely understood, especially when there
+                 is significant variation in the wind over the interval of interest. For this reason the wind current estimate has
+                 some probable error that is independent of the probable error in the average surface wind. The probable wind
+                 current error (WCe) entered on line 7 of the Wind current (WC) worksheet represents only the probable error
+                 in the wind current estimate that is still present even when the average surface wind is precisely known. It
+                 does not include any error due to uncertainty about the average surface wind value used to estimate the wind
+                 current. The additional error due to uncertainty about the average surface wind is included in the Probable
+                 error of drift velocity due to Probable error of the average surface wind (ASWDVe) entered on line B.2 of the
+                 Average surface wind (ASW) worksheet and line C.2 of the Datum worksheet.
+
+
+                 IAMSAR MANUAL VOLUME II                                                                                       K-27
+
+
+
+
+IF961E.indb 27                                                                                                                 5/20/2016 3:18:30 PM
+           Appendix K – Determining datum
+
+
+           Leeway (LW) worksheet
+
+           Case title 											                         Case number 			             Date 
+           Planner’s name 									                       Datum number         Search plan A
+                                                                                            BC
+           Search object 									
+
+
+           1	Average surface wind (ASW)
+              (from Datum worksheet, line C.1)                            °T                        kts
+
+           2       Downwind direction (ASW direction ± 180°)			                                     °T
+
+           3	Leeway speed
+              (from figure N-2 or N-3)			                                                           kts
+
+           4	Leeway divergence angle
+              (from figure N-2 or N-3)			±                                                          °
+
+           5       Leeway directions
+                   a    Left of downwind (line 2 – line 4)			                                       °T
+                   b    Right of downwind (line 2 + line 4)			                                     °T
+
+           6       Leeway (LW)
+                   a    Left of downwind                                  °T                        kts
+                   b    Right of downwind                                 °T                        kts
+
+           7	Probable leeway error (LWe)
+              (from figure N-2 or N-3) 			                                                          kts
+
+           8       Go to Part E on the Datum worksheet.
+
+
+
+
+           K-28                                                         IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 28                                                                                            5/20/2016 3:18:31 PM
+                                                                                                   Appendix K – Determining datum
+
+
+                 Leeway (LW) worksheet instructions
+
+                 Introduction
+                 Leeway is the movement of an object through the water due to wind and waves acting on the object. Leeway
+                 speeds for various types of objects may be estimated by using the graphs in figures N-2 and N-3. Estimating
+                 leeway direction is more difficult. Lack of symmetry in the search object’s shape either above or below the
+                 waterline may cause it to have leeway in a direction that is not directly downwind. The leeway divergence
+                 angles given in figures N-2 and N-3 are the average differences between the object’s direction of leeway and
+                 the downwind direction. For example, an object with a leeway divergence of ±45° has a leeway that is, on
+                 average, either 45° to the left of the downwind direction or 45° to the right of the downwind direction. Since
+                 the leeway of objects that tend to diverge from the downwind direction is equally likely to be to the left or
+                 right of the downwind direction, it is necessary to account for both possibilities. It is also necessary to account
+                 for the probable error of the leeway estimate.
+                 The leeway values obtained from figures N-2 and N-3 are not exact. They are average values for the types
+                 of objects shown. All the values have at least some probable error. It is necessary to estimate the size of this
+                 probable error so the total probable drift error may be computed.
+
+                 1       Average surface wind (ASW)               Enter the value for the average surface wind direction and
+                                                                  speed from the Datum worksheet, line C.1.
+                 2       Downwind direction                       Add (or subtract) 180° to (from) the average surface wind
+                                                                  direction to get the downwind direction.
+                 3       Leeway speed                             Find the description in figure N-2 or N-3 that most closely
+                                                                  corresponds to the search object. Use the corresponding line
+                                                                  on the graph and the average surface wind speed (line 1) to
+                                                                  find the leeway speed. Enter this value in the blank provided.
+                 4       Leeway divergence angle                  Use the same description as the one used for line 3 to find the
+                                                                  search object’s leeway divergence angle on figure N-2 or N-3.
+                                                                  Enter the leeway divergence angle that appears in parentheses
+                                                                  ( ) next to the search object’s description.
+                 5       Leeway directions
+                         a     Left of downwind                   Subtract the leeway divergence angle (line 4) from the
+                                                                  downwind direction (line 2). If the result is less than zero, add
+                                                                  360°.
+                         b     Right of downwind                  Add the leeway divergence angle (line 4) to the downwind
+                                                                  direction (line 2). If the result is greater than 360°, subtract 360°.
+                 6       Leeway (LW)
+                         a     Left of downwind                   Enter the direction from line 5.a and the speed from line 3.
+                         b     Right of downwind                  Enter the direction from line 5.b and the speed from line 3.
+                 7       Probable leeway error                    Using the same description as the one used for line 3, find
+                                                                  the probable error of the search object’s leeway estimate
+                                                                  on figure N-2 or N-3. Enter the probable leeway error that
+                                                                  appears in brackets [ ] next to the search object’s description.
+                                                                  Copy this value to line E.3 of the Datum worksheet. See note
+                                                                  below for more information.
+                 8       Go to line E on the                      Enter the “left” direction and speed from line 6.a on line E.1 of
+                         Datum worksheet                          the Datum worksheet. Enter the “right”’ direction and speed from
+                                                                  line 6.b on line E.2 of the Datum worksheet. Enter the probable
+                                                                  leeway error from line 7 on line E.3 of the Datum worksheet.
+
+
+
+
+                 IAMSAR MANUAL VOLUME II                                                                                          K-29
+
+
+
+
+IF961E.indb 29                                                                                                                    5/20/2016 3:18:31 PM
+           Appendix K – Determining datum
+
+
+           Note: Figures N-2 and N-3 are based on the best and latest information from leeway experiments. However,
+           the values obtained from the graphs are not exact and are still subject to some probable error. The probable
+           leeway error (LWe) entered on line 7 of the Leeway (LW) worksheet represents only the probable error in the
+           leeway estimate that still exists even when the average surface wind is precisely known. It does not include
+           any error due to uncertainty about the average surface wind value used to estimate the leeway. The additional
+           error due to uncertainty about the average surface wind is included in the Probable error of drift velocity due
+           to probable error of the average surface wind (ASWDVe) entered on line B.2 of the Average surface wind
+           (ASW) worksheet and line C.2 of the Datum worksheet.
+
+
+
+
+           K-30                                                                         IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 30                                                                                                               5/20/2016 3:18:31 PM
+                                                                                            Appendix K – Determining datum
+
+
+                 Total probable error of position (E) worksheet
+                 for land and marine environments
+
+                 Case title 											                                  Case number 			                 Date 
+                 Planner’s name 									                                Datum number            Search plan A B C 
+
+                 A      Probable distress incident/initial position error (X)
+                 	(Go to line 1 to compute probable error of the distress incident position. Go to line 6 if the starting
+                   position for this drift interval is a previous datum.)
+
+                 1	Navigational fix error
+                    (from table N-1 or N-2)			                                                                      NM
+
+                 2	Dead reckoning (DR) error rate
+                    (from table N-3)			                                                                             %
+
+                 3      DR distance since last fix			                                                               NM
+
+                 4	DR navigational error
+                    (line A.2 × line A.3) 			                                                                       NM
+
+                 5	Glide distance (if aircraft/parachute descent heading
+                    is unknown)			                                                                                  NM
+
+                 6	Probable initial position error (X)
+                    (X = line A.1 + line A.4 + line A.5) or
+                    (X = Total probable error of position from line H.2
+                    of previous Datum worksheet)			                                                                 NM
+
+                 B      Total probable drift error (De)
+                 1	Drift interval
+                    (from line B.2 of the Datum worksheet)				 
+                                                              hours
+
+                 2	Probable drift velocity error (DVe)
+                    (from line F.4 of the Datum worksheet)			                                                           kts
+
+                 3	Total probable drift error (De)
+                    (De = line B.1 × line B.2)			                                                                       NM
+
+                 C      Probable search facility position error (Y)
+                 1	Navigational fix error
+                    (from table N-1 or N-2)			                                                                          NM
+
+                 2	Dead reckoning (DR) error rate
+                    (from table N-3)			                                                                                 %
+
+                 3      DR distance since last fix			                                                                   NM
+
+                 4	DR navigational error
+                    (line C.2 × line C.3)			                                                                            NM
+
+                 5	Probable search facility position error (Y)
+                    (Y = line C.1 + line C.4)			                                                                        NM
+
+
+                 IAMSAR MANUAL VOLUME II                                                                                K-31
+
+
+
+
+IF961E.indb 31                                                                                                          5/20/2016 3:18:31 PM
+           Appendix K – Determining datum
+
+
+           D       Total probable error of position (E)
+           1       Sum of squared errors
+                   (E2 = X2 + De2 + Y2)			                                  NM2
+
+           2       Total probable error of position
+                          _____________
+                   (E = √ X2 + De2 + Y2 ​)			
+                        ​                                                   NM
+
+
+
+
+           K-32                                          IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 32                                                                      5/20/2016 3:18:31 PM
+                                                                                                   Appendix K – Determining datum
+
+
+                 Total probable error of position (E) worksheet instructions
+
+                 Introduction
+                 The total probable error of position is a measure of the uncertainty about the search object’s location and the
+                 ability of the search facilities to locate their assigned search areas accurately. Total probable error of position
+                 is used to determine the size of the optimal area to search with the available search effort. The new datum
+                 position and total probable error of position data are carried forward to the Effort allocation worksheet.
+
+
+                 A       Probable distress incident/initial            If this is the first Total probable error of position
+                         position error (X)                            worksheet for this case, complete lines A.1 through
+                                                                       A.6. Otherwise, go directly to line A.6 and enter the
+                                                                       total probable error of position (E) from line H.2 of the
+                                                                       previous Datum worksheet.
+                 1       Navigational fix error                        Enter the probable fix error based on the navigational
+                                                                       capability of the distressed craft. Tables N-1 and N-2
+                                                                       provide estimates of probable navigational fix error
+                                                                       based on the type of navigation and size of the distressed
+                                                                       craft. These values may be used when more accurate
+                                                                       information is not available.
+                 2       Dead reckoning (DR) error rate                Enter the probable error in DR position as a percentage
+                                                                       of the distance travelled since the last navigational fix.
+                                                                       Table N-3 provides estimates of DR error rates based on
+                                                                       the type and size of the distressed craft. These values may
+                                                                       be used when more accurate information is not available.
+                 3       DR distance since last fix                    Enter the estimated distance travelled by the distressed
+                                                                       craft since its last navigational fix.
+                 4       DR navigational error                         Convert the percentage on line A.2 to a decimal fraction
+                                                                       and multiply it by the value on line A.3 to get the
+                                                                       DR navigational error.
+                 5       Glide distance (aircraft/parachute)           If the incident involves an aircraft and the descent
+                                                                       heading is unknown for either the aircraft, a parachute
+                                                                       with a non-zero glide ratio or both, enter the maximum
+                                                                       estimated glide distance (aircraft glide or parachute glide
+                                                                       as appropriate). Otherwise, enter zero.
+                 6       Probable initial position error (X)           If lines A.1 through A.5 were completed, compute the
+                                                                       Probable Initial Position Error as the sum of lines A.1,
+                                                                       A.4, and A.5. Otherwise, enter the total probable error of
+                                                                       position from line H.2 of the previous Datum worksheet.
+
+
+                 B       Total probable drift error (De)
+                 1       Drift interval                                Enter the drift interval in hours from line B.2 of the Datum
+                                                                       worksheet.
+                 2       Probable drift velocity error (DVe)           Enter the probable drift velocity error from line F.4 of the
+                                                                       Datum worksheet.
+                 3       Total probable drift error (De)               Multiply the drift interval on line B.1 by the probable drift
+                                                                       velocity error on line B.2 to get the total probable drift error.
+
+
+
+
+                 IAMSAR MANUAL VOLUME II                                                                                          K-33
+
+
+
+
+IF961E.indb 33                                                                                                                    5/20/2016 3:18:31 PM
+           Appendix K – Determining datum
+
+
+           C       Probable search facility position error (Y)
+           1       Navigational fix error                 Enter the probable fix error based on the navigational
+                                                          capability of the search facility. Tables N-1 and N-2
+                                                          provide estimates of probable navigational fix error
+                                                          based on the type of navigation and size of the search
+                                                          facility. These values may be used when more accurate
+                                                          information is not available.
+           2       Dead reckoning (DR) error rate         Enter the probable error in DR position as a percentage
+                                                          of the distance travelled by the search facility between
+                                                          navigational fixes. Table N-3 provides estimates of DR
+                                                          error rates based on the type and size of the search
+                                                          facility. These values may be used when more accurate
+                                                          information is not available.
+           3       DR distance since last fix             Enter the estimated distance travelled by the search facility
+                                                          between navigational fixes.
+           4       DR navigational error                  Convert the percentage on line C.2 to a decimal fraction
+                                                          and multiply it by the value on line C.3 to get the DR
+                                                          navigational error.
+           5       Probable search facility               Compute the Probable search facility position error as the
+                   position error (Y)                     sum of lines C.1 and C.4.
+
+
+           D       Total probable error of position (E)
+           1       Sum of squared errors (E2)             Square the values on lines A.6, B.3, and C.5. Add the
+                                                          squared values together to get the sum of the squared
+                                                          errors (E2). This value will be used in the Effort allocation
+                                                          worksheet.
+           2       Total probable error of position (E)   Compute the square root of the value on line D.1 to get
+                                                          the total probable error of position (E). This value will
+                                                          be used for search effort allocation and as the probable
+                                                          initial position error for the next drift interval.
+
+
+
+
+           K-34                                                                     IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 34                                                                                                            5/20/2016 3:18:31 PM
+                Appendix L
+                Search planning and evaluation worksheets
+
+                Total available search effort worksheet . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .                    L-1
+                Total available search effort worksheet instructions. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .                          L-2
+                Widely diverging datums worksheet . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .                      L-4
+                Widely diverging datums worksheet instructions. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .                            L-5
+                Effort allocation worksheet (single point, leeway divergence, or line datums). . . . . . . . . . . . . . . . . .                                       L-7
+                Effort allocation worksheet (single point, leeway divergence, or line datums)
+                instructions. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .      L-9
+                Effort allocation worksheet (generalized distribution). . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .                        L-18
+                Effort allocation worksheet (generalized distribution) instructions. . . . . . . . . . . . . . . . . . . . . . . . . . .                             L-20
+                Search action plan worksheet. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .                L-23
+                Search evaluation worksheet. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .               L-28
+                Search evaluation worksheet instructions. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .                      L-29
+
+
+
+
+                IAMSAR MANUAL VOLUME II                                                                                                                                L-i
+
+
+
+
+IF961E.indb 1                                                                                                                                                       5/20/2016 3:18:31 PM
+IF961E.indb 2   5/20/2016 3:18:32 PM
+                Total available search effort (Zta) worksheet
+
+                Case title 											                                    Case number 			                       Date 
+
+                Planner’s name 									                                  Datum number                 Search plan A B C 
+
+                Datum                                                 Datum                              
+                (left)          Latitude                 Longitude      (right)         Latitude                    Longitude
+
+
+                Search object 											                                                    Date/time 
+
+                Total Available Effort Computations
+                                                                                             1         2        3        4         5
+                1      Search sub-area designation                                                                        
+                2      Search facility assigned                                                                           
+                3      Search facility speed (V)                                                                          
+                4      On-scene endurance                                                                                 
+                5      Daylight hours remaining                                                                           
+                6      Search endurance (T)
+                       (T = 85% of lesser of line 4 or 5 above)                                                           
+                7      Search altitude (metres/feet)
+                       				 (circle one)                                                                                  
+                8      Uncorrected sweep width                                                                            
+                9      Weather, terrain correction factor (fw, ft)                                                        
+                10     Velocity correction factor (fv)
+                       (aircraft only)                                                                                    
+                11     Fatigue correction factor (ff )                                                                    
+                12     Corrected sweep width (W)                                                                          
+                13     Search effort (Z = V × T × W)                                                                      
+                14     Total available search effort (Zta = Za1 + Za2 + Za3 + ...)                                           NM2
+                15     Separation ratio (SR) (leeway divergence datums only)
+                       (from line H.3 of the Datum worksheet)                                      
+                15     Relative effort (Zr = Zta /f Z)                                             
+                16     If the separation ratio (SR) on line 15 is greater than four (SR > 4), go to the Widely diverging datums
+                       worksheet. Otherwise, go to the Effort allocation worksheet.
+
+
+
+
+                IAMSAR MANUAL VOLUME II                                                                                               L-1
+
+
+
+
+IF961E.indb 1                                                                                                                     5/20/2016 3:18:32 PM
+           Appendix L – Search planning and evaluation worksheets
+
+
+           Total available search effort (Zta) worksheet instructions
+
+           Introduction
+           This Total available search effort worksheet is used to determine the total amount of search effort that will
+           be available on scene. This worksheet is based on a DAYLIGHT VISUAL SEARCH.
+
+           Enter the case title, case number, planner’s name, datum number, search designator, datum latitudes, longitudes
+           and time, and the primary search object in the spaces provided. All of this information may be found on the
+           Datum worksheet except possibly the planner’s name. The name that appears on this worksheet should be
+           that of the person responsible for completing this worksheet, who may be different from the person who
+           completed the Datum worksheet.
+
+           Total available search effort computations
+           1       Search sub-area designation       Use standard sub-area designators, such as A-1, B-3, etc.
+           2       Search facility assigned          Enter name, hull or tail number, or other identifier that uniquely
+                                                     identifies the search facility assigned to the corresponding search
+                                                     sub-area.
+           3       Search facility speed (V)         Enter the average speed made good over the ground for each search
+                                                     facility while searching. For aircraft, the True Airspeed (TAS) while
+                                                     searching is usually a satisfactory approximation.
+           4       On-scene endurance                Enter the total amount of time the search facility can provide on
+                                                     scene. Do not include the transit time to and from the area.
+           5       Daylight hours remaining          Enter the number of hours between the search facility’s estimated
+                                                     time of arrival on scene (start of searching) and sunset.
+           6       Search endurance (T)              Compute 85% of the value on line 4 or line 5, whichever is smaller.
+                                                     This figure represents the “productive” search time. It provides a
+                                                     15% allowance for investigating sightings and navigating turns at the
+                                                     ends of search legs.
+           7       Search altitude                   Determine the search altitude options available (See note below)
+                                                     and enter a preliminary altitude assignment.
+
+           Note:   Recommended guidelines for determining search altitude options:
+                   (a)   Stay at least 150 m (500 ft) below cloud bases.
+                   (b)   Stay at least 60 m (200 ft) above the water or ground.
+                   (c)   Use at least 150 m (500 ft) of vertical separation between aircraft that share a common search
+                         sub-area boundary.
+                   (d)   In most cases, use altitudes in increments of 150 m (500 ft).
+                   (e)   Additional guidance is provided in table N-11.
+
+           8       Uncorrected sweep width           Enter the appropriate value from the Sweep width tables in
+                                                     appendix N. Based on the type of search facility, use table N-4, N-5,
+                                                     or N-6 for maritime searches. Use table N-9 for searches over land.
+           9       Weather, terrain correction       For maritime searches, enter the appropriate value (fw) from
+                   factor (fw, ft)                   table N-7. For searches over land, enter the appropriate value (ft)
+                                                     from table N-10.
+
+
+
+           L-2                                                                          IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 2                                                                                                                5/20/2016 3:18:32 PM
+                                                                        Appendix L – Search planning and evaluation worksheets
+
+
+                10    Velocity correction factor (fv)     For searches conducted by aircraft over water, enter the appropriate
+                                                          velocity correction factor (fv) from table N-8. For searches conducted
+                                                          by vessels and for searches over land, enter 1.0.
+                11    Fatigue correction factor (ff )     If there are indications that the search facility crew is or will be
+                                                          suffering significantly from fatigue during the search, enter 0.9.
+                                                          If crew fatigue is not considered a significant factor for the assigned
+                                                          search facility, enter 1.0.
+                12    Corrected sweep width (W)           Multiply the values in each column on lines 8, 9, 10, and 11
+                                                          (uncorrected sweep width, weather/terrain correction factor, velocity
+                                                          correction factor and fatigue correction factor) to get the corrected
+                                                          sweep width.
+                13    Search effort (Z)                   Multiply the search facility’s speed (line 3) by the search facility’s
+                                                          endurance (line 6) and multiply the result by the corrected sweep
+                                                          width (line 12), or use figure N-4.
+                14    Total available search              Add the individual search effort values listed on line 13 and enter
+                      effort (Zta)                        the total.
+                15    Separation ratio (SR)               Enter the separation ratio (SR) from line H.3 of the Datum worksheet.
+                16    In most cases, the separation ratio (SR) will be less than or equal to four (SR ≤ 4) and the search
+                      planner may go directly to the Effort allocation worksheet. However, if the separation ratio (SR)
+                      entered on line 15 is greater than four (SR > 4), an initial effort allocation decision must be made
+                      between the following two choices:
+                      •     The two datums may be treated as separate single point datums, each with its own search area.
+                             Two separate search areas with no overlap will be the usual result.
+                      •     A line may be drawn between the two datums and treated as the base line portion of a datum
+                             line. In this case a single search area centred on the datum line will be the result.
+                      The Widely diverging datums worksheet instructions provide guidance to help the search planner
+                      decide which alternative to use. The Widely diverging datums worksheet helps the search planner
+                      make the necessary preparations for entering the Effort allocation worksheet(s).
+                      The following conditions can lead to leeway divergence datums becoming so widely separated in
+                      comparison to their total probable errors of position that separate search areas should be considered:
+                      •     The leeway divergence angle is large (> 30°).
+                      •     The leeway rate is moderate to large (> 1 knot).
+                      •     The time adrift is significant (> 12 h).
+                      •     The probable errors of the initial and search facility positions are small (< 1 NM).
+                      •     The probable errors of the factors affecting drift (winds, currents, leeway) are all small (< 0.3 knot).
+                      •     The cumulative relative search effort is small to moderate (< 10).
+                      Usually all of these conditions must be met before the separation ratio will become greater than four
+                      (SR > 4) and the divergence distance (DD) will be large enough to justify dividing the available search
+                      effort into two portions assigned to separate, non-contiguous search areas. Only rarely will enough of
+                      these conditions be met to create such a situation.
+
+
+
+
+                IAMSAR MANUAL VOLUME II                                                                                          L-3
+
+
+
+
+IF961E.indb 3                                                                                                                  5/20/2016 3:18:32 PM
+           Appendix L – Search planning and evaluation worksheets
+
+
+           Widely diverging datums worksheet
+           Case title 											                                    Case number 			                   Date 
+
+           Planner’s name 									                                  Datum number             Search plan A
+                                                                                                           BC
+
+           Datum                                                  Datum                         
+           (left)           Latitude              Longitude         (right)        Latitude               Longitude
+
+           Search object 											                                                 Date/time 
+
+
+           1	Total available search effort (Zta)
+              (from line 14 of the Total available search effort worksheet)		                                     NM2
+
+           2	Divergence distance (DD)
+              (from line G.3 of the Datum worksheet)			                                                           NM2
+
+           3	Total probable error of position (E)
+              (from line H.2 of the Datum worksheet)			                                                           NM2
+
+           4	Type of datum to use for planning this search
+                   (Circle one)
+
+                   a     Two separate point datums (Go to line 5)
+                   b     A line datum between two point datums (Go to line 6)
+
+           5       Two separate point datums
+                   a     Available search effort for the left datum (Za(left))		                                  NM2
+                   b     Available search effort for the right datum (Za(right))		                                NM2
+                   c     Total available search effort (Zta = Za(left) + Za(right))
+                         (must equal value on line 1)			                                                          NM2
+                   d	Go to the Effort allocation worksheets (one for each datum) and follow the instructions for
+                      single point datums.
+           6       A line datum between two point datums
+                   a     Length of the datum line [L = DD + (2 × E)]			                                           NM
+                   b     Go to the Effort allocation worksheet and follow the instructions for a line datum.
+
+
+
+
+           L-4                                                                         IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 4                                                                                                           5/20/2016 3:18:32 PM
+                                                                          Appendix L – Search planning and evaluation worksheets
+
+
+                Widely diverging datums worksheet instructions
+
+                Introduction
+
+                It is possible for objects that have leeway divergence to have two widely separated datums whose associated
+                probability density distributions have little or no overlap. When the distance between the datums is large in
+                comparison to the probable error of each datum position, the search planner must decide whether they should
+                be treated as two separate single point datums or as the end points of the base line portion of a datum line.
+
+                Experimental evidence indicates that once an object starts to have a leeway to the left of the downwind
+                direction it tends to remain on that tack indefinitely. The same is true if the object starts to have a leeway
+                to the right of the downwind direction. If the initial and search facility probable position errors are small,
+                the leeway divergence angle is large (> 30°), the probable errors of the winds, currents and leeway are all
+                small (each contributing less than 0.3 knot to the drift velocity error), etc., the divergence distance (DD) may
+                become greater than four times the probable error of position (E). This is an unlikely situation. However, if it
+                occurs, the search planner should seriously consider applying a portion of the available search effort to each
+                datum rather than applying the total available search effort to a single large area that includes both datums
+                and the area between them. Objects that have large divergence angles will tend toward locations on the line
+                connecting the left and right datums only if they jibe or tack downwind. There has been very little evidence of
+                jibing behaviour in the leeway experiments done to date. This means that when the probable errors are small
+                and the divergence angle is large, there is very little chance of the search object being halfway between the
+                left and right datums. If this is the case, then the area that is near the midpoint of the line connecting the left
+                and right datums will not be a very productive area to search.
+
+                If the search planner decides to treat the two datums separately, then it is necessary to divide the total available
+                search effort into two portions and plan two single point datum searches. Unless there is some reason to
+                favour one datum over the other, the total available search effort should be divided into two equal portions.
+                One example of a situation where one datum should be favoured over the other is the following: Suppose a
+                drifting search object was located by an aircraft and observed long enough to determine its leeway was to
+                the right of the downwind direction, but then contact was lost before a homing beacon could be deployed or
+                a rescue facility could arrive on scene. In this case, the datum for the next search that was to the right of the
+                downwind direction probably should be assigned most of the total available search effort. Whenever search
+                effort is to be allocated separately to two datums, an Effort allocation worksheet should be completed for
+                each datum, using the instructions for a single point datum.
+
+                In situations where the wind has shown large and sudden changes in direction, when the sea is confused, etc.,
+                the search planner may decide that the probability of the search object jibing or tacking downwind is larger
+                than usual. The search planner may have other reasons for covering all of the area between the left and right
+                datums. In these cases, the search planner should consider drawing a line between the left and right datums
+                and using it as the base line portion of a datum line. When the total available search effort is to be allocated in
+                this fashion, a single Effort allocation worksheet should be completed following the instructions for a datum
+                line.
+
+                1       Total available search effort (Zta)   Enter the total available search effort (Zta) from line 14 of the Total
+                                                              available search effort worksheet.
+                2       Divergence distance (DD)              Enter the divergence distance (DD) from line G.3 of the Datum
+                                                              worksheet.
+                3       Total probable error                  Enter the total probable error of position from line H.2 of the
+                        of position (E)                       Datum worksheet. (Note: The value of DD on line 2 should be
+                                                              more than four times the value of E on this line (DD > 4 × E). If
+                                                              this is not true, discard this worksheet and go directly to the Effort
+                                                              allocation worksheet.)
+
+
+
+                IAMSAR MANUAL VOLUME II                                                                                          L-5
+
+
+
+
+IF961E.indb 5                                                                                                                  5/20/2016 3:18:32 PM
+           Appendix L – Search planning and evaluation worksheets
+
+
+           4       Type of datum                      Decide whether to plan the next search around two separate
+                                                      datums or along a datum line that passes through the left and right
+                                                      datums. Circle “a” or “b” as appropriate. If “a” is circled, go to
+                                                      line 5. If “b” is circled, go to line 6.
+           5       Two separate point datums          In this case, the total available search effort is to be divided into
+                                                      two parts. One part will be applied to a search area centred on
+                                                      one of the datums while the other part will be applied to a search
+                                                      area centred on the other datum.
+                   a	Available search effort for     Enter the amount of search effort that will be applied to the left
+                      the left datum (Za(left))       datum. This amount must be between zero and the total available
+                                                      search effort (0 ≤ Za(left) ≤ Zta).
+                   b	Available search effort for     Enter the amount of search effort that will be applied to the right
+                      the right datum (Za(right))     datum. This amount must be between zero and the total available
+                                                      search effort (0 ≤ Za(right) ≤ Zta).
+                   c	Total available search effort Add the search effort available for the left datum (line 5.a) to the
+                      (Zta = Za(left) + Za(right))  search effort available for the right datum (line 5.b). The result
+                                                    should equal the total available search effort (line 1). If this is not
+                                                    true, adjust the efforts for the left and right datums so their sum
+                                                    equals the total available search effort (line 1).
+                   d	Go to Effort allocation         Complete an Effort allocation worksheet for each datum. Enter
+                      worksheets                      the search effort available for the left datum (Za(left)) on line 1 of the
+                                                      Effort allocation worksheet for the left datum. On a second Effort
+                                                      allocation worksheet, enter the search effort available for the right
+                                                      datum (Za(right)) on line 1.
+           6       A line datum between two           In this case, a single search area is to be centred on the line
+                   point datums                       connecting the left and right datums.
+                   a	Length of the datum             Compute the length of the datum line by adding twice the total
+                      line (L)                        probable error of position (E) from line 3 to the divergence distance
+                                                      (DD) from line 2. Stated as a formula, L = DD + (2 × E).
+                   b	Go to the Effort allocation Go to the Effort allocation worksheet. Enter the total available
+                      worksheet                   search effort (Zta) from line 1 of this worksheet as the available
+                                                  search effort (Za) on line 1 of the Effort allocation worksheet.
+                                                  Enter the length of the datum line (L) from line 6.a as the length of
+                                                  the datum line (L) on line 2.b of the Effort allocation worksheet.
+                                                  Follow the effort allocation instructions for line datums.
+
+
+
+
+           L-6                                                                             IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 6                                                                                                                      5/20/2016 3:18:33 PM
+                                                                       Appendix L – Search planning and evaluation worksheets
+
+
+                Effort allocation worksheet for optimal search of single point,
+                leeway divergence or line datums
+                Case title 											                                     Case number 			                             Date 
+
+                Planner’s name 									                                   Datum number                    Search plan A B C 
+
+                Datum                                                  Datum                                 
+                (left)         Latitude                Longitude         (right)           Latitude                       Longitude
+
+
+                Search object 											                                                       Date/time 
+
+                Effort allocation computations
+                1     Available search effort (Zta, Za(left), or Za(right))
+                      (from line 14 of the Total available search effort worksheet or
+                      line 5.a or line 5.b of the Widely diverging datums worksheet)		                                              NM2
+                2     Effort factor (fZ)
+                      a     Total probable error of position (E)			                                                                 NM
+                      b     Length of datum line (L)			                                                                             NM
+                      c     Effort factor (fZ) (fZp = E2 or fZl = E × L)			                                                         NM2
+                3     Relative effort (Zr = Za /fz)			
+                4     Cumulative relative effort (Zrc = previous Zrc + Zr)			
+                5     Optimal search factor (fs)                          Ideal           Normal                (fs)
+                6     Optimal search radius (Ro = fs × E)			                                                                        NM
+                7     Optimal search area (Ao)			                                                                                   NM2
+                      a     Single point datum (Ao = 4 × Ro2)
+                      b     Leeway divergence datums [Ao = (4 × Ro2) + 2 × Ro × DD)]
+                      c     Line datum (Ao = 2 × Ro × L)
+
+                8     Optimal coverage factor (Co = Za /Ao)			
+
+                                                                                                1          2        3           4        5
+                9     Optimal track spacing (So = W/Co)                                                                         
+                10    Nearest assignable track spacing (S)
+                      (within limits of search facility navigational capability)                                                
+                11    Adjusted search areas (A = V × T × S)                                                                     
+
+                12    Total adjusted search area (At = A1 + A2 + A3 + ...)			                                                       NM2
+
+                13    Adjusted search radius (R)			      __                                                                         NM
+                                                       √
+                                                       ​ At ​
+                      a    Single point datum    R =​ ____​
+                                                        2
+                                                         ______________
+                                                                           √​ DD
+                                                                                
+                                                                                 2
+                                                                                   + (4 × At) ​ – DD
+                      b     Leeway divergence datums                    _________________
+                                                                     R =​                ​
+                                                                                       4
+                                                                              A
+                      c     Line datum                               R = ____
+                                                                         ​  t ​
+                                                                            2×L
+
+
+
+                IAMSAR MANUAL VOLUME II                                                                                                     L-7
+
+
+
+
+IF961E.indb 7                                                                                                                           5/20/2016 3:18:33 PM
+           Appendix L – Search planning and evaluation worksheets
+
+
+           14      Adjusted search area dimensions
+                   a    Length		                                                 Length            NM
+                        i)   Single point datum       Length = 2 × R
+                        ii)  Leeway divergence datums Length = (2 × R) + DD
+                        iii) Line datum               Length of the Base Line (Lb)                 NM
+                             a)    No extensions      Length = Lb
+                             b)    One extension      Length = R + Lb
+                             c)    Two extensions     Length = (2 × R) + Lb
+                   b    Width = 2 × R		 Width                                                      NM
+
+           15      Plot the adjusted search area on a suitable chart		           (Check when done) 		
+
+           16	Divide the adjusted search area into search sub-areas
+               according to the values on line 11		                              (Check when done)		
+
+           17      Go to the Search action plan worksheet.
+
+
+
+
+           L-8                                                                  IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 8                                                                                              5/20/2016 3:18:33 PM
+                                                                       Appendix L – Search planning and evaluation worksheets
+
+
+                Effort allocation worksheet instructions for optimal search of single point,
+                leeway divergence or line datums
+
+                Introduction
+                This Effort allocation worksheet is used to determine the optimal way to allocate the available search effort
+                around a single datum point, over two divergent datum points or along a datum line. It considers the search
+                effort that several dissimilar search facilities can provide. The worksheet also aids in computing the optimal
+                area to search and the optimum uniform coverage factor. Finally, the worksheet provides guidance for
+                determining the actual search sub-area dimensions for each available search facility. This worksheet is based
+                on a DAYLIGHT VISUAL SEARCH.
+                Enter the case title, case number, datum number, search designator, datum latitude, longitude and time, and
+                the primary search object from the Datum worksheet. In the space labelled “Planner’s Name”, enter the name
+                of the person responsible for completing this worksheet.
+
+                Effort allocation computations
+                1       Available search effort (Za)       Enter the total available search effort (Zta) from line 14 of the Total
+                                                           available search effort worksheet unless the left and right datums
+                                                           are to be treated as separate searches. In that case, two Effort
+                                                           allocation worksheets will be required. Enter the available effort
+                                                           for the left datum (Za(left)) on one worksheet and the available effort
+                                                           for the right datum (Za(right)) on the other worksheet.
+                2       Effort factor (fZ)                 The effort factor (fZ) provides a standard method for characterizing
+                                                           the size of the area where the search object is probably located.
+                                                           Although the effort factor has units of area, its value is only a
+                                                           fraction of the area where the search object may be located.
+                        (a)	Total probable error of       Enter the total probable error of position (E) from line H.2 of the
+                             position (E)                  Datum worksheet.
+                        (b)   Length of datum line (L)     For line datums only: Measure or compute the length of the base
+                                                           line (Lb) connecting two points, such as the last known position
+                                                           of a vessel or aircraft and the next point at which a report was
+                                                           expected but not received. When appropriate, extend the base
+                                                           line in one or both directions by an amount equal to E to form the
+                                                           datum line (L).
+                                                           Examples:
+                                                           (i) A vessel’s intended track lies between two ports, the LKP was
+                                                           the port of departure and the vessel is overdue at its destination.
+                                                           The base line is not extended over land in either direction and
+                                                           L = Lb.
+                                                           (ii) A vessel’s intended track lies between its last reported
+                                                           position at sea and its next port of call, where it is overdue. In this
+                                                           situation, the seaward end of the base line is extended by E and
+                                                           L = Lb + E.
+                                                           (iii) Both the last reported position and the next position where
+                                                           the vessel or aircraft was expected to report might be in error.
+                                                           In this situation, both ends of the base line are extended by E
+                                                           and L = Lb + (2 × E). Figure L-4 depicts this situation.
+
+
+
+
+                IAMSAR MANUAL VOLUME II                                                                                       L-9
+
+
+
+
+IF961E.indb 9                                                                                                               5/20/2016 3:18:33 PM
+           Appendix L – Search planning and evaluation worksheets
+
+
+                                                      (iv) The length of the datum line was computed on line 6.a of
+                                                      the Widely diverging datums worksheet. In this situation, the
+                                                      divergence distance (DD) was used as the length of the base line
+                                                      (Lb) that was then extended in both directions to form the datum
+                                                      line, as shown in figure L-4.
+                                                      Enter the value of L on line 2.b if this effort allocation is for a datum
+                                                      line. Otherwise, leave blank.
+                   (c)   Effort factor (fZ)           For single and diverging point datums, enter the total probable error
+                                                      of position squared (E2) from line H.1 of the Datum worksheet or
+                                                      square the total probable error of position (E) from line 2.a. Stated
+                                                      as a formula, fZp = E2. For line datums, multiply the total probable
+                                                      error of position (E) from line 2.a by the length of the datum line (L)
+                                                      from line 2.b. Stated as a formula, fZl = E × L.
+           3       Relative effort (Zr)               The relative effort (Zr) shows the relationship between the available
+                                                      search effort (Za) and the size of the area where the search object
+                                                      may be located. The relative effort (Zr) is computed as the ratio of
+                                                      the available effort (Za) to the effort factor (fZ). Divide the available
+                                                      effort (Za) from line 1 by the effort factor (fZ) from line 2.c.
+           4       Cumulative relative effort (Zrc)   Add the relative effort (Zr) on line 3 to the cumulative relative effort
+                                                      (Zrc) from line 4 of the previous Effort allocation worksheet. If this
+                                                      is the first search, enter the value of Zr from line 3 above. If this
+                                                      is the first time two leeway divergence datums are being treated
+                                                      separately, assume one half of the relative effort (Zrc) from line 4
+                                                      of the previous Effort allocation worksheet was applied to each
+                                                      datum.
+           5       Optimal search factor (fs)         Check “Ideal” or “Normal” search conditions, as appropriate. If any
+                                                      of the correction factors on lines 9, 10 or 11 of the Total available
+                                                      search effort worksheet are less than 1.0, or if any probable
+                                                      search facility position error exceeds the corresponding corrected
+                                                      sweep width, check “Normal” search conditions. Otherwise,
+                                                      check “Ideal” search conditions. Enter the optimal search factor (fs)
+                                                      from the appropriate graph and curve in appendix N (figure N-5
+                                                      or N-6 for single point and leeway divergence datums, figure N-7
+                                                      or N-8 for line datums).
+           6       Optimal search radius (Ro)         Multiply the optimal search factor (fs) from line 5 by the total
+                                                      probable error of position (E) from line 2.a.
+           7       Optimal search area (Ao)           The optimal search area depends on whether the type of datum is
+                                                      (a) a single point datum, (b) two leeway divergence datums, or (c)
+                                                      a line datum.
+                   a     Single point datum           For a single point datum, square the optimal search radius (Ro) from
+                                                      line 6 and multiply by four. Stated as a formula, Ao = 4 × Ro2.
+                   b	Leeway divergence               For two leeway divergence datums, copy the divergence distance
+                      datums                          (DD) between the two datums from line G.3 of the Datum
+                                                      worksheet to line 7.b of this worksheet. Compute the optimal
+                                                      search area (Ao) using the following formula:
+                                                      Ao = (4 × Ro2) + (2 × Ro × DD).
+                   c     Line datum                   For a line datum, multiply twice the optimal search radius (Ro) from
+                                                      line 6 by the length of the datum line (L) from line 2.b. Stated as a
+                                                      formula, Ao = 2 × Ro × L.
+
+
+
+           L-10                                                                            IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 10                                                                                                                    5/20/2016 3:18:33 PM
+                                                                     Appendix L – Search planning and evaluation worksheets
+
+
+                 8     Optimal coverage factor (Co)      Divide the available search effort (Za) from line 1 by the optimal
+                                                         search area (Ao) from line 7.
+                 9     Optimal track spacing (So)        Divide the corrected sweep widths (W) from line 12 of the Total
+                                                         available search effort worksheet by the optimal coverage factor
+                                                         (Co) from line 8.
+                 10    Nearest assignable track          Round the optimal track spacing (So) from line 9 to a value that the
+                       spacing (S)                       corresponding search facility can navigate safely and accurately.
+                 11    Adjusted search areas (A)         Multiply the search facility’s speed from line 3 of the Total available
+                                                         search effort worksheet by the search facility’s endurance from
+                                                         line 6 of the Total available search effort worksheet and multiply
+                                                         the result by the nearest assignable track spacing from line 10 of
+                                                         this worksheet. Stated as a formula, A = V × T × S. Figure N-9
+                                                         may also be used to find the adjusted search areas.
+                 12    Total adjusted search area (At)   Add the individual adjusted search area values listed on line 11
+                                                         and enter the total.
+                 13    Adjusted search radius            The adjusted search radius (R) depends on whether the type
+                                                         of datum is (a) a single point datum, (b) two leeway divergence
+                                                         datums, or (c) a line datum.
+                       a    Single point datum           For single point datums, the adjusted search radius (R) is one-half
+                                                         the square root of the total adjusted search area (At) from line 12.
+                                                         Stated as a formula:
+                                                                            __
+                                                                          ​√At ​
+                                                                  R = ​ ___      ​
+                                                                            2
+                       b	Leeway divergence              For two diverging point datums, the search planner must adjust the
+                          datums                         search radius so the area of the actual search rectangle equals the
+                                                         total adjusted search area (At) from line 12. The following formula
+                                                         is used to compute an adjusted search radius (R) for the circles
+                                                         around each datum: ____________________
+                                                                            DD2 + (4 × At) - DD ​
+                                                                         ​√   
+                                                                  R =​ __________________
+                                                                                       ​
+                                                                                     4
+                       c    Line datum                   For a line datum, divide the total adjusted search area (At) from
+                                                         line 12 by twice the length of the datum line (L) from line 2.b to
+                                                         get the adjusted search radius. Stated as a formula:
+                                                                            At
+                                                                  R = ​ ____       ​
+                                                                          2×L
+                 14    Adjusted search area              Choose the correct type of datum below, compute the length of
+                       dimensions                        the adjusted search area on line 14.a and the width of the adjusted
+                                                         search area on line 14.b using the formulas provided.
+                       a    Length                       The formula used to find the length of the adjusted search area
+                                                         depends on whether the type of datum is (i) a single point datum,
+                                                         (ii) two leeway divergence datums, or (iii) a line datum.
+                               i Single point datum      The adjusted search area is a square with its length equal to
+                                                         twice the adjusted search radius from line 13. Stated as a formula,
+                                                         Length = 2 × R
+                               ii	Leeway divergence     The length of the adjusted search area is found by adding twice the
+                                   datums                adjusted search radius (R) from line 13 to the divergence distance
+                                                         (DD). Stated as a formula, Length = (2 × R) + DD
+
+
+
+
+                 IAMSAR MANUAL VOLUME II                                                                                   L-11
+
+
+
+
+IF961E.indb 11                                                                                                            5/20/2016 3:18:33 PM
+           Appendix L – Search planning and evaluation worksheets
+
+
+                           iii Line datum            Enter the length of the base line portion (Lb) of the datum line. The
+                                                     length of the adjusted search area depends on whether the datum
+                                                     line was formed with zero, one, or two extensions as described in
+                                                     the instructions for line 2.b.
+                             a)    No extensions     If the base line was not extended in either direction to form the
+                                                     datum line, then the length of the adjusted search area is the same
+                                                     as the length of the base line (Lb). Length = Lb
+                             b)    One extension     If only one end of the base line was extended to form the datum
+                                                     line, then the length of the adjusted search area is the adjusted
+                                                     search radius (R) plus the length of the base line (Lb). Length = R + Lb
+                             c)    Two extensions    If the base line was extended in both directions to form the
+                                                     datum line, then the length of the adjusted search area is twice
+                                                     the adjusted search radius (R) plus the length of the base line (Lb).
+                                                     Length = (2 × R) + Lb
+                   b    Width                        The formula used to find the width of the adjusted search area
+                                                     is the same in all cases. The width is always equal to twice the
+                                                     adjusted search radius (R). Stated as a formula, Width = 2 × R
+
+           15      Plot the adjusted search area     Using a suitable chart, plot the adjusted search square(s) or rectangle
+                   on a suitable chart               centred on the datum(s).
+                   a    Single point datum           Using the datum position as the centre, draw a circle with its radius
+                                                     equal to the adjusted search radius (R) from line 13. Estimate the
+                                                     direction of search object drift during the search. Circumscribe a
+                                                     square around the circle and orient the square so the search legs
+                                                     will be parallel to the predicted direction of drift during the search.
+                                                     In figure L-1 it is assumed the direction of drift during the search
+                                                     will be the same as the average direction of drift from the last
+                                                     known position.
+                   b	Leeway divergence              Using each of the datum positions as a centre, draw a circle around
+                      datums                         each datum with its radius equal to the adjusted search radius (R)
+                                                     from line 13. Based on the distance separating the circles, decide
+                                                     whether to use a single rectangle as shown in figure L-2 or two
+                                                     squares as shown in figure L-3. Estimate the directions of search
+                                                     object drift during the search. Orient the search sub-areas so
+                                                     the search legs are as nearly parallel as possible to the predicted
+                                                     directions of search object drift during the search. However, do
+                                                     not compromise safety of search facility navigation in adjacent
+                                                     search sub-areas.
+                   c    Line datum                   Instructions for plotting the adjusted search area depend on whether
+                                                     the datum line was formed with zero, one, or two extensions as
+                                                     described in the instructions for line 2.b.
+                           i No extensions           If the base line was not extended in either direction to form the
+                                                     datum line, draw lines perpendicular to the base line at each end.
+                                                     On each of these perpendicular lines, use a compass or dividers to
+                                                     measure a distance equal to the adjusted search radius (R) in each
+                                                     direction from the datum line. Using these four points as the corner
+                                                     points, plot the rectangular adjusted search area. (See figure L-5.)
+
+
+
+
+           L-12                                                                          IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 12                                                                                                                  5/20/2016 3:18:34 PM
+                                                                        Appendix L – Search planning and evaluation worksheets
+
+
+                                 ii One extension           If the base line was extended in only one direction to form the
+                                                            datum line, draw a line perpendicular to the base line at the end
+                                                            that was not extended. Measure a distance equal to the adjusted
+                                                            search radius (R) in each direction from the datum line along the
+                                                            perpendicular line. These two points will be two of the corner
+                                                            points of the rectangular adjusted search area. Using the other end
+                                                            of the base line as the centre, draw a circle with its radius equal to
+                                                            the adjusted search radius (R). Draw a rectangle that includes the
+                                                            previous two corner points and the circle. (See figure L-6.)
+                                 iii Two extensions         If the base line was extended in both directions to form the datum
+                                                            line, draw a circle with a radius equal to the adjusted search radius
+                                                            (R) around each end point of the base line. Be certain to use the
+                                                            end points of the base line as the centres of the circles, not the end
+                                                            points of the datum line. Circumscribe a single rectangle around
+                                                            both circles. (See figure L-7.)
+
+                 16      Adjust the locations, lengths and widths of the search sub-areas so they fill the total adjusted search
+                 area as nearly as possible. The following guidelines may be used:
+                         (a)	
+                             The width of each search sub-area must equal a whole number of track spacings. Some
+                             adjustment of track spacings may be made, but care must be taken to ensure all track spacings
+                             remain within the usable limits of the assigned search facility’s navigational capability.
+                         (b)	The search legs should be parallel to the search object’s anticipated direction of movement
+                              during the search.
+                         (c)	For fixed-wing aircraft, a flying time of about 30 minutes per search leg is recommended. For
+                              rotary-wing aircraft, a flying time of about 20 minutes is recommended.
+                  Note 1: POS values tend to be very stable near the point of perfectly optimal effort allocation. This
+                 	
+                  allows search planners the freedom needed to adapt the optimal allocation of effort to account for
+                  practical considerations imposed by the environment and the capabilities of the search facilities.
+                  Normally, small changes from the optimal values indicated in lines 10–14 that are needed to make the
+                  search plan practical will not have a large impact on search effectiveness (POS).
+                  Note 2: Do not use the POS graphs (figures N-11 and N-12) for searches of leeway divergence datums.
+                 	
+                  The variations in the relationship between divergence distance and the probable error of position
+                  create a situation that is too complex to represent on a graph. For the same reason, no templates for
+                  constructing probability maps for two leeway divergence datums are provided in appendix M.
+                 17	Go to the Search action plan worksheet where the plotted search sub-areas of line 16 will be specified
+                     in one of the standard formats (methods) such as the corner-point method. The search action plan will
+                     also provide all necessary co-ordination instructions such as assigning specific search
+
+
+
+
+                 IAMSAR MANUAL VOLUME II                                                                                     L-13
+
+
+
+
+IF961E.indb 13                                                                                                              5/20/2016 3:18:34 PM
+           Appendix L – Search planning and evaluation worksheets
+
+
+
+
+                                                                                    R
+
+
+
+
+                                                Downwind                                           N
+
+                                             Drift distance (NM)
+
+
+
+
+                                                    LKP
+
+                                         Figure L-1 – Search area for a single point datum
+
+
+
+
+                                                            R      Datum
+                                                                    (left)
+
+                                                                                        Downwind
+
+
+                                         N
+                                                                                           Divergence distance
+                                                                                           (DD)
+
+
+
+
+                                       Drift distance
+                                    (NM, when leeway
+                                                                                R       Datum
+                                   is left of downwind)
+                                                                                        (right)
+
+
+
+
+                                                  LKP
+                                                                           Drift distance
+                                                                        (NM, when leeway
+                                                                      is right of downwind)
+
+
+                                Figure L-2 – Search area for two leeway divergence datums when
+                                     the leeway divergence distance (DD) is less than 4 × E
+
+
+
+
+           L-14                                                                                       IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 14                                                                                                                   5/20/2016 3:18:34 PM
+                                                                    Appendix L – Search planning and evaluation worksheets
+
+
+
+
+                                                                                    Downwind
+                                                                    Datum
+                                                               R     (left)
+                                              N
+                                                                                           Divergence
+                                                                                            distance
+                                                                                           (DD) > 4E
+
+                                                                        Datum
+                                                                        (right)    R
+                                           Drift distance
+                                        (NM, when leeway
+                                       is left of downwind)
+
+
+                                                                              Drift distance
+                                                                           (NM, when leeway
+                                                                         is right of downwind)
+                                                     LKP
+
+
+                                 Figure L-3 – Search area for two leeway divergence datums when
+                                    the leeway divergence distance (DD) is greater than 4 × E
+                                          E
+
+
+
+
+                                                                    D
+                                                                     at
+                                                                       um L
+                                                                          li n
+                                                                              e
+                                                              Ba
+                                                               se
+                                                              li n
+                                                               Lb
+
+                                                                   e
+
+
+
+
+                                                                                       E
+
+
+
+
+                                        Figure L-4 – Forming a datum line from a base line
+
+
+
+
+                 IAMSAR MANUAL VOLUME II                                                                             L-15
+
+
+
+
+IF961E.indb 15                                                                                                      5/20/2016 3:18:34 PM
+           Appendix L – Search planning and evaluation worksheets
+
+
+
+
+                                     R
+
+
+
+
+                                                                    Lb
+
+
+
+
+                                Figure L-5 – Search area for a line datum (neither end extended)
+
+
+
+
+                                           R
+                                                                    Lb
+
+
+
+
+                                  Figure L-6 – Search area for a line datum (one end extended)
+
+
+
+
+           L-16                                                                      IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 16                                                                                                  5/20/2016 3:18:34 PM
+                                                               Appendix L – Search planning and evaluation worksheets
+
+
+
+
+                                            R
+
+
+
+
+                                                                   Lb
+
+
+                                 Figure L-7 – Search area for a line datum (both ends extended)
+
+
+
+
+                 IAMSAR MANUAL VOLUME II                                                                        L-17
+
+
+
+
+IF961E.indb 17                                                                                                 5/20/2016 3:18:34 PM
+           Appendix L – Search planning and evaluation worksheets
+
+
+           Effort allocation worksheet for optimal search of a generalized distribution
+
+           Case title 											                                       Case number 			                 Date 
+
+           Datum                                                             
+                           Latitude               Longitude             Time        Total probable error of position (E)
+
+
+           Effort allocation computations		                   Search object 
+
+           1       Total available search effort (Zta)			
+
+           2       Prepare probability map		                                            (Check when done)
+
+           3       Probability map cell size			                                                             ×
+
+           4       Area of one cell of the probability map (a)			
+
+           5	First trial area (A1-t ≈ Zt, a × number of cells in first trial area)		
+
+           6       First trial coverage (C1-t = Zt /A1-t ≈ 1.0)			
+
+           7       First trial POD (POD1-t)            Ideal              Normal           		
+
+           8       First trial POC (POC1-t)			
+
+           9       First trial POS (POS1-t = POC1-t × POD1-t)			
+
+           10      Second trial area (A2-t ≈ 2 × Zt)			
+
+           11      Second trial coverage (C2-t = Zt /A2-t ≈ 0.5)			
+
+           12      Second trial POD (POD2-t)           Ideal              Normal           		
+
+           13      Second trial POC (POC2-t)			
+
+           14      Second trial POS (POS2-t = POC2-t × POD2-t)			
+
+           15      Third trial area (A3-t ≈ 0.67 × Zt)			
+
+           16      Third trial coverage (C3-t = Zt /A3-t ≈ 1.5)			
+
+           17      Third trial POD (POD3-t)            Ideal              Normal           		
+
+           18      Third trial POC (POC3-t)			
+
+           19      Third trial POS (POS3-t = POC3-t × POD3-t)			
+
+           20      Best trial (highest POS)                          Circle one:    1               2               3
+
+           21      Optimal search area (Ao = Total area of best trial rectangle(s))		
+
+           22      Optimal coverage factor (Co = Zta/Ao)			
+
+           23      Optimal track spacing (So = W/Co)			
+
+
+           L-18                                                                           IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 18                                                                                                             5/20/2016 3:18:34 PM
+                                                                   Appendix L – Search planning and evaluation worksheets
+
+
+                 24	Nearest assignable track spacing (S)
+                     (within usable limits of search facility
+                     navigational capability)		
+
+                 25     Adjusted search areas (A = V × S × T)		
+
+                 26 Divide the search area into search sub-areas according to values on line 25
+                 				                                                                             (check when done)
+
+                 27     Go to the Search action plan worksheet.
+
+
+
+
+                 IAMSAR MANUAL VOLUME II                                                                            L-19
+
+
+
+
+IF961E.indb 19                                                                                                     5/20/2016 3:18:34 PM
+           Appendix L – Search planning and evaluation worksheets
+
+
+           Effort allocation worksheet instructions for optimal search
+           of a generalized distribution
+
+           Introduction
+           This Effort allocation worksheet is used to determine the optimal way to allocate the available search effort
+           for a generalized distribution of search object location probabilities. It considers the search effort that several
+           dissimilar search facilities can provide. The worksheet also aids in computing the optimal area to search and
+           the optimum uniform coverage factor. Finally, the worksheet provides guidance for determining the actual
+           search sub-area dimensions for each available search facility. This Worksheet is based on a daylight visual
+           search which does not continue beyond sunset.
+
+
+           Effort allocation computations
+           1       “Total available search effort”      Obtain from line 14 of the Total available search effort worksheet.
+           2       “Prepare probability map”            To plan the first search, prepare a probability map using an
+                                                        appropriate, convenient grid. If an appropriate grid does not
+                                                        already exist, it will be necessary to create one. In either situation,
+                                                        a probability value must be assigned to each grid cell based on the
+                                                        known facts and the search planner’s best judgement. The sum of
+                                                        all cell probabilities on the first probability map should be 100%.
+                                                        See instructions on page M-8.
+                                                        For the second and later searches, ensure cell probabilities have
+                                                        been adjusted for all previous searching and that cell locations,
+                                                        shapes, and sizes reflect the effects of the search object’s probable
+                                                        motion, if any. Appendix M contains instructions for preparing
+                                                        probability maps.
+           3       “Probability map cell size”          Record the dimensions of one cell of the probability map.
+           4       “Area of one cell of the             Multiply the dimensions recorded on line 3 and record the result.
+                   probability map”
+           5       “First trial area”                   Plot one or more rectangles whose total area is approximately equal
+                                                        to the total available search effort from line 1 on the probability
+                                                        map. The size, shape, and placement of the rectangle(s) should be
+                                                        that which maximizes the amount of probability contained in the
+                                                        rectangle(s). If desired, the rectangle(s) may be adjusted so a whole
+                                                        number of cells is covered. Compute the actual total area of the
+                                                        plotted rectangle(s) and enter it on this line.
+           6       “First trial coverage”               Divide the total available effort from line 1 by the first trial area
+                                                        from line 5 and record the result.
+           7       “First trial POD”                    Indicate with a check mark whether search conditions are ideal or
+                                                        normal. Use the appropriate curve from figure N-10 to determine
+                                                        the POD and record the result on this line.
+           8       “First trial POC”                    Using the probability map, add the probabilities of all the cells
+                                                        and portions of cells contained in the first trial area and record the
+                                                        result.
+           9       “First trial POS”                    Multiply the first trial POD from line 7 by the first trial POC from
+                                                        line 8 and record the result.
+
+
+
+
+           L-20                                                                             IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 20                                                                                                                    5/20/2016 3:18:34 PM
+

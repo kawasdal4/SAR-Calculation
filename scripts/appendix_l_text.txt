@@ -1,0 +1,2455 @@
+           Appendix L – Search planning and evaluation worksheets
+
+
+           Effort allocation worksheet instructions for optimal search
+           of a generalized distribution
+
+           Introduction
+           This Effort allocation worksheet is used to determine the optimal way to allocate the available search effort
+           for a generalized distribution of search object location probabilities. It considers the search effort that several
+           dissimilar search facilities can provide. The worksheet also aids in computing the optimal area to search and
+           the optimum uniform coverage factor. Finally, the worksheet provides guidance for determining the actual
+           search sub-area dimensions for each available search facility. This Worksheet is based on a daylight visual
+           search which does not continue beyond sunset.
+
+
+           Effort allocation computations
+           1       “Total available search effort”      Obtain from line 14 of the Total available search effort worksheet.
+           2       “Prepare probability map”            To plan the first search, prepare a probability map using an
+                                                        appropriate, convenient grid. If an appropriate grid does not
+                                                        already exist, it will be necessary to create one. In either situation,
+                                                        a probability value must be assigned to each grid cell based on the
+                                                        known facts and the search planner’s best judgement. The sum of
+                                                        all cell probabilities on the first probability map should be 100%.
+                                                        See instructions on page M-8.
+                                                        For the second and later searches, ensure cell probabilities have
+                                                        been adjusted for all previous searching and that cell locations,
+                                                        shapes, and sizes reflect the effects of the search object’s probable
+                                                        motion, if any. Appendix M contains instructions for preparing
+                                                        probability maps.
+           3       “Probability map cell size”          Record the dimensions of one cell of the probability map.
+           4       “Area of one cell of the             Multiply the dimensions recorded on line 3 and record the result.
+                   probability map”
+           5       “First trial area”                   Plot one or more rectangles whose total area is approximately equal
+                                                        to the total available search effort from line 1 on the probability
+                                                        map. The size, shape, and placement of the rectangle(s) should be
+                                                        that which maximizes the amount of probability contained in the
+                                                        rectangle(s). If desired, the rectangle(s) may be adjusted so a whole
+                                                        number of cells is covered. Compute the actual total area of the
+                                                        plotted rectangle(s) and enter it on this line.
+           6       “First trial coverage”               Divide the total available effort from line 1 by the first trial area
+                                                        from line 5 and record the result.
+           7       “First trial POD”                    Indicate with a check mark whether search conditions are ideal or
+                                                        normal. Use the appropriate curve from figure N-10 to determine
+                                                        the POD and record the result on this line.
+           8       “First trial POC”                    Using the probability map, add the probabilities of all the cells
+                                                        and portions of cells contained in the first trial area and record the
+                                                        result.
+           9       “First trial POS”                    Multiply the first trial POD from line 7 by the first trial POC from
+                                                        line 8 and record the result.
+
+
+
+
+           L-20                                                                             IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 20                                                                                                                    5/20/2016 3:18:34 PM
+                                                               Appendix L – Search planning and evaluation worksheets
+
+
+
+                 10    “Second trial area”         Plot one or more rectangles whose total area is approximately
+                                                   equal to twice the total available search effort from line 1 on the
+                                                   probability map. The size, shape, and placement of the rectangle(s)
+                                                   should be that which maximizes the amount of probability
+                                                   contained in the rectangle(s). If desired, the rectangle(s) may be
+                                                   adjusted so a whole number of cells is covered. Compute the
+                                                   actual total area of the plotted rectangle(s) and enter it on this line.
+                 11    “Second trial coverage”     Divide the total available effort from line 1 by the second trial area
+                                                   from line 10 and record the result.
+                 12    “Second trial POD”          Indicate with a check mark whether search conditions are ideal or
+                                                   normal. Use the appropriate curve from figure N-10 to determine
+                                                   the POD and record the result on this line.
+                 13    “Second trial POC”          Using the probability map, add the probabilities of all the cells and
+                                                   portions of cells contained in the second trial area and record the
+                                                   result.
+                 14    “Second trial POS”          Multiply the second trial POD from line 12 by the second trial
+                                                   POC from line 13 and record the result.
+                 15    “Third trial area”          Plot one or more rectangles whose total area is approximately
+                                                   equal to two-thirds of the total available search effort from line 1
+                                                   on the probability map. The size, shape, and placement of the
+                                                   rectangle(s) should be that which maximizes the amount of
+                                                   probability contained in the rectangle(s). If desired, the rectangle(s)
+                                                   may be adjusted so a whole number of cells is covered. Compute
+                                                   the actual total area of the plotted rectangle(s) and enter it on this
+                                                   line.
+                 16    “Third trial coverage”      Divide the total available effort from line 1 by the third trial area
+                                                   from line 15 and record the result.
+                 17    “Third trial POD”           Indicate with a check mark whether search conditions are ideal or
+                                                   normal. Use the appropriate curve from figure N-10 to determine
+                                                   the POD and record the result on this line.
+                 18    “Third trial POC”           Using the probability map, add the probabilities of all the cells and
+                                                   portions of cells contained in the third trial area and record the
+                                                   result.
+                 19    “Third trial POS”           Multiply the third trial POD from line 17 by the third trial POC
+                                                   from line 18 and record the result.
+                 20    “Best trial”                Compare the trial POS values on lines 9, 14, and 19. Circle the
+                                                   number (1, 2, or 3) corresponding to the trial having the highest
+                                                   POS.
+                 21    “Optimal search area”       Record the area corresponding to the trial circled on line 20.
+                 22    “Optimal coverage factor”   Divide the total available search effort from line 1 by the optimal
+                                                   search area on line 21.
+                 23    “Optimal track spacing”     Divide the corrected sweep widths (W) from line 12 of the Total
+                                                   available search effort worksheet by the optimal coverage factor
+                                                   (Co) from line 22.
+                 24    “Nearest assignable track   Round the optimal track spacing on line 23 to a value that the
+                        spacing”                   corresponding search facility can navigate safely and accurately.
+
+
+
+
+                 IAMSAR MANUAL VOLUME II                                                                             L-21
+
+
+
+
+IF961E.indb 21                                                                                                       5/20/2016 3:18:35 PM
+           Appendix L – Search planning and evaluation worksheets
+
+
+
+           25      “Adjusted search areas”            Multiply the search facility’s speed from line 3 of the Total Available
+                                                      search effort worksheet by the search facility’s endurance from
+                                                      line 6 of the Total available search effort worksheet and multiply
+                                                      the result by the nearest assignable track spacing from line 24 of
+                                                      this worksheet. Stated as a formula, A = V × T × S. Figure N-9
+                                                      may also be used to find the adjusted search areas.
+
+           26	Using the adjusted search areas from line 25 and a suitable chart, plot corresponding search sub-areas
+               to fill the rectangle(s) corresponding to the best trial from line 20 as nearly as possible. Use the
+               following guidelines:
+                   (a)   The width of each search sub-area must be a whole number of track spacings. Some adjustment
+                         of track spacings may be made, but care must be taken to ensure all track spacings remain within
+                         the usable limits of search facility navigational capability.
+                   (b)   The search legs should be parallel to the search object’s anticipated direction of movement
+                         during the search.
+                   (c)   For fixed-wing aircraft, search legs should require about 30 minutes flying time. For rotary-wing
+                         aircraft, search legs should require about 20 minutes flying time.
+            Note: POS values tend to be very stable near the point of perfectly optimal effort allocation. This
+           	
+            allows the search planner the freedom needed to adapt the theoretically optimal allocation of effort
+            to the realities imposed by the environment and the capabilities of the search facilities. Normally, the
+            small changes from the nearly optimal values indicated in line 25 for the purpose of developing a
+            practical search plan will not have a large impact on search effectiveness (POS). Therefore, the search
+            planner may make such changes with confidence.
+           27	Go to the Search action plan worksheet, where the plotted search sub-areas of line 26 will be
+               specified in one of the standard formats (methods) such as the corner-point method. The search
+               action plan will also provide all necessary co-ordination instructions, such as assigning specific search
+               facilities to specific sub-areas, search patterns, altitudes to each aircraft search facility, commence
+               search points, direction of creep (for parallel sweep and creeping line search patterns), etc.
+
+
+
+
+           L-22                                                                           IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 22                                                                                                                  5/20/2016 3:18:35 PM
+                                                                         Appendix L – Search planning and evaluation worksheets
+
+
+                 Search action plan worksheet
+
+                 Search action plan message
+                 (Precedence and date/time group of the message)
+                 FROM (RCC or RSC responsible for the search)
+                 TO (All agencies/facilities tasked with conducting the search)
+                 INFO (Agencies concerned, but not participating, in the search)
+                 BT
+
+                 (Emergency Phase, i.e., DISTRESS, ALERT, UNCERTAINTY), (Identification of the search object, e.g., M/V
+                 NEVERSEEN) (Two-letter abbreviation for the flag of the search object, e.g., (PN)) (One or two word description
+                 of the SAR cause, e.g., UNREPORTED, SUNK, DITCHED, etc.), (General description of the search location,
+                 e.g., GULF OF OMAN, CABO SAN ANTONIO TO KEY WEST, etc.)
+
+                 SEARCH ACTION PLAN FOR (Date)
+
+                 A       (References)
+
+                 1       SITUATION:
+                 A 	SUMMARY: (A brief summary of the case, without repeating information previously provided to all
+                     addressees.)
+
+                 B 	DESCRIPTION: (Description of the missing craft, e.g., MOTOR VESSEL, 150 METRES, BLACK HULL,
+                     WHITE SUPERSTRUCTURE AFT)
+
+                 C       PERSONS ON BOARD: (Number)
+
+                 D       SEARCH OBJECTS:
+
+                                    (Description of the primary search object, e.g., 8-PERSON ORANGE LIFERAFT WITH
+                         PRIMARY:			
+                                    CANOPY)
+
+                         SECONDARY: 	(Description of secondary search object(s), e.g., POSSIBLE SURVIVORS IN WATER,
+                                      WRECKAGE/DEBRIS, 121.5 MHZ EPIRB, MIRROR FLASH, ORANGE SMOKE, FLARES)
+
+                 E	ON-SCENE WEATHER FORECAST PERIOD (date/time) TO (date/time): CEILING (in feet, with cloud
+                    cover, e.g., 8000 OVERCAST), VISIBILITY (in nautical miles), WIND (direction from which the wind
+                    is blowing in degrees true/speed in knots, e.g., 190T/30KTS), SEAS (direction from which the seas are
+                    coming in degrees true/height range and unit of measure, e.g., 210T/3-6 FEET)
+
+                 2       ACTION:
+                 A       (Specific tasking for a particular SAR agency or facility)
+
+                 B       (A separate subparagraph should be used for each agency or facility participating in the search)
+
+                 3       SEARCH AREAS (READ IN TWO COLUMNS):
+                         AREA CORNER POINTS
+
+                 (Search area designations may follow a “Letter hyphen number” format, e.g., A-4, C-1. The first day’s searches
+                 use the letter “A” and are sequentially numbered, the second day’s searches use the letter “B”, and so forth.)
+                 (Corner points are given in degrees and minutes of latitude and longitude, e.g., 38-52.0N 077-14.0W. Usually,
+                 search areas are rectangular with the four corner points listed in clockwise order.)
+
+
+                 IAMSAR MANUAL VOLUME II                                                                                    L-23
+
+
+
+
+IF961E.indb 23                                                                                                              5/20/2016 3:18:35 PM
+           Appendix L – Search planning and evaluation worksheets
+
+
+           4       EXECUTION (READ IN SEVEN COLUMNS. ALTITUDES IN FEET):
+                               SAR                                                         COMMENCE
+                   AREA        FACILITY        LOCATION         PATTERN           CREEP    SEARCH POINT        ALT
+
+
+           (Search area designations will be identical to those specified in paragraph 3 of the Search Action Plan
+           message: (SAR facility identification) (Home base or location from which each SAR facility is operating) (Letter
+           abbreviation for the desired search pattern, found in section 5.5 of this volume) (Direction towards which
+           the search facility will move as it completes successive legs of the search) (Latitude and longitude of the point
+           where the search of each area is to begin) (The search altitude, in feet. For ships this will be “SURFACE”)) #A
+           complete example follows:
+                                                                                             15-00.0N
+                   B-1        ATLANTIQUE          MARTINIQUE         PS             225T     64-00.9W           1000
+
+
+           5       CO-ORDINATION INSTRUCTIONS:
+           A       (The SMC should be identified)
+           B       (If two or more search facilities will be used, an on-scene co-ordinator should be designated)
+           C       (The time that the search is to begin should be specified)
+             (The desired track spacing should be specified. The maximum search speed for aircraft should be
+           D	
+             given; for fixed-wing aircraft, a maximum of 150 knots is recommended.)
+             (OSC authorizations, responsibilities, and instructions should be clearly specified. See the sample
+           E	
+             message on the next page for examples.)
+           F       (Other co-ordinating instructions as needed)
+
+           6       COMMUNICATIONS:
+           A CONTROL CHANNEL		PRIMARY		SECONDARY
+           					HF:				       (NNNN) KHZ USB (NNNN) KHZ USB
+           B ON-SCENE FREQUENCIES                     PRIMARY		     SECONDARY
+           					HF:				                               (NNNN) KHZ		  (2182) KHZ
+           					VHF-AM:		                             (NNN.N) MHZ		 (121.5) MHZ
+           					VHF-FM:		                             CH (NN)		 CH (16)
+           					UHF-AM		                              (NNN.N) MHZ		 (243.0) MHZ
+           C AIR/GROUND FREQUENCIES PRIMARY		    SECONDARY
+           					HF:				             (NNNN) KHZ		 (NNNN) KHZ
+           					VHF-FM		            CH (NN)		 CH (NN)
+           D AIR/AIR FREQUENCIES		PRIMARY		SECONDARY
+           					UHF-AM:		         (NNN.N) MHZ		 (243.0) MHZ
+
+           7       REPORTS:
+           A       (Instructions to the OSC about the desired times for submitting SITREPs)
+           B       (Reporting instructions for participating search facilities)
+           C       (Reporting instructions for parent activities of search facilities)
+           D       (See the sample message on the next page for examples)
+           BT
+
+
+
+           L-24                                                                           IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 24                                                                                                                 5/20/2016 3:18:35 PM
+                                                         Appendix L – Search planning and evaluation worksheets
+
+
+                 Sample search action plan message
+                 FROM SANJUANSARCOORD SAN JUAN PUERTO RICO
+                 TO COGARD AIRSTA BORINQUEN PUERTO RICO//OPS//
+                 MARINE FORT DE FRANCE MARTINIQUE//MRCC//
+                 RCC CURACAO NETHERLANDS ANTILLES
+                 INFO CCGDSEVEN MIAMI FLORIDA//CC/OSR//
+                 MRCC ETEL
+                 RCC LA GUIRA VENEZUELA
+                 ATC SAN JUAN PUERTO RICO
+                 BT
+
+                 ATTN:	  COMMAND DUTY OFFICER
+                 DISTRESS N999EJ (US) DITCHED - EASTERN CARIBBEAN
+                 SEARCH ACTION PLAN FOR 17 SEPTEMBER 1996
+                 A     TELCON LTJG BASS/LT LAFAYETTE (MARTINIQUE) 162115Z SEP 96
+                 B     TELCON LTJG BASS/LTC VAN SMOOT (CURACAO) 162130Z SEP 96
+                 C     TELCON LTJG BASS/MR. C. SMITH 162145Z SEP 96 (ATC SAN JUAN)
+                 1     SITUATION:
+                 A	SUMMARY: N999EJ (US REGISTERED) EN ROUTE FROM PORT OF SPAIN TRINIDAD
+                    TO AGUADILLA PUERTO RICO REPORTED ENGINE FAILURE AND DESCENDING
+                    THROUGH 5000 FEET IN POSITION 14-20N 64-20W AT 152200Z WITH INTENTIONS
+                    TO DITCH. NIGHT FLARE SEARCHES 15 AND 16 SEP AND DAY SEARCH 16 SEP.
+                    NEGATIVE SIGHTINGS.
+                 B     DESCRIPTION: CESSNA CITATION III, WHITE WITH BLUE TRIM.
+                 C     PERSONS ON BOARD: 4
+                 D     SEARCH OBJECTS:
+                 PRIMARY:           8-PERSON ORANGE RAFT WITH CANOPY.
+                 SECONDARY: 	POSSIBLE SURVIVORS IN WATER, WRECKAGE/DEBRIS, 121.5 MHZ
+                              ELT, MIRROR FLASH, ORANGE SMOKE, FLARES.
+                 E	ON-SCENE WEATHER FORECAST PERIOD 171200Z TO 172400Z: CEILING 8000
+                    BROKEN, VISIBILITY 16 NM, WIND 190T/30KTS, SEAS 300T/3-6 FEET.
+                 2     ACTION:
+                 A	AS PER REFERENCE A, REQUEST MRCC FORT DE FRANCE PROVIDE ATLANTIQUE
+                    AIRCRAFT TO SEARCH SUB-AREA C-1.
+                 B	HERCULES CGNR 1742, CALL SIGN RESCUE 1742, SEARCH SUB-AREA C-2 AND
+                    ASSUME OSC DUTIES.
+                 C	AS PER REFERENCE B, REQUEST RCC CURACAO PROVIDE ORION AIRCRAFT TO
+                    SEARCH SUB-AREA C-3.
+                 3     SEARCH AREA (READ IN TWO COLUMNS):
+                 AREA	  CORNER POINTS
+                 C-1	 15-46.7N 65-13.1W, 15-59.4N 65-00.0W, 15-00.0N 63-58.8W, 14-47.3N 64-11.9W
+                 C-2	 15-23.4N 65-37.0W, 15-46.7N 65-13.1W, 14-47.3N 64-11.9W, 14-24.0N 64-35.8W
+                 C-3 	  15-00.0N 66-01.0W, 15-23.4N 65-37.0W, 14-24.0N 64-35.8W, 14-00.6N 65-00.0W
+
+
+
+                 IAMSAR MANUAL VOLUME II                                                                 L-25
+
+
+
+
+IF961E.indb 25                                                                                           5/20/2016 3:18:35 PM
+           Appendix L – Search planning and evaluation worksheets
+
+
+           4       EXECUTION (READ IN SEVEN COLUMNS. ALTITUDES IN FEET):
+                            SAR                                                  COMMENCE
+                   AREA     FACILITY          LOCATION         PATTERN   CREEP   SEARCH POINT   ALT
+                   C-1      ATLANTIQUE MARTINIQUE PS                     225T    15-00.0N       1000
+                                                                                 64-00.9W
+                   C-2      HERCULES          PUERTO RICO PS             225T    15-44.6N        500
+                                                                                 65-13.1W
+                   C-3      ORION             CURACAO          PS        225T    15-21.3N       1000
+                                                                                 65-37.0W
+           5       CO-ORDINATION INSTRUCTIONS:
+           A       SAN JUAN SAR COORDINATOR IS SMC.
+           B       HERCULES CGNR 1742, CALL SIGN RESCUE 1742, DESIGNATED OSC.
+           C       COMMENCE SEARCH TIME IS 170800Q.
+           D       TRACK SPACING 3 NM DESIRED. MAXIMUM SEARCH SPEED 150 KNOTS.
+           E	OSC AUTHORIZED TO ALTER SEARCH PLAN AS NECESSARY BASED ON SITUATION
+              ON-SCENE PROVIDED SMC IS KEPT FULLY INFORMED. ORDER OF SEARCH
+              PRIORITY IS C-2, C-1, C-3 IF UNABLE TO COVER ALL SUB-AREAS. ENSURE
+              ALTITUDE SEPARATION MAINTAINED FOR ALL AIRCRAFT. OSC DEPLOY DATUM
+              MARKER BUOY (DMB). DATUM FOR THIS SEARCH IS 15-00N 65-00W. ENSURE
+              FREQUENCY SEPARATION FROM ANY PREVIOUSLY DEPLOYED DMBS. ENSURE DMB
+              OPERATING PROPERLY. RELOCATE ALL DEPLOYED DMBS WHEN ENTERING AND
+              DEPARTING SEARCH AREAS. OSC PASS EXACT TIME OF INSERTION/RELOCATION
+              AND POSITION TO SMC VIA FASTEST MEANS.
+           F	AS PER REFERENCE C, SAN JUAN CENTER APPROVED SAR OPERATIONS WARNING
+              AREA TO 6000 FT FROM 14-00N TO 16-00N BETWEEN 64-00W AND 66-00W.
+           G       AIRCRAFT CHECK IN WITH OSC UPON ARRIVAL IN SEARCH AREA, CHECK OUT
+                   
+                   WITH OSC AND CHECK IN WITH SAN JUAN CENTER UPON DEPARTING SEARCH
+                   AREA.
+           H	
+             ONE AIRCRAFT CARRYING PRESS AUTHORIZED IN SAR WARNING AREA.
+             IDENTIFICATION N-1768-C. PRESS AIRCRAFT DIRECTED TO CONTACT OSC
+             PRIOR TO ENTERING SAR WARNING AREA.
+           6       COMMUNICATIONS:
+           A CONTROL CHANNEL			PRIMARY		SECONDARY
+           		          HF:			  5680 KHZ USB 8983 KHZ USB
+           B ON-SCENE FREQUENCIES		PRIMARY		SECONDARY
+           		          HF:			5680 KHZ		2182 KHZ
+           		          VHF-AM:		123.1 MHZ		282.8 MHZ
+           		          VHF-FM:		CH 81A		CH 16
+           		          UHF-AM			282.8 MHZ		243.0 MHZ
+           C AIR/GROUND FREQUENCIES PRIMARY		 SECONDARY
+           		          HF:			5696 KHZ		8983 KHZ
+           		          VHF-FM			CH 23A		CH 16
+           D AIR/AIR FREQUENCIES		PRIMARY		SECONDARY
+           		          UHF-AM:		381.8 MHZ		243.0 MHZ
+           E       PRESS CHANNEL AT OSC DISCRETION
+
+
+           L-26                                                                 IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 26                                                                                             5/20/2016 3:18:35 PM
+                                                     Appendix L – Search planning and evaluation worksheets
+
+
+                 7     REPORTS:
+                 A	OSC SEND SITREP TO SMC UPON ARRIVAL ON-SCENE THEN HOURLY THEREAFTER.
+                    INCLUDE WEATHER IN ALL SITREPS.
+                 B	ALL PARTICIPATING SEARCH CRAFT PASS ON-SCENE WEATHER TO OSC HOURLY
+                    OR WHEN CONDITIONS CHANGE. OSC COLLATE WEATHER DATA AND RESOLVE ANY
+                    DISCREPANCIES IN OBSERVATIONS PRIOR TO REPORTING TO SMC. REPORT ALL
+                    SIGHTINGS IMMEDIATELY.
+                 C	PARENT ACTIVITIES NOTIFY SMC WHEN AIRCRAFT DEPART. ALSO NOTIFY SMC
+                    AS SOON AS POSSIBLE OF ANY DEPARTURE THAT IS TO BE DELAYED BY MORE
+                    THAN 30 MINUTES.
+                 D	AT END OF DAYS OPERATIONS, SEARCH FACILITIES OR PARENT ACTIVITIES
+                    REPORT TO SMC BY MESSAGE THE NUMBER OF SORTIES, TIMES OF ON-SCENE
+                    ARRIVAL AND DEPARTURE, HOURS FLOWN, HOURS SEARCHED, AREA SEARCHED
+                    (SQUARE NAUTICAL MILES), ACTUAL TRACK SPACING, ACTUAL SEARCH ALTITUDE,
+                    CORNER POINTS OF ACTUAL AREA COVERED IF DIFFERENT FROM ASSIGNED
+                    SUB-AREA, ANY MODIFICATIONS TO SUB-AREA ASSIGNED, AND OBSERVED
+                    NAVIGATION ERRORS BETWEEN FIXES. SEND REPORTS VIA MOST RAPID MEANS.
+                 BT
+
+
+
+
+                 IAMSAR MANUAL VOLUME II                                                             L-27
+
+
+
+
+IF961E.indb 27                                                                                       5/20/2016 3:18:35 PM
+           Appendix L – Search planning and evaluation worksheets
+
+
+           Search evaluation worksheet for updating probability maps
+           and computing POS and POSc
+
+           Search evaluation computations
+           1       Search sub-area designation		
+
+           2       Search facility assigned		
+
+           3       Standard probability map (A – J), if used			
+
+           4       Probability map cell size			                                                              ×
+
+           5       Map or chart scale (such as 1 inch = 5 nautical miles)
+                   used for the probability map			                                                           =
+
+           6       Total starting POC (POCt-old)			
+
+           7       Plot search sub-areas on the probability map                    (Check when done)
+
+           8       Actual sweep widths (W)		
+
+           9       Actual track spacings (S)		
+
+           10      Coverage factors (C = W/S)		
+
+           11      Probabilities of detection (PODs)		
+                   (Circle “I” for ideal or “P” for poor search conditions)   I   P		 I   P		 I   P 		 I   P		 I   P
+
+           12      POC update multipliers (MPOC = 1 – POD)		
+
+           13      Update POCs for grid cells in search sub-areas
+                   (POCnew = MPOC × POCold)                                       (Check when done)
+
+           14      Total probability of containment after searching (POCt-new)		
+
+           15      Probability of success (POS = POCt-old – POCt-new)			
+
+           16      Cumulative probability of success (POSc = previous POSc + POS)		
+
+
+
+
+           L-28                                                                              IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 28                                                                                                          5/20/2016 3:18:35 PM
+                                                                         Appendix L – Search planning and evaluation worksheets
+
+
+                 Search evaluation worksheet instructions
+
+                 Introduction
+                 The results of each search must be evaluated before the next search for the survivors is planned. Even if
+                 nothing is found by the search facilities, the fact that a sub-area was searched changes the search planner’s
+                 estimate of the survivors’ most probable location. The procedure described below allows the search planner
+                 to update the probability map so it accurately reflects the search results. It also allows the search planner to
+                 compute the probability of success for each search and the cumulative probability of success for all searches
+                 done to date.
+
+                 1       “Search sub-area                    Use standard sub-area designators, such as A-1, B-3, etc.
+                         designation”
+
+                 2       “Search unit assigned”              List type of search facility, agency or owner, and call sign, if known.
+
+                 3       “Standard probability map”          For point or line datums, enter the letter from line 5 of the Preparing
+                                                             initial probability maps worksheet. For area datums, leave blank.
+
+                 4       “Probability map cell size”         Enter the length and width of a cell. (It is assumed that all cells
+                                                             have the same dimensions and are therefore the same size as one
+                                                             another.) For point datums, cells are usually square and the cell
+                                                             width may be found on line 6 of the Preparing probability maps
+                                                             for point datums worksheet. For line datums, the cell width is
+                                                             also found on line 6 while the cell length is found on line 8 of
+                                                             the Preparing initial probability maps for line datums worksheet
+                                                             (page M-4).
+
+                 5       “Map or chart scale”                Enter the scale of miles (or other measure) for the probability map
+                                                             if it is not plotted on a map or chart overlay. Otherwise, enter the
+                                                             scale of the chart or map for which the overlay was prepared.
+                                                             For point datums, the scale appears on line 7 of the Preparing
+                                                             probability maps for point datums worksheet.
+
+                 6       “Total starting POC”                Add the POC values from all the grid cells contained in the
+                                                             probability map. If no searching has been done, then the total
+                                                             starting POC should be 100%.
+
+                 7       “Plot search sub-areas”             Using the scale from line 5, plot the search sub-areas on the
+                                                             probability map.
+
+                 8       “Actual sweep widths”               Using each search facility’s reported on-scene conditions,
+                                                             re-compute the sweep width for that facility’s search sub-area.
+
+                 9       “Actual track spacings”             For each search facility, enter the actual track spacing used,
+                                                             including any adjustments made by the SMC, OSC or search
+                                                             facility.
+
+                 10      “Actual coverage factors”           Divide line 8 by line 9.
+
+                 11      “Probabilities of detection”        Using the coverage factors in line 10 and figure N-10, enter the
+                                                             POD for each sub-area. Be sure to use the correct curve (“Ideal” or
+                                                             “Poor”) depending on the search conditions at the scene.
+
+                 12      “POC update multipliers”            Subtract each of the PODs in line 11 from 1.0 (100%).
+
+
+
+
+                 IAMSAR MANUAL VOLUME II                                                                                      L-29
+
+
+
+
+IF961E.indb 29                                                                                                                5/20/2016 3:18:35 PM
+           Appendix L – Search planning and evaluation worksheets
+
+
+           13      “Update POCs”                     For each cell or portion of a cell actually searched, multiply the
+                                                     last computed POC in that cell or portion of the cell by the POC
+                                                     multiplier from line 12 for the sub-area containing the cell or
+                                                     portion. Record the POCnew for that cell on a fresh probability
+                                                     map. Complete the new probability map by copying the POC
+                                                     values for the remaining (un-searched) cells from the previous
+                                                     probability map. See the note at the end of these instructions for
+                                                     proper handling of partially covered cells.
+           14      “Total POC after searching”       Add the POC values from all cells on the new probability map to
+                                                     get the total probability of containment remaining after the latest
+                                                     search.
+           15      “Probability of success”          Subtract line 14 from line 6.
+           16      “Cumulative probability of        Add the POS on line 15 to the sum of all previous POS values. (In
+                   success”                          other words, add this POS to the previous POSc value.) For point
+                                                     and line datums, if the optimal search recommendations have been
+                                                     followed, then the value of POSc computed here should be close
+                                                     to that estimated from the appropriate Cumulative POS graph. For
+                                                     point datums, the Cumulative POS graph is figure N-11; for line
+                                                     datums, the Cumulative POS Graph is figure N-12.
+
+            Note: If a cell is only partially contained in a search sub-area, assume the probability in the cell
+           	
+            is uniformly distributed and include the appropriate fraction of its value in the POC and POS
+            computations. For example, if one-third of a cell’s area is contained in the search sub-area and the
+            POC value for the whole cell is 6%, then the POC for the portion inside the search sub-area is 2% and
+            the POC for the portion outside is 4%. If the POD for that search sub-area is 50%, then the adjusted
+            POC for the portion inside the search sub-area is:
+                        POC1/3-new = POD × POC1/3-old
+                   or
+                        POC1/3-new = 0.50 × 0.02 = 0.01 or 1%
+
+           	To get the POCnew value for the entire cell, it is necessary to add the value just computed (1%) to the
+             POC of the unsearched portion (4%) to get the correct value of 5%. That is, for the cell as a whole:
+                        POCnew = POC1/3-new + POC2/3-old
+                   or
+                        POCnew = 0.01 + 0.04 = 0.05 or 5%
+           	If the cell was divided between two or more search sub-areas having different PODs, then each
+             portion must be updated separately and the resulting POCnew for the cell computed as the sum of the
+             POCnew values for each portion.
+           	If many cells on a probability map are only partially covered, the need for computations like those
+             illustrated above can substantially increase the computational burden on the search planner. Whenever
+             possible, probability maps and search sub-areas should be adjusted so the number of cells only
+             partially covered is minimized.
+
+
+
+
+           L-30                                                                        IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 30                                                                                                             5/20/2016 3:18:35 PM
+                Appendix M
+                Preparing initial probability maps
+
+                Preparing initial probability maps for single point datums. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .                          M-1
+                Preparing initial probability maps for single point datums instructions . . . . . . . . . . . . . . . . . . . . . . .                                M-2
+                Preparing initial probability maps for line datums. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .                      M-4
+                Preparing initial probability maps for line datums instructions . . . . . . . . . . . . . . . . . . . . . . . . . . . . .                            M-5
+                Preparing initial probability maps for area datums with uniform distribution
+                instructions. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .    M-7
+                Preparing initial probability maps for area datums with a generalized
+                distribution instructions. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .         M-8
+                Grid finder. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .     M-9
+                Point datum grids . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .       M-11
+                Probability cross-sections for line datums . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .                  M-21
+
+
+
+
+                IAMSAR MANUAL VOLUME II                                                                                                                              M-i
+
+
+
+
+IF961E.indb 1                                                                                                                                                       5/20/2016 3:18:36 PM
+IF961E.indb 2   5/20/2016 3:18:36 PM
+                Preparing initial probability maps for single point datums
+
+                Case title 											                                    Planner’s name 			 Date 
+                Datum                                                         
+                              Latitude               Longitude            Time       Total probable error of position (E)
+
+
+                Computation of probability map parameters		                      Search object 
+
+                1     Total probable error of position (E)
+                      (from line H.2 of the Datum worksheet)			
+
+                2     Adjusted search area width
+                      (from line 14.b of the Effort allocation worksheet)			
+
+                3     Adjusted search radius (Ra = Width/2.0)			
+
+                4     Adjusted search factor (fsa = Ra /E)			
+
+                5     Standard probability map (A – J)
+                      (from table M-1)			
+
+                6     Cell width
+                      (from table M-2)			
+
+                7     Probability map scale                                                        =
+
+                8     Record the total probable error of position, scale,
+                      and cell width on a copy of the selected standard
+                      probability map.                                           Check when done
+
+                9     Plot the probability map on an appropriate
+                      map or chart, using the correct scale.                     Check when done
+
+
+
+
+                IAMSAR MANUAL VOLUME II                                                                                    M-1
+
+
+
+
+IF961E.indb 1                                                                                                          5/20/2016 3:18:36 PM
+           Appendix M – Preparing initial probability maps
+
+
+           Preparing initial probability maps for single point datums instructions
+
+           Introduction
+           Before the results of the first search can be fully evaluated, a probability map must be prepared. The following
+           steps describe how to prepare an initial probability map for a point datum using the standard point datum
+           probability maps in this appendix. (Full evaluation of the second and later searches depends on keeping the
+           probability map updated to reflect all searching that has been done and any search object motion that has been
+           estimated. Procedures for updating probability maps are provided with the Search evaluation worksheet.)
+           There are two methods for preparing point datum probability maps. The first and simplest method is to deter-
+           mine which of the standard probability maps is best for the situation and make a photocopy for direct use.
+           The disadvantage is that the search planner must determine the appropriate scale (miles per inch, kilometres
+           per centimetre, etc.) to use for plotting information on the probability map. Search sub-areas and any other
+           important geographic information must be properly scaled and plotted on the probability map for it to be
+           useful.
+
+           The second, and preferred, method is to plot a similar grid, drawn to the proper scale, on a tracing paper or
+           plastic overlay for the map or chart being used to plan the search. The advantage of doing this is that, apart
+           from plotting the grid and entering the POC values in the appropriate cells, all other geographic information
+           is either already on the chart or would normally be plotted on an overlay (such as search sub-areas).
+
+           1       “Total probable error of position” Enter the total probable error of position (E) from line H.2 of the
+                                                      Datum worksheet.
+           2       “Adjusted search area width”        Enter the width of the adjusted search area from line 14.b of the
+                                                       Effort allocation worksheet.
+           3       “Adjusted search radius”            Divide line 2 by 2.0 and enter the result.
+           4       “Adjusted search factor”            Divide line 3 by line 1 and record the result.
+           5       “Standard probability map”          Enter table M-1 in with the adjusted search factor from line 4, find
+                                                       the nearest value in the first column and enter the letter which
+                                                       appears in the second column. If more than one letter appears,
+                                                       choose one of the alternatives. Usually, the first letter will be the
+                                                       best choice. When the adjusted search factor is the same as the
+                                                       search factor in column 1, the width of the adjusted search area
+                                                       will correspond to a whole number of cell widths.
+           6       “Cell width”                        Enter table M-2 with the letter from line 5, perform the multiplica-
+                                                       tion indicated in column 2, and record the result.
+           7       “Probability map scale”             Enter the scale of miles (or other measure). All of the grids printed
+                                                       in this volume are based on a scale of:
+                                                             Two centimetres = E nautical miles or
+                                                             One centimetre = E/2 nautical miles
+
+                                                       Other scales are:
+                                                           One inch = 1.27 × E nautical miles
+                                                       and
+                                                           One centimetre = 0.926 × E kilometres.
+
+
+           8	For direct use, select the probability map indicated by the letter on line 5 from this appendix, make a
+              working copy, and record the total probable error of position (E), cell width, and scale on the working
+              copy.
+
+
+           M-2                                                                            IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 2                                                                                                                  5/20/2016 3:18:36 PM
+                                                                                Appendix M – Preparing initial probability maps
+
+
+                9	To plot the probability map on an overlay for the chart or map being used to plan the search, follow
+                   these steps:
+                       (a)   Draw a circle, centred on the datum point for the first search, with a radius of 3.0 × E.
+                       (b)   Draw (circumscribe) a square around the circle so its sides are parallel to those of the adjusted
+                             first search area.
+                       (c)   Divide the square into the same number of cells as the selected standard probability map which
+                             corresponds to the letter on line 5.
+                       (d)   Enter the probability of containment value for each cell from the corresponding cell of the
+                             selected standard probability map.
+                       The probability map is now ready for use in evaluating the first search.
+
+
+
+
+                IAMSAR MANUAL VOLUME II                                                                                  M-3
+
+
+
+
+IF961E.indb 3                                                                                                            5/20/2016 3:18:36 PM
+           Appendix M – Preparing initial probability maps
+
+
+           Preparing initial probability maps for line datums
+           Case title 											                                    Planner’s name 			 Date 
+           Datum                                                         
+                           Latitude               Longitude          Time       Total probable error of position (E)
+
+
+           Computation of probability map parameters		                      Search object 
+
+           1       Total probable error of position (E)
+                   (from line H.2 of the Datum worksheet)			
+
+           2       Adjusted search area dimensions
+                   (from line 14.b of the Effort allocation worksheet) Length            Width
+
+           3       Adjusted search radius (Ra = Width/2.0)			
+
+           4       Adjusted search factor (fsa = Ra /E)			
+
+           5       Standard probability map (A – J)
+                   (from table M-1)			
+
+           6       Cell width
+                   (from table M-2)			
+
+           7       Number of divisions along the datum line				
+
+           8       Cell length (search area length/
+                   number of divisions)		
+
+           9       Plot the probability map on an appropriate
+                   map or chart, using the correct scale.                   Check when done
+
+
+
+
+           M-4                                                                         IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 4                                                                                                          5/20/2016 3:18:36 PM
+                                                                                 Appendix M – Preparing initial probability maps
+
+
+                Preparing initial probability maps for line datums instructions
+
+                Introduction
+                Before the results of the first search can be fully evaluated, a probability map must be prepared. The following
+                steps describe how to prepare an initial probability map for a line datum, using the standard line datum
+                probability cross-sections in this appendix. (Full evaluation of the second and later searches depends on
+                keeping the probability map updated to reflect all searching that has been done and any search object motion
+                that has been estimated. Procedures for updating probability maps are provided with the Search evaluation
+                worksheet.)
+
+                1       “Total probable error of position” Enter the total probable error of position (E) from line H.2 of the
+                                                           Datum worksheet.
+                2       “Adjusted search area               Enter the length and width of the adjusted search area from line
+                        dimensions”                         14.b of the Effort allocation worksheet.
+                3       “Adjusted search radius”            Divide the Width from line 2 by 2.0 and enter the result.
+                4       “Adjusted search factor”            Divide line 3 by line 1 and record the result.
+                5       “Standard probability map”          Enter table M-1 with the adjusted search factor from line 4, find
+                                                            the nearest value in the first column, and enter the letter which
+                                                            appears in the second column. If more than one letter appears,
+                                                            choose one of the alternatives. Usually, the first letter will be the
+                                                            best choice. When the adjusted search factor is the same as the
+                                                            search factor in column 1, the width of the adjusted search area
+                                                            will correspond to a whole number of cell widths.
+                6       “Cell width”                        Enter table M-2 with the letter from line 5, perform the multiplica-
+                                                            tion indicated in column 2, and record the result.
+                7       “Number of divisions along the      Enter the desired number of divisions along the datum line. This
+                        datum line”                         value will determine how many probability map cells will be
+                                                            required to match the length of the adjusted search area.
+                8       “Cell length”                       Divide the Length from line 2 by the number of divisions from
+                                                            line 7.
+
+                9	To plot the probability map on an overlay for the chart or map being used to plan the search, follow
+                   these steps:
+                        (a)   At each end point of the datum line, draw a line perpendicular to the datum line.
+                        (b)   On these perpendicular lines, mark the points which are a distance of 3.0 × E from the datum
+                              line on either side. Connect these four points to form a rectangle.
+                        (c)   Divide the rectangle into the same number of strips as the selected standard probability cross-
+                              section which corresponds to the letter on line 5. Note the probability of containment for each
+                              strip, which is found by using figure M-13. Figure M-1 shows how this is done for standard
+                              probability cross-section C.
+
+
+
+
+                IAMSAR MANUAL VOLUME II                                                                                    M-5
+
+
+
+
+IF961E.indb 5                                                                                                              5/20/2016 3:18:36 PM
+           Appendix M – Preparing initial probability maps
+
+
+
+                                                                1.7%
+
+                                                               22.3%
+                                                             Datum line
+                                                               52.0%
+                                                               22.3%
+
+                                                                1.7%
+
+
+                                                             Figure M-1
+
+
+                   (d)   Divide the strips into the desired number of divisions from line 7 to form a grid.
+                   (e)   Divide the probability of containment for each strip by the number of divisions from line 7 to
+                         get the POC value for each cell in that strip. Figure M-2 shows a completed probability map for
+                         a line datum.
+
+
+
+                                        0.2% 0.2% 0.2% 0.2% 0.2% 0.2% 0.2% 0.2%
+
+                                        2.8% 2.8% 2.8% 2.8% 2.8% 2.8% 2.8% 2.8%
+                                                       Datum line
+                                        6.5% 6.5% 6.5% 6.5% 6.5% 6.5% 6.5% 6.5%
+                                        2.8% 2.8% 2.8% 2.8% 2.8% 2.8% 2.8% 2.8%
+
+                                        0.2% 0.2% 0.2% 0.2% 0.2% 0.2% 0.2% 0.2%
+
+
+                                                             Figure M-2
+
+           The probability map is now ready for use in evaluating the first search.
+
+
+
+
+           M-6                                                                           IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 6                                                                                                              5/20/2016 3:18:36 PM
+                                                                                Appendix M – Preparing initial probability maps
+
+
+                Preparing initial probability maps for area datums with a uniform distribution
+                of search object location probabilities instructions
+
+                Introduction
+                Before the results of the first search can be fully evaluated, a probability map must be prepared. The following
+                steps describe how to prepare an initial probability map for an area datum when the search object is equally
+                likely to be anywhere in the area. In this situation the distribution of search object location probabilities is
+                uniform. (Full evaluation of the second and later searches depends on keeping the probability map updated
+                to reflect all searching that has been done and any search object motion that has been estimated. Procedures
+                for updating probability maps are provided with the Search evaluation worksheet.)
+
+                1	Plot the scenario’s datum (possibility) area on a tracing paper or plastic overlay for an appropriate
+                   map or chart.
+
+                2	Plot a grid that divides the area into rectangular cells of equal size and count or compute the
+                   number of cells.
+                                                                                            Number of cells
+
+                3	Divide 100% by the number of cells from line 2 to get the probability of containment (POC) value
+                   for one cell.
+                		                                                                                  Cell POC
+
+                4       Enter the cell POC value from line 3 in each cell of the probability map.
+
+                        The probability map is now ready for use in evaluating the first search.
+
+
+
+
+                IAMSAR MANUAL VOLUME II                                                                                   M-7
+
+
+
+
+IF961E.indb 7                                                                                                             5/20/2016 3:18:37 PM
+           Appendix M – Preparing initial probability maps
+
+
+           Preparing initial probability maps for area datums with a generalized
+           distribution of search object location probabilities instructions
+
+           Introduction
+           Before the results of the first search can be fully evaluated, a probability map must be prepared. The following
+           steps describe how to prepare an initial probability map for an area datum when the search object is more
+           likely to be in some parts of the area and less likely to be in other parts. In this situation the distribution of
+           search object location probabilities is not uniform. (Full evaluation of the second and later searches depends
+           on keeping the probability map updated to reflect all searching that has been done and any search object
+           motion that has been estimated. Procedures for updating probability maps are provided with the Search
+           evaluation worksheet.)
+           1	Plot the scenario’s datum (possibility) area on a tracing paper or plastic overlay for an appropriate map
+              or chart.
+           2	Plot a grid on the overlay that divides the area into rectangular cells of equal size.
+           3	Based on the facts and assumptions used to develop the scenario, estimate the initial probability of
+              containment (POC) for each cell in the datum area and record that value in the cell as plotted on the
+              overlay.
+                   The probability map is now ready for use in evaluating the first search.
+
+
+
+
+           M-8                                                                            IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 8                                                                                                                   5/20/2016 3:18:37 PM
+                                                                               Appendix M – Preparing initial probability maps
+
+
+                Grid finder
+
+                Matching optimal search factors and probability maps/cross-sections for initial point/line datum probability
+                maps
+                                                              Probability map/
+                                Search factor                                            Width (number of cells)
+                                                                cross-section
+                                     0.27                              I                             11
+                                     0.33                             G                              9
+                                     0.43                             E                              7
+                                     0.50                              J                             12
+                                     0.60                           H, C                           10, 5
+                                     0.75                             F                              8
+                                     0.82                              I                             11
+                                     1.00                         J, G, D, A                     12, 9, 6, 3
+                                     1.20                             H                              10
+                                     1.29                             E                              7
+                                     1.36                              I                             11
+                                     1.50                           J, F, B                       12, 8, 4
+                                     1.67                             G                              9
+                                     1.80                           H, C                           10, 5
+                                     1.91                              I                             11
+                                     2.00                            J, D                          12, 6
+                                     2.14                             E                              7
+                                     2.25                             F                              8
+                                     2.33                             G                              9
+                                     2.40                             H                              10
+                                     2.45                              I                             11
+                                     2.50                              J                             12
+                                     3.00                            All
+
+                                                                 Table M-1
+
+
+
+
+                IAMSAR MANUAL VOLUME II                                                                                 M-9
+
+
+
+
+IF961E.indb 9                                                                                                           5/20/2016 3:18:37 PM
+           Appendix M – Preparing initial probability maps
+
+
+           Matching probability maps/cross-sections with cell widths
+
+                                             Probability map/
+                                                                            Cell width
+                                               cross-section
+                                                     A                      2.00 × E
+                                                     B                      1.50 × E
+                                                     C                      1.20 × E
+                                                     D                      1.00 × E
+                                                     E                      0.86 × E
+                                                     F                      0.75 × E
+                                                     G                      0.67 × E
+                                                     H                      0.60 × E
+                                                      I                     0.55 × E
+                                                      J                     0.50 × E
+
+                                                                Table M-2
+
+
+
+
+           M-10                                                                         IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 10                                                                                                     5/20/2016 3:18:37 PM
+                                                                      Appendix M – Preparing initial probability maps
+
+
+                 Point datum grids
+
+
+
+
+                                     1.42%               9.08%                  1.42%
+
+
+
+
+                                     9.08%               57.91%                 9.08%
+                                                                 E
+
+
+
+
+                                     1.42%               9.08%                  1.42%
+
+
+
+                                                            A
+                                                         (3 × 3)
+
+                              Total probable error
+                              of position (E)
+                              Cell width
+                             Scale                   =
+                                                         Figure M-3
+
+
+
+
+                 IAMSAR MANUAL VOLUME II                                                                      M-11
+
+
+
+
+IF961E.indb 11                                                                                                 5/20/2016 3:18:37 PM
+           Appendix M – Preparing initial probability maps
+
+
+
+
+                                  0.15%             1.78%            1.78%    0.15%
+
+
+
+
+                                  1.78%             21.28%           21.28%   1.78%
+
+
+
+
+                                  1.78%             21.28%           21.28%   1.78%
+
+
+
+
+                                  0.15%             1.78%            1.78%    0.15%
+
+
+                                                                 B
+                                                              (4 × 4)
+
+                             Total probable error
+                             of position (E)
+                             Cell width
+                             Scale                     =
+                                                             Figure M-4
+
+
+
+
+           M-12                                                              IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 12                                                                                          5/20/2016 3:18:37 PM
+                                                                      Appendix M – Preparing initial probability maps
+
+
+
+
+                                0.03%         0.38%      0.88%         0.38%          0.03%
+
+
+
+                                0.38%         4.97%      11.59%        4.97%          0.38%
+
+
+
+                                0.88%        11.59%      27.05%       11.59%          0.88%
+
+
+
+                                0.38%         4.97%      11.59%       4.97%           0.38%
+
+
+
+                                0.03%         0.38%      0.88%         0.38%          0.03%
+
+
+                                                            C
+                                                         (5 × 5)
+
+                              Total probable error
+                              of position (E)
+                              Cell width
+                              Scale                  =
+
+                                                         Figure M-5
+
+
+
+
+                 IAMSAR MANUAL VOLUME II                                                                      M-13
+
+
+
+
+IF961E.indb 13                                                                                                 5/20/2016 3:18:37 PM
+           Appendix M – Preparing initial probability maps
+
+
+
+
+                               0.01%       0.10%       0.34%       0.34%   0.10%   0.01%
+
+
+                               0.10%       1.22%       4.19%       4.19%   1.22% 0.10%
+
+
+                               0.34% 4.19% 14.48% 14.48% 4.19%                     0.34%
+
+
+                               0.34% 4.19% 14.48% 14.48% 4.19%                     0.34%
+
+
+                               0.10%       1.22%        4.19%      4.19%   1.22% 0.10%
+
+
+                               0.01%       0.10%       0.34%       0.34%   0.10%   0.01%
+
+                                                                 D
+                                                              (6 × 6)
+
+                            Total probable error
+                            of position (E)
+                            Cell width
+                            Scale                     =
+
+                                                             Figure M-6
+
+
+
+
+           M-14                                                               IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 14                                                                                           5/20/2016 3:18:37 PM
+                                                                      Appendix M – Preparing initial probability maps
+
+
+
+
+                               0.00% 0.03% 0.14% 0.22% 0.14% 0.03% 0.00%
+
+
+                               0.03% 0.35% 1.43% 2.29% 1.43% 0.35% 0.03%
+
+
+                               0.14% 1.43% 5.85% 9.34% 5.85% 1.43% 0.14%
+
+
+                               0.22% 2.29% 9.34% 14.91% 9.34% 2.29% 0.22%
+
+
+                               0.14% 1.43% 5.85% 9.34% 5.85% 1.43% 0.14%
+
+
+                               0.03% 0.35% 1.43% 2.29% 1.43% 0.35% 0.03%
+
+
+                               0.00% 0.03% 0.14% 0.22% 0.14% 0.03% 0.00%
+
+                                                            E
+                                                         (7 × 7)
+
+                              Total probable error
+                              of position (E)
+                              Cell width
+                              Scale                  =
+
+                                                         Figure M-7
+
+
+
+
+                 IAMSAR MANUAL VOLUME II                                                                      M-15
+
+
+
+
+IF961E.indb 15                                                                                                 5/20/2016 3:18:37 PM
+           Appendix M – Preparing initial probability maps
+
+
+
+
+                              0.00% 0.01% 0.06% 0.12% 0.12% 0.06% 0.01% 0.00%
+
+                              0.01% 0.12% 0.52% 1.08% 1.08% 0.52% 0.12% 0.01%
+
+                              0.06% 0.52% 2.25% 4.67% 4.67% 2.25% 0.52% 0.06%
+
+                              0.12% 1.08% 4.67% 9.70% 9.70% 4.67% 1.08% 0.12%
+
+                              0.12% 1.08% 4.67% 9.70% 9.70% 4.67% 1.08% 0.12%
+
+                              0.06% 0.52% 2.25% 4.67% 4.67% 2.25% 0.52% 0.06%
+
+                              0.01% 0.12% 0.52% 1.08% 1.08% 0.52% 0.12% 0.01%
+
+                              0.00% 0.01% 0.06% 0.12% 0.12% 0.06% 0.01% 0.00%
+
+                                                                 F
+                                                              (8 × 8)
+
+                             Total probable error
+                             of position (E)
+                             Cell width
+                             Scale                    =
+                                                             Figure M-8
+
+
+
+
+           M-16                                                          IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 16                                                                                      5/20/2016 3:18:37 PM
+                                                                      Appendix M – Preparing initial probability maps
+
+
+
+
+                               0.00% 0.01% 0.03% 0.06% 0.09% 0.06% 0.03% 0.01% 0.00%
+
+                               0.01% 0.05% 0.21% 0.50% 0.67% 0.50% 0.21% 0.05% 0.01%
+
+                               0.03% 0.21% 0.90% 2.16% 2.89% 2.16% 0.90% 0.21% 0.03%
+
+                               0.06% 0.50% 2.16% 5.19% 6.96% 5.19% 2.16% 0.50% 0.06%
+
+                               0.09% 0.67% 2.89% 6.96% 9.32% 6.96% 2.89% 0.67% 0.09%
+
+                               0.06% 0.50% 2.16% 5.19% 6.96% 5.19% 2.16% 0.50% 0.06%
+
+                               0.03% 0.21% 0.90% 2.16% 2.89% 2.16% 0.90% 0.21% 0.03%
+
+                               0.01% 0.05% 0.21% 0.50% 0.67% 0.50% 0.21% 0.05% 0.01%
+
+                               0.00% 0.01% 0.03% 0.06% 0.09% 0.06% 0.03% 0.01% 0.00%
+
+                                                             G
+                                                          (9 × 9)
+
+                              Total probable error
+                              of position (E)
+                              Cell width
+                             Scale                   =
+
+                                                         Figure M-9
+
+
+
+
+                 IAMSAR MANUAL VOLUME II                                                                      M-17
+
+
+
+
+IF961E.indb 17                                                                                                 5/20/2016 3:18:38 PM
+           Appendix M – Preparing initial probability maps
+
+
+
+
+                              0.00% 0.00% 0.01% 0.03% 0.06% 0.06% 0.03% 0.01% 0.00% 0.00%
+
+                              0.00% 0.02% 0.09% 0.24% 0.38% 0.38% 0.24% 0.09% 0.02% 0.00%
+
+                              0.01% 0.09% 0.38% 1.00% 1.61% 1.61% 1.00% 0.38% 0.09% 0.01%
+
+                             0.03% 0.24% 1.00% 2.60% 4.19% 4.19% 2.60% 1.00% 0.24% 0.03%
+
+                             0.06% 0.38% 1.61% 4.19% 6.76% 6.76% 4.19% 1.61% 0.38% 0.06%
+
+                              0.06% 0.38% 1.61% 4.19% 6.76% 6.76% 4.19% 1.61% 0.38% 0.06%
+
+                              0.03% 0.24% 1.00% 2.60% 4.19% 4.19% 2.60% 1.00% 0.24% 0.03%
+
+                             0.01% 0.09% 0.38% 1.00% 1.61% 1.61% 1.00% 0.38% 0.09% 0.01%
+
+                              0.00% 0.02% 0.09% 0.24% 0.38% 0.38% 0.24% 0.09% 0.02% 0.00%
+
+                              0.00% 0.00% 0.01% 0.03% 0.06% 0.06% 0.03% 0.01% 0.00% 0.00%
+
+
+                                                                 H
+                                                             (10 × 10)
+
+                             Total probable error
+                             of position (E)
+                             Cell width
+                             Scale                     =
+                                                             Figure M-10
+
+
+
+
+           M-18                                                              IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 18                                                                                          5/20/2016 3:18:38 PM
+                                                                       Appendix M – Preparing initial probability maps
+
+
+
+                               0.00% 0.00% 0.01% 0.02% 0.04% 0.04% 0.04% 0.02% 0.01% 0.00% 0.00%
+
+                               0.00% 0.01% 0.04% 0.12% 0.21% 0.26% 0.21% 0.12% 0.04% 0.01% 0.00%
+
+                               0.01% 0.04% 0.18% 0.48% 0.86% 1.06% 0.86% 0.48% 0.18% 0.04% 0.01%
+
+                               0.02% 0.12% 0.48% 1.29% 2.34% 2.86% 2.34% 1.29% 0.48% 0.12% 0.02%
+
+                               0.04% 0.21% 0.86% 2.34% 4.26% 5.20% 4.26% 2.34% 0.86% 0.21% 0.04%
+
+                               0.04% 0.26% 1.06% 2.86% 5.20% 6.34% 5.20% 2.86% 1.06% 0.26% 0.04%
+
+
+                               0.04% 0.21% 0.86% 2.34% 4.26% 5.20% 4.26% 2.34% 0.86% 0.21% 0.04%
+
+                               0.02% 0.12% 0.48% 1.29% 2.34% 2.86% 2.34% 1.29% 0.48% 0.12% 0.02%
+
+                               0.01% 0.04% 0.18% 0.48% 0.86% 1.06% 0.86% 0.48% 0.18% 0.04% 0.01%
+
+                               0.00% 0.01% 0.04% 0.12% 0.21% 0.26% 0.21% 0.12% 0.04% 0.01% 0.00%
+
+                               0.00% 0.00% 0.01% 0.02% 0.04% 0.04% 0.04% 0.02% 0.01% 0.00% 0.00%
+
+
+                                                             I
+                                                         (11 × 11)
+
+                              Total probable error
+                              of position (E)
+                              Cell width
+                              Scale                  =
+                                                         Figure M-11
+
+
+
+
+                 IAMSAR MANUAL VOLUME II                                                                       M-19
+
+
+
+
+IF961E.indb 19                                                                                                  5/20/2016 3:18:38 PM
+           Appendix M – Preparing initial probability maps
+
+
+
+                              0.00% 0.00% 0.00% 0.01% 0.02% 0.03% 0.03% 0.02% 0.01% 0.00% 0.00% 0.00%
+
+                              0.00% 0.01% 0.02% 0.06% 0.12% 0.17% 0.17% 0.12% 0.06% 0.02% 0.01% 0.00%
+
+
+                              0.00% 0.02% 0.09% 0.24% 0.47% 0.65% 0.65% 0.47% 0.24% 0.09% 0.02% 0.00%
+
+                              0.01% 0.06% 0.24% 0.65% 1.28% 1.79% 1.79% 1.28% 0.65% 0.24% 0.06% 0.01%
+
+                              0.02% 0.12% 0.47% 1.28% 2.51% 3.52% 3.52% 2.51% 1.28% 0.47% 0.12% 0.02%
+
+                              0.03% 0.17% 0.65% 1.79% 3.52% 4.93% 4.93% 3.52% 1.79% 0.65% 0.17% 0.03%
+
+                              0.03% 0.17% 0.65% 1.79% 3.52% 4.93% 4.93% 3.52% 1.79% 0.65% 0.17% 0.03%
+
+                              0.02% 0.12% 0.47% 1.28% 2.51% 3.52% 3.52% 2.51% 1.28% 0.47% 0.12% 0.02%
+
+
+                              0.01% 0.06% 0.24% 0.65% 1.28% 1.79% 1.79% 1.28% 0.65% 0.24% 0.06% 0.01%
+
+                              0.00% 0.02% 0.09% 0.24% 0.47% 0.65% 0.65% 0.47% 0.24% 0.09% 0.02% 0.00%
+
+
+                              0.00% 0.01% 0.02% 0.06% 0.12% 0.17% 0.17% 0.12% 0.06% 0.02% 0.01% 0.00%
+
+                             0.00% 0.00% 0.00% 0.01% 0.02% 0.03% 0.03% 0.02% 0.01% 0.00% 0.00% 0.00%
+
+
+                                                                 J
+                                                             (12 × 12)
+
+                             Total probable error
+                             of position (E)
+                             Cell width
+                             Scale                    =
+
+                                                             Figure M-12
+
+
+
+
+           M-20                                                                        IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 20                                                                                                    5/20/2016 3:18:38 PM
+                                                                  Appendix M – Preparing initial probability maps
+
+
+                 Probability cross-sections for line datums
+
+                   11.9%       0.9%         0.4%       0.3%            0.2%            0.2%             0.1%
+
+                   76.1%       11.0%        3.5%       2.2%            1.5%            1.0%             0.8%
+
+
+                   11.9%       38.1%        15.0%      9.5%            6.2%            4.2%             2.9%
+
+                     A
+                    (3)        38.1%        31.1%      22.8%          16.1%            11.4%            8.1%
+
+
+                   3.9%        11.0%        31.1%      30.5%          26.0%            20.6%            15.9%
+
+
+                   46.1%       0.9%         15.0%      22.8%          26.0%            25.2%            22.2%
+
+                                 D
+                   46.1%        (6)         3.5%       9.5%           16.1%            20.6%            22.2%
+
+
+                   3.9%        0.6%         0.4%       2.2%            6.2%            11.4%            15.9%
+
+                     B                        F
+                    (4)        5.9%          (8)       0.3%            1.5%            4.2%             8.1%
+
+                                                         G
+                   1.7%        24.2%                    (9)            0.2%            1.0%             2.9%
+
+                                                                        H
+                   22.3%       38.6%                                   (10)            0.2%             0.8%
+
+                                                                                          I
+                   52.0%       24.2%                                                    (11)            0.1%
+
+                                                                                                           J
+                   22.3%       5.9%                                                                      (12)
+
+                   1.7%        0.6%
+
+                     C           E
+                    (5)         (7)
+
+
+                                                    Figure M-13
+
+
+
+
+                 IAMSAR MANUAL VOLUME II                                                                   M-21
+
+
+
+
+IF961E.indb 21                                                                                              5/20/2016 3:18:38 PM
+IF961E.indb 22   5/20/2016 3:18:38 PM
+                Appendix N
+                Tables and graphs
+
+                Local wind current graph and table (figure N-1). . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .                N-1
+                Leeway charts (figures N-2 and N-3). . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .            N-2
+                Probable errors of position (tables N-1 to N-3). . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .              N-4
+                Sweep width tables (tables N-4 to N-12). . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .              N-5
+                Available search effort graph (figure N-4). . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .         N-11
+                Optimal search factor graphs for point datums (figures N-5 and N-6). . . . . . . . . . . . . . . . . . . . . . . .                          N-12
+                Optimal search factor graphs for line datums (figures N-7 and N-8). . . . . . . . . . . . . . . . . . . . . . . . .                         N-14
+                Search area planning graph (figure N-9). . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .          N-16
+                POD graph (figure N-10). . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .    N-17
+                Cumulative POS graphs (figures N-11 and N-12) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .                 N-18
+                Wind chill and frostbite curves (figure N-13) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .           N-19
+                Realistic upper limit of survival time graph (figure N-14). . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .               N-19
+                Parachute tables (tables N-13 and N-14) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .           N-20
+                Descent data (figure N-15). . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .   N-21
+
+
+
+
+                IAMSAR MANUAL VOLUME II                                                                                                                       N-i
+
+
+
+
+IF961E.indb 1                                                                                                                                               5/20/2016 3:18:39 PM
+IF961E.indb 2   5/20/2016 3:18:39 PM
+                Local wind current graph and table
+                                                                                      Wind force (Beaufort scale)
+                                                  0   1        2            3            4              5                6              7
+                                        1.3
+
+
+                                        1.2               Relation of direction of wind current to wind
+
+                                                          Latitude              Divergence of wind current
+                                                                                from downwind direction
+                                        1.1
+                                                          North of 10° N        30° to the right
+
+                                         1                10° N to of 10° S     0°
+
+                                                          South of 10° S        30° to the left
+                                        0.9
+
+
+
+                                        0.8
+                Wind current in knots
+
+
+
+
+                                        0.7
+
+
+
+                                        0.6
+
+
+
+                                        0.5
+
+
+
+                                        0.4
+
+
+
+                                        0.3
+
+
+                                        0.2
+
+
+
+                                        0.1
+
+
+
+                                              0
+                                                  0   2    4       6    8       10    12     14    16   18   20    22   24   26   28   30   32   34
+                                                                                             Wind speed in knots
+
+                                                                                              Figure N-1
+
+
+
+                IAMSAR MANUAL VOLUME II                                                                                                           N-1
+
+
+
+
+IF961E.indb 1                                                                                                                                    5/20/2016 3:18:39 PM
+IF961E.indb 2
+                                                 Leeway charts
+
+
+
+
+                       N-2
+                                                                              Liferafts, survival craft and persons in the water (PIWs)
+                                                                                                          Wind force (Beaufort scale)
+                                                                      0   1       2           3            4            5             6                   7              No ballast, no canopy, no drogue (±25°) [0.25 kts]
+                                                                 2
+                                                                                                                                                                                      ALL BALLASTED RAFTS ARE
+                                                                                                                                                                                     ASSUMED TO HAVE CANOPIES
+
+                                                                                                                                                                          No ballast; canopy unknown, drogue unknown
+                                                                                                                                                                                                                                  Appendix N – Tables and graphs
+
+
+
+
+                                                                                                                                                                             (±30°) [0.35 kts]
+                                                                                                                                                                          Aviation (4–6 person) w/o drogue (±25°) [0.1 kts]
+                                                                1.5
+                                                                                                                                                                          Life capsule – fully enclosed (±20°) [0.1 kts]
+                                                                                                                                                                          Deep ballast (±15°) [0.2 kts]
+                                                                                                                                                                          Shallow ballast with no drogue (±20°) [0.1 kts]
+                                                                                                                                                                             or unknown drogue (±20°) [0.35 kts]
+                                                                                                                                                                          No ballast, with canopy and drogue (±30°) [0.35 kts]
+                                                                                                                                                                          Aviation (46-person) Evac/slide (±15°) [0.1 kts]
+                                                                 1                                                                                                        Sea rescue kit (±5°) [0.1 kts]
+                                                                                                                                                                          Shallow ballast with drogue (±20°) [0.1 kts]
+
+
+
+
+                                                 Leeway (kts)
+                                                                                                                                                                          PIW: Survival suit (±30°) [0.1 kts]
+                                                                                                                                                                             or deceased (±30°) [0.25 kts]
+
+                                                                                                                                                                          Shallow ballast, capsized (±10°) [0.1 kts]
+                                                                0.5                                                                                                       PIW: Position/survival gear unknown (±30°) [0.35 kts]
+                                                                                                                                                                          Deep ballast, capsized/swamped (±10°) [0.1 kts]
+                                                                                                                                                                          PIW: Scuba suit (±30°) [0.15 kts]
+
+                                                                                                                                                                          PIW: Vertical (±20°) [0.25 kts]
+
+
+                                                                                                                                                                            Numbers in parentheses ( ) are divergence
+                                                                 0                                                                                                          angles in degrees; numbers in brackets [ ]
+                                                                                                                                                                            are probable leeway errors in knots.
+                                                                      0   2   4       6   8       10    12    14   16   18   20   22    24 26     28    30 32     34
+
+                                                                                                                                                 Adapted from Allen, A.A. and J.V. Plourde, 1999. Review of Leeway: Field
+                                                                                                             Wind speed (kts)                    Experiments and Implementation. U.S. Coast Guard Research and
+                                                                                                                                                 Development Center. Report No. CG-D-08-99. Available from NTIS,
+                                                                                                                                                 Springfield, VA 22161. Consult reference for original equations.
+
+
+
+
+                       IAMSAR MANUAL VOLUME II
+                                                                                                  Figure N-2 – Leeway of liferafts, survival craft and persons in the water (PIWs)
+
+
+
+
+5/20/2016 3:18:39 PM
+IF961E.indb 3
+                                                                               Power vessels, sailing vessels and person-powered craft
+                                                                                                         Wind force (Beaufort scale)
+                                                                       0   1        2           3           4            5                6                7                   Numbers in parentheses ( ) are leeway
+                                                                  3                                                                                                            angles in degrees; numbers in brackets [ ]
+                                                                                                                                                                               are probable leeway errors in knots.
+
+                                                                                                                                                                            Raft (2 inner tubes with frame) with sail (±35°) [0.15 kts]
+
+                                                                 2.5                                                                                                        Sport boats (4.5–8.5 m, 2–3 m beam) with cuddy cabin
+                                                                                                                                                                               or side console, modified V-hull (±20°) [0.1 kts]
+                                                                                                                                                                            Sport fisher (5–30 m, beam width up to 7.3 m) with
+
+
+
+
+                       IAMSAR MANUAL VOLUME II
+                                                                                                                                                                               center console or walk-around cabin (±20°) [0.1 kts]
+                                                                                                                                                                            Commercial fishing vessels (14–30 m):
+                                                                  2                                                                                                             Trollers/sampans/longliners (±50°) [0.25 kts]
+                                                                                                                                                                                Gill-netters (±35°) [0.1 kts]
+                                                                                                                                                                                Unknown type (±50°) [0.35 kts]
+                                                                                                                                                                            Sailing vessels with fin keel, shoal draft (< 9 m, sails
+                                                                                                                                                                                down) (±50°) [0.25 kts]
+                                                                 1.5
+                                                                                                                                                                            Skiff, flat-bottom (<6 m) (±20°) [0.1 kts]
+                                                                                                                                                                            Skiff, V-hull (<6 m) (±15°) [0.1 kts]
+
+
+
+
+                                                  Leeway (kts)
+                                                                                                                                                                            Bait/wharf box lightly loaded (90 kg) (< 6 m) (±15°) [0.1 kts]
+                                                                                                                                                                            Coastal freighter (≤30 m) (±50°) [0.25 kts]
+                                                                  1                                                                                                         Coastal fishing vessel (12.5 m, typical in the western
+                                                                                                                                                                                Pacific Ocean (±50°) [0.1 kts]
+                                                                                                                                                                            Sailing vessel, full keel, deep draft (< 9 m) (±50°) [0.25 kts]
+                                                                                                                                                                            Windsurfer (±10°) [0.1 kts]
+                                                                 0.5                                                                                                        Surfboard (±15°) [0.25 kts] or sea kayak (±15°) [0.1 kts]
+                                                                                                                                                                            F/V debris (±10°) [0.25 kts]
+                                                                                                                                                                            Bait/wharf box, full (365 kg) (±35°) [0.1 kts]
+                                                                                                                                                                                or unknown loading (±35°) [0.15 kts]
+                                                                                                                                                                            Raft (2 inner tubes with frame) no sail (±15°) [0.1 kts]
+                                                                  0                                                                                                         Skiff, V-hull, swamped (±15°) [0.1 kts]
+
+                                                                       0   2    4       6   8       10   12    14   16   18   20   22   24 26      28   30 32      34
+                                                                                                              Wind speed (kts)                          Adapted from Allen, A.A. and J.V. Plourde, 1999. Review of Leeway: Field
+                                                                                                                                                        Experiments and Implementation. U.S. Coast Guard Research and
+                                                                                                                                                        Development Center. Report No. CG-D-08-99. Available from NTIS,
+                                                                                                                                                        Springfield, VA 22161. Consult reference for original equations.
+                                                                                                                          Figure N-3 – Leeway rates for various craft
+
+
+
+
+                       N-3
+                                                                                                                                                                                                                                              Appendix N – Tables and graphs
+
+
+
+
+5/20/2016 3:18:39 PM
+           Appendix N – Tables and graphs
+
+
+           Probable errors of position
+
+           Initial position error (X) and Search craft position error (Y) are the estimated errors of position based on
+           navigational accuracy of the distressed craft and of the search facilities.
+           If information on the means of navigation used by the distressed craft or by a search facility is available, the
+           navigational fix errors (Fixe) listed in table N-1 may be used for positions reported as navigation fixes (X = Fixe
+           or Y = Fixe).
+
+                                                  Table N-1 – Navigational fix errors
+            Means of navigation             Fix errors (NM)
+            GNSS                            0.1 NM
+            Radar                           1 NM
+            Visual fix (3 lines)*           1 NM
+                                    *
+            Celestial fix (3 lines)         2 NM
+            Marine radio beacon             4 NM (3-beacon fix)
+            LORAN C                         1 NM
+            INS                             0.5 NM per flight hour without position update
+            VOR                             ±3° arc and 3% of distance or 0.5 NM radius, whichever is greater
+            TACAN                           ±3° arc and 3% of distance or 0.5 NM radius, whichever is greater
+           *
+                Should be evaluated upward according to circumstances.
+
+
+           If the means of navigation used by the distressed craft or by a search facility is unknown, then Fixe is equal to:
+
+                                                  Table N-2 – Fix errors by craft type
+            Type of craft                                                                     Fixe
+            Ships, military submarines, and aircraft with more than two engines               5 NM
+            Twin-engine aircraft                                                              10 NM
+            Boats, submersibles, and single-engine aircraft                                   15 NM
+
+
+           When the initially reported position of the distressed craft is based on dead reckoning (DR) or the search
+           facility must use DR navigation, an additional error is assumed for the distance travelled since the last fix. The
+           position error is the sum of the fix error (Fixe) plus the DR error (DRe). Table N-3 gives DRe for various craft.
+                                                  Table N-3 – Dead reckoning errors
+
+            Type of craft                                                                     DRe
+            Ship                                                                              5% of the DR distance
+            Submarine (military)                                                              5% of the DR distance
+            Aircraft (more than two engines)                                                  5% of the DR distance
+            Aircraft (twin-engine)                                                            10% of the DR distance
+            Aircraft (single-engine)                                                          15% of the DR distance
+            Submersible                                                                       15% of the DR distance
+            Boat                                                                              15% of the DR distance
+
+
+
+
+           N-4                                                                             IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 4                                                                                                                    5/20/2016 3:18:40 PM
+                                                                                       Appendix N – Tables and graphs
+
+
+                Sweep width tables
+                                                          Meteorological visibility (km (NM))
+                Search object           6 (3)           9 (5)           19 (10)         28 (15)          37 (20)
+                Person in water       0.7 (0.4)        0.9 (0.5)       1.1 (0.6)        1.3 (0.7)       1.3 (0.7)
+                4-person liferaft     4.2 (2.3)        5.9 (3.2)       7.8 (4.2)        9.1 (4.9)       10.2 (5.5)
+                6-person liferaft     4.6 (2.5)        6.7 (3.6)       9.3 (5.0)       11.5 (6.2)       12.8 (6.9)
+                15-person liferaft    4.8 (2.6)        7.4 (4.0)       9.4 (5.1)       11.9 (6.4)       13.5 (7.3)
+                25-person liferaft    5.0 (2.7)        7.8 (4.2)       9.6 (5.2)       12.0 (6.5)       13.9 (7.5)
+                Boat <5 m (17 ft)      2.0 (1.1)       2.6 (1.4)       3.5 (1.9)        3.9 (2.1)       4.3 (2.3)
+                Boat 7 m (23 ft)      3.7 (2.0)        5.4 (2.9)       8.0 (4.3)        9.6 (5.2)       10.7 (5.8)
+                Boat 12 m (40 ft)     5.2 (2.8)       8.3 (4.5)        14.1 (7.6)      17.4 (9.4)      21.5 (11.6)
+                Boat 24 m (79 ft)      5.9 (3.2)      10.4 (5.6)      19.8 (10.7)      27.2 (14.7)     33.5 (18.1)
+
+                                     Table N-4 – Sweep widths for merchant vessels (km (NM))
+
+
+
+
+                IAMSAR MANUAL VOLUME II                                                                             N-5
+
+
+
+
+IF961E.indb 5                                                                                                   5/20/2016 3:18:40 PM
+IF961E.indb 6
+                                                                                                                          Table N-5 – Sweep widths for helicopters (km (NM))
+
+
+
+
+                       N-6
+                                                                                            Altitude 150 metres (500 feet)                                Altitude 300 metres (1000 feet)                               Altitude 600 metres (2000 feet)
+                                                                                                   Visibility (km (NM))                                           Visibility (km (NM))                                          Visibility (km (NM))
+                                                     Search object                1.9       5.6        9.3       18.5      27.8     > 37.0      1.9        5.6        9.3      18.5       27.8    > 37.0       1.9       5.6        9.3       18.5      27.8    > 37.0
+                                                     (metres (feet))              (1)       (3)        (5)       (10)      (15)     (> 20)      (1)        (3)        (5)       (10)      (15)    (> 20)       (1)       (3)        (5)       (10)      (15)    (> 20)
+                                                     Person in water*             0.0       0.2        0.2        0.2       0.2        0.2      0.0        0.2        0.2        0.2       0.2       0.2       0.0       0.0        0.0        0.0       0.0       0.2
+                                                                                 (0.0)     (0.1)      (0.1)      (0.1)     (0.1)      (0.1)    (0.0)      (0.1)      (0.1)      (0.1)     (0.1)     (0.1)     (0.0)     (0.0)      (0.0)      (0.0)     (0.0)     (0.1)
+                                                     Raft 1-person                0.7       1.7        2.2        3.0       3.3        3.3      0.7        1.7        2.2        3.0       3.3       3.3       0.4       1.5        2.2        3.0       3.3       3.3
+                                                                                 (0.4)     (0.9)      (1.2)      (1.6)     (1.8)      (1.8)    (0.4)      (0.9)      (1.2)      (1.6)     (1.8)     (1.8)     (0.2)     (0.8)      (1.2)      (1.6)     (1.8)     (1.8)
+                                                     Raft 4-person                0.9       2.2        3.0        4.1       4.8        5.2      0.9        2.2        3.1        4.3       4.8       5.4       0.6       2.2        3.1        4.3       5.0       5.6
+                                                                                 (0.5)     (1.2)      (1.6)      (2.2)     (2.6)      (2.8)    (0.5)      (1.2)      (1.7)     (2.3)      (2.6)     (2.9)     (0.3)     (1.2)      (1.7)      (2.3)     (2.7)     (3.0)
+                                                     Raft 6-person                0.9       2.6        3.5        5.0       5.9        6.5      0.9        2.6        3.7        5.2       5.9       6.5       0.6       2.6        3.7        5.2       6.1       6.7
+                                                                                 (0.5)     (1.4)      (1.9)      (2.7)     (3.2)      (3.5)    (0.5)      (1.4)      (2.0)     (2.8)      (3.2)     (3.5)     (0.3)     (1.4)      (2.0)      (2.8)     (3.3)     (3.6)
+                                                                                                                                                                                                                                                                          Appendix N – Tables and graphs
+
+
+
+
+                                                     Raft 8-person                1.1       2.8        3.7        5.2       6.1        6.9      0.9        2.8        3.9        5.4       6.3       7.0       0.6       2.8        3.9        5.6       6.7       7.2
+                                                                                 (0.6)     (1.5)      (2.0)      (2.8)     (3.3)      (3.7)    (0.5)      (1.5)      (2.1)     (2.9)      (3.4)     (3.8)     (0.3)     (1.5)      (2.1)      (3.0)     (3.6)     (3.9)
+                                                     Raft 10-person               1.1       3.0        4.1        5.7       6.7        7.4      0.9        3.0        4.1        5.9       6.9       7.6       0.6       3.0        4.3        6.1       7.2       7.8
+                                                                                 (0.6)     (1.6)      (2.2)      (3.1)     (3.6)      (4.0)    (0.5)      (1.6)      (2.2)     (3.2)      (3.7)     (4.1)     (0.3)     (1.6)      (2.3)      (3.3)     (3.9)     (4.2)
+                                                     Raft 15-person               1.1       3.1        4.3        6.1       7.4        8.1      1.1        3.1        4.4        6.5       7.6       8.3       0.6       3.1        4.6        6.7       8.0       8.7
+                                                                                 (0.6)     (1.7)      (2.3)      (3.3)     (4.0)      (4.4)    (0.6)      (1.7)      (2.4)     (3.5)      (4.1)     (4.5)     (0.3)     (1.7)      (2.5)      (3.6)     (4.3)     (4.7)
+                                                     Raft 20-person               1.1       3.3        4.8        7.0       8.5        9.4      1.1        3.3        5.0        7.2       8.7       9.6       0.7       3.3        5.0        7.4       9.1      10.0
+                                                                                 (0.6)     (1.8)      (2.6)      (3.8)     (4.6)      (5.1)    (0.6)      (1.8)      (2.7)      (3.9)     (4.7)     (5.2)     (0.4)     (1.8)      (2.7)      (4.0)     (4.9)     (5.4)
+                                                     Raft 25-person               1.1       3.5        5.0        7.6       9.3       10.4      1.1        3.5        5.2        7.8       9.4      10.6       0.7       3.5        5.4        8.0       9.8      10.9
+                                                                                 (0.6)     (1.9)      (2.7)      (4.1)     (5.0)      (5.6)    (0.6)      (1.9)      (2.8)     (4.2)      (5.1)     (5.7)     (0.4)     (1.9)      (2.9)      (4.3)     (5.3)     (5.9)
+                                                     Power boat < 5 (15)          0.9       2.2        2.8        3.5       4.1        4.3      0.9        2.2        3.0        3.9       4.3       4.6       0.6       2.4        3.1        4.3       4.8       5.0
+                                                                                 (0.5)     (1.2)      (1.5)      (1.9)     (2.2)      (2.3)    (0.5)      (1.2)      (1.6)      (2.1)     (2.3)     (2.5)     (0.3)     (1.3)      (1.7)      (2.3)     (2.6)     (2.7)
+                                                     Power boat 6 (20)            1.3       3.7        5.4        8.0       9.6       10.7      1.3        3.9        5.6        8.1       9.8      10.9       0.7       3.9        5.6        8.3      10.2      11.3
+                                                                                 (0.7)     (2.0)      (2.9)      (4.3)     (5.2)      (5.8)    (0.7)      (2.1)      (3.0)     (4.4)      (5.3)     (5.9)     (0.4)     (2.1)      (3.0)      (4.5)     (5.5)     (6.1)
+                                                     Power boat 10 (33)           1.5       4.6        7.2       11.5      14.4       16.7      1.3        4.8        7.2       11.7      14.6      16.9       0.9       4.8        7.4       11.9      14.8      17.2
+                                                                                 (0.8)     (2.5)      (3.9)      (6.2)     (7.8)      (9.0)    (0.7)      (2.6)      (3.9)     (6.3)      (7.9)     (9.1)     (0.5)     (2.6)      (4.0)      (6.4)     (8.0)     (9.3)
+                                                     Power boat 16 (53)           1.5       5.7        9.4       17.0      22.8       27.2      1.3        5.7        9.6       17.0      22.8      27.4       0.9       5.6        9.6       17.2      23.0      27.6
+                                                                                 (0.8)     (3.1)      (5.1)      (9.2)    (12.3)     (14.7)    (0.7)      (3.1)      (5.2)     (9.2)     (12.3)    (14.8)     (0.5)     (3.0)      (5.2)      (9.3)    (12.4)    (14.9)
+                                                     Power boat 24 (78)           1.5       6.1       10.6       20.0      27.8       34.1      1.5        6.1       10.6      20.2       27.8      34.3       0.9       5.9       10.6       20.2      28.0      34.3
+                                                                                 (0.8)     (3.3)      (5.7)     (10.8)    (15.0)     (18.4)    (0.8)      (3.3)      (5.7)    (10.9)     (15.0)    (18.5)     (0.5)     (3.2)      (5.7)     (10.9)    (15.1)    (18.5)
+                                                     Sail boat 5 (15)             1.3       3.5        5.0        7.2       8.7        9.6      1.1        3.5        5.2        7.4       8.9      10.0       0.7       3.5        5.2        7.8       9.3      10.4
+                                                                                 (0.7)     (1.9)      (2.7)      (3.9)     (4.7)      (5.2)    (0.6)      (1.9)      (2.8)     (4.0)      (4.8)     (5.4)     (0.4)     (1.9)      (2.8)      (4.2)     (5.0)     (5.6)
+                                                     Sail boat 8 (26)             1.5       4.4        6.9       10.6      13.1       15.2      1.3        4.6        6.9      10.7       13.5      15.4       0.9       4.6        7.0       11.1      13.9      15.9
+                                                                                 (0.8)     (2.4)      (3.7)      (5.7)     (7.1)      (8.2)    (0.7)      (2.5)      (3.7)     (5.8)      (7.3)     (8.3)     (0.5)     (2.5)      (3.8)      (6.0)     (7.5)     (8.6)
+                                                     Sail boat 12 (39)            1.5       5.6        9.1       15.4      20.9       25.0      1.3        5.6        9.1       15.9      21.1      25.0       0.9       5.6        9.1       16.1      21.1      25.2
+                                                                                 (0.8)     (3.0)      (4.9)      (8.3)    (11.3)     (13.5)    (0.7)      (3.0)      (4.9)     (8.6)     (11.4)    (13.5)     (0.5)     (3.0)      (4.9)      (8.7)    (11.4)    (13.6)
+                                                     Sail boat 15 (49)            1.5       5.7        9.6       17.6      23.5       28.3      1.3        5.7        9.8       17.6      23.7      28.5       0.9       5.7        9.8       17.8      23.9      28.7
+                                                                                 (0.8)     (3.1)      (5.2)      (9.5)    (12.7)     (15.3)    (0.7)      (3.1)      (5.3)     (9.5)     (12.8)    (15.4)     (0.5)     (3.1)      (5.3)      (9.6)    (12.9)    (15.5)
+                                                     Sail boat 21 (69)            1.5       5.9       10.2       19.3      26.1       32.0      1.5        5.9       10.4       19.3      26.3      32.0       0.9       5.9       10.4       19.4      26.5      32.2
+                                                                                 (0.8)     (3.2)      (5.5)     (10.4)    (14.1)     (17.3)    (0.8)      (3.2)      (5.6)    (10.4)     (14.2)    (17.3)     (0.5)     (3.2)      (5.6)     (10.5)    (14.3)    (17.4)
+                                                     Sail boat 25 (83)            1.5       6.1       10.6       20.4      28.2       34.6      1.5        6.1       10.6      20.4       28.3      34.8       0.9       5.9       10.6       20.6      28.5      35.0
+                                                                                 (0.8)     (3.3)      (5.7)     (11.0)    (15.2)     (18.7)    (0.8)      (3.3)      (5.7)    (11.0)     (15.3)    (18.8)     (0.5)     (3.2)      (5.7)     (11.1)    (15.4)    (18.9)
+                                                     Ship 27–46 (90–150)          1.5       6.3       11.1       22.6      32.2       40.6      1.5        6.3       11.1      22.6       32.2      40.6       0.9       6.1       11.1       22.6      32.4      40.7
+                                                                                 (0.8)     (3.4)      (6.0)     (12.2)    (17.4)     (21.9)    (0.8)      (3.4)      (6.0)     (12.2     (17.4)    (21.9)     (0.5)     (3.3)      (6.0)     (12.2)    (17.5)    (22.0)
+                                                     Ship 46–91 (150–300)         1.5       6.3       11.7       25.2      37.8       49.3      1.5        6.3       11.7      25.2       37.8      49.3       0.9       6.3       11.7       25.2      37.8      49.3
+                                                                                 (0.8)     (3.4)      (6.3)     (13.6)    (20.4)     (26.6)    (0.8)      (3.4)      (6.3)    (13.6)     (20.4)    (26.6)     (0.5)     (3.4)      (6.3)     (13.6)    (20.4)    (26.6)
+                                                     Ship > 91 (300)              1.5       6.5       11.9       26.5      40.9       55.2      1.5        6.5       11.9      26.5       41.1      55.2       1.1       6.3       11.9       26.5      41.1      55.2
+                                                                                 (0.8)     (3.5)      (6.4)     (14.3)    (22.1)     (29.8)    (0.8)      (3.5)      (6.4)    (14.3)     (22.2)    (29.8)     (0.6)     (3.4)      (6.4)     (14.3)    (22.2)    (29.8)
+
+                                                 *
+                                                     For seach altitudes of 150 metres (500 feet) only, the sweep width values for a person in water may be multiplied by 4, if it is known that the person is wearing a personal flotation device.
+
+
+
+
+                       IAMSAR MANUAL VOLUME II
+
+
+
+
+5/20/2016 3:18:40 PM
+IF961E.indb 7
+                                                                                                                      Table N-6 – Sweep widths for fixed-wing aircraft (km (NM))
+                                                                                             Altitude 150 metres (500 feet)                                Altitude 300 metres (1000 feet)                               Altitude 600 metres (2000 feet)
+                                                                                                    Visibility (km (NM))                                           Visibility (km (NM))                                          Visibility (km (NM))
+                                                      Search object                1.9       5.6        9.3       18.5      27.8     > 37.0      1.9        5.6        9.3      18.5       27.8    > 37.0       1.9       5.6        9.3       18.5      27.8    > 37.0
+                                                      (metres (feet))              (1)       (3)         (5)      (10)      (15)     (> 20)      (1)        (3)         (5)     (10)       (15)    (> 20)       (1)       (3)         (5)      (10)      (15)    (> 20)
+                                                      Person in water*             0.0       0.2        0.2        0.2       0.2        0.2      0.0        0.2        0.2       0.2        0.2       0.2       0.0       0.0        0.0        0.0       0.0        0.0
+                                                                                  (0.0)     (0.1)      (0.1)      (0.1)     (0.1)      (0.1)    (0.0)      (0.1)      (0.1)     (0.1)      (0.1)     (0.1)     (0.0)     (0.0)      (0.0)      (0.0)     (0.0)     (0.0)
+                                                      Raft 1-person                0.6       1.3        1.7        2.2       2.6        2.6      0.6        1.3         1.7      2.2        2.6       2.6       0.2       1.1         1.7       2.2        2.6       2.6
+                                                                                  (0.3)     (0.7)      (0.9)      (1.2)     (1.4)      (1.4)    (0.3)      (0.7)      (0.9)     (1.2)      (1.4)     (1.4)     (0.1)     (0.6)      (0.9)      (1.2)     (1.4)      (1.4)
+                                                      Raft 4-person                0.7       1.9        2.4        3.3       3.7        4.1      0.6        1.9        2.4       3.3        3.9       4.3       0.4       1.7        2.4        3.5        4.1       4.3
+                                                                                  (0.4)     (1.0)      (1.3)      (1.8)     (2.0)      (2.2)    (0.3)      (1.0)      (1.3)     (1.8)      (2.1)     (2.3)     (0.2)     (0.9)      (1.3)      (1.9)     (2.2)     (2.3)
+                                                      Raft 6-person                0.7       2.0        2.8        4.1       4.6        5.2      0.7        2.0        3.0       4.1        4.8       5.2       0.4       2.0        3.0        4.3       5.0        5.4
+                                                                                  (0.4)     (1.1)      (1.5)      (2.2)     (2.5)      (2.8)    (0.4)      (1.1)      (1.6)     (2.2)      (2.6)     (2.8)     (0.2)     (1.1)      (1.6)      (2.3)     (2.7)     (2.9)
+                                                      Raft 8-person                0.7       2.2        3.0        4.3       5.0        5.4      0.7        2.2         3.1      4.4        5.2       5.6       0.4       2.2         3.1       4.6       5.4        5.9
+
+
+
+
+                       IAMSAR MANUAL VOLUME II
+                                                                                  (0.4)     (1.2)      (1.6)      (2.3)     (2.7)      (2.9)    (0.4)      (1.2)      (1.7)     (2.4)      (2.8)     (3.0)     (0.2)     (1.2)      (1.7)      (2.5)     (2.9)     (3.2)
+                                                      Raft 10-person               0.7       2.2        3.1        4.6       5.4        5.9      0.7        2.4        3.3       4.8        5.6       6.1       0.4       2.2        3.3        5.0       5.7        6.5
+                                                                                  (0.4)     (1.2)      (1.7)      (2.5)     (2.9)      (3.2)    (0.4)      (1.3)      (1.8)     (2.6)      (3.0)     (3.3)     (0.2)     (1.2)      (1.8)      (2.7)     (3.1)     (3.5)
+                                                      Raft 15-person               0.9       2.4        3.5        5.0       6.1        6.7      0.7        2.6         3.7      5.2        6.3       6.9       0.4       2.6        3.7        5.6       6.5        7.2
+                                                                                  (0.5)     (1.3)      (1.9)      (2.7)     (3.3)      (3.6)    (0.4)      (1.4)       (2.0     (2.8)      (3.4)      (3.7     (0.2)     (1.4)      (2.0)      (3.0)      (3.5      (3.9)
+                                                      Raft 20-person               0.9       2.8        3.9        5.9       7.0        7.8      0.7        2.8         4.1      5.9        7.2       8.0       0.7       2.8         4.1       6.3        7.4       8.3
+                                                                                  (0.5)     (1.5)      (2.1)      (3.2)     (3.8)      (4.2)    (0.4)      (1.5)      (2.2)     (3.2)      (3.9)     (4.3)     (0.4)     (1.5)      (2.2)      (3.4)     (4.0)     (4.5)
+                                                      Raft 25-person               0.9       3.0        4.3        6.3       7.6        8.5      0.7        3.0        4.3       6.5        7.8       8.7       0.6       3.0        4.4        6.7        8.1       9.1
+                                                                                  (0.5)     (1.6)      (2.3)      (3.4)     (4.1)      (4.6)    (0.4)      (1.6)      (2.3)     (3.5)      (4.2)     (4.7)     (0.3)     (1.6)      (2.4)      (3.6)     (4.4)      (4.9)
+                                                      Power boat < 5 (15)          0.7       1.7        2.2        2.8       3.1        3.3      0.7        1.9        2.4       3.1        3.3       3.7       0.4       1.9        2.4        3.3        3.7       4.1
+                                                                                  (0.4)     (0.9)      (1.2)      (1.5)     (1.7)      (1.8)    (0.4)      (1.0)      (1.3)     (1.7)      (1.8)     (2.0)     (0.2)     (1.0)       (1.3      (1.8)     (2.0)     (2.2)
+                                                      Power boat 6 (20)            0.9       3.1        4.4        6.7       8.0        8.9      0.9        3.1        4.6       6.9        8.1       9.3       0.6       3.1        4.6        7.0       8.5        9.4
+                                                                                  (0.5)     (1.7)      (2.4)      (3.6)     (4.3)      (4.8)    (0.5)      (1.7)      (2.5)     (3.7)      (4.4)     (5.0)     (0.3      (1.7)      (2.5)      (3.8)     (4.6)      (5.1)
+                                                      Power boat 10 (33)           1.1       3.9        6.1        9.8      12.4       14.3      0.9        4.1        6.3      10.0       12.6      14.4       0.6       4.1        6.3       10.2      12.8      14.8
+                                                                                  (0.6)     (2.1)      (3.3)      (5.3)     (6.7)      (7.7)    (0.5)      (2.2)      (3.4)     (5.4)      (6.8)     (7.8)     (0.3)     (2.2)      (3.4)      (5.5)     (6.9)     (8.0)
+                                                      Power boat 16 (53)           1.1       5.0        8.3       15.0      20.2       24.3      1.1        5.0        8.3      15.2       20.2      24.3       0.7       4.8        8.3       15.4      20.4      24.6
+                                                                                  (0.6)     (2.7)      (4.5)      (8.1)    (10.9)     (13.1)    (0.6)      (2.7)      (4.5)     (8.2)     (10.9)    (13.1)     (0.4)     (2.6)      (4.5)      (8.3)    (11.0)    (13.3)
+                                                      Power boat 24 (78)           1.1       5.2        9.3       18.1      25.0       30.9      1.1        5.2         9.4     18.1       25.2      30.9       0.7       5.2        9.3       18.1      25.2       31.1
+                                                                                  (0.6)     (2.8)      (5.0)      (9.8)    (13.5)     (16.7)    (0.6)      (2.8)      (5.1)     (9.8)     (13.6)    (16.7)     (0.4)     (2.8)      (5.0)      (9.8)    (13.6)    (16.8)
+                                                      Sail boat 5 (15)             0.9       3.0        4.1        5.9       7.2        8.0      0.9        3.0        4.3       6.1        7.4        8.1      0.6       3.0        4.3        6.5        7.6       8.3
+                                                                                  (0.5)     (1.6)      (2.2)      (3.2)     (3.9)      (4.3)    (0.5)      (1.6)      (2.3)     (3.3)      (4.0)     (4.4)     (0.3)     (1.6)      (2.3)      (3.5)     (4.1)     (4.5)
+                                                      Sail boat 8 (26)             1.1       3.7        5.7        9.1      11.3       13.0      0.9        3.9         5.9      9.3       11.5      13.1       0.6       3.9         6.1       9.6      11.9       13.5
+                                                                                  (0.6)     (2.0)       (3.1      (4.9)     (6.1)      (7.0)    (0.5)      (2.1)      (3.2)     (5.0)      (6.2)     (7.1)     (0.3)     (2.1)      (3.3)      (5.2)     (6.4)      (7.3)
+                                                      Sail boat 12 (39)            1.1       4.8        8.0       14.1      18.5       22.0      1.1        4.8        8.0      14.1       20.2      22.2       0.7       4.6        8.0       14.3      18.7      22.4
+                                                                                  (0.6)     (2.6)      (4.3)      (7.6)    (10.0)     (11.9)    (0.6)      (2.6)      (4.3)     (7.6)     (10.9)    (12.0)     (0.4)     (2.5)      (4.3)      (7.7)    (10.1)    (12.1)
+                                                      Sail boat 15 (49)            1.1       5.0        8.5       15.6      20.9       25.4      1.1        5.0        8.5      15.7       21.1      25.4       0.7       5.0        8.5       15.9      21.3      25.7
+                                                                                  (0.6)     (2.7)      (4.6)      (8.4)    (11.3)     (13.7)    (0.6)      (2.7)      (4.6)     (8.5)     (11.4)    (13.7)     (0.4)     (2.7)      (4.6)      (8.6)    (11.5)    (13.9)
+                                                      Sail boat 21 (69)            1.1       5.2         9.1      17.2      23.5       28.7      1.1        5.2         9.1     17.2       23.7      28.9       0.7       5.0         9.1      17.4      23.9       29.1
+                                                                                  (0.6)     (2.8)      (4.9)      (9.3)    (12.7)     (15.5)    (0.6)      (2.8)      (4.9)     (9.3)     (12.8)    (15.6)     (0.4)     (2.7)      (4.9)      (9.4)    (12.9)    (15.7)
+                                                      Sail boat 25 (83)            1.1       5.2        9.4       18.3      25.4       31.5      1.1        5.2         9.4     18.3       25.6      31.5       0.7       5.2         9.4      18.5      25.7       31.7
+                                                                                  (0.6)     (2.8)      (5.1)      (9.9)    (13.7)     (17.0)    (0.6)      (2.8)      (5.1)     (9.9)     (13.8)    (17.0)     (0.4)     (2.8)      (5.1)     (10.0)    (13.9)     (17.1)
+                                                      Ship 27–46 (90–150)          1.1       5.4       10.0       20.6      29.4       37.2      1.1        5.4       10.0      20.6       29.4      37.2       0.7       5.4       10.0       20.6      29.6       37.2
+                                                                                  (0.6)     (2.9)      (5.4)     (11.1)    (15.9)     (20.1)    (0.6)      (2.9)      (5.4)    (11.1)     (15.9)    (20.1)     (0.4)     (2.9)      (5.4)     (11.1)    (16.0)    (20.1)
+                                                      Ship 46–91 (150–300)         1.1       5.6       10.6       23.2      35.0       45.7      1.1        5.6       10.6      23.2       35.0      45.7       0.7       5.6       10.6       23.2      35.0      45.7
+                                                                                  (0.6)     (3.0)      (5.7)     (12.5)    (18.9)     (24.7)    (0.6)      (3.0)      (5.7)    (12.5)     (18.9)    (24.7)     (0.4)     (3.0)      (5.7)     (12.5)    (18.9)    (24.7)
+                                                      Ship > 91 (300)              1.3       5.6       10.7       24.4      38.2       51.7      1.1        5.6       10.7      24.4       38.2      51.7       0.9       5.6       10.7       24.4      38.3       51.7
+                                                                                  (0.7)     (3.0)      (5.8)     (13.2)    (20.6)     (27.9)    (0.6)      (3.0)      (5.8)    (13.2)     (20.6)    (27.9)     (0.5)     (3.0)       5.8)     (13.2)    (20.7)    (27.9)
+
+                                                  *
+                                                      For seach altitudes of 150 metres (500 feet) only, the sweep width values for a person in water may be multiplied by 4, if it is known that the person is wearing a personal flotation device.
+
+
+
+
+                       N-7
+                                                                                                                                                                                                                                                                            Appendix N – Tables and graphs
+
+
+
+
+5/20/2016 3:18:41 PM
+           Appendix N – Tables and graphs
+
+
+                                     Table N-7 – Weather correction factors for all types of search facilities
+
+                                                                                                  Search object
+                                                                              Person in water, raft or
+            Weather: Winds km/h (kt) or seas m (ft)                                                          Other search objects
+                                                                                boat < 10 m (33 ft)
+            Winds 0–28 km/h (0–15 kts) or seas 0–1 m (0–3 ft)                           1.0                             1.0
+            Winds 28–46 km/h (15–25 kts) or seas 1–1.5 m (3–5 ft)                       0.5                             0.9
+            Winds > 46 km/h (> 25 kts) or seas > 1.5 m (> 5 ft)                        0.25                             0.9
+
+
+                Table N-8 – Speed (velocity) correction factors for helicopter and fixed-wing aircraft search facilities
+            Search object                      Fixed-wing speed km/h (kts)                    Helicopter speed km/h (kts)
+                                         ≤ 275 (≤ 150) 330 (180)     385 (210) ≤ 110 (≤ 60)      165 (90)    220 (120)        255 (140)
+            Person in Water                   1.2           1.0         0.9          1.5            1.0           0.8            0.7
+            Raft 1–4 person                   1.1           1.0         0.9          1.3            1.0           0.9            0.8
+            Raft 6–25 person                  1.1           1.0         0.9          1.2            1.0           0.9            0.8
+            Power boat < 8 m                  1.1           1.0         0.9          1.2            1.0           0.9            0.8
+            (< 25 ft)
+            Power boat 10 m                   1.1           1.0         0.9          1.1            1.0           0.9            0.9
+            (33 ft)
+            Power boat 16 m                   1.1           1.0         1.0          1.1            1.0           0.9            0.9
+            (53 ft)
+            Power boat 24 m                   1.1           1.0         1.0          1.1            1.0           1.0            0.9
+            (78 ft)
+            Sail boat < 8 m (< 25 ft)         1.1           1.0         0.9          1.2            1.0           0.9            0.9
+            Sail boat 12 m (39 ft)            1.1           1.0         1.0          1.1            1.0           0.9            0.9
+            Sail boat 25 m (83 ft)            1.1           1.0         1.0          1.1            1.0           1.0            0.9
+            Ship > 27 m (> 90 ft)             1.0           1.0         1.0          1.1            1.0           1.0            0.9
+
+
+
+
+           N-8                                                                                    IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 8                                                                                                                             5/20/2016 3:18:41 PM
+                                                                                                         Appendix N – Tables and graphs
+
+
+                                              Table N-9 – Sweep widths for visual land search (km (NM))
+
+                                                                                       Visibility (km (NM))
+                Search object        Height (m (ft))          6 (3)         9 (5)            19 (10)          28 (15)              37 (20)
+                Person               150 (500)              0.7 (0.4)      0.7 (0.4)        0.9 (0.5)         0.9 (0.5)            0.9 (0.5)
+                                     300 (1,000)            0.7 (0.4)      0.7 (0.4)        0.9 (0.5)         0.9 (0.5)            0.9 (0.5)
+                                     450 (1,500)               —              —                  —               —                     —
+                                     600 (2,000)               —              —                  —               —                     —
+                Vehicle              150 (500)              1.7 (0.9)      2.4 (1.3)         2.4 (1.3)        2.4 (1.3)            2.4 (1.3)
+                                     300 (1,000)            1.9 (1.0)      2.6 (1.4)         2.6 (1.4)        2.8 (1.5)            2.8 (1.5)
+                                     450 (1,500)            1.9 (1.0)      2.6 (1.4)         3.1 (1.7)        3.1 (1.7)            3.1 (1.7)
+                                     600 (2,000)            1.9 (1.0)      2.8 (1.5)        3.7 (2.0)         3.7 (2.0)            3.7 (2.0)
+                Aircraft less than   150 (500)              1.9 (1.0)      2.6 (1.4)         2.6 (1.4)        2.6 (1.4)            2.6 (1.4)
+                5,700 kg
+                                     300 (1,000)            1.9 (1.0)      2.8 (1.5)         2.8 (1.5)        3.0 (1.6)            3.0 (1.6)
+                                     450 (1,500)            1.9 (1.0)      2.8 (1.5)         3.3 (1.8)        3.3 (1.8)            3.3 (1.8)
+                                     600 (2,000)            1.9 (1.0)      3.0 (1.6)        3.7 (2.0)         3.7 (2.0)            3.7 (2.0)
+                Aircraft over        150 (500)              2.2 (1.2)      3.7 (2.0)         4.1 (2.2)        4.1 (2.2)            4.1 (2.2)
+                5,700 kg
+                                     300 (1,000)            3.3 (1.8)      5.0 (2.7)        5.6 (3.0)         5.6 (3.0)            5.6 (3.0)
+                                     450 (1,500)            3.7 (2.0)      5.2 (2.8)         5.9 (3.2)        5.9 (3.2)            5.9 (3.2)
+                                     600 (2,000)            4.1 (2.2)      5.2 (2.9)        6.5 (3.5)         6.5 (3.5)            6.5 (3.5)
+
+
+
+                                           Table N-10 – Correction factors — vegetation and high terrain
+                Search object                          15–60% vegetation            60–85% vegetation                     Over 85%
+                                                            or hilly                 or mountainous                       vegetation
+                Person                                        0.5                          0.3                               0.1
+                Vehicle                                       0.7                          0.4                               0.1
+                Aircraft less than 5,700 kg                   0.7                          0.4                               0.1
+                Aircraft over 5,700 kg                        0.8                          0.4                               0.1
+
+
+
+
+                IAMSAR MANUAL VOLUME II                                                                                                       N-9
+
+
+
+
+IF961E.indb 9                                                                                                                              5/20/2016 3:18:41 PM
+           Appendix N – Tables and graphs
+
+
+                         Table N-11 – Recommended altitudes according to nature of search object and terrain
+
+            Search object                               Terrain                                      Recommended altitudes
+            Person, light aircraft                      Moderate terrain                             60–150 m (200–500 ft)
+            Large aircraft                              Moderate terrain                             120–300 m (400–1,000 ft)
+            Person, one-person raft, light aircraft     Water or flat terrain                        60–150 m (200–500 ft)
+            Medium-sized liferaft and aircraft          Water or flat terrain                        300–900 m (1,000–3,000 ft)
+            Pyrotechnical signal at night               Night                                        450–900 m (1,500–3,000 ft)
+            Medium-sized aircraft                       Mountainous terrain                          150–300 m (500–1,000 ft)
+
+
+
+
+           Distance to horizon
+           The distance to the horizon is equal to a constant multiplied by the square root of the altitude, as shown in
+           these two formulas:
+                                                                                 ________
+                                                            HNM = 1.17 × ​  √​Altitude​feet​ ​
+
+                                                                                ___________
+                                                           Hkm = 3.83 × √
+                                                                        ​ ​Altitude​metres​ ​
+                                                                             
+
+
+                                                         Table N-12 – Horizon range table
+                      Altitude in                      Distance in                     Altitude in                    Distance in
+                          feet                        nautical miles                     metres                       kilometres
+                          500                              26                              150                               47
+                         1,000                             37                             300                                66
+                         2,000                             52                             600                                94
+                         3,000                             64                             900                                115
+                         4,000                             74                             1,200                              133
+                         5,000                             83                            1,500                               148
+                        10,000                             117                           3,000                               210
+                        15,000                             143                            4,550                              257
+                        20,000                             165                            6,100                              297
+                        25,000                             185                            7,600                              332
+                        30,000                             203                            9,150                              363
+                        35,000                             219                           10,650                              392
+                        40,000                             234                           12,200                              420
+
+
+
+
+           N-10                                                                                         IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 10                                                                                                                      5/20/2016 3:18:41 PM
+IF961E.indb 11
+                                                  Available search effort graph
+                                                                                                                                                                                                                                                  Sweep width (W)
+                                                                                                                                                         1 NM            2 NM                           4 NM                            6 NM
+                                                                                           3,500
+
+
+
+                                                                                                        Search speed (V)                                                                                                                                   8 NM
+                                                                                           3,000        (knots for aircraft,
+                                                                                                      knots × 10 for vessels)
+
+
+
+                                                                                                                                                                                                                                                           10 NM
+
+
+
+
+                       IAMSAR MANUAL VOLUME II
+                                                                                                                                kt
+                                                                                           2,500
+
+
+
+
+                                                                                                                               0
+                                                                                                                            18
+                                                                                                                               5kt
+                                                                                                                            160 kt
+                                                                                           2,000
+
+
+
+
+                                                                                                                           15
+                                                                                                                               5kt
+                                                                                                                            13
+                                                                                                                                kt
+                                                                                                                                                                                                                                                           15 NM
+
+
+
+
+                                                                                                                              0
+                                                                                                                           12
+                                                                                           1,500
+
+
+
+
+                                                                                                                                kt
+                                                                                                                                                                                                                                                           20 NM
+
+
+
+
+                                                                                                                           90
+
+
+
+
+                                                    Distance travelled in searching (NM)
+                                                                                           1,000                      B                                 C
+                                                                                                                                     kt
+                                                                                                                                60
+
+
+
+                                                                                            500
+
+
+
+                                                                                                                 A                                      D
+                                                                                              0
+                                                                                                   0        5          10    13           0           2.5         5           7.5       10          12.5        15        17.5       20         22.5     25
+                                                                                                  Search endurance (T) in hours               Available search effort (Z) in thousands (aircraft) or hundreds (vessels) of square nautical miles
+
+                                                                               To determine the available search effort, enter graph at A, search endurance; proceed vertically to search speed at B; horizontally to C, the sweep width; then
+                                                                               downwards to find area, D. (8.5 h × 120 kts × 2 NM = 2040 NM2 or 8.5 h × 12 kts × 2 NM = 204 NM2). Reverse the procedure to determine the search
+                                                                               endurance required to provide a given amount of search effort.
+
+
+
+
+                       N-11
+                                                                                                                                                                                                                                                                    Appendix N – Tables and graphs
+
+
+
+
+                                                                                                                                                                             Figure N-4
+
+
+
+
+5/20/2016 3:18:42 PM
+           Appendix N – Tables and graphs
+
+
+           Optimal search factor graphs for point datums
+                                          18
+
+
+
+
+                                          16
+
+
+
+
+                                          14
+
+
+
+
+                                          12
+                                                                                   Normal search conditions
+             Cumulative relative effort
+
+
+
+
+                                          10
+
+
+
+
+                                          8
+
+
+
+
+                                                                                                               Ideal search
+                                          6                                                                    conditions
+
+
+
+
+                                          4
+
+
+
+                                                         Ideal search conditions
+
+                                          2
+                                                                                             Normal search conditions
+
+
+
+                                          0
+                                               0   0.2   0.4        0.6            0.8        1          1.2         1.4
+                                                                    Optimal search factor
+                                                                      Figure N-5
+
+
+
+
+           N-12                                                                                  IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 12                                                                                                                5/20/2016 3:18:42 PM
+                                                                                                            Appendix N – Tables and graphs
+
+
+                                               100
+                                                100
+
+
+
+
+                                                90
+                                                90
+
+
+
+
+                                                80
+                                                80
+
+
+
+
+                                                70
+                                                70
+                                      Effort
+
+
+
+
+                                                60
+                                                60
+                             Relativeeffort
+                  Cumulative relative
+
+
+
+
+                                                50
+                                                50
+                  Cumulative
+
+
+
+
+                                                                 Normal search conditions
+
+                                                40
+                                                40
+
+
+
+
+                                                30
+                                                30
+
+                                                                                                           Ideal search conditions
+
+
+                                                20
+                                                20
+
+
+
+
+                                                10
+                                                10
+
+
+
+
+                                                 00
+                                                      00   0.5
+                                                           0.5          11             1.5
+                                                                                       1.5            22               2.5
+                                                                                                                       2.5             3
+                                                                              Optimal search factor
+                                                                             Optimal Search Factor
+
+                                                                              Figure N-6
+
+
+
+
+                 IAMSAR MANUAL VOLUME II                                                                                            N-13
+
+
+
+
+IF961E.indb 13                                                                                                                       5/20/2016 3:18:42 PM
+           Appendix N – Tables and graphs
+
+
+           Optimal search factor graphs for line datums
+                                          5
+
+
+
+
+                                         4.5
+
+
+
+
+                                          4
+
+
+
+
+                                         3.5
+
+                                                                                     Normal search conditions
+
+                                          3
+            Cumulative relative effort
+
+
+
+
+                                         2.5
+
+
+
+
+                                                                                                                           Ideal search
+                                          2
+                                                                                                                           conditions
+
+
+
+
+                                         1.5
+                                                           Ideal search conditions
+
+
+
+                                          1
+
+
+
+
+                                         0.5
+                                                                                                          Normal search conditions
+
+
+
+                                          0
+                                               0   0.1   0.2   0.3   0.4    0.5      0.6    0.7   0.8    0.9    1    1.1     1.2     1.3   1.4
+
+                                                                             Optimal search factor
+
+                                                                                     Figure N-7
+
+
+
+           N-14                                                                                                IAMSAR MANUAL VOLUME II
+
+
+
+
+IF961E.indb 14                                                                                                                                   5/20/2016 3:18:42 PM
+
