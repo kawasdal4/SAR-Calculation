@@ -266,13 +266,9 @@
 
 /* Print styles for IAMSAR worksheet forms */
 @media print {
-  /* Hide everything except the active tab content */
-  body * {
-    visibility: hidden;
-  }
-  .print\:block,
-  .print\:block * {
-    visibility: visible;
+  /* Hide navigation, header, sidebar — only show form content */
+  header, nav, aside, .print\:hidden {
+    display: none !important;
   }
 
   /* Ensure forms don't break across pages */
@@ -292,4 +288,176 @@
     size: A3 landscape;
     margin: 10mm;
   }
+}
+
+/* Authentic IAMSAR form styling — visible both on screen and in print */
+.iamsar-form {
+  background: #fff;
+  border: 1.5px solid #334155;
+  border-radius: 2px;
+  font-family: 'Times New Roman', Georgia, serif;
+  font-size: 11px;
+  color: #1e293b;
+  overflow: hidden;
+}
+
+.iamsar-form-header {
+  background: #e2e8f0;
+  border-bottom: 1.5px solid #334155;
+  padding: 6px 10px;
+  font-weight: bold;
+  font-size: 12px;
+  text-align: center;
+  letter-spacing: 0.5px;
+}
+
+.iamsar-form-meta {
+  border-bottom: 1px solid #94a3b8;
+  padding: 4px 10px;
+  font-size: 9px;
+}
+
+.iamsar-form-meta table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.iamsar-form-meta td {
+  padding: 1px 4px;
+  border: none;
+  vertical-align: bottom;
+}
+
+.iamsar-form-meta td:first-child {
+  white-space: nowrap;
+  color: #64748b;
+  font-weight: 600;
+  width: 1%;
+  padding-right: 8px;
+}
+
+.iamsar-form-meta .fill-line {
+  border-bottom: 1px solid #475569;
+  display: inline-block;
+  min-width: 200px;
+  padding-bottom: 1px;
+}
+
+.iamsar-form-section {
+  border-bottom: 1px solid #cbd5e1;
+  padding: 4px 10px;
+}
+
+.iamsar-form-section:last-child {
+  border-bottom: none;
+}
+
+.iamsar-form-section-title {
+  font-weight: bold;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: #334155;
+  border-bottom: 1px solid #94a3b8;
+  padding-bottom: 2px;
+  margin-bottom: 3px;
+}
+
+.iamsar-form-row {
+  display: flex;
+  align-items: baseline;
+  padding: 1.5px 0;
+  border-bottom: 1px dotted #cbd5e1;
+  min-height: 18px;
+}
+
+.iamsar-form-row:last-child {
+  border-bottom: none;
+}
+
+.iamsar-form-row .row-num {
+  width: 22px;
+  flex-shrink: 0;
+  font-weight: 600;
+  color: #475569;
+  text-align: right;
+  padding-right: 6px;
+}
+
+.iamsar-form-row .row-label {
+  flex: 1;
+  color: #334155;
+  padding-right: 8px;
+}
+
+.iamsar-form-row .row-value {
+  min-width: 120px;
+  text-align: right;
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.iamsar-form-row .row-value.filled {
+  color: #047857;
+}
+
+.iamsar-form-row .row-value .unit {
+  font-weight: 400;
+  font-size: 9px;
+  color: #64748b;
+  margin-left: 2px;
+}
+
+.iamsar-form-row .row-blank {
+  min-width: 120px;
+  text-align: right;
+  color: #cbd5e1;
+  letter-spacing: 1px;
+}
+
+.iamsar-form-row .row-blank::after {
+  content: '────────────────';
+}
+
+.iamsar-form-row.result .row-value {
+  color: #047857;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.iamsar-form-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 4px 0;
+  font-size: 9px;
+}
+
+.iamsar-form-table th {
+  background: #f1f5f9;
+  border: 1px solid #94a3b8;
+  padding: 2px 4px;
+  text-align: center;
+  font-weight: 600;
+  color: #334155;
+}
+
+.iamsar-form-table td {
+  border: 1px solid #cbd5e1;
+  padding: 2px 4px;
+  text-align: center;
+  font-family: 'Courier New', monospace;
+}
+
+.iamsar-form-table td.filled {
+  color: #047857;
+  font-weight: 600;
+}
+
+.iamsar-form-footer {
+  border-top: 1px solid #94a3b8;
+  padding: 3px 10px;
+  font-size: 9px;
+  color: #64748b;
+  font-style: italic;
 }

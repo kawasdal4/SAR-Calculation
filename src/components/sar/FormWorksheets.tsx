@@ -23,9 +23,9 @@ export default function FormWorksheets({ data }: FormWorksheetsProps) {
     p ? `${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}` : '';
 
   return (
-    <div className="space-y-4 print:space-y-2">
-      <div className="print:hidden flex items-center justify-between">
-        <h2 className="text-sm font-bold text-slate-700">IAMSAR Worksheets (Form View)</h2>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between mb-2 sticky top-0 bg-white/90 backdrop-blur-sm z-10 py-2 border-b border-slate-200">
+        <h2 className="text-sm font-bold text-slate-700">IAMSAR Worksheet Forms</h2>
         <Button onClick={() => window.print()} size="sm">
           <Printer className="h-4 w-4 mr-2" /> Print All Worksheets
         </Button>
@@ -108,7 +108,7 @@ export default function FormWorksheets({ data }: FormWorksheetsProps) {
         footer="Go to line B.10 or C.7 of the Aeronautical drift worksheet."
       >
         {data.awaObservations && data.awaObservations.length > 0 && (
-          <table className="w-full mt-3 border border-slate-300 text-[9px]">
+          <table className="iamsar-form-table">
             <thead className="bg-slate-100">
               <tr>
                 <th className="px-1 py-0.5 border-r border-slate-300">Alt Low (ft)</th>
@@ -125,9 +125,9 @@ export default function FormWorksheets({ data }: FormWorksheetsProps) {
                   <td className="px-1 py-0.5 border-r border-slate-200 font-mono">{(o.altitudeKft * 1000).toFixed(0)}</td>
                   <td className="px-1 py-0.5 border-r border-slate-200 font-mono">{((o.altitudeKft + 2) * 1000).toFixed(0)}</td>
                   <td className="px-1 py-0.5 border-r border-slate-200 font-mono">{o.altitudeKft.toFixed(2)}</td>
-                  <td className="px-1 py-0.5 border-r border-slate-200 font-mono text-emerald-700">{o.windDirFrom}°T</td>
-                  <td className="px-1 py-0.5 border-r border-slate-200 font-mono text-emerald-700">{o.windSpeed}</td>
-                  <td className="px-1 py-0.5 font-mono text-emerald-700">{o.contribution.dir.toFixed(0)}°T / {o.contribution.mag.toFixed(1)}</td>
+                  <td className="filled">{o.windDirFrom}°T</td>
+                  <td className="filled">{o.windSpeed}</td>
+                  <td className="filled">{o.contribution.dir.toFixed(0)}°T / {o.contribution.mag.toFixed(1)}</td>
                 </tr>
               ))}
             </tbody>
@@ -165,7 +165,7 @@ export default function FormWorksheets({ data }: FormWorksheetsProps) {
         footer="Go to part C on the Datum worksheet."
       >
         {data.aswObservations && data.aswObservations.length > 0 && (
-          <table className="w-full mt-3 border border-slate-300 text-[9px]">
+          <table className="iamsar-form-table">
             <thead className="bg-slate-100">
               <tr>
                 <th className="px-1 py-0.5 border-r border-slate-300">Time Start</th>
@@ -181,10 +181,10 @@ export default function FormWorksheets({ data }: FormWorksheetsProps) {
                 <tr key={i} className="border-t border-slate-200">
                   <td className="px-1 py-0.5 border-r border-slate-200">—</td>
                   <td className="px-1 py-0.5 border-r border-slate-200">—</td>
-                  <td className="px-1 py-0.5 border-r border-slate-200 font-mono text-emerald-700">{o.hours}</td>
-                  <td className="px-1 py-0.5 border-r border-slate-200 font-mono text-emerald-700">{o.windDirFrom}°T</td>
-                  <td className="px-1 py-0.5 border-r border-slate-200 font-mono text-emerald-700">{o.windSpeed}</td>
-                  <td className="px-1 py-0.5 font-mono text-emerald-700">{((o.windDirFrom + 180) % 360).toFixed(0)}°T / {(o.hours * o.windSpeed).toFixed(1)}</td>
+                  <td className="filled">{o.hours}</td>
+                  <td className="filled">{o.windDirFrom}°T</td>
+                  <td className="filled">{o.windSpeed}</td>
+                  <td className="filled">{((o.windDirFrom + 180) % 360).toFixed(0)}°T / {(o.hours * o.windSpeed).toFixed(1)}</td>
                 </tr>
               ))}
             </tbody>
