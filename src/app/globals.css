@@ -456,3 +456,131 @@
   font-weight: 600;
 }
 
+/* ==========================================================================
+   PRINT MEDIA STYLES - IAMSAR / BASARNAS WORKSHEET DEDICATED PRINTING
+   Cetak bersih: Hanya worksheet tab aktif + Lampiran Peta/Mobo/UPS di halaman selanjutnya
+   ========================================================================== */
+
+@media screen {
+  /* Sembunyikan elemen lampiran peta cetak di tampilan layar monitor agar tidak dobel dengan aside */
+  .print-companion-map {
+    position: absolute;
+    left: -99999px;
+    top: -99999px;
+    width: 900px;
+    height: 650px;
+    visibility: hidden;
+    pointer-events: none;
+    overflow: hidden;
+  }
+}
+
+@media print {
+  /* Sembunyikan semua elemen layout web app luar */
+  header,
+  footer,
+  aside,
+  [data-ai-chat-panel],
+  .ai-chat-floating-btn,
+  .print\:hidden,
+  .no-print,
+  button:not(.force-print),
+  nav,
+  [role="tablist"],
+  .pick-mode-banner {
+    display: none !important;
+  }
+
+  /* Reset body dan html agar dokumen pas di kertas A4 */
+  html, body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 11pt !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Buat grid layout menjadi blok 1 kolom penuh */
+  main {
+    display: block !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    grid-template-columns: 1fr !important;
+  }
+
+  section {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Hanya tampilkan tab yang sedang aktif saat dicetak */
+  [role="tabpanel"][data-state="inactive"] {
+    display: none !important;
+  }
+
+  [role="tabpanel"][data-state="active"] {
+    display: block !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Aturan Halaman Selanjutnya (Page Break) untuk Peta, UPS, MoBo */
+  .print-companion-page {
+    page-break-before: always !important;
+    break-before: page !important;
+    display: block !important;
+    width: 100% !important;
+    margin-top: 15mm !important;
+  }
+
+  /* Lampiran Peta Operasi di halaman selanjutnya */
+  .print-companion-map {
+    position: static !important;
+    left: auto !important;
+    top: auto !important;
+    width: 100% !important;
+    height: auto !important;
+    visibility: visible !important;
+    page-break-before: always !important;
+    break-before: page !important;
+    display: block !important;
+    margin-top: 15mm !important;
+  }
+
+  .print-page-break {
+    page-break-before: always !important;
+    break-before: page !important;
+  }
+
+  /* Hindari pemotongan di tengah baris tabel atau form kalkulasi */
+  table, tr, .avoid-break-inside {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Hilangkan efek bayangan kartu saat cetak agar tinta hemat dan bersih */
+  .shadow, .shadow-sm, .shadow-md, .shadow-lg, .shadow-xl {
+    box-shadow: none !important;
+  }
+
+  /* Paksa cetak warna & garis tajam */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  @page {
+    size: auto;
+    margin: 12mm 15mm 15mm 15mm;
+  }
+}
+
+

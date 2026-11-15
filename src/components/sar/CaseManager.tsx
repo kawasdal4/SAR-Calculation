@@ -194,7 +194,7 @@ export default function CaseManager({ buildState, applyState }: CaseManagerProps
               <Input
                 id="title"
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                suppressHydrationWarning onChange={(e) => setTitle(e.target.value)}
                 placeholder="e.g., M/V NEVERSEEN — Java Sea"
                 className="mt-1"
               />
@@ -239,6 +239,9 @@ export default function CaseManager({ buildState, applyState }: CaseManagerProps
               <textarea
                 id="notes"
                 value={notes}
+                suppressHydrationWarning
+                spellCheck={false}
+                data-ms-editor="true"
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="SMC comments, weather, vessel traffic considerations…"
                 rows={3}

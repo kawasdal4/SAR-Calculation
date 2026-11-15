@@ -217,13 +217,12 @@ export default function SearchPlanWorksheet({
     };
   }, [datumType, datumLeft, datumRight]);
 
+  // Search area berbentuk persegi (Square): S = sqrt(Ao)
   const searchAreaLength = useMemo(() => {
-    if (datumType === 'point') return 2 * effort.Ro;
-    if (datumType === 'leeway-divergence') return 2 * effort.Ro + divergenceDistance;
-    return divergenceDistance + 2 * effort.Ro;
-  }, [datumType, effort.Ro, divergenceDistance]);
+    return Number(Math.sqrt(effort.Ao).toFixed(2));
+  }, [effort.Ao]);
 
-  const searchAreaWidth = 2 * effort.Ro;
+  const searchAreaWidth = searchAreaLength; // Persegi: panjang = lebar
 
   // Orientation: along drift direction (search legs parallel to drift)
   const orientationDeg = driftLeftDir;
@@ -245,7 +244,7 @@ export default function SearchPlanWorksheet({
       orientationDeg,
       trackSpacing,
     });
-  }, [E, Zta, effort, POD, searchAreaCenter, searchAreaLength, orientationDeg, trackSpacing, onResults]);
+  }, [E, Zta, effort, POD, searchAreaCenter, searchAreaLength, searchAreaWidth, orientationDeg, trackSpacing, onResults]);
 
   const updateFacility = (idx: number, key: keyof FacilityRow, value: number | string) => {
     setFacilities((prev) => prev.map((f, i) => (i === idx ? { ...f, [key]: value } : f)));
@@ -369,7 +368,7 @@ export default function SearchPlanWorksheet({
                       type="text"
                       value={r.facility.name}
                       onChange={(e) => updateFacility(i, 'name', e.target.value)}
-                      className="h-8 w-full px-2 text-xs rounded border border-slate-200 bg-white"
+                      className="h-8 w-full px-2 text-xs rounded border border-slate-200 bg-white" suppressHydrationWarning
                     />
                   </TableCell>
                   <TableCell>

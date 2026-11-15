@@ -83,7 +83,7 @@ export function LeewayChart({
               type="checkbox"
               checked={showAllCurves}
               onChange={(e) => setShowAllCurves(e.target.checked)}
-              className="rounded"
+              className="rounded" suppressHydrationWarning
             />
             Show all object types
           </label>

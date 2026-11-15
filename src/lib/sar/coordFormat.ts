@@ -62,6 +62,13 @@ export function formatDegMinSec(
   return `${dStr}°${mStr}′${hemi}`;
 }
 
+/**
+ * Convenient DMS formatter for coordinate display in worksheets and tables.
+ */
+export function formatDMS(val: number, isLng: boolean): string {
+  return formatDegMinSec(val, isLng ? 'lng' : 'lat', 30);
+}
+
 // ============================================================================
 // Unit tests
 // ============================================================================

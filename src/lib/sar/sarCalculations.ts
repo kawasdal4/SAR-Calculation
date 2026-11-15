@@ -78,6 +78,19 @@ export function distanceNm(a: LatLng, b: LatLng): number {
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
+/** Initial bearing from point `a` to point `b` in degrees True [0, 360). */
+export function bearingDeg(a: LatLng, b: LatLng): number {
+  const lat1 = (a.lat * Math.PI) / 180;
+  const lat2 = (b.lat * Math.PI) / 180;
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const y = Math.sin(dLng) * Math.cos(lat2);
+  const x =
+    Math.cos(lat1) * Math.sin(lat2) -
+    Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+  const brng = (Math.atan2(y, x) * 180) / Math.PI;
+  return (brng + 360) % 360;
+}
+
 /** Project a position from a starting point given a direction (degT) and distance (NM). */
 export function project(from: LatLng, dirDeg: number, distanceNm: number): LatLng {
   const R = 3440.065;
@@ -128,6 +141,7 @@ export function rectangleCorners(
 // ============================================================================
 
 export interface AWAObservation {
+  altObs?: string;
   altLow: number;
   altHigh: number;
   windDirFrom: number;
@@ -188,6 +202,7 @@ export function computeAWA(observations: AWAObservation[]): AWAResult {
 // ============================================================================
 
 export interface ASWObservation {
+  timeObs?: string;
   timeStart: string;
   timeEnd: string;
   hours: number;

@@ -284,7 +284,7 @@ function ScenarioCard({
           type="text"
           value={scenario.name}
           onChange={(e) => onUpdate({ name: e.target.value })}
-          className="text-sm font-semibold text-slate-800 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-violet-400 outline-none flex-1"
+          className="text-sm font-semibold text-slate-800 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-violet-400 outline-none flex-1" suppressHydrationWarning
         />
         <button
           type="button"

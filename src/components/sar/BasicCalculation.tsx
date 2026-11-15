@@ -40,10 +40,11 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { WorksheetCard } from '@/components/sar/WorksheetCard';
-import BasicCalcExercises from '@/components/sar/basic-calc/Exercises';
 import {
   calcSearchers,
+  convertCmPerSecond,
   convertDistance,
+  convertMeterPerSecond,
   convertSpeed,
   decimalHoursToHms,
   DISTANCE_UNITS,
@@ -192,7 +193,7 @@ const SYMBOL_ROWS: { symbol: string; term: string; meaning: string; units: strin
     symbol: 'V',
     term: 'Kecepatan',
     meaning: 'Laju perpindahan suatu obyek terhadap waktu — seberapa cepat suatu objek bergerak.',
-    units: 'km/jam · cm/s · nm/jam (knot)',
+    units: 'km/jam · m/s · cm/s · nm/jam (knot)',
   },
   {
     symbol: 'A',
@@ -608,7 +609,7 @@ function SvtSection() {
   const [v, setV] = useState('');
   const [t, setT] = useState('');
   const [sUnit, setSUnit] = useState<'nm' | 'km'>('nm');
-  const [vUnit, setVUnit] = useState<'kts' | 'kmh'>('kts');
+  const [vUnit, setVUnit] = useState<SpeedUnit>('kts');
 
   const sNum = parseNum(s);
   const vNum = parseNum(v);
@@ -619,13 +620,13 @@ function SvtSection() {
     if (blanks !== 1) return null;
     // Normalisasi ke nm & kts (1 kts = 1 nm/jam)
     const sNm = sNum === null ? null : sUnit === 'km' ? sNum / 1.852 : sNum;
-    const vKts = vNum === null ? null : vUnit === 'kmh' ? vNum / 1.852 : vNum;
+    const vKts = vNum === null ? null : vNum * SPEED_UNITS[vUnit].toKts;
     const res = solveSvt({ s: sNm, v: vKts, t: tNum });
     return res;
   }, [sNum, vNum, tNum, sUnit, vUnit]);
 
   const displayS = (nm: number) => (sUnit === 'km' ? nm * 1.852 : nm);
-  const displayV = (kts: number) => (vUnit === 'kmh' ? kts * 1.852 : kts);
+  const displayV = (kts: number) => kts / SPEED_UNITS[vUnit].toKts;
 
   const blanks = [sNum === null, vNum === null, tNum === null].filter(Boolean).length;
 
@@ -667,19 +668,27 @@ function SvtSection() {
           <div className="space-y-1">
             <NumField
               id="svt-v"
-              label={vUnit === 'kts' ? 'Kecepatan V (knot)' : 'Kecepatan V (km/jam)'}
+              label={`Kecepatan V (${SPEED_UNITS[vUnit].short})`}
               value={v}
               onChange={setV}
-              placeholder={vUnit === 'kts' ? 'Contoh: 21' : 'Contoh: 88'}
+              placeholder={
+                vUnit === 'kts'
+                  ? 'Contoh: 21'
+                  : vUnit === 'kmh'
+                  ? 'Contoh: 88'
+                  : vUnit === 'ms'
+                  ? 'Contoh: 1.5'
+                  : 'Contoh: 27'
+              }
             />
             <UnitSelect
               value={vUnit}
               onChange={setVUnit}
               ariaLabel="Satuan kecepatan"
-              options={[
-                { value: 'kts', label: 'knot (kts)' },
-                { value: 'kmh', label: 'km/jam' },
-              ]}
+              options={SPEED_UNIT_ORDER.map((u) => ({
+                value: u,
+                label: `${SPEED_UNITS[u].label} (${SPEED_UNITS[u].short})`,
+              }))}
             />
           </div>
           <div className="space-y-1">
@@ -690,10 +699,10 @@ function SvtSection() {
 
         <div className="mt-2 flex flex-wrap gap-1.5">
           <Button variant="outline" size="sm" className="h-7 px-2 text-[11px]" onClick={() => loadPreset('lat1')}>
-            Contoh: Latihan SVT 1
+            Contoh: Target V=8 kt
           </Button>
           <Button variant="outline" size="sm" className="h-7 px-2 text-[11px]" onClick={() => loadPreset('lat2')}>
-            Contoh: Latihan SVT 2
+            Contoh: Target V=12 kt
           </Button>
           <Button variant="outline" size="sm" className="h-7 px-2 text-[11px]" onClick={() => loadPreset('lat7')}>
             Contoh: MV Pangrango
@@ -719,7 +728,7 @@ function SvtSection() {
               )}
               {vNum === null && solved.v !== null && (
                 <ResultHighlight
-                  label={`Kecepatan V (${vUnit === 'kts' ? 'kts' : 'km/jam'})`}
+                  label={`Kecepatan V (${SPEED_UNITS[vUnit].short})`}
                   value={formatId(displayV(solved.v), 3)}
                 />
               )}
@@ -738,20 +747,220 @@ function SvtSection() {
         </div>
       </WorksheetCard>
 
-      <WorksheetCard title="Konverter Kecepatan" badge="kts ↔ km/jam ↔ cm/s">
+      {/* Konverter Khusus m/s & cm/s -> knots & km/jam */}
+      <CurrentSpeedConverter />
+
+      {/* Konverter Lengkap Semua Satuan Kecepatan */}
+      <WorksheetCard title="Konverter Kecepatan (Semua Satuan)" badge="kts ↔ km/jam ↔ m/s ↔ cm/s">
         <SpeedConverter />
-        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {[
-            '1 nm/jam (kts) = 1,852 km/jam',
-            '1 kts = 51,4444 cm/s',
-            '1 km/jam = 0,54 kts',
-            '1 cm/s = 0,036 km/jam',
+            '1 nm/jam (kts) = 1,852 km/jam = 51,4444 cm/s',
+            '1 m/s = 100 cm/s = 3,6 km/jam = 1,944 kts',
+            '1 cm/s = 0,036 km/jam = 0,01944 kts',
+            '1 km/jam = 0,54 kts = 0,278 m/s = 27,78 cm/s',
+            '1 kts = 0,514444 m/s (1852 m ÷ 3600 s)',
+            '27 cm/s = 0,972 km/jam = 0,525 kts',
           ].map((c) => (
             <FormulaBox key={c}>{c}</FormulaBox>
           ))}
         </div>
       </WorksheetCard>
     </div>
+  );
+}
+
+/**
+ * Komponen khusus konversi Meter/Detik dan CM/Detik ke Knots (nm/jam) & KM/jam.
+ * Sesuai materi Diklat SARPLAN Angkatan XL (Slide 36–37) & kebutuhan operasional SAR (arus laut BMKG/sensor).
+ */
+function CurrentSpeedConverter() {
+  const [msVal, setMsVal] = useState('1.5');
+  const [cmsVal, setCmsVal] = useState('27');
+
+  const numMs = parseNum(msVal);
+  const numCms = parseNum(cmsVal);
+
+  const resMs = numMs !== null ? convertMeterPerSecond(numMs) : null;
+  const resCms = numCms !== null ? convertCmPerSecond(numCms) : null;
+
+  return (
+    <WorksheetCard
+      title="Konversi Meter/detik (m/s) & CM/detik (cm/s) → Knots & KM/jam"
+      badge="Slide 36–37 · Arus & Angin"
+    >
+      <div className="mb-4 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800">
+        Dalam analisis SAR kelautan, data kecepatan arus laut (Sea Current / SC) dan angin dari BMKG / sensor oseanografi sering dilaporkan dalam <b>meter/detik (m/s)</b> atau <b>centimeter/detik (cm/s)</b>. Untuk kalkulasi drift SAR, kecepatan harus diubah ke <b>nm/jam (knots)</b> atau <b>km/jam</b>.
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* Kolom 1: Konversi Meter/detik (m/s) */}
+        <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-3.5 space-y-3">
+          <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+            <span className="font-semibold text-xs text-slate-800 flex items-center gap-1.5">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-blue-700 text-[11px] font-bold">A</span>
+              Meter / Detik (m/s)
+            </span>
+            <Badge variant="secondary" className="text-[10px]">1 m/s = 1,944 kts = 3,6 km/jam</Badge>
+          </div>
+
+          <NumField
+            id="current-ms"
+            label="Kecepatan / Arus dalam Meter/Detik (m/s)"
+            value={msVal}
+            onChange={setMsVal}
+            placeholder="Contoh: 1.5"
+            suffix="m/s"
+          />
+
+          <div className="flex flex-wrap gap-1 items-center">
+            <span className="text-[10px] text-slate-500 mr-1">Contoh:</span>
+            {[
+              { val: '0.5', lbl: '0,5 m/s' },
+              { val: '1', lbl: '1,0 m/s' },
+              { val: '1.5', lbl: '1,5 m/s' },
+              { val: '2.5', lbl: '2,5 m/s' },
+            ].map((p) => (
+              <Button
+                key={p.val}
+                variant="outline"
+                size="sm"
+                className="h-6 px-1.5 text-[10px]"
+                onClick={() => setMsVal(p.val)}
+              >
+                {p.lbl}
+              </Button>
+            ))}
+          </div>
+
+          {resMs ? (
+            <div className="space-y-2 pt-1">
+              <div className="rounded-md border border-emerald-200 bg-emerald-50/90 p-2.5">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700">
+                  Hasil ke Knot (nm/jam)
+                </div>
+                <div className="font-mono text-base font-bold text-emerald-900">
+                  {formatId(resMs.kts, 6)}{' '}
+                  <span className="text-xs font-normal text-emerald-700">kts (nm/jam)</span>
+                </div>
+                <div className="mt-1 text-[11px] text-emerald-800 font-mono">
+                  Langkah: {msVal} m/s × 100 ÷ 51,4444 = <b>{formatId(resMs.kts, 4)} kts</b>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-md border border-slate-200 bg-white p-2">
+                  <div className="text-[10px] font-medium text-slate-500 uppercase">Kilometer / Jam</div>
+                  <div className="font-mono text-sm font-bold text-slate-800">
+                    {formatId(resMs.kmh, 4)}{' '}
+                    <span className="text-[10px] font-normal text-slate-500">km/jam</span>
+                  </div>
+                  <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                    = {msVal} × 3,6 km/jam
+                  </div>
+                </div>
+
+                <div className="rounded-md border border-slate-200 bg-white p-2">
+                  <div className="text-[10px] font-medium text-slate-500 uppercase">Centimeter / Detik</div>
+                  <div className="font-mono text-sm font-bold text-slate-800">
+                    {formatId(resMs.cms, 2)}{' '}
+                    <span className="text-[10px] font-normal text-slate-500">cm/s</span>
+                  </div>
+                  <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                    = {msVal} × 100 cm/s
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <EmptyHint text="Masukkan nilai m/s untuk melihat hasil konversi." />
+          )}
+        </div>
+
+        {/* Kolom 2: Konversi Centimeter/detik (cm/s) */}
+        <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-3.5 space-y-3">
+          <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+            <span className="font-semibold text-xs text-slate-800 flex items-center gap-1.5">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-100 text-amber-700 text-[11px] font-bold">B</span>
+              Centimeter / Detik (cm/s)
+            </span>
+            <Badge variant="secondary" className="text-[10px]">1 cm/s = 0,0194 kts = 0,036 km/jam</Badge>
+          </div>
+
+          <NumField
+            id="current-cms"
+            label="Kecepatan / Arus dalam Centimeter/Detik (cm/s)"
+            value={cmsVal}
+            onChange={setCmsVal}
+            placeholder="Contoh: 27"
+            suffix="cm/s"
+          />
+
+          <div className="flex flex-wrap gap-1 items-center">
+            <span className="text-[10px] text-slate-500 mr-1">Contoh:</span>
+            {[
+              { val: '20', lbl: '20 cm/s' },
+              { val: '27', lbl: '27 cm/s' },
+              { val: '50', lbl: '50 cm/s' },
+              { val: '100', lbl: '100 cm/s' },
+            ].map((p) => (
+              <Button
+                key={p.val}
+                variant="outline"
+                size="sm"
+                className="h-6 px-1.5 text-[10px]"
+                onClick={() => setCmsVal(p.val)}
+              >
+                {p.lbl}
+              </Button>
+            ))}
+          </div>
+
+          {resCms ? (
+            <div className="space-y-2 pt-1">
+              <div className="rounded-md border border-emerald-200 bg-emerald-50/90 p-2.5">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700">
+                  Hasil ke Knot (nm/jam)
+                </div>
+                <div className="font-mono text-base font-bold text-emerald-900">
+                  {formatId(resCms.kts, 6)}{' '}
+                  <span className="text-xs font-normal text-emerald-700">kts (nm/jam)</span>
+                </div>
+                <div className="mt-1 text-[11px] text-emerald-800 font-mono">
+                  Langkah: {cmsVal} ÷ 51,4444 = {cmsVal} × 0,019438444 = <b>{formatId(resCms.kts, 4)} kts</b>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-md border border-slate-200 bg-white p-2">
+                  <div className="text-[10px] font-medium text-slate-500 uppercase">Kilometer / Jam</div>
+                  <div className="font-mono text-sm font-bold text-slate-800">
+                    {formatId(resCms.kmh, 4)}{' '}
+                    <span className="text-[10px] font-normal text-slate-500">km/jam</span>
+                  </div>
+                  <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                    = {cmsVal} × 0,036 km/jam
+                  </div>
+                </div>
+
+                <div className="rounded-md border border-slate-200 bg-white p-2">
+                  <div className="text-[10px] font-medium text-slate-500 uppercase">Meter / Detik</div>
+                  <div className="font-mono text-sm font-bold text-slate-800">
+                    {formatId(resCms.ms, 4)}{' '}
+                    <span className="text-[10px] font-normal text-slate-500">m/s</span>
+                  </div>
+                  <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                    = {cmsVal} ÷ 100 m/s
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <EmptyHint text="Masukkan nilai cm/s untuk melihat hasil konversi." />
+          )}
+        </div>
+      </div>
+    </WorksheetCard>
   );
 }
 
@@ -763,7 +972,7 @@ function SpeedConverter() {
 
   return (
     <>
-      <div className="grid grid-cols-[1fr_11rem] items-end gap-2">
+      <div className="grid grid-cols-[1fr_13rem] items-end gap-2">
         <NumField
           id="speed-value"
           label="Nilai kecepatan"
@@ -781,7 +990,7 @@ function SpeedConverter() {
           />
         </div>
       </div>
-      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
         {results ? (
           SPEED_UNIT_ORDER.map((unit) => (
             <div
@@ -798,7 +1007,7 @@ function SpeedConverter() {
             </div>
           ))
         ) : (
-          <div className="sm:col-span-3">
+          <div className="sm:col-span-4">
             <EmptyHint text="Masukkan nilai kecepatan untuk konversi." />
           </div>
         )}
@@ -899,8 +1108,8 @@ function AreaSection() {
 
         <div className="mt-2 flex flex-wrap gap-1.5">
           {[
-            { k: 'lat1' as const, lbl: 'Contoh: Latihan Area 1' },
-            { k: 'lat2' as const, lbl: 'Contoh: Latihan Area 2' },
+            { k: 'lat1' as const, lbl: 'Contoh: Area 1' },
+            { k: 'lat2' as const, lbl: 'Contoh: Area 2' },
             { k: 'lat7' as const, lbl: 'Contoh: Track spacing' },
             { k: 'lat13' as const, lbl: 'Contoh: Kecepatan' },
           ].map((p) => (
@@ -1012,9 +1221,8 @@ const SUB_TABS = [
   { value: 'jarak', label: 'Jarak', icon: Ruler },
   { value: 'waktu', label: 'Waktu', icon: Clock },
   { value: 'zona', label: 'Zona Waktu', icon: Globe },
-  { value: 'svt', label: 'S·V·T', icon: Gauge },
+  { value: 'svt', label: 'S·V·T & Kecepatan', icon: Gauge },
   { value: 'area', label: 'Area', icon: Grid3x3 },
-  { value: 'latihan', label: 'Latihan', icon: BookOpen },
 ];
 
 export default function BasicCalculation() {
@@ -1024,13 +1232,12 @@ export default function BasicCalculation() {
     <div data-testid="basic-calculation">
       <WorksheetCard
         title="Penghitungan Dasar SAR"
-        description="Introduction to SAR Calculation — Ipuk Prasetyarin · Diklat SARPLAN Angkatan XL · Jakarta, 26 Oktober 2026"
+        description="Introduction to SAR Calculation — IAMSAR Manual Volume II"
         badge="SARPLAN"
       >
         <div className="mb-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
           Materi dasar perhitungan SAR: jarak (S), waktu (T), kecepatan (V) dan luasan (A) —
-          lengkap dengan konverter satuan, konversi zona waktu, kalkulator rumus, dan bank latihan
-          dengan pembahasan.
+          lengkap dengan konverter satuan, konversi zona waktu, dan kalkulator rumus operasional.
         </div>
 
         <Tabs value={subTab} onValueChange={setSubTab}>
@@ -1059,9 +1266,6 @@ export default function BasicCalculation() {
           </TabsContent>
           <TabsContent value="area" className="mt-0">
             <AreaSection />
-          </TabsContent>
-          <TabsContent value="latihan" className="mt-0">
-            <BasicCalcExercises />
           </TabsContent>
         </Tabs>
       </WorksheetCard>

@@ -135,19 +135,24 @@ export function formatHhmm(hours: number): string {
 }
 
 // ---------------------------------------------------------------------------
-// KONVERSI KECEPATAN (V): knot ↔ km/jam ↔ cm/s
+// KONVERSI KECEPATAN (V): knot ↔ km/jam ↔ m/s ↔ cm/s
 // ---------------------------------------------------------------------------
 
-export type SpeedUnit = 'kts' | 'kmh' | 'cms';
+export type SpeedUnit = 'kts' | 'kmh' | 'ms' | 'cms';
 
-/** 1 kts = 1,852 km/jam = 51,4444 cm/s (sesuai materi). */
+/**
+ * 1 kts = 1,852 km/jam = 51,4444 cm/s = 0,514444 m/s (sesuai materi Diklat SARPLAN Slide 36).
+ * 1 m/s = 100 cm/s = 3,6 km/jam = 100 / 51,4444 ≈ 1,9438444 kts.
+ * 1 cm/s = 0,036 km/jam = 1 / 51,4444 ≈ 0,019438444 kts.
+ */
 export const SPEED_UNITS: Record<SpeedUnit, { label: string; short: string; toKts: number }> = {
   kts: { label: 'Knot (nm/jam)', short: 'kts', toKts: 1 },
   kmh: { label: 'Kilometer/jam', short: 'km/jam', toKts: 1 / 1.852 },
-  cms: { label: 'Centimeter/detik', short: 'cm/s', toKts: 1 / 51.4444 },
+  ms: { label: 'Meter/detik (m/s)', short: 'm/s', toKts: 100 / 51.4444 },
+  cms: { label: 'Centimeter/detik (cm/s)', short: 'cm/s', toKts: 1 / 51.4444 },
 };
 
-export const SPEED_UNIT_ORDER: SpeedUnit[] = ['kts', 'kmh', 'cms'];
+export const SPEED_UNIT_ORDER: SpeedUnit[] = ['kts', 'kmh', 'ms', 'cms'];
 
 /** Konversi kecepatan dari satu satuan ke semua satuan lainnya. */
 export function convertSpeed(value: number, from: SpeedUnit): Record<SpeedUnit, number> {
@@ -157,6 +162,32 @@ export function convertSpeed(value: number, from: SpeedUnit): Record<SpeedUnit, 
     out[unit] = kts / SPEED_UNITS[unit].toKts;
   }
   return out;
+}
+
+/** Konversi nilai meter/detik (m/s) ke knot (nm/jam), km/jam, dan cm/s. */
+export function convertMeterPerSecond(ms: number): {
+  kts: number;
+  kmh: number;
+  cms: number;
+} {
+  return {
+    kts: (ms * 100) / 51.4444,
+    kmh: ms * 3.6,
+    cms: ms * 100,
+  };
+}
+
+/** Konversi nilai centimeter/detik (cm/s) ke knot (nm/jam), km/jam, dan m/s. */
+export function convertCmPerSecond(cms: number): {
+  kts: number;
+  kmh: number;
+  ms: number;
+} {
+  return {
+    kts: cms / 51.4444,
+    kmh: cms * 0.036,
+    ms: cms / 100,
+  };
 }
 
 // ---------------------------------------------------------------------------

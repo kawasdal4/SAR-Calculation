@@ -252,6 +252,14 @@ export default function SeaMap({
 
   useEffect(() => {
     pickModeRef.current = pickMode;
+    if (mapRef.current) {
+      const container = mapRef.current.getContainer();
+      if (pickMode) {
+        container.style.cursor = 'crosshair';
+      } else {
+        container.style.cursor = '';
+      }
+    }
   }, [pickMode]);
   useEffect(() => {
     measureModeRef.current = measureMode;
@@ -1124,16 +1132,16 @@ export default function SeaMap({
         div.innerHTML = `
           <h4>Map Layers</h4>
           <div class="layer-row">
-            <label><input type="checkbox" id="lyr-osm" checked /> OpenStreetMap (base)</label>
+            <label><input type="checkbox" id="lyr-osm" checked suppressHydrationWarning /> OpenStreetMap (base)</label>
           </div>
           <div class="layer-row">
-            <label><input type="checkbox" id="lyr-seamark" checked /> OpenSeaMap (seamark)</label>
+            <label><input type="checkbox" id="lyr-seamark" checked suppressHydrationWarning /> OpenSeaMap (seamark)</label>
           </div>
           <div class="layer-row">
-            <label><input type="checkbox" id="lyr-grid" checked /> Bingkai skala</label>
+            <label><input type="checkbox" id="lyr-grid" checked suppressHydrationWarning /> Bingkai skala</label>
           </div>
           <div class="layer-row">
-            <label><input type="checkbox" id="lyr-depth" /> Angka kedalaman</label>
+            <label><input type="checkbox" id="lyr-depth" suppressHydrationWarning /> Angka kedalaman</label>
             <div class="layer-density" id="lyr-density-wrap" style="display:none; margin-top:4px;">
               <label class="layer-density-label">Kepadatan:
                 <select id="lyr-density" style="font-size:10px; margin-left:4px;">
@@ -1392,6 +1400,12 @@ export default function SeaMap({
       marker.bindPopup(
         `<b>${m.label}</b><br/>${m.position.lat.toFixed(4)}, ${m.position.lng.toFixed(4)}`,
       );
+      marker.on('click', (e) => {
+        if (pickModeRef.current && onMapClickRef.current) {
+          L.DomEvent.stopPropagation(e);
+          onMapClickRef.current(m.position);
+        }
+      });
     });
   }, [markers]);
 
@@ -1573,7 +1587,7 @@ export default function SeaMap({
                 <input
                   type="checkbox"
                   checked={viewPrefs.layers}
-                  onChange={() => togglePref('layers')}
+                  onChange={() => togglePref('layers')} suppressHydrationWarning
                 />
                 <span>Panel layer</span>
               </label>
@@ -1581,7 +1595,7 @@ export default function SeaMap({
                 <input
                   type="checkbox"
                   checked={viewPrefs.coord}
-                  onChange={() => togglePref('coord')}
+                  onChange={() => togglePref('coord')} suppressHydrationWarning
                 />
                 <span>Koordinat mouse</span>
               </label>
@@ -1589,7 +1603,7 @@ export default function SeaMap({
                 <input
                   type="checkbox"
                   checked={viewPrefs.zoom}
-                  onChange={() => togglePref('zoom')}
+                  onChange={() => togglePref('zoom')} suppressHydrationWarning
                 />
                 <span>Zoom +/−</span>
               </label>
@@ -1597,7 +1611,7 @@ export default function SeaMap({
                 <input
                   type="checkbox"
                   checked={viewPrefs.disclaimer}
-                  onChange={() => togglePref('disclaimer')}
+                  onChange={() => togglePref('disclaimer')} suppressHydrationWarning
                 />
                 <span>Peringatan</span>
               </label>
@@ -1605,7 +1619,7 @@ export default function SeaMap({
                 <input
                   type="checkbox"
                   checked={viewPrefs.depth}
-                  onChange={() => togglePref('depth')}
+                  onChange={() => togglePref('depth')} suppressHydrationWarning
                 />
                 <span>Angka kedalaman</span>
               </label>

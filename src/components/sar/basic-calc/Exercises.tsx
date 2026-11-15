@@ -131,6 +131,24 @@ export const EXERCISE_GROUPS: ExerciseGroup[] = [
         ],
         result: '0,972 km/jam = 0,525 kts',
       },
+      {
+        label: 'Latihan K4',
+        question: '1,5 m/s = … km/jam = … nm/jam (kts)',
+        steps: [
+          '= 1,5 m/s × 3,6 km/jam = 5,4 km/jam',
+          '= 1,5 m/s × (100 ÷ 51,4444) kts = 1,5 × 1,9438444 kts = 2,916 kts',
+        ],
+        result: '5,4 km/jam = 2,916 kts',
+      },
+      {
+        label: 'Latihan K5',
+        question: '0,8 m/s = … km/jam = … nm/jam (kts)',
+        steps: [
+          '= 0,8 m/s × 3,6 km/jam = 2,88 km/jam',
+          '= 0,8 m/s × 1,9438444 kts = 1,555 kts',
+        ],
+        result: '2,88 km/jam = 1,555 kts',
+      },
     ],
   },
   {

@@ -165,6 +165,13 @@ export default function DatumWorksheet({
   );
 
   useEffect(() => {
+    // If ASW speed is 0 and no initial state, datum calculation is in clean/reset state
+    if (aswSpeed === 0 && (!initialState || Object.keys(initialState).length === 0)) {
+      onDataChange(null);
+      onResults(null);
+      return;
+    }
+
     const data: DatumData = {
       start,
       driftInterval,
@@ -191,7 +198,7 @@ export default function DatumWorksheet({
       lw,
       twc,
     });
-  }, [start, driftInterval, aswDirFrom, aswSpeed, aswdve, twc, lw, datum, e, wc]);
+  }, [start, driftInterval, aswDirFrom, aswSpeed, aswdve, twc, lw, datum, e, wc, initialState]);
 
   // Emit DatumInitialState snapshot up to parent for state-saving
   useEffect(() => {
