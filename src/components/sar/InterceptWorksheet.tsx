@@ -190,7 +190,8 @@ export default function InterceptWorksheet({ onResults, initialInput, className 
     if (!Number.isFinite(start.getTime())) return null;
     const end = new Date(start.getTime() + results.timeToInterceptHours * 60 * 60 * 1000);
     return new Intl.DateTimeFormat('id-ID', {
-      dateStyle: 'medium', timeStyle: 'short', timeZoneName: 'short',
+      year: 'numeric', month: 'short', day: 'numeric',
+      hour: '2-digit', minute: '2-digit', timeZoneName: 'short',
     }).format(end);
   }, [results, inputData.referenceTime]);
 
