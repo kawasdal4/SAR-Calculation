@@ -2,10 +2,14 @@
 
 import { useEffect, useRef, useState } from 'react';
 import * as maplibregl from 'maplibre-gl';
+import { setWorkerUrl } from 'maplibre-gl';
 import type { Feature, FeatureCollection, GeoJsonProperties, Geometry } from 'geojson';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { project, type LatLng } from '@/lib/sar/sarCalculations';
 import type { MapCircle, MapLine, MapMarker, MapPolygon } from '@/components/sar/SeaMap';
+
+// MapLibre GL JS v6 needs an explicit worker URL with Next.js/Turbopack.
+setWorkerUrl(new URL('maplibre-gl/dist/maplibre-gl-worker.mjs', import.meta.url).toString());
 
 type BasemapChoice = 'osm' | 'opentopomap';
 type OverlayProperties = {
