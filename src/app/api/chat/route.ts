@@ -143,7 +143,8 @@ const tools: FunctionDeclaration[] = [
   },
 ];
 
-const GEMINI_MODEL = 'gemini-3.8-flash';
+const GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-3.7-flash'] as const;
+const MAX_RETRIES_PER_MODEL = 2;
 
 // This Vercel project supports 300-second functions; complex SAR case analysis
 // and document understanding can exceed the shorter 60-second default.
@@ -214,33 +215,62 @@ export async function POST(req: NextRequest) {
       ]));
     };
     const geminiStartedAt = Date.now();
-    console.info(`[AI chat] Gemini request started (model=${GEMINI_MODEL}, files=${incomingFiles.length}).`);
-    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-      body: JSON.stringify({
-        model: GEMINI_MODEL,
-        input,
-        system_instruction: SYSTEM_PROMPT,
-        generation_config: { max_output_tokens: 8192 },
-        tools: tools.map((tool) => ({
-          type: 'function',
-          name: tool.name,
-          description: tool.description,
-          parameters: normalizeSchema(tool.parameters),
-        })),
-        store: false,
-      }),
-    });
-    console.info(`[AI chat] Gemini response received (status=${response.status}, durationMs=${Date.now() - geminiStartedAt}).`);
-    const result = await response.json();
-    if (!response.ok) {
-      const detail = result?.error?.message || `Gemini API returned HTTP ${response.status}`;
-      throw new Error(`${detail} (model: ${GEMINI_MODEL}, Interactions API)`);
+    let result: Record<string, unknown> | undefined;
+    let lastError: Error | undefined;
+    let usedModel: (typeof GEMINI_MODELS)[number] = GEMINI_MODELS[0];
+    for (const model of GEMINI_MODELS) {
+      for (let attempt = 0; attempt <= MAX_RETRIES_PER_MODEL; attempt += 1) {
+        console.info(`[AI chat] Gemini request started (model=${model}, attempt=${attempt + 1}, files=${incomingFiles.length}).`);
+        try {
+          const response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+            body: JSON.stringify({
+              model,
+              input,
+              system_instruction: SYSTEM_PROMPT,
+              generation_config: { max_output_tokens: 8192 },
+              tools: tools.map((tool) => ({
+                type: 'function',
+                name: tool.name,
+                description: tool.description,
+                parameters: normalizeSchema(tool.parameters),
+              })),
+              store: false,
+            }),
+          });
+          console.info(`[AI chat] Gemini response received (model=${model}, status=${response.status}, durationMs=${Date.now() - geminiStartedAt}).`);
+          const payload = await response.json().catch(() => ({}));
+          if (response.ok) {
+            result = payload as Record<string, unknown>;
+            usedModel = model;
+            break;
+          }
+
+          const detail = (payload as { error?: { message?: string } })?.error?.message || `Gemini API returned HTTP ${response.status}`;
+          lastError = new Error(`${detail} (model: ${model}, Interactions API)`);
+          const transient = response.status === 429 || response.status >= 500;
+          if (!transient) throw lastError;
+        } catch (requestError) {
+          if (requestError instanceof Error && requestError.message.includes('(model:')) throw requestError;
+          lastError = requestError instanceof Error ? requestError : new Error('Koneksi ke Gemini gagal.');
+        }
+
+        if (attempt < MAX_RETRIES_PER_MODEL) {
+          await new Promise((resolve) => setTimeout(resolve, 1000 * (2 ** attempt)));
+        }
+      }
+      if (result) break;
+      console.warn(`[AI chat] Model ${model} gagal; mencoba fallback berikutnya jika tersedia.`);
+    }
+    if (!result) {
+      throw new Error(lastError?.message || 'Gemini sedang sibuk. Silakan coba lagi beberapa saat lagi.');
     }
 
-    const steps = Array.isArray(result.steps) ? result.steps : [];
-    const functionCalls = steps.filter((step: { type?: string }) => step.type === 'function_call');
+    const steps = Array.isArray(result.steps) ? result.steps as Array<{ type?: string; name?: string; arguments?: unknown; content?: Array<{ type?: string; text?: string }> }> : [];
+    const functionCalls = steps.filter((step): step is typeof step & { name: string } =>
+      step.type === 'function_call' && typeof step.name === 'string'
+    );
     if (functionCalls.length > 0) {
       const calls = functionCalls.map((fc: { name: string; arguments?: unknown }) => ({
         name: fc.name,
@@ -254,7 +284,7 @@ export async function POST(req: NextRequest) {
         .join('');
 
       return NextResponse.json({
-        text: text || 'Data telah disiapkan. Klik "Terapkan" untuk mengisi worksheet.',
+        text: `${usedModel !== GEMINI_MODELS[0] ? 'Model utama sedang sibuk; jawaban diproses dengan model cadangan.\n\n' : ''}${text || 'Data telah disiapkan. Klik "Terapkan" untuk mengisi worksheet.'}`,
         functionCalls: calls,
       });
     }
@@ -266,7 +296,7 @@ export async function POST(req: NextRequest) {
       .map((part: { text?: string }) => part.text || '')
       .join('');
     return NextResponse.json({
-      text: responseText || 'Model Gemini tidak mengembalikan teks jawaban.',
+      text: `${usedModel !== GEMINI_MODELS[0] ? 'Model utama sedang sibuk; jawaban diproses dengan model cadangan.\n\n' : ''}${responseText || 'Model Gemini tidak mengembalikan teks jawaban.'}`,
       functionCalls: null,
     });
   } catch (error: unknown) {
