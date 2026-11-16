@@ -21,6 +21,14 @@ type OverlayProperties = {
   showLabel?: boolean;
   sequence?: number;
 };
+type GraticuleGeometry = {
+  width: number;
+  height: number;
+  meridians: number[];
+  parallels: number[];
+  longitudeLabels: Array<{ x: number; text: string }>;
+  latitudeLabels: Array<{ y: number; text: string }>;
+};
 
 interface Worksheet4MapLibreProps {
   center: LatLng;
@@ -72,6 +80,60 @@ function toDDM(value: number, axis: 'lat' | 'lng'): string {
     ? value < 0 ? 'S' : 'N'
     : value < 0 ? 'W' : 'E';
   return `${String(degrees).padStart(axis === 'lat' ? 2 : 3, '0')}° ${minutes}′ ${hemisphere}`;
+}
+
+function coordinateStep(span: number, pixels: number): number {
+  const candidates = [30, 20, 10, 5, 2, 1, 0.5, 0.25, 0.1, 1 / 60, 1 / 120, 1 / 300, 1 / 600, 1 / 3600];
+  const visibleSteps = candidates.filter((step) => (step / span) * pixels >= 105);
+  return visibleSteps[visibleSteps.length - 1] ?? candidates[candidates.length - 1];
+}
+
+function formatChartCoordinate(value: number, axis: 'lat' | 'lng', step: number): string {
+  const totalSeconds = Math.round(Math.abs(value) * 3600);
+  const degrees = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const hemisphere = axis === 'lat'
+    ? value < 0 ? 'S' : 'N'
+    : value < 0 ? 'W' : 'E';
+  const degreeText = String(degrees).padStart(axis === 'lat' ? 2 : 3, '0');
+  if (step >= 1) return `${degreeText}° ${hemisphere}`;
+  const minuteText = String(minutes).padStart(2, '0');
+  if (step > 1 / 60) return `${degreeText}°${minuteText}′ ${hemisphere}`;
+  return `${degreeText}°${minuteText}′${String(seconds).padStart(2, '0')}″ ${hemisphere}`;
+}
+
+function buildGraticule(map: maplibregl.Map): GraticuleGeometry | null {
+  const width = map.getContainer().clientWidth;
+  const height = map.getContainer().clientHeight;
+  if (width <= 0 || height <= 0 || !map.isStyleLoaded()) return null;
+
+  const bounds = map.getBounds();
+  const west = bounds.getWest();
+  const east = bounds.getEast();
+  const south = bounds.getSouth();
+  const north = bounds.getNorth();
+  const lngStep = coordinateStep(east - west, width);
+  const latStep = coordinateStep(north - south, height);
+  const meridians: number[] = [];
+  const parallels: number[] = [];
+  const longitudeLabels: GraticuleGeometry['longitudeLabels'] = [];
+  const latitudeLabels: GraticuleGeometry['latitudeLabels'] = [];
+
+  for (let lng = Math.ceil(west / lngStep) * lngStep; lng <= east + lngStep * 1e-6; lng += lngStep) {
+    const x = map.project([lng, 0]).x;
+    if (x < 0 || x > width) continue;
+    meridians.push(x);
+    if (x >= 38 && x <= width - 38) longitudeLabels.push({ x, text: formatChartCoordinate(lng, 'lng', lngStep) });
+  }
+  for (let lat = Math.ceil(south / latStep) * latStep; lat <= north + latStep * 1e-6; lat += latStep) {
+    const y = map.project([0, lat]).y;
+    if (y < 0 || y > height) continue;
+    parallels.push(y);
+    if (y >= 32 && y <= height - 32) latitudeLabels.push({ y, text: formatChartCoordinate(lat, 'lat', latStep) });
+  }
+
+  return { width, height, meridians, parallels, longitudeLabels, latitudeLabels };
 }
 
 function airportDescription(properties: Record<string, unknown>, position: maplibregl.LngLat): HTMLElement {
@@ -204,6 +266,7 @@ export default function Worksheet4MapLibre({
   desiredBasemapRef.current = basemap;
   const [airportsVisible, setAirportsVisible] = useState(true);
   const [styleReady, setStyleReady] = useState(0);
+  const [graticule, setGraticule] = useState<GraticuleGeometry | null>(null);
   const [cursor, setCursor] = useState('');
   const [tileError, setTileError] = useState('');
 
@@ -222,10 +285,19 @@ export default function Worksheet4MapLibre({
     map.addControl(new maplibregl.FullscreenControl(), 'top-right');
     map.addControl(new maplibregl.ScaleControl({ maxWidth: 140, unit: 'nautical' }), 'bottom-left');
     map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
+    const updateGraticule = () => {
+      const next = buildGraticule(map);
+      if (next) setGraticule(next);
+    };
     map.on('style.load', () => {
       addAirportLayers(map, airportsVisible);
       setStyleReady((current) => current + 1);
+      updateGraticule();
     });
+    map.on('load', updateGraticule);
+    map.on('moveend', updateGraticule);
+    map.on('zoomend', updateGraticule);
+    map.on('resize', updateGraticule);
     map.on('mousemove', (event) => {
       setCursor(`${event.lngLat.lat.toFixed(5)}, ${event.lngLat.lng.toFixed(5)} · ${toDDM(event.lngLat.lat, 'lat')}, ${toDDM(event.lngLat.lng, 'lng')}`);
     });
@@ -316,6 +388,16 @@ export default function Worksheet4MapLibre({
   return (
     <div className="relative overflow-hidden rounded-md border border-slate-300" style={{ height, width: '100%' }}>
       <div ref={containerRef} className="h-full w-full" style={{ height: '100%', width: '100%' }} role="application" aria-label="Peta Worksheet 4 dengan layer bandara OpenAIP" />
+      {graticule && <>
+        <svg aria-hidden="true" className="pointer-events-none absolute inset-0 z-[2] h-full w-full" viewBox={`0 0 ${graticule.width} ${graticule.height}`} preserveAspectRatio="none">
+          {graticule.meridians.map((x) => <line key={`meridian-${x}`} x1={x} y1={0} x2={x} y2={graticule.height} stroke="#334155" strokeOpacity="0.3" strokeWidth="1" strokeDasharray="3 5" />)}
+          {graticule.parallels.map((y) => <line key={`parallel-${y}`} x1={0} y1={y} x2={graticule.width} y2={y} stroke="#334155" strokeOpacity="0.3" strokeWidth="1" strokeDasharray="3 5" />)}
+        </svg>
+        {graticule.longitudeLabels.map(({ x, text }) => <span key={`lon-top-${x}`} className="pointer-events-none absolute top-[46px] z-[3] -translate-x-1/2 whitespace-nowrap rounded-sm border border-slate-500/60 bg-white/90 px-1 py-0.5 font-mono text-[9px] leading-none text-slate-900 shadow-sm" style={{ left: x }}>{text}</span>)}
+        {graticule.longitudeLabels.map(({ x, text }) => <span key={`lon-bottom-${x}`} className="pointer-events-none absolute bottom-1 z-[3] -translate-x-1/2 whitespace-nowrap rounded-sm border border-slate-500/60 bg-white/90 px-1 py-0.5 font-mono text-[9px] leading-none text-slate-900 shadow-sm" style={{ left: x }}>{text}</span>)}
+        {graticule.latitudeLabels.map(({ y, text }) => <span key={`lat-left-${y}`} className="pointer-events-none absolute left-1 z-[3] -translate-y-1/2 whitespace-nowrap rounded-sm border border-slate-500/60 bg-white/90 px-1 py-0.5 font-mono text-[9px] leading-none text-slate-900 shadow-sm" style={{ top: y }}>{text}</span>)}
+        {graticule.latitudeLabels.map(({ y, text }) => <span key={`lat-right-${y}`} className="pointer-events-none absolute right-1 z-[3] -translate-y-1/2 whitespace-nowrap rounded-sm border border-slate-500/60 bg-white/90 px-1 py-0.5 font-mono text-[9px] leading-none text-slate-900 shadow-sm" style={{ top: y }}>{text}</span>)}
+      </>}
       <div className="absolute left-2 top-2 z-10 flex flex-wrap gap-1 rounded bg-white/95 p-1.5 shadow">
         <label className="sr-only" htmlFor="worksheet4-basemap">Basemap</label>
         <select id="worksheet4-basemap" value={basemap} onChange={(event) => setBasemap(event.target.value as BasemapChoice)} className="rounded border border-slate-300 bg-white px-2 py-1 text-xs">
@@ -326,6 +408,10 @@ export default function Worksheet4MapLibre({
           <input type="checkbox" checked={airportsVisible} onChange={(event) => setAirportsVisible(event.target.checked)} />
           Bandara OpenAIP
         </label>
+      </div>
+      <div className="pointer-events-none absolute bottom-8 right-2 z-10 rounded border border-slate-400 bg-white/95 px-2 py-1 text-right font-mono text-[9px] leading-tight text-slate-900 shadow">
+        <div className="font-bold">ONC 1:1.000.000</div>
+        <div>1 cm = 10 km · rasio cetak</div>
       </div>
       {cursor && <div className="absolute left-2 bottom-11 z-10 max-w-[calc(100%-1rem)] rounded bg-white/95 px-2 py-1 font-mono text-[10px] text-slate-800 shadow" aria-live="polite">{cursor}</div>}
       {tileError && <div role="status" className="absolute right-2 top-14 z-10 max-w-xs rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-950 shadow">{tileError}</div>}
