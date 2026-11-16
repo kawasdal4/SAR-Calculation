@@ -76,10 +76,10 @@ import type { AeroDriftResult } from '@/lib/sar/aeroDriftCalculations';
 import InterceptWorksheet from '@/components/sar/InterceptWorksheet';
 import type { InterceptInput } from '@/lib/sar/interceptCalculations';
 import Worksheet1 from '@/components/sar/worksheets/Worksheet1';
-import Worksheet2 from '@/components/sar/worksheets/Worksheet2';
-import Worksheet3 from '@/components/sar/worksheets/Worksheet3';
-import Worksheet4 from '@/components/sar/worksheets/Worksheet4';
-import Worksheet8 from '@/components/sar/worksheets/Worksheet8';
+import Worksheet2, { type Worksheet2InitialState } from '@/components/sar/worksheets/Worksheet2';
+import Worksheet3, { type Worksheet3InitialState } from '@/components/sar/worksheets/Worksheet3';
+import Worksheet4, { type Worksheet4InitialState } from '@/components/sar/worksheets/Worksheet4';
+import Worksheet8, { type Worksheet8InitialState } from '@/components/sar/worksheets/Worksheet8';
 import BriefingForm from '@/components/sar/BriefingForm';
 import RenopsForm from '@/components/sar/RenopsForm';
 import AllWorksheetsView from '@/components/sar/AllWorksheetsView';
@@ -175,6 +175,10 @@ export default function Home() {
     asw?: ASWInitialState;
     datum?: DatumInitialState;
     search?: SearchPlanInitialState;
+    ws2?: Worksheet2InitialState;
+    ws8?: Worksheet8InitialState;
+    ws3?: Worksheet3InitialState;
+    ws4?: Worksheet4InitialState;
     lkp?: LatLng;
   } | null>(null);
   const [caseVersion, setCaseVersion] = useState<number>(0);
@@ -336,6 +340,60 @@ export default function Home() {
   const handleApplyLKP = useCallback((data: { lat: number; lng: number }) => {
     setLkp(data);
     setIsLkpSet(true);
+  }, []);
+
+  const handleApplyDatum = useCallback((data: {
+    latitude: number;
+    lkp: LatLng;
+    driftInterval: number;
+    seaCurrentDir: number;
+    seaCurrentSpeed: number;
+    seaCurrentErr?: number;
+    leewayObjectId?: string;
+    X?: number;
+    Y?: number;
+  }) => {
+    setLkp(data.lkp);
+    setIsLkpSet(true);
+    setLoadedInitialState((prev) => ({
+      ...prev,
+      datum: {
+        latitude: data.latitude,
+        driftInterval: data.driftInterval,
+        seaCurrentDir: data.seaCurrentDir,
+        seaCurrentSpeed: data.seaCurrentSpeed,
+        seaCurrentErr: data.seaCurrentErr ?? 0,
+        ...(data.leewayObjectId ? { leewayObjectId: data.leewayObjectId } : {}),
+        X: data.X ?? 0,
+        Y: data.Y ?? 0,
+      },
+    }));
+    setCaseVersion((version) => version + 1);
+    setActiveTab('ws1');
+  }, []);
+
+  const handleApplyWS2 = useCallback((data: Worksheet2InitialState) => {
+    setLoadedInitialState((prev) => ({ ...prev, ws2: data }));
+    setCaseVersion((version) => version + 1);
+    setActiveTab('ws2');
+  }, []);
+
+  const handleApplyWS3 = useCallback((data: Worksheet3InitialState) => {
+    setLoadedInitialState((prev) => ({ ...prev, ws3: data }));
+    setCaseVersion((version) => version + 1);
+    setActiveTab('ws3');
+  }, []);
+
+  const handleApplyWS4 = useCallback((data: Worksheet4InitialState) => {
+    setLoadedInitialState((prev) => ({ ...prev, ws4: data }));
+    setCaseVersion((version) => version + 1);
+    setActiveTab('ws4');
+  }, []);
+
+  const handleApplyWS8 = useCallback((data: Worksheet8InitialState) => {
+    setLoadedInitialState((prev) => ({ ...prev, ws8: data }));
+    setCaseVersion((version) => version + 1);
+    setActiveTab('ws8');
   }, []);
 
   const handleApplyIntercept = useCallback((data: InterceptInput) => {
@@ -1220,6 +1278,7 @@ export default function Home() {
                 datumResults={datumResults}
                 aswDirFrom={asw.aswDirFrom}
                 ws1Ao={ws1Ao}
+                initialState={loadedInitialState?.ws2}
               />
               <PrintCompanionMap
                 title="LAMPIRAN: PETA OPERASI SAR — WORKSHEET 2 (SUB-AREA & LEEWAY DIVERGENCE)"
@@ -1247,6 +1306,7 @@ export default function Home() {
                 windKts={datumData?.aswSpeed ?? 0}
                 initialC={searchResults?.C ?? 0}
                 initialPod={searchResults?.POD ?? 0}
+                initialState={loadedInitialState?.ws8}
               />
             </TabsContent>
 
@@ -1454,6 +1514,7 @@ export default function Home() {
                 key={`ws3-${caseVersion}`}
                 searchResults={searchResults}
                 E={datumResults?.E ?? 5.0}
+                initialState={loadedInitialState?.ws3}
               />
               {datumResults && (
                 <SearchPlanWorksheet
@@ -1479,6 +1540,7 @@ export default function Home() {
                 searchResults={searchResults}
                 E={datumResults?.E ?? 5.0}
                 divergenceDistance={datumResults?.divergenceDistance ?? 7.8}
+                initialState={loadedInitialState?.ws4}
               />
             </TabsContent>
 
@@ -1806,7 +1868,13 @@ export default function Home() {
         onApplyASW={handleApplyASW}
         onApplyAWA={handleApplyAWA}
         onApplyLKP={handleApplyLKP}
+        onApplyDatum={handleApplyDatum}
+        onApplyWS2={handleApplyWS2}
+        onApplyWS3={handleApplyWS3}
+        onApplyWS4={handleApplyWS4}
+        onApplyWS8={handleApplyWS8}
         onApplyIntercept={handleApplyIntercept}
+        onFocusWorksheet={(worksheet) => setActiveTab(worksheet === 'datum' ? 'ws1' : worksheet)}
       />
 
       <footer className="mt-auto bg-slate-900 text-slate-400 text-xs">

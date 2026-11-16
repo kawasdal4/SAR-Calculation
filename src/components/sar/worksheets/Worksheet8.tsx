@@ -5,12 +5,23 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Printer } from 'lucide-react';
 import { lookupW8Wu, lookupFw, readFigureI12, W8_TARGET_OPTIONS, type W8Target, type SearchNumber } from '@/lib/sar/wscPodTables';
 
+export interface Worksheet8InitialState {
+  caseTitle?: string;
+  eyeHeight?: '8' | '14' | 'MERSHIP';
+  searchObject?: W8Target;
+  visibilityKm?: string;
+  isFatigue?: 'Yes' | 'No';
+  searchNumber?: SearchNumber;
+  vesselSpeedKts?: number;
+}
+
 interface Worksheet8Props {
   ws1Ao?: number;
   initialC?: number;
   initialPod?: number;
   readOnly?: boolean;
   windKts?: number;
+  initialState?: Worksheet8InitialState;
 }
 
 export default function Worksheet8({
@@ -19,18 +30,19 @@ export default function Worksheet8({
   initialPod = 0,
   readOnly = false,
   windKts = 0,
+  initialState,
 }: Worksheet8Props) {
   // Case & Metadata state
-  const [caseTitle, setCaseTitle] = useState('-');
+  const [caseTitle, setCaseTitle] = useState(initialState?.caseTitle ?? '-');
   const [plannerName, setPlannerName] = useState('-');
   const [searchDate, setSearchDate] = useState('-');
   const [searchPlatform, setSearchPlatform] = useState('');
-  const [eyeHeight, setEyeHeight] = useState<''|'8'|'14'|'MERSHIP'>('');
-  const [searchObject, setSearchObject] = useState<W8Target|''>('');
-  const [visibilityKm, setVisibilityKm] = useState('');
-  const [isFatigue, setIsFatigue] = useState<''|'Yes'|'No'>('');
-  const [searchNumber, setSearchNumber] = useState<SearchNumber>(1);
-  const [vesselSpeedKts, setVesselSpeedKts] = useState(0); // Vessel search speed (kts)
+  const [eyeHeight, setEyeHeight] = useState<''|'8'|'14'|'MERSHIP'>(initialState?.eyeHeight ?? '');
+  const [searchObject, setSearchObject] = useState<W8Target|''>(initialState?.searchObject ?? '');
+  const [visibilityKm, setVisibilityKm] = useState(initialState?.visibilityKm ?? '');
+  const [isFatigue, setIsFatigue] = useState<''|'Yes'|'No'>(initialState?.isFatigue ?? '');
+  const [searchNumber, setSearchNumber] = useState<SearchNumber>(initialState?.searchNumber ?? 1);
+  const [vesselSpeedKts, setVesselSpeedKts] = useState(initialState?.vesselSpeedKts ?? 0); // Vessel search speed (kts)
 
   // Vessel eye heights: Eye height 8 ft (Small craft), Eye height 14 ft (Patrol boat), MERSHIP (Large ship bridge)
   const columns = ['Eye height 8 ft', 'Eye height 14 ft', 'MERSHIP'];

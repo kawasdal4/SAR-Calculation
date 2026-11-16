@@ -33,6 +33,14 @@ interface AWAWorksheetProps {
   className?: string;
 }
 
+const AWA_OBSERVATION_LEVELS_FT = [0, 3000, 6000, 9000, 12000, 18000, 24000] as const;
+
+function getObservationAltitude(observation: AWAObservation): number {
+  return typeof observation.altObs === 'string'
+    ? Number(observation.altObs)
+    : observation.altitudeFt ?? observation.altLow ?? Number.NaN;
+}
+
 export default function AWAWorksheet({
   onDataChange,
   onObservationsChange,
@@ -145,23 +153,17 @@ export default function AWAWorksheet({
   };
 
   const addRow = () => {
-    const levels = observations.map((observation) => {
-      const value = typeof observation.altObs === 'string'
-        ? Number(observation.altObs)
-        : observation.altitudeFt ?? observation.altLow ?? Number.NaN;
-      return value;
-    }).filter(Number.isFinite);
-    const newAltitude = levels.length === 0 ? 0 : Math.max(...levels) + 3000;
-    const next = [
-      ...observations,
-      {
-        altObs: String(newAltitude),
-        windDirFrom: 0,
-        windSpeed: 0,
-      },
-    ];
+    const levels = new Set(observations.map(getObservationAltitude).filter(Number.isFinite));
+    const newAltitude = AWA_OBSERVATION_LEVELS_FT.find((altitude) => !levels.has(altitude));
+    if (newAltitude === undefined) return;
+    const next = [...observations, { altObs: String(newAltitude), windDirFrom: 0, windSpeed: 0 }]
+      .sort((a, b) => getObservationAltitude(a) - getObservationAltitude(b));
     setObservations(next);
   };
+
+  const hasAvailableObservationLevel = AWA_OBSERVATION_LEVELS_FT.some((altitude) =>
+    !observations.some((observation) => getObservationAltitude(observation) === altitude),
+  );
 
   const removeRow = (idx: number) => {
     if (observations.length <= 1) return;
@@ -410,9 +412,11 @@ export default function AWAWorksheet({
               <button
                 type="button"
                 onClick={addRow}
-                className="text-[11px] bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold px-2.5 py-1 rounded border border-slate-400 flex items-center gap-1 shadow-2xs transition-colors"
+                disabled={!hasAvailableObservationLevel}
+                title={hasAvailableObservationLevel ? 'Tambah level berikutnya: Surface, 3000, 6000, 9000, 12000, 18000, 24000 ft' : 'Semua level ketinggian pengamatan yang tersedia sudah ditambahkan'}
+                className="text-[11px] bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold px-2.5 py-1 rounded border border-slate-400 flex items-center gap-1 shadow-2xs transition-colors disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <Plus className="h-3 w-3 text-emerald-600" /> Tambah Ketinggian Pengamatan
+                <Plus className="h-3 w-3 text-emerald-600" /> {hasAvailableObservationLevel ? 'Tambah Ketinggian Pengamatan' : 'Semua Ketinggian Ditambahkan'}
               </button>
             </div>
           </div>
@@ -469,7 +473,7 @@ export default function AWAWorksheet({
                   {/* Altitude of observation (HANYA SATU KETINGGIAN: 0, 3000, 6000, dst.) */}
                   <td className="py-2 px-2 text-center border-r border-slate-300 font-bold text-slate-900">
                     {readOnly ? (
-                      <span>{row.altObs ?? (Number.isFinite(row.altitudeFt) ? row.altitudeFt : '—')}</span>
+                      <span>{Number.isFinite(row.altitudeFt) && row.altitudeFt === 0 ? 'Surface' : row.altObs ?? (Number.isFinite(row.altitudeFt) ? row.altitudeFt : '—')}</span>
                     ) : (
                       <input
                         type="text"

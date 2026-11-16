@@ -34,7 +34,6 @@ export interface MapMarker {
   /** Show a compact, permanent label beside the marker. */
   showLabel?: boolean;
   labelDirection?: 'top' | 'right' | 'bottom' | 'left';
-  labelOffset?: [number, number];
   color?: string;
   isStart?: boolean;
   isDatum?: boolean;
@@ -300,6 +299,7 @@ export default function SeaMap({
     lines?: L.LayerGroup;
     polygons?: L.LayerGroup;
     circles?: L.LayerGroup;
+    pointLabels?: L.Tooltip[];
     measureMarkers?: L.Marker[];
     measureLine?: L.Polyline | null;
   }>({});
@@ -1433,7 +1433,11 @@ export default function SeaMap({
   // ---- Draw markers ----
   useEffect(() => {
     if (!mapRef.current || !layersRef.current.markers) return;
+    const map = mapRef.current;
     const layer = layersRef.current.markers;
+    for (const label of layersRef.current.pointLabels ?? []) map.removeLayer(label);
+    const pointLabels: L.Tooltip[] = [];
+    const labelCandidates: Array<{ marker: L.Marker; tooltip: L.Tooltip; text: string; preferred?: MapMarker['labelDirection'] }> = [];
     layer.clearLayers();
     markers.forEach((m) => {
       const color = m.color ?? '#ef4444';
@@ -1441,13 +1445,16 @@ export default function SeaMap({
         icon: makeColoredIcon(color, m.isStart, m.isDatum, m.sequence),
       }).addTo(layer);
       if (m.showLabel) {
-        marker.bindTooltip(escapeHtml(m.label), {
+        const tooltip = L.tooltip({
           permanent: true,
-          direction: m.labelDirection ?? 'top',
-          offset: m.labelOffset ?? [0, -8],
+          direction: 'center',
           className: 'sar-point-label',
           opacity: 1,
-        });
+          interactive: false,
+        }).setContent(escapeHtml(m.label));
+        tooltip.addTo(map);
+        pointLabels.push(tooltip);
+        labelCandidates.push({ marker, tooltip, text: m.label, preferred: m.labelDirection });
       }
       marker.bindPopup(
         `<b>${escapeHtml(m.label)}</b><br/>${formatDMS(m.position.lat, true)}, ${formatDMS(m.position.lng, false)}`,
@@ -1464,6 +1471,59 @@ export default function SeaMap({
         }
       });
     });
+    layersRef.current.pointLabels = pointLabels;
+
+    // Keep permanent labels legible at every zoom. Labels are separate map
+    // overlays so nearby markers can spread their captions around the point
+    // cluster instead of stacking in the same pixel location.
+    const placeLabels = () => {
+      if (!map.getContainer().isConnected || labelCandidates.length === 0) return;
+      const size = map.getSize();
+      const placed: Array<{ left: number; top: number; right: number; bottom: number }> = [];
+      for (const item of labelCandidates) {
+        const point = map.latLngToContainerPoint(item.marker.getLatLng());
+        const width = Math.min(size.x - 12, Math.max(44, item.text.length * 6.5 + 18));
+        const height = 24;
+        const margin = 12;
+        const candidates = [
+          { direction: 'top' as const, left: point.x - width / 2, top: point.y - height - margin },
+          { direction: 'right' as const, left: point.x + margin, top: point.y - height / 2 },
+          { direction: 'bottom' as const, left: point.x - width / 2, top: point.y + margin },
+          { direction: 'left' as const, left: point.x - width - margin, top: point.y - height / 2 },
+          { direction: 'top' as const, left: point.x + 14, top: point.y - height - margin },
+          { direction: 'top' as const, left: point.x - width - 14, top: point.y - height - margin },
+          { direction: 'bottom' as const, left: point.x + 14, top: point.y + margin },
+          { direction: 'bottom' as const, left: point.x - width - 14, top: point.y + margin },
+        ];
+        let best: typeof candidates[number] | undefined;
+        let bestScore = Number.POSITIVE_INFINITY;
+        for (const candidate of candidates) {
+          const rect = { left: candidate.left, top: candidate.top, right: candidate.left + width, bottom: candidate.top + height };
+          let score = candidate.direction === item.preferred ? 0 : 28;
+          const overflow = Math.max(0, 6 - rect.left) + Math.max(0, rect.right - (size.x - 6))
+            + Math.max(0, 6 - rect.top) + Math.max(0, rect.bottom - (size.y - 6));
+          score += overflow * 80;
+          for (const other of placed) {
+            const overlapWidth = Math.max(0, Math.min(rect.right, other.right) - Math.max(rect.left, other.left));
+            const overlapHeight = Math.max(0, Math.min(rect.bottom, other.bottom) - Math.max(rect.top, other.top));
+            score += overlapWidth * overlapHeight * 4;
+          }
+          if (score < bestScore) { best = candidate; bestScore = score; }
+        }
+        if (!best) continue;
+        const rect = { left: best.left, top: best.top, right: best.left + width, bottom: best.top + height };
+        placed.push(rect);
+        item.tooltip.setLatLng(map.containerPointToLatLng(L.point(rect.left + width / 2, rect.top + height / 2)));
+      }
+    };
+    map.on('zoomend moveend resize', placeLabels);
+    requestAnimationFrame(placeLabels);
+
+    return () => {
+      map.off('zoomend moveend resize', placeLabels);
+      for (const label of pointLabels) map.removeLayer(label);
+      if (layersRef.current.pointLabels === pointLabels) layersRef.current.pointLabels = [];
+    };
   }, [markers]);
 
   // ---- Draw lines ----

@@ -5,26 +5,39 @@ import { Card, CardContent } from '@/components/ui/card';
 import type { SearchPlanResults } from '@/components/sar/SearchPlanWorksheet';
 import { Printer } from 'lucide-react';
 
+export interface Worksheet3InitialState {
+  caseTitle?: string;
+  searchObject?: string;
+  visibilityKm?: number;
+  vegetationType?: '15-60' | '60-85' | '+85';
+  isFatigue?: boolean;
+  searchTas?: number;
+  hoursAvailable?: number;
+  searchAreaNm2?: number;
+}
+
 interface Worksheet3Props {
   searchResults?: SearchPlanResults | null;
   E?: number;
   readOnly?: boolean;
+  initialState?: Worksheet3InitialState;
 }
 
 export default function Worksheet3({
   searchResults,
   E = 0,
   readOnly = false,
+  initialState,
 }: Worksheet3Props) {
   // Case & Metadata state
-  const [caseTitle, setCaseTitle] = useState('-');
+  const [caseTitle, setCaseTitle] = useState(initialState?.caseTitle ?? '-');
   const [plannerName, setPlannerName] = useState('-');
   const [searchDate, setSearchDate] = useState('-');
-  const [searchObject, setSearchObject] = useState('-');
-  const [visibilityKm, setVisibilityKm] = useState(0);
-  const [vegetationType, setVegetationType] = useState<'15-60' | '60-85' | '+85'>('15-60');
-  const [isFatigue, setIsFatigue] = useState(false);
-  const searchTas = 0;
+  const [searchObject, setSearchObject] = useState(initialState?.searchObject ?? '-');
+  const [visibilityKm, setVisibilityKm] = useState(initialState?.visibilityKm ?? 0);
+  const [vegetationType, setVegetationType] = useState<'15-60' | '60-85' | '+85'>(initialState?.vegetationType ?? '15-60');
+  const [isFatigue, setIsFatigue] = useState(initialState?.isFatigue ?? false);
+  const [searchTas, setSearchTas] = useState(initialState?.searchTas ?? 0);
 
   // Correction factors for land search (Table I-10)
   const fv = vegetationType === '15-60' ? 0.8 : vegetationType === '60-85' ? 0.6 : 0.4;
@@ -47,15 +60,15 @@ export default function Worksheet3({
   const pods = coverages.map((c) => Math.min(99, Math.round((1 - Math.exp(-c)) * 100)));
 
   // Search Area A (default ~300 NM² or from searchResults)
-  const searchAreaA = searchResults?.Ao ? Math.round(searchResults.Ao) : 300;
+  const searchAreaA = searchResults?.Ao ? Math.round(searchResults.Ao) : Math.round(initialState?.searchAreaNm2 ?? 0);
 
   // Search Hours T required: T = A / (V * S)
   const hoursRequired = trackSpacings.map((s) =>
-    Number((searchAreaA / Math.max(1, searchTas * s)).toFixed(1))
+    searchTas > 0 ? Number((searchAreaA / (searchTas * s)).toFixed(1)) : 0
   );
 
   // Available search hours
-  const [hoursAvailable, setHoursAvailable] = useState(0);
+  const [hoursAvailable, setHoursAvailable] = useState(initialState?.hoursAvailable ?? 0);
 
   // Selected height for options: 1000 ft (idx 1)
   const selIdx = 1;
@@ -77,8 +90,8 @@ export default function Worksheet3({
   const optB_P = selP;
 
   // Option C
-  const optC_S = Number((searchAreaA / Math.max(1, searchTas * hoursAvailable)).toFixed(1));
-  const optC_C = Number((selW / Math.max(0.1, optC_S)).toFixed(2));
+  const optC_S = searchTas > 0 && hoursAvailable > 0 ? Number((searchAreaA / (searchTas * hoursAvailable)).toFixed(1)) : 0;
+  const optC_C = optC_S > 0 ? Number((selW / optC_S).toFixed(2)) : 0;
   const optC_P = Math.min(99, Math.round((1 - Math.exp(-optC_C)) * 100));
 
   // Option D compromises
@@ -89,7 +102,7 @@ export default function Worksheet3({
     { sMod: selS * 1.5, name: '(iv)' },
   ].map((item) => {
     const s = Number(item.sMod.toFixed(1));
-    const a = Math.round(hoursAvailable * searchTas * s);
+    const a = searchTas > 0 ? Math.round(hoursAvailable * searchTas * s) : 0;
     const c = Number((selW / Math.max(0.1, s)).toFixed(2));
     const p = Math.min(99, Math.round((1 - Math.exp(-c)) * 100));
     return { name: item.name, a, s, c, p };
@@ -207,6 +220,11 @@ export default function Worksheet3({
                 className="font-bold text-blue-900 bg-white border-b border-dotted border-slate-600 px-1 w-16 text-right font-mono"
               />{' '}
               <span className="font-semibold text-slate-700">KM</span>
+            </div>
+            <div>
+              <span className="text-slate-600">Search TAS: </span>
+              <input type="number" min="0" value={searchTas} disabled={readOnly} onChange={(e) => setSearchTas(Number(e.target.value) || 0)} className="font-bold text-blue-900 bg-white border-b border-dotted border-slate-600 px-1 w-16 text-right font-mono" />{' '}
+              <span className="font-semibold text-slate-700">Kts</span>
             </div>
             <div>
               <span className="text-slate-600">Vegetation: </span>
@@ -366,7 +384,7 @@ export default function Worksheet3({
                 value={hoursAvailable}
                 disabled={readOnly}
                 suppressHydrationWarning
-                onChange={(e) => setHoursAvailable(Number(e.target.value) || 4.0)}
+                onChange={(e) => setHoursAvailable(Number(e.target.value) || 0)}
                 className="font-bold text-blue-900 bg-white border border-slate-300 rounded px-2 py-0.5 w-16 text-right font-mono"
               />{' '}
               <span className="font-medium text-slate-600">hrs — (from Worksheet No. 6)</span>

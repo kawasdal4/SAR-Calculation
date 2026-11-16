@@ -9,8 +9,22 @@ KEMAMPUANMU:
 1. Menganalisis file lampiran (PDF soal/skenario, dokumen Word/Office, spreadsheet Excel data angin, presentasi PowerPoint modul SAR, atau foto/gambar soal kasus/peta/papan manuver).
 2. Menjawab pertanyaan terkait SAR Planning (ASW, AWA, Datum, Search Area, Intercept, dll).
 3. Membuat contoh kasus SAR lengkap dengan data angin, koordinat, dan parameter operasi.
-4. Mengisi worksheet secara otomatis melalui function calling.
+4. Memecah satu kasus ke beberapa worksheet relevan dan mengirim data yang diekstrak ke aplikasi melalui function calling.
 5. Menjelaskan langkah-langkah perhitungan matematis dan vektor secara jelas.
+
+ALUR ANALISIS KASUS:
+- Untuk setiap soal kasus/lampiran, pecah data menjadi fakta terstruktur (waktu, koordinat, objek, angin, arus, ketinggian, kecepatan, haluan, visibilitas, sarana pencari) dan tentukan worksheet yang benar-benar dibutuhkan.
+- Panggil SEMUA tool worksheet yang relevan dalam satu respons. Satu kasus boleh mengisi beberapa worksheet yang saling terkait, misalnya ASW + LKP + Datum untuk menghitung datum dan Worksheet 1; atau Intercept jika kasusnya meminta pintasan.
+- Jangan isi data yang tidak tercantum atau tidak bisa disimpulkan secara aman. Untuk masukan wajib yang hilang, jangan panggil tool worksheet itu; sebutkan data yang masih perlu diminta.
+- Setelah ekstraksi, jelaskan ringkas worksheet yang dipilih dan data utama yang ditemukan. Aplikasi yang menghitung; jangan menulis hasil kalkulasi yang belum berasal dari hasil aplikasi.
+- Jangan memanggil worksheet yang tidak relevan hanya untuk melengkapi semua tab.
+
+PEMILIHAN WORKSHEET DAN KETERGANTUNGAN:
+- Mandiri (tidak memerlukan hasil worksheet lain): Worksheet 4, Intercept, dan Penghitungan Dasar. Pilih sesuai permintaan/data soal; jangan menunggu Worksheet 1/2/8.
+- Jika target dicari di darat dengan helikopter atau pesawat fixed-wing, wajib arahkan ke Worksheet 3 (Land). Bila salah satu input perhitungan WS3 belum ada dan belum dapat dipasok dari worksheet hulu pada kasus yang sama, tanyakan data yang hilang dengan pertanyaan singkat dan spesifik.
+- Worksheet 1/2/8 dan alokasi aset mengikuti alur worksheet hulu sesuai panduan. Jangan menganggap semuanya mandiri.
+- Bila data wajib worksheet yang dipilih kurang, JANGAN mengisi worksheet itu dengan nilai default/contoh. Tanyakan balik sebelum menjalankan perhitungan. Sebutkan per worksheet data apa yang kurang.
+- Jika menemukan prasyarat/data wajib yang kurang, panggil ask_for_case_data berisi nama worksheet dan pertanyaan spesifik; panggilan worksheet lain yang sudah memiliki data lengkap tetap boleh dibuat.
 
 ATURAN KASUS INTERCEPT:
 - Jika soal meminta perhitungan/intercept atau medevac dan memuat posisi, kecepatan, serta haluan target/SRU, WAJIB panggil set_intercept_case dengan data yang ditemukan.
@@ -22,8 +36,11 @@ ATURAN KASUS INTERCEPT:
 JIKA PENGGUNA MELAMPIRKAN FILE/GAMBAR:
 - Bacalah isi dokumen atau amati gambar dengan teliti.
 - Ekstrak data operasional: Distress Time, Datum Time, Data Angin BMKG (waktu, arah °T, kecepatan kts), ketinggian, LKP, jenis musibah.
-- Gunakan function calling (set_asw_case / set_awa_case / set_lkp) untuk mengisi worksheet secara langsung.
-- Berikan ringkasan analisis dan hasil kalkulasi kepada pengguna.
+- Pilih setiap worksheet berdasarkan data dan tujuan kasus, bukan berdasarkan ada/tidaknya lampiran saja.
+- Gunakan set_asw_case bila ada observasi angin permukaan dengan rentang waktu; set_awa_case untuk angin berdasarkan ketinggian pada kasus penerbangan; set_lkp untuk koordinat LKP; set_datum_case untuk lama drift dan data arus/jenis objek yang tersedia; set_intercept_case untuk kasus pintasan lengkap.
+- Gunakan set_ws2_case hanya bila detail pencarian udara yang dibutuhkan WS 2 tersedia; gunakan set_ws8_case hanya bila detail pencarian kapal yang dibutuhkan WS 8 tersedia. Keduanya membutuhkan data target, kondisi pandang, status fatigue, serta parameter platform yang sesuai.
+- Dalam satu kasus maritim, panggil set_asw_case, set_lkp, dan set_datum_case bersama-sama bila seluruh datanya tersedia, agar perhitungan datum dan Worksheet 1 dapat langsung dijalankan. Jika hanya sebagian data ada, isi worksheet yang datanya cukup dan sebutkan prasyarat yang masih kurang.
+- Berikan ringkasan analisis, daftar worksheet yang dipilih, data yang berhasil diekstrak, dan data yang masih kurang. Hasil angka perhitungan harus berasal dari kalkulator aplikasi.
 
 FORMAT WAKTU BASARNAS: [Bulan][Tanggal] [Jam][Menit] [Zona Waktu]
 Contoh: "1122 1600 Z" = 22 November pukul 16:00 UTC
@@ -36,6 +53,12 @@ WORKSHEET YANG TERSEDIA:
 - WS 2 (Maritime Search Planning): Perencanaan pencarian maritim.
 - WS 8 (Search Facility): Data fasilitas pencarian.
 - Intercept Calculator: Kalkulasi intersep (Head-On, Overtaking, Beam-On).
+- Datum / Worksheet 1: Gunakan LKP, lama drift, ASW, arus laut, dan jenis objek bila tersedia; Worksheet 1 menghitung error dan search area dengan safety factor pilihan pengguna.
+- Worksheet 2: Gunakan untuk perencanaan sub-area maritim bila objek, platform pencari udara, TAS, visibilitas, tinggi pencarian, dan status fatigue diketahui.
+- Worksheet 8: Gunakan untuk POSC pencarian kapal bila objek, tinggi mata, visibilitas, dan fatigue diketahui.
+- Worksheet 3 (Land): Wajib untuk pencarian darat menggunakan helikopter atau pesawat fixed-wing; membutuhkan visibilitas, vegetasi, fatigue, TAS, jam pencarian, dan search area dari Worksheet 1 atau data soal.
+- Worksheet 4 dan Penghitungan Dasar bersifat mandiri; Intercept juga mandiri.
+- Untuk kasus WS 4 yang meminta radius, gunakan set_ws4_case hanya bila empat track, empat fix error, error navigasi, dan safety factor tersedia. Jika ada yang kurang, tanyakan nilai tersebut terlebih dahulu. Untuk pertanyaan hitung dasar satu rumus, gunakan perhitungan dasar langsung tanpa memaksa worksheet SAR lain.
 
 ATURAN OBSERVASI ASW:
 Per 6 Jam: 00.00 (21–03), 06.00 (03–09), 12.00 (09–15), 18.00 (15–21)
@@ -179,6 +202,121 @@ const tools: FunctionDeclaration[] = [
         },
       },
       required: ['type', 'target', 'sru'],
+    },
+  },
+  {
+    name: 'set_datum_case',
+    description: 'Mengisi parameter Datum Worksheet dari kasus maritim agar aplikasi menghitung datum dan Worksheet 1. Gunakan hanya jika posisi LKP, drift interval, dan jenis objek sudah diketahui. Arah arus laut adalah arah SET. Jangan mengarang X/Y atau jenis objek yang tidak diketahui.',
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        latitude: { type: SchemaType.NUMBER, description: 'Lintang LKP absolut dalam derajat (0-90), diturunkan dari koordinat LKP.' },
+        lkp: {
+          type: SchemaType.OBJECT,
+          description: 'Posisi LKP dalam derajat desimal, lintang selatan dan bujur barat negatif.',
+          properties: {
+            lat: { type: SchemaType.NUMBER, description: 'Lintang LKP bertanda, selatan negatif.' },
+            lng: { type: SchemaType.NUMBER, description: 'Bujur LKP bertanda, barat negatif.' },
+          },
+          required: ['lat', 'lng'],
+        },
+        driftInterval: { type: SchemaType.NUMBER, description: 'Lama drift dari LKP hingga datum dalam jam.' },
+        seaCurrentDir: { type: SchemaType.NUMBER, description: 'Arah SET arus laut derajat True.' },
+        seaCurrentSpeed: { type: SchemaType.NUMBER, description: 'Kecepatan arus laut dalam knot.' },
+        seaCurrentErr: { type: SchemaType.NUMBER, description: 'Error arus laut dalam knot jika tersedia; selain itu 0.' },
+        leewayObjectId: { type: SchemaType.STRING, description: 'ID jenis objek yang cocok: piw-novice, piw-lifejacket, raft-46-person, raft-1520-person, raft-canopy-drogue, raft-canopy-no-drogue, dinghy-fibreglass, dinghy-upright, small-fishing, commercial-fishing, sailboat, merchant-vessel.' },
+        X: { type: SchemaType.NUMBER, description: 'Error posisi pesawat X (NM), hanya jika tersedia.' },
+        Y: { type: SchemaType.NUMBER, description: 'Error posisi pencari Y (NM), hanya jika tersedia.' },
+      },
+      required: ['latitude', 'lkp', 'driftInterval', 'seaCurrentDir', 'seaCurrentSpeed', 'leewayObjectId'],
+    },
+  },
+  {
+    name: 'ask_for_case_data',
+    description: 'Meminta klarifikasi pengguna saat data penting untuk worksheet yang relevan belum ada. Gunakan alih-alih menebak/default. Sebutkan worksheet dan pertanyaan yang benar-benar dibutuhkan.',
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        worksheet: { type: SchemaType.STRING, description: 'Nama worksheet yang terhambat.' },
+        questions: { type: SchemaType.ARRAY, description: 'Pertanyaan ringkas untuk memperoleh semua data wajib yang belum ada.', items: { type: SchemaType.STRING } },
+      },
+      required: ['worksheet', 'questions'],
+    },
+  },
+  {
+    name: 'set_ws4_case',
+    description: 'Mengisi Worksheet 4 Search Radius yang bersifat mandiri. Gunakan bila soal berisi data radius/track empat posisi. Wajib ekstrak empat jarak track Tr, empat fix error, error navigasi y, dan safety factor (1.1, 1.6, 2.0, 2.3, 2.5). Jika ada yang tidak tersedia, jangan panggil tool; tanyakan balik.',
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        caseTitle: { type: SchemaType.STRING },
+        searchDate: { type: SchemaType.STRING },
+        callsign: { type: SchemaType.STRING },
+        searchNo: { type: SchemaType.STRING },
+        commenceUtc: { type: SchemaType.STRING },
+        latitude: { type: SchemaType.NUMBER, description: 'Lintang titik distress jika tersedia, selatan negatif.' },
+        longitude: { type: SchemaType.NUMBER, description: 'Bujur titik distress jika tersedia, barat negatif.' },
+        distressTimeUtc: { type: SchemaType.STRING },
+        trList: { type: SchemaType.ARRAY, items: { type: SchemaType.NUMBER }, description: 'Empat jarak track NM berurutan A-D.' },
+        fixErrors: { type: SchemaType.ARRAY, items: { type: SchemaType.NUMBER }, description: 'Empat error fix NM berurutan A-D.' },
+        yNavError: { type: SchemaType.NUMBER, description: 'Error navigasi pencari NM.' },
+        safetyFactor: { type: SchemaType.NUMBER, description: 'Safety factor yang secara eksplisit diberikan/dipilih dalam soal.' },
+      },
+      required: ['trList', 'fixErrors', 'yNavError', 'safetyFactor'],
+    },
+  },
+  {
+    name: 'set_ws3_case',
+    description: 'Mengisi Worksheet 3 (Land) untuk pencarian di darat oleh heli/fixed-wing. Gunakan hanya bila objek, visibilitas, vegetasi, fatigue, TAS, dan jam tersedia; area bisa dari kasus atau Worksheet 1 yang diisi pada respons yang sama. Jika prasyarat tidak lengkap, jangan panggil; tanyakan data yang kurang.',
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        caseTitle: { type: SchemaType.STRING },
+        searchObject: { type: SchemaType.STRING, description: 'Jenis objek sasaran pencarian.' },
+        visibilityKm: { type: SchemaType.NUMBER, description: 'Jarak pandang kilometer.' },
+        vegetationType: { type: SchemaType.STRING, description: 'Kategori tutupan vegetasi: 15-60, 60-85, atau +85.' },
+        isFatigue: { type: SchemaType.BOOLEAN, description: 'True jika kru/pencari mengalami fatigue.' },
+        searchTas: { type: SchemaType.NUMBER, description: 'TAS pesawat/helikopter saat pencarian, knot.' },
+        hoursAvailable: { type: SchemaType.NUMBER, description: 'Jam pencarian tersedia.' },
+        searchAreaNm2: { type: SchemaType.NUMBER, description: 'Area pencarian NM² hanya jika disebutkan dalam kasus. Bila tidak disebutkan tetapi Worksheet 1 dihitung bersama, hilangkan agar nilai Worksheet 1 dipakai.' },
+      },
+      required: ['searchObject', 'visibilityKm', 'vegetationType', 'isFatigue', 'searchTas', 'hoursAvailable'],
+    },
+  },
+  {
+    name: 'set_ws2_case',
+    description: 'Mengisi parameter Worksheet 2 (pencarian udara maritim) dari kasus. Panggil hanya bila platform, TAS, objek, visibilitas, fatigue, dan tinggi pencarian tersedia. visibilityIndex: 0=2 km, 1=5 km, 2=10 km, 3=20 km, 4=30 km, 5=>40 km. Jangan mengarang nilai yang tidak disebutkan.',
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        caseTitle: { type: SchemaType.STRING },
+        searchPlatform: { type: SchemaType.STRING, description: 'fixed-wing atau helicopter.' },
+        searchTas: { type: SchemaType.NUMBER, description: 'TAS pencari dalam knot.' },
+        searchObject: { type: SchemaType.STRING, description: 'ID target WSC: piw, raft1, raft4, raft6, raft10, raft15, raft20, raft25, boatSmall, boat10, boat16, boat24, sail5, sail8, sail12, sail15, sail21, sail25, ship27, ship46, shipOver91.' },
+        visibilityIndex: { type: SchemaType.NUMBER, description: 'Kolom visibilitas Table I-5/I-6: indeks 0 sampai 5 sesuai urutan yang dijelaskan.' },
+        isFatigue: { type: SchemaType.STRING, description: 'Yes jika lelah, No jika tidak lelah.' },
+        piwFlotationKnown: { type: SchemaType.BOOLEAN, description: 'True hanya bila PIW diketahui memakai alat apung.' },
+        searchNumber: { type: SchemaType.NUMBER, description: 'Urutan pencarian Figure I-12, 1 sampai 5; hanya bila disebutkan, selain itu gunakan 1.' },
+        selectedHeight: { type: SchemaType.NUMBER, description: 'Tinggi pencarian yang dipilih, salah satu 500, 1000, 1500, 2000 ft.' },
+      },
+      required: ['searchPlatform', 'searchTas', 'searchObject', 'visibilityIndex', 'isFatigue', 'selectedHeight'],
+    },
+  },
+  {
+    name: 'set_ws8_case',
+    description: 'Mengisi parameter Worksheet 8 (pencarian kapal) dari kasus. Panggil hanya bila objek, tinggi mata, visibilitas, dan fatigue diketahui. Untuk eyeHeight 8/14 gunakan visibilityKm 2,5,10,15,20,>25; MERSHIP gunakan 5,10,20,30,40. Jangan mengarang nilai yang tidak disebutkan.',
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        caseTitle: { type: SchemaType.STRING },
+        eyeHeight: { type: SchemaType.STRING, description: '8, 14, atau MERSHIP.' },
+        searchObject: { type: SchemaType.STRING, description: 'ID target WSC8 seperti person, raft1, raft4, raft6, raft8, raft10, raft15, raft20, raft25, boatUnder5, boat5to8, boat8to12, boat12to20, boat20to27, sail5, sail6, sail8, sail9, sail12, sail15, sail20to23, sail23to27.' },
+        visibilityKm: { type: SchemaType.STRING, description: 'Visibilitas persis sesuai kolom tabel worksheet.' },
+        isFatigue: { type: SchemaType.STRING, description: 'Yes jika lelah, No jika tidak lelah.' },
+        searchNumber: { type: SchemaType.NUMBER, description: 'Urutan pencarian Figure I-12, 1 sampai 5; hanya bila disebutkan, selain itu gunakan 1.' },
+        vesselSpeedKts: { type: SchemaType.NUMBER, description: 'Kecepatan kapal saat mencari dalam knot jika tersedia.' },
+      },
+      required: ['eyeHeight', 'searchObject', 'visibilityKm', 'isFatigue'],
     },
   },
   {
@@ -362,6 +500,14 @@ export async function POST(req: NextRequest) {
         name: fc.name,
         args: fc.arguments || {},
       }));
+      const clarificationCalls = calls.filter((call) => call.name === 'ask_for_case_data');
+      const worksheetCalls = calls.filter((call) => call.name !== 'ask_for_case_data');
+      const clarificationText = clarificationCalls.map((call) => {
+        const args = call.args as { worksheet?: string; questions?: unknown[] };
+        const questions = (args.questions ?? []).filter((question): question is string => typeof question === 'string' && question.trim().length > 0);
+        if (questions.length === 0) return '';
+        return `\n\nAgar saya bisa melanjutkan ${args.worksheet || 'worksheet terkait'}, mohon lengkapi:\n${questions.map((question) => `• ${question}`).join('\n')}`;
+      }).filter(Boolean).join('');
       const text = steps
         .filter((step: { type?: string }) => step.type === 'model_output')
         .flatMap((step: { content?: Array<{ type?: string; text?: string }> }) => step.content || [])
@@ -372,22 +518,22 @@ export async function POST(req: NextRequest) {
       const interceptCall = calls.find((call) => call.name === 'set_intercept_case');
       if (interceptCaseDetected && !interceptCall) {
         return NextResponse.json({
-          text: 'Soal Intercept terdeteksi, tetapi datanya belum berhasil dipetakan ke worksheet. Hasil angka tidak ditampilkan agar tidak mengarang perhitungan. Periksa kelengkapan posisi, haluan, dan kecepatan target serta SRU, lalu kirim ulang.',
-          functionCalls: null,
+          text: clarificationText || 'Agar saya bisa menghitung Intercept, mohon berikan posisi awal target dan SRU/pangkalan, haluan serta kecepatan target, dan kecepatan SRU. Waktu referensi diperlukan bila Anda ingin melihat ETA.',
+          functionCalls: worksheetCalls.length ? worksheetCalls : null,
         });
       }
       const responseText = interceptCall
         ? 'Data kasus Intercept berhasil dianalisis. Saya memasukkan data ke worksheet Intercept; hasil hitung dan vektornya akan dibuat oleh kalkulator aplikasi.'
         : text || 'Data telah disiapkan. Klik "Terapkan" untuk mengisi worksheet.';
       return NextResponse.json({
-        text: `${usedModel !== GEMINI_MODELS[0] ? 'Model utama sedang sibuk; jawaban diproses dengan model cadangan.\n\n' : ''}${responseText}`,
-        functionCalls: calls,
+        text: `${usedModel !== GEMINI_MODELS[0] ? 'Model utama sedang sibuk; jawaban diproses dengan model cadangan.\n\n' : ''}${responseText}${clarificationText}`,
+        functionCalls: worksheetCalls.length ? worksheetCalls : null,
       });
     }
 
     if (interceptCaseDetected) {
       return NextResponse.json({
-        text: 'Soal Intercept terdeteksi, tetapi data tidak berhasil dipetakan ke worksheet. Hasil angka tidak ditampilkan agar tidak mengarang perhitungan. Periksa kelengkapan posisi, haluan, dan kecepatan target serta SRU, lalu kirim ulang.',
+        text: 'Agar saya bisa menghitung Intercept, mohon berikan posisi awal target dan SRU/pangkalan, haluan serta kecepatan target, dan kecepatan SRU. Waktu referensi diperlukan bila Anda ingin melihat ETA.',
         functionCalls: null,
       });
     }

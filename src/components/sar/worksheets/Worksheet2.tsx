@@ -8,6 +8,18 @@ import type { DatumData, DatumResults } from '@/components/sar/DatumWorksheet';
 import { Printer } from 'lucide-react';
 import { lookupW2Wu, lookupFw, lookupFs, readFigureI12, W2_TARGET_OPTIONS, W2_VISIBILITY_LABELS, type W2Target, type SearchNumber } from '@/lib/sar/wscPodTables';
 
+export interface Worksheet2InitialState {
+  caseTitle?: string;
+  searchPlatform?: 'fixed-wing' | 'helicopter';
+  searchTas?: number;
+  searchObject?: W2Target;
+  visibilityIndex?: number;
+  isFatigue?: 'Yes' | 'No';
+  piwFlotationKnown?: boolean;
+  searchNumber?: SearchNumber;
+  selectedHeight?: 500 | 1000 | 1500 | 2000;
+}
+
 interface Worksheet2Props {
   lkp: LatLng;
   datumData: DatumData | null;
@@ -15,6 +27,7 @@ interface Worksheet2Props {
   aswDirFrom: number;
   ws1Ao?: number;
   readOnly?: boolean;
+  initialState?: Worksheet2InitialState;
 }
 
 export default function Worksheet2({
@@ -24,19 +37,20 @@ export default function Worksheet2({
   aswDirFrom,
   ws1Ao = 0,
   readOnly = false,
+  initialState,
 }: Worksheet2Props) {
   // Case & Metadata state
-  const [caseTitle, setCaseTitle] = useState('-');
+  const [caseTitle, setCaseTitle] = useState(initialState?.caseTitle ?? '-');
   const [plannerName, setPlannerName] = useState('-');
   const [searchDate, setSearchDate] = useState('-');
-  const [searchPlatform, setSearchPlatform] = useState<'' | 'fixed-wing' | 'helicopter'>('');
-  const [searchTas, setSearchTas] = useState(0);
-  const [searchObject, setSearchObject] = useState<W2Target | ''>('');
-  const [visibilityIndex, setVisibilityIndex] = useState(-1);
-  const [isFatigue, setIsFatigue] = useState<'' | 'Yes' | 'No'>('');
-  const [piwFlotationKnown, setPiwFlotationKnown] = useState(false);
-  const [searchNumber, setSearchNumber] = useState<SearchNumber>(1);
-  const [selectedHeight, setSelectedHeight] = useState<500 | 1000 | 1500 | 2000 | 0>(0);
+  const [searchPlatform, setSearchPlatform] = useState<'' | 'fixed-wing' | 'helicopter'>(initialState?.searchPlatform ?? '');
+  const [searchTas, setSearchTas] = useState(initialState?.searchTas ?? 0);
+  const [searchObject, setSearchObject] = useState<W2Target | ''>(initialState?.searchObject ?? '');
+  const [visibilityIndex, setVisibilityIndex] = useState(initialState?.visibilityIndex ?? -1);
+  const [isFatigue, setIsFatigue] = useState<'' | 'Yes' | 'No'>(initialState?.isFatigue ?? '');
+  const [piwFlotationKnown, setPiwFlotationKnown] = useState(initialState?.piwFlotationKnown ?? false);
+  const [searchNumber, setSearchNumber] = useState<SearchNumber>(initialState?.searchNumber ?? 1);
+  const [selectedHeight, setSelectedHeight] = useState<500 | 1000 | 1500 | 2000 | 0>(initialState?.selectedHeight ?? 0);
   const windKts = datumData?.aswSpeed ?? 0;
   const heights = [500, 1000, 1500, 2000];
   const targetMeta = W2_TARGET_OPTIONS.find((target) => target.id === searchObject);

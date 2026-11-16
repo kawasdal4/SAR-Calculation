@@ -6,11 +6,27 @@ import type { SearchPlanResults } from '@/components/sar/SearchPlanWorksheet';
 import { Printer } from 'lucide-react';
 import CoordinateInput from '@/components/sar/CoordinateInput';
 
+export interface Worksheet4InitialState {
+  caseTitle?: string;
+  searchDate?: string;
+  callsign?: string;
+  searchNo?: string;
+  commenceUtc?: string;
+  latitude?: number;
+  longitude?: number;
+  distressTimeUtc?: string;
+  trList?: [number, number, number, number];
+  fixErrors?: [number, number, number, number];
+  yNavError?: number;
+  safetyFactor?: 1.1 | 1.6 | 2 | 2.3 | 2.5;
+}
+
 interface Worksheet4Props {
   searchResults?: SearchPlanResults | null;
   E?: number;
   divergenceDistance?: number;
   readOnly?: boolean;
+  initialState?: Worksheet4InitialState;
 }
 
 export default function Worksheet4({
@@ -18,21 +34,22 @@ export default function Worksheet4({
   E = 0,
   divergenceDistance = 0,
   readOnly = false,
+  initialState,
 }: Worksheet4Props) {
   // Case & Metadata state
-  const [caseTitle, setCaseTitle] = useState('-');
+  const [caseTitle, setCaseTitle] = useState(initialState?.caseTitle ?? '-');
   const [plannerName, setPlannerName] = useState('-');
-  const [searchDate, setSearchDate] = useState('-');
-  const [callsign, setCallsign] = useState('-');
-  const [searchNo, setSearchNo] = useState('0');
-  const [commenceUtc, setCommenceUtc] = useState('-');
+  const [searchDate, setSearchDate] = useState(initialState?.searchDate ?? '-');
+  const [callsign, setCallsign] = useState(initialState?.callsign ?? '-');
+  const [searchNo, setSearchNo] = useState(initialState?.searchNo ?? '0');
+  const [commenceUtc, setCommenceUtc] = useState(initialState?.commenceUtc ?? '-');
   const [prevSearchNo, setPrevSearchNo] = useState('-');
   const [prevCommenceUtc, setPrevCommenceUtc] = useState('-');
 
   // Position fixes / reports
-  const [latitude, setLatitude] = useState(0);
-  const [longitude, setLongitude] = useState(0);
-  const [distressTimeUtc, setDistressTimeUtc] = useState('-');
+  const [latitude, setLatitude] = useState(initialState?.latitude ?? 0);
+  const [longitude, setLongitude] = useState(initialState?.longitude ?? 0);
+  const [distressTimeUtc, setDistressTimeUtc] = useState(initialState?.distressTimeUtc ?? '-');
   const [lastFix, setLastFix] = useState('-');
   const [lastReportedPos, setLastReportedPos] = useState('-');
   const [missedPos, setMissedPos] = useState('-');
@@ -43,10 +60,10 @@ export default function Worksheet4({
   // Pos B: Last Reported Posn
   // Pos C: Missed Posn
   // Pos D: Next Posn
-  const [trList, setTrList] = useState<[number, number, number, number]>([0, 0, 0, 0]);
-  const [fixErrors, setFixErrors] = useState<[number, number, number, number]>([0, 0, 0, 0]);
-  const [yNavError, setYNavError] = useState(0);
-  const [safetyFactor, setSafetyFactor] = useState(0);
+  const [trList, setTrList] = useState<[number, number, number, number]>(initialState?.trList ?? [0, 0, 0, 0]);
+  const [fixErrors, setFixErrors] = useState<[number, number, number, number]>(initialState?.fixErrors ?? [0, 0, 0, 0]);
+  const [yNavError, setYNavError] = useState(initialState?.yNavError ?? 0);
+  const [safetyFactor, setSafetyFactor] = useState(initialState?.safetyFactor ?? 0);
 
   // Calculated values for positions A, B, C, D
   // x = Fix + 10% Tr
@@ -223,9 +240,10 @@ export default function Worksheet4({
                 onChange={(e) => setCallsign(e.target.value)}
                 className="font-bold text-blue-900 bg-blue-50/60 border border-slate-300 rounded px-2 py-1 text-xs w-full font-mono mt-1"
               />
-              <span className="text-[10px] text-slate-400 font-mono mt-1">
-                Nav Error (y): {yNavError} NM
-              </span>
+              <label className="text-[10px] text-slate-600 font-mono mt-1 flex items-center gap-1">
+                Nav Error (y):
+                <input type="number" min="0" step="0.1" value={yNavError} disabled={readOnly} onChange={(e) => setYNavError(Number(e.target.value) || 0)} className="w-14 border-b border-dotted border-slate-500 bg-white px-1 text-right font-bold text-blue-900" /> NM
+              </label>
             </div>
           </div>
 
@@ -288,7 +306,14 @@ export default function Worksheet4({
                 </td>
                 {xValues.map((x, i) => (
                   <td key={i} className="py-2 px-2 text-center border-r border-slate-300 last:border-r-0 font-mono font-bold text-blue-900">
-                    {x.toFixed(1)} <span className="text-[10px] font-normal text-slate-600">NM</span>
+                    <div>{x.toFixed(1)} <span className="text-[10px] font-normal text-slate-600">NM</span></div>
+                    <label className="mt-1 flex items-center justify-center gap-1 text-[9px] font-normal text-slate-500">
+                      Fix Err
+                      <input type="number" min="0" step="0.1" value={fixErrors[i]} disabled={readOnly} onChange={(e) => {
+                        const value = Number(e.target.value) || 0;
+                        setFixErrors((prev) => { const next = [...prev] as [number, number, number, number]; next[i] = value; return next; });
+                      }} className="w-12 border-b border-dotted border-slate-500 bg-white px-1 text-center font-mono font-bold text-blue-900" />
+                    </label>
                   </td>
                 ))}
               </tr>

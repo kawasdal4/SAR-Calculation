@@ -20,6 +20,11 @@ import {
 } from 'lucide-react';
 import { formatDMS } from '@/lib/sar/coordFormat';
 import type { InterceptInput } from '@/lib/sar/interceptCalculations';
+import type { Worksheet2InitialState } from '@/components/sar/worksheets/Worksheet2';
+import type { Worksheet3InitialState } from '@/components/sar/worksheets/Worksheet3';
+import type { Worksheet4InitialState } from '@/components/sar/worksheets/Worksheet4';
+import type { Worksheet8InitialState } from '@/components/sar/worksheets/Worksheet8';
+import { W2_TARGET_OPTIONS, W8_TARGET_OPTIONS } from '@/lib/sar/wscPodTables';
 
 interface UploadedAttachment {
   name: string;
@@ -50,7 +55,23 @@ interface AIChatPanelProps {
     caseTitle?: string;
   }) => void;
   onApplyLKP?: (data: { lat: number; lng: number }) => void;
+  onApplyDatum?: (data: {
+    latitude: number;
+    lkp: { lat: number; lng: number };
+    driftInterval: number;
+    seaCurrentDir: number;
+    seaCurrentSpeed: number;
+    seaCurrentErr?: number;
+    leewayObjectId?: string;
+    X?: number;
+    Y?: number;
+  }) => void;
+  onApplyWS2?: (data: Worksheet2InitialState) => void;
+  onApplyWS3?: (data: Worksheet3InitialState) => void;
+  onApplyWS4?: (data: Worksheet4InitialState) => void;
+  onApplyWS8?: (data: Worksheet8InitialState) => void;
   onApplyIntercept?: (data: InterceptInput) => boolean;
+  onFocusWorksheet?: (worksheet: string) => void;
   isOpen?: boolean;
   onToggle?: (open: boolean) => void;
   className?: string;
@@ -125,7 +146,13 @@ export default function AIChatPanel({
   onApplyASW,
   onApplyAWA,
   onApplyLKP,
+  onApplyDatum,
+  onApplyWS2,
+  onApplyWS3,
+  onApplyWS4,
+  onApplyWS8,
   onApplyIntercept,
+  onFocusWorksheet,
   isOpen: controlledIsOpen,
   onToggle,
   className = '',
@@ -148,6 +175,147 @@ export default function AIChatPanel({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const applyFunctionCalls = useCallback((calls: ChatMessage['functionCalls']) => {
+    if (!calls?.length) return { applied: false, invalidIntercept: false, preferredWorksheet: '' };
+    let applied = false;
+    let invalidIntercept = false;
+    const appliedWorksheets: string[] = [];
+    for (const call of calls) {
+      const args = call.args;
+      switch (call.name) {
+        case 'set_asw_case': {
+          const data = args as Parameters<NonNullable<typeof onApplyASW>>[0];
+          if (data.windData?.length && data.distressTime && data.datumTime && ['3h', '6h'].includes(data.intervalMode)) {
+            onApplyASW?.(data);
+            applied = true;
+            appliedWorksheets.push('asw');
+          }
+          break;
+        }
+        case 'set_awa_case': {
+          const data = args as Parameters<NonNullable<typeof onApplyAWA>>[0];
+          if (data.distressAltFt > 0 && data.windData?.length >= 2) {
+            onApplyAWA?.(data);
+            applied = true;
+            appliedWorksheets.push('awa');
+          }
+          break;
+        }
+        case 'set_lkp': {
+          const data = args as { lat: number; lng: number };
+          if (Number.isFinite(data.lat) && Math.abs(data.lat) <= 90 && Number.isFinite(data.lng) && Math.abs(data.lng) <= 180) {
+            onApplyLKP?.(data);
+            applied = true;
+            appliedWorksheets.push('datum');
+          }
+          break;
+        }
+        case 'set_datum_case': {
+          const data = args as Parameters<NonNullable<typeof onApplyDatum>>[0];
+          const leewayIds = ['piw-novice', 'piw-lifejacket', 'raft-46-person', 'raft-1520-person', 'raft-canopy-drogue', 'raft-canopy-no-drogue', 'dinghy-fibreglass', 'dinghy-upright', 'small-fishing', 'commercial-fishing', 'sailboat', 'merchant-vessel'];
+          if (Number.isFinite(data.latitude) && data.latitude >= 0 && data.latitude <= 90
+            && Number.isFinite(data.lkp?.lat) && Math.abs(data.lkp.lat) <= 90
+            && Number.isFinite(data.lkp?.lng) && Math.abs(data.lkp.lng) <= 180
+            && Number.isFinite(data.driftInterval) && data.driftInterval > 0
+            && Number.isFinite(data.seaCurrentDir) && data.seaCurrentDir >= 0 && data.seaCurrentDir < 360
+            && Number.isFinite(data.seaCurrentSpeed) && data.seaCurrentSpeed >= 0
+            && leewayIds.includes(data.leewayObjectId ?? '')) {
+            onApplyDatum?.(data);
+            applied = true;
+            appliedWorksheets.push('datum');
+          }
+          break;
+        }
+        case 'set_ws2_case': {
+          const data = args as Worksheet2InitialState;
+          if (['fixed-wing', 'helicopter'].includes(data.searchPlatform ?? '')
+            && Number.isFinite(data.searchTas) && (data.searchTas ?? 0) > 0
+            && Number.isInteger(data.visibilityIndex) && (data.visibilityIndex ?? -1) >= 0 && (data.visibilityIndex ?? 6) <= 5
+            && ['Yes', 'No'].includes(data.isFatigue ?? '')
+            && (data.searchNumber === undefined || [1, 2, 3, 4, 5].includes(data.searchNumber))
+            && [500, 1000, 1500, 2000].includes(data.selectedHeight ?? 0)
+            && W2_TARGET_OPTIONS.some((target) => target.id === data.searchObject)) {
+            onApplyWS2?.(data);
+            applied = true;
+            appliedWorksheets.push('ws2');
+          }
+          break;
+        }
+        case 'set_ws3_case': {
+          const data = args as Worksheet3InitialState;
+          if (typeof data.searchObject === 'string' && data.searchObject.trim().length > 0
+            && Number.isFinite(data.visibilityKm) && (data.visibilityKm ?? 0) > 0
+            && ['15-60', '60-85', '+85'].includes(data.vegetationType ?? '')
+            && typeof data.isFatigue === 'boolean'
+            && Number.isFinite(data.searchTas) && (data.searchTas ?? 0) > 0
+            && Number.isFinite(data.hoursAvailable) && (data.hoursAvailable ?? 0) > 0
+            && (data.searchAreaNm2 === undefined || (Number.isFinite(data.searchAreaNm2) && data.searchAreaNm2 >= 0))) {
+            onApplyWS3?.(data);
+            applied = true;
+            appliedWorksheets.push('ws3');
+          }
+          break;
+        }
+        case 'set_ws4_case': {
+          const data = args as Worksheet4InitialState;
+          const validFactors = [1.1, 1.6, 2, 2.3, 2.5];
+          if (Array.isArray(data.trList) && data.trList.length === 4 && data.trList.every((value) => Number.isFinite(value) && value >= 0)
+            && Array.isArray(data.fixErrors) && data.fixErrors.length === 4 && data.fixErrors.every((value) => Number.isFinite(value) && value >= 0)
+            && Number.isFinite(data.yNavError) && (data.yNavError ?? -1) >= 0
+            && validFactors.includes(data.safetyFactor ?? 0)) {
+            onApplyWS4?.(data);
+            applied = true;
+            appliedWorksheets.push('ws4');
+          }
+          break;
+        }
+        case 'set_ws8_case': {
+          const data = args as Worksheet8InitialState;
+          const validVisibility = data.eyeHeight === 'MERSHIP'
+            ? ['5', '10', '20', '30', '40'].includes(data.visibilityKm ?? '')
+            : ['2', '5', '10', '15', '20', '>25'].includes(data.visibilityKm ?? '');
+          if (['8', '14', 'MERSHIP'].includes(data.eyeHeight ?? '')
+            && validVisibility
+            && ['Yes', 'No'].includes(data.isFatigue ?? '')
+            && (data.searchNumber === undefined || [1, 2, 3, 4, 5].includes(data.searchNumber))
+            && (data.vesselSpeedKts === undefined || (Number.isFinite(data.vesselSpeedKts) && data.vesselSpeedKts >= 0))
+            && W8_TARGET_OPTIONS.some((target) => target.id === data.searchObject)) {
+            onApplyWS8?.(data);
+            applied = true;
+            appliedWorksheets.push('ws8');
+          }
+          break;
+        }
+        case 'set_intercept_case': {
+          const data = args as unknown as InterceptInput;
+          const target = data.target;
+          const sru = data.sru;
+          const valid = ['head-on', 'overtaking', 'beam-on'].includes(data.type)
+            && [target?.pos?.lat, target?.pos?.lng, sru?.pos?.lat, sru?.pos?.lng].every(Number.isFinite)
+            && [target?.speedKts, sru?.speedKts].every((value) => Number.isFinite(value) && value > 0)
+            && Number.isFinite(target?.courseDeg) && target.courseDeg >= 0 && target.courseDeg < 360
+            && Math.abs(target.pos.lat) <= 90 && Math.abs(sru.pos.lat) <= 90
+            && Math.abs(target.pos.lng) <= 180 && Math.abs(sru.pos.lng) <= 180;
+          if (valid && onApplyIntercept?.(data)) {
+            applied = true;
+            appliedWorksheets.push('intercept');
+          } else invalidIntercept = true;
+          break;
+        }
+      }
+    }
+    const preferredWorksheet = appliedWorksheets.includes('intercept') ? 'intercept'
+      : appliedWorksheets.includes('ws3') ? 'ws3'
+        : appliedWorksheets.includes('ws4') ? 'ws4'
+        : appliedWorksheets.includes('ws2') ? 'ws2'
+        : appliedWorksheets.includes('ws8') ? 'ws8'
+      : appliedWorksheets.includes('datum') ? 'datum'
+        : appliedWorksheets.includes('awa') ? 'awa'
+          : appliedWorksheets.includes('asw') ? 'asw' : '';
+    if (preferredWorksheet) onFocusWorksheet?.(preferredWorksheet);
+    return { applied, invalidIntercept, preferredWorksheet };
+  }, [onApplyASW, onApplyAWA, onApplyLKP, onApplyDatum, onApplyWS2, onApplyWS3, onApplyWS4, onApplyWS8, onApplyIntercept, onFocusWorksheet]);
 
   // Load API key and chat history from localStorage
   useEffect(() => {
@@ -309,39 +477,18 @@ export default function AIChatPanel({
           throw new Error(data.error || 'API Error');
         }
 
-        const interceptCall = data.functionCalls?.find((call) => call.name === 'set_intercept_case');
-        let interceptApplied = false;
-        if (interceptCall && onApplyIntercept) {
-          const args = interceptCall.args as unknown as InterceptInput;
-          const target = args.target;
-          const sru = args.sru;
-          const validType = ['head-on', 'overtaking', 'beam-on'].includes(args.type);
-          const validCoordinates = [target?.pos?.lat, target?.pos?.lng, sru?.pos?.lat, sru?.pos?.lng]
-            .every((value) => typeof value === 'number' && Number.isFinite(value));
-          const validSpeeds = [target?.speedKts, sru?.speedKts]
-            .every((value) => typeof value === 'number' && Number.isFinite(value) && value > 0);
-          const validHeading = typeof target?.courseDeg === 'number'
-            && Number.isFinite(target.courseDeg)
-            && target.courseDeg >= 0
-            && target.courseDeg < 360;
-          const validLatLng = typeof target?.pos?.lat === 'number' && Math.abs(target.pos.lat) <= 90
-            && typeof sru?.pos?.lat === 'number' && Math.abs(sru.pos.lat) <= 90
-            && typeof target?.pos?.lng === 'number' && Math.abs(target.pos.lng) <= 180
-            && typeof sru?.pos?.lng === 'number' && Math.abs(sru.pos.lng) <= 180;
-          if (validType && validCoordinates && validSpeeds && validHeading && validLatLng) {
-            interceptApplied = onApplyIntercept(args);
-          }
-        }
+        const { applied, invalidIntercept } = applyFunctionCalls(data.functionCalls);
 
         const assistantMsg: ChatMessage = {
           role: 'assistant',
           content: data.text || 'Server tidak mengirim teks jawaban.',
           functionCalls: data.functionCalls,
-          applied: interceptApplied,
+          applied,
         };
-        if (interceptCall && !interceptApplied) {
-          assistantMsg.content += '\n\nData Intercept belum diterapkan karena posisi, kecepatan, atau haluan belum lengkap/valid. Periksa kembali soal atau lampiran.';
+        if (invalidIntercept) {
+          assistantMsg.content += '\n\nAgar saya bisa mengisi Intercept dengan benar, mohon lengkapi posisi awal target dan SRU/pangkalan, kecepatan target dan SRU, serta haluan target. Waktu referensi hanya diperlukan jika ETA ingin dihitung.';
         }
+        if (applied) assistantMsg.content += '\n\nData worksheet yang berhasil diekstrak sudah diterapkan otomatis ke aplikasi. Periksa input dan lengkapi bagian yang ditandai masih kurang.';
         setMessages([...newMessages, assistantMsg]);
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : 'Unknown error';
@@ -353,31 +500,18 @@ export default function AIChatPanel({
         setIsLoading(false);
       }
     },
-    [apiKey, attachedFiles, isLoading, messages, onApplyIntercept]
+    [apiKey, attachedFiles, isLoading, messages, applyFunctionCalls]
   );
 
   const handleApply = useCallback(
     (msg: ChatMessage, idx: number) => {
       if (!msg.functionCalls) return;
-      for (const fc of msg.functionCalls) {
-        switch (fc.name) {
-          case 'set_asw_case':
-            onApplyASW?.(fc.args as Parameters<NonNullable<typeof onApplyASW>>[0]);
-            break;
-          case 'set_awa_case':
-            onApplyAWA?.(fc.args as Parameters<NonNullable<typeof onApplyAWA>>[0]);
-            break;
-          case 'set_lkp':
-            onApplyLKP?.(fc.args as Parameters<NonNullable<typeof onApplyLKP>>[0]);
-            break;
-          case 'set_intercept_case':
-            onApplyIntercept?.(fc.args as unknown as InterceptInput);
-            break;
-        }
+      const result = applyFunctionCalls(msg.functionCalls);
+      if (result.applied) {
+        setMessages((prev) => prev.map((m, i) => (i === idx ? { ...m, applied: true } : m)));
       }
-      setMessages((prev) => prev.map((m, i) => (i === idx ? { ...m, applied: true } : m)));
     },
-    [onApplyASW, onApplyAWA, onApplyLKP, onApplyIntercept]
+    [applyFunctionCalls]
   );
 
   const clearHistory = useCallback(() => {
@@ -417,6 +551,26 @@ export default function AIChatPanel({
       case 'set_lkp': {
         const a = fc.args as { lat?: number; lng?: number };
         return `📍 LKP: ${formatDMS(a.lat ?? 0, false)}, ${formatDMS(a.lng ?? 0, true)}`;
+      }
+      case 'set_datum_case': {
+        const a = fc.args as { driftInterval?: number; seaCurrentDir?: number; seaCurrentSpeed?: number; leewayObjectId?: string };
+        return `🧭 Datum / WS 1: drift ${a.driftInterval ?? 0} jam · arus ${a.seaCurrentDir ?? 0}°T / ${a.seaCurrentSpeed ?? 0} kt${a.leewayObjectId ? ` · objek ${a.leewayObjectId}` : ''}`;
+      }
+      case 'set_ws2_case': {
+        const a = fc.args as Worksheet2InitialState;
+        return `✈️ WS 2: ${a.searchPlatform ?? 'platform?'} · ${a.searchObject ?? 'objek?'} · visibilitas kolom ${a.visibilityIndex ?? '?'} · ${a.selectedHeight ?? '?'} ft`;
+      }
+      case 'set_ws3_case': {
+        const a = fc.args as Worksheet3InitialState;
+        return `🌲 WS 3 (Land): ${a.searchObject ?? 'objek?'} · visibilitas ${a.visibilityKm ?? '?'} km · TAS ${a.searchTas ?? '?'} kt · area ${a.searchAreaNm2 ?? 'dari WS 1'} NM²`;
+      }
+      case 'set_ws4_case': {
+        const a = fc.args as Worksheet4InitialState;
+        return `📐 WS 4 (mandiri): Track ${a.trList?.join('/') ?? '?'} NM · fix ${a.fixErrors?.join('/') ?? '?'} NM · nav ${a.yNavError ?? '?'} NM · Fs ${a.safetyFactor ?? '?'}`;
+      }
+      case 'set_ws8_case': {
+        const a = fc.args as Worksheet8InitialState;
+        return `🚢 WS 8: ${a.searchObject ?? 'objek?'} · mata ${a.eyeHeight ?? '?'} ft · visibilitas ${a.visibilityKm ?? '?'} km`;
       }
       case 'set_intercept_case': {
         const a = fc.args as unknown as InterceptInput;
