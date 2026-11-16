@@ -49,24 +49,26 @@ export default function ManeuveringBoard({
   const VB_WIDTH = 2400;
   const VB_HEIGHT = 2618;
   const cx = 1200;
-  const cy = 1309;
-  const ring10Radius = 960.5; // Radius of Ring 10 on template
-  const ringSpacing = ring10Radius / 10; // 96.05 px per ring
+  // Calibrated to the plotting circle and side rulers in maneuvering_board_web.jpg.
+  const cy = 1126.5;
+  const ring10Radius = 920.5; // Outer radius of the 10-ring plotting area
+  const ringSpacing = ring10Radius / 10;
   const [isChainedMode, setIsChainedMode] = useState(chainVectors);
 
   const chainGeometry = useMemo(() => {
     const pathVectors = vectors.filter((vector) => !vector.id.includes('result') && !vector.id.includes('twc'));
     let x = 0;
     let y = 0;
-    const points = [{ x, y }];
+    const pathPoints = [{ x, y }];
     for (const vector of pathVectors) {
       const radians = (vector.dirDeg * Math.PI) / 180;
       const dx = vector.mag * Math.sin(radians);
       const dy = -vector.mag * Math.cos(radians);
       if (isChainedMode) { x += dx; y += dy; }
       else { x = dx; y = dy; }
-      points.push({ x, y });
+      pathPoints.push({ x, y });
     }
+    const points = [...pathPoints];
     for (const vector of vectors.filter((item) => item.id.includes('twc') || (!isChainedMode && item.id.includes('result')))) {
       const radians = (vector.dirDeg * Math.PI) / 180;
       points.push({ x: vector.mag * Math.sin(radians), y: -vector.mag * Math.cos(radians) });
@@ -77,23 +79,37 @@ export default function ManeuveringBoard({
     const maxY = Math.max(...points.map((point) => point.y));
     const center = { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
     const autoOrigin = autoFitOrigin && isChainedMode;
-    const fitCenter = autoOrigin ? center : { x: 0, y: 0 };
+    // Pick an actual plotted vertex for O (0), choosing the one nearest the
+    // plot bounds' center to keep the full chain compact around that vertex.
+    const anchorIndex = autoOrigin
+      ? pathPoints.reduce((bestIndex, point, index) => {
+          const best = pathPoints[bestIndex];
+          return Math.hypot(point.x - center.x, point.y - center.y) < Math.hypot(best.x - center.x, best.y - center.y)
+            ? index
+            : bestIndex;
+        }, 0)
+      : 0;
+    const fitCenter = autoOrigin ? pathPoints[anchorIndex] : { x: 0, y: 0 };
     const extent = Math.max(...points.map((point) => Math.hypot(point.x - fitCenter.x, point.y - fitCenter.y)), 1);
     const originOffset = autoOrigin ? { x: -center.x, y: -center.y } : { x: 0, y: 0 };
-    return { extent, originOffset, autoOrigin };
+    const zeroOffset = autoOrigin ? fitCenter : { x: 0, y: 0 };
+    return { extent, originOffset, zeroOffset, anchorIndex, autoOrigin };
   }, [vectors, autoFitOrigin, isChainedMode]);
 
   const calculatedAutoScale = useMemo(() => autoScaleBoard([chainGeometry.extent]), [chainGeometry.extent]);
   const scaleChoices = useMemo(() => {
     const presets = [1, 2, 3, 4, 5, 10, 20, 30, 40, 50, 60, 80, 100, 150, 200, 300, 400, 500, 1000];
-    const available = autoFitOrigin ? presets.filter((value) => value >= calculatedAutoScale) : presets;
-    return [...new Set([...(available.length ? available : [calculatedAutoScale]), calculatedAutoScale])].sort((a, b) => a - b);
-  }, [autoFitOrigin, calculatedAutoScale]);
+    return [...new Set([...presets, calculatedAutoScale])].sort((a, b) => a - b);
+  }, [calculatedAutoScale]);
 
   const [scale, setScale] = useState<number>(defaultScale ?? calculatedAutoScale);
   const plotOrigin = {
     x: cx + (chainGeometry.originOffset.x / scale) * ringSpacing,
     y: cy + (chainGeometry.originOffset.y / scale) * ringSpacing,
+  };
+  const zeroPoint = {
+    x: plotOrigin.x + (chainGeometry.zeroOffset.x / scale) * ringSpacing,
+    y: plotOrigin.y + (chainGeometry.zeroOffset.y / scale) * ringSpacing,
   };
   const [zoom, setZoom] = useState<number>(1);
   const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -163,12 +179,16 @@ export default function ManeuveringBoard({
 
       let startX = plotOrigin.x;
       let startY = plotOrigin.y;
-      let pointLabelStart = 'O';
+      let pointLabelStart = chainGeometry.anchorIndex === 0 ? 'O (0)' : 'P0 (Awal)';
 
       if (isChainedMode) {
         startX = currentX;
         startY = currentY;
-        pointLabelStart = idx === 0 ? 'O' : `P${idx}`;
+        pointLabelStart = idx === chainGeometry.anchorIndex
+          ? 'O (0)'
+          : idx === 0
+            ? 'P0 (Awal)'
+            : `P${idx}`;
       } else if (vec.origin) {
         startX = plotOrigin.x + (vec.origin.x / scale) * ringSpacing;
         startY = plotOrigin.y + (vec.origin.y / scale) * ringSpacing;
@@ -176,7 +196,7 @@ export default function ManeuveringBoard({
 
       const endX = startX + dx;
       const endY = startY + dy;
-      const pointLabelEnd = `P${idx + 1}`;
+      const pointLabelEnd = idx + 1 === chainGeometry.anchorIndex ? 'O (0)' : `P${idx + 1}`;
 
       resultList.push({
         ...vec,
@@ -206,7 +226,7 @@ export default function ManeuveringBoard({
           endX: currentX,
           endY: currentY,
           stepIndex: regularVecs.length + 1,
-          pointLabelStart: 'O (Origin)',
+          pointLabelStart: chainGeometry.anchorIndex === 0 ? 'O (0)' : 'P0 (Awal)',
           pointLabelEnd: `P${regularVecs.length} (Resultant)`,
         });
       } else {
@@ -225,7 +245,7 @@ export default function ManeuveringBoard({
     });
 
     return resultList;
-  }, [vectors, scale, ringSpacing, cx, cy, isChainedMode, plotOrigin.x, plotOrigin.y]);
+  }, [vectors, scale, ringSpacing, cx, cy, isChainedMode, chainGeometry.anchorIndex, plotOrigin.x, plotOrigin.y]);
 
   // Mouse pan handlers
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -311,14 +331,14 @@ export default function ManeuveringBoard({
 
             {/* Scale ring selector */}
             <div className="flex items-center gap-1.5 bg-white px-2 py-1 rounded border border-slate-300 text-xs shadow-2xs">
-              <span className="text-slate-600 font-medium">1 Ring =</span>
+              <span className="text-slate-600 font-medium">Skala Mobo =</span>
               <select
                 value={scale}
                 onChange={(e) => setScale(Number(e.target.value))}
                 className="font-bold text-slate-900 bg-transparent focus:outline-none cursor-pointer"
               >
                 {scaleChoices.map((choice) => (
-                  <option key={choice} value={choice}>{choice} {unitLabel} per ring</option>
+                  <option key={choice} value={choice}>{choice}:1 ({choice} {unitLabel}/ring)</option>
                 ))}
               </select>
             </div>
@@ -451,8 +471,8 @@ export default function ManeuveringBoard({
                   return (
                     <g key={`ring-guide-${i}`}>
                       <circle
-                        cx={plotOrigin.x}
-                        cy={plotOrigin.y}
+                        cx={zeroPoint.x}
+                        cy={zeroPoint.y}
                         r={r}
                         fill="none"
                         stroke="#2563eb"
@@ -461,8 +481,8 @@ export default function ManeuveringBoard({
                         opacity={0.4}
                       />
                       <rect
-                        x={plotOrigin.x + r - 16}
-                        y={plotOrigin.y - 14}
+                        x={zeroPoint.x + r - 16}
+                        y={zeroPoint.y - 14}
                         width="32"
                         height="18"
                         rx="3"
@@ -470,8 +490,8 @@ export default function ManeuveringBoard({
                         fillOpacity="0.85"
                       />
                       <text
-                        x={plotOrigin.x + r}
-                        y={plotOrigin.y - 1}
+                        x={zeroPoint.x + r}
+                        y={zeroPoint.y - 1}
                         fill="#38bdf8"
                         fontSize="14"
                         fontWeight="bold"
@@ -483,10 +503,10 @@ export default function ManeuveringBoard({
                   );
                 })}
 
-              {/* Plot origin may move to make a long head-to-tail plot fit. */}
-              <circle cx={plotOrigin.x} cy={plotOrigin.y} r={9} fill="#ef4444" stroke="#ffffff" strokeWidth="3" />
-              <circle cx={plotOrigin.x} cy={plotOrigin.y} r={3} fill="#ffffff" />
-              <text x={plotOrigin.x - 30} y={plotOrigin.y - 14} fill="#ef4444" fontSize="18" fontWeight="black">
+              {/* The zero marker is attached to a real vertex in the plotted chain. */}
+              <circle cx={zeroPoint.x} cy={zeroPoint.y} r={9} fill="#ef4444" stroke="#ffffff" strokeWidth="3" />
+              <circle cx={zeroPoint.x} cy={zeroPoint.y} r={3} fill="#ffffff" />
+              <text x={zeroPoint.x - 30} y={zeroPoint.y - 14} fill="#ef4444" fontSize="18" fontWeight="black">
                 O (0)
               </text>
 
@@ -497,6 +517,7 @@ export default function ManeuveringBoard({
                   const midX = (v.startX + v.endX) / 2;
                   const midY = (v.startY + v.endY) / 2;
                   const isResultant = v.id.includes('result');
+                  const labelWidth = Math.max(140, v.label.length * 7.5 + 24);
 
                   return (
                     <g key={`plotted-${v.id}`} filter="url(#vector-glow)">
@@ -562,9 +583,9 @@ export default function ManeuveringBoard({
                       {/* Vector Label Badge */}
                       <g transform={`translate(${midX}, ${midY})`}>
                         <rect
-                          x="-70"
+                          x={-labelWidth / 2}
                           y="-22"
-                          width="140"
+                          width={labelWidth}
                           height="26"
                           rx="5"
                           fill={isResultant ? '#991b1b' : '#0f172a'}
@@ -594,10 +615,10 @@ export default function ManeuveringBoard({
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <span className="font-semibold">DMAHTC 5090 Original Sheet</span>
             <span className="text-slate-200 font-mono font-bold">
-              Skala: 1 : {scale} {unitLabel}
+              Skala: {scale}:1 · 1 ring = {scale} {unitLabel}
             </span>
             <span className="text-slate-400 font-mono">
-              {isChainedMode ? 'Mode: Head-to-Tail' : 'Mode: Radial'}{chainGeometry.autoOrigin ? ' · O otomatis digeser agar seluruh plot muat' : ''}
+              {isChainedMode ? 'Mode: Head-to-Tail' : 'Mode: Radial'}{chainGeometry.autoOrigin ? ' · O (0) pada titik vektor agar plot muat' : ''}
             </span>
           </div>
 
