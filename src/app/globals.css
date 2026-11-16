@@ -133,6 +133,7 @@
 }
 
 .leaflet-tooltip.sar-label,
+.leaflet-tooltip.sar-point-label,
 .leaflet-tooltip.sar-area-label,
 .leaflet-tooltip.sar-circle-label {
   background: rgba(255, 255, 255, 0.92);
@@ -144,6 +145,19 @@
   font-weight: 500;
   white-space: nowrap;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.leaflet-tooltip.sar-point-label {
+  background: #fff;
+  border: 1px solid #64748b;
+  border-radius: 5px;
+  padding: 3px 7px;
+  color: #0f172a;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.28);
+  z-index: 1000;
 }
 
 .leaflet-tooltip.sar-area-label {

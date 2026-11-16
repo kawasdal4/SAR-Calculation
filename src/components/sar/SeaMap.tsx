@@ -31,6 +31,10 @@ import {
 export interface MapMarker {
   position: LatLng;
   label: string;
+  /** Show a compact, permanent label beside the marker. */
+  showLabel?: boolean;
+  labelDirection?: 'top' | 'right' | 'bottom' | 'left';
+  labelOffset?: [number, number];
   color?: string;
   isStart?: boolean;
   isDatum?: boolean;
@@ -79,6 +83,12 @@ export interface SeaMapProps {
   measureMode?: boolean;
   /** Isolates map controls and persisted view preferences for this map instance. */
   preferenceKey?: string;
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  })[char] ?? char);
 }
 
 // ============================================================================
@@ -1430,8 +1440,17 @@ export default function SeaMap({
       const marker = L.marker([m.position.lat, m.position.lng], {
         icon: makeColoredIcon(color, m.isStart, m.isDatum, m.sequence),
       }).addTo(layer);
+      if (m.showLabel) {
+        marker.bindTooltip(escapeHtml(m.label), {
+          permanent: true,
+          direction: m.labelDirection ?? 'top',
+          offset: m.labelOffset ?? [0, -8],
+          className: 'sar-point-label',
+          opacity: 1,
+        });
+      }
       marker.bindPopup(
-        `<b>${m.label}</b><br/>${formatDMS(m.position.lat, true)}, ${formatDMS(m.position.lng, false)}`,
+        `<b>${escapeHtml(m.label)}</b><br/>${formatDMS(m.position.lat, true)}, ${formatDMS(m.position.lng, false)}`,
       );
       marker.on('click', (e) => {
         if (m.onClick) {

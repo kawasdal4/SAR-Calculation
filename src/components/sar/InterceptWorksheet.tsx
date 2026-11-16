@@ -138,9 +138,9 @@ export default function InterceptWorksheet({ onResults, initialInput, className 
     const extent = Math.max(results.initialDistanceNm, results.targetDistanceTravelledNm, results.sruDistanceTravelledNm, 1);
     const zoom = Math.max(3, Math.min(12, Math.round(11 - Math.log2(extent / 10))));
     const markers: MapMarker[] = [
-      { position: a, label: `A · Target ${calculationInput.target.name || ''}`, color: '#2563eb', isStart: true },
-      { position: b, label: `B · SRU ${calculationInput.sru.name || ''}`, color: '#f97316' },
-      { position: i, label: `I · Intercept Point · ${formatDMS(i.lat, false)}, ${formatDMS(i.lng, true)}`, color: '#16a34a', isDatum: true },
+      { position: a, label: `A · Target${calculationInput.target.name ? ` · ${calculationInput.target.name}` : ''}`, color: '#2563eb', isStart: true, showLabel: true, labelDirection: 'left', labelOffset: [-10, -8] },
+      { position: b, label: `B · SRU${calculationInput.sru.name ? ` · ${calculationInput.sru.name}` : ''}`, color: '#f97316', showLabel: true, labelDirection: 'right', labelOffset: [10, -8] },
+      { position: i, label: 'I · Intercept Point', color: '#16a34a', isDatum: true, showLabel: true, labelDirection: 'top', labelOffset: [0, -14] },
     ];
     const lines: MapLine[] = [
       { from: a, to: b, color: '#64748b', dashed: true, label: `AB baseline · ${results.initialDistanceNm.toFixed(2)} NM` },
@@ -152,8 +152,8 @@ export default function InterceptWorksheet({ onResults, initialInput, className 
       const c = construction?.pointC;
       const d = construction?.pointD;
       if (c && d) {
-        markers.push({ position: c, label: 'C · Construction Point', color: '#a855f7' });
-        markers.push({ position: d, label: 'D · Construction Point', color: '#a855f7' });
+        markers.push({ position: c, label: 'C · Construction', color: '#a855f7', showLabel: true, labelDirection: 'top', labelOffset: [0, -10] });
+        markers.push({ position: d, label: 'D · Construction', color: '#a855f7', showLabel: true, labelDirection: 'bottom', labelOffset: [0, 10] });
         lines.push(
           { from: a, to: c, color: '#0d9488', dashed: true, label: `AC · ${calculationInput.target.speedKts * 0.5} NM (0.5 h)` },
           { from: b, to: d, color: '#8b5cf6', dashed: true, label: `BD · ${calculationInput.sru.speedKts * 0.5} NM (0.5 h)` },
@@ -167,9 +167,9 @@ export default function InterceptWorksheet({ onResults, initialInput, className 
       const w = construction?.pointW;
       if (x && y && w) {
         markers.push(
-          { position: x, label: 'X · Target Construction Point (0.5 h)', color: '#0d9488' },
-          { position: y, label: 'Y · XY baseline point', color: '#0d9488' },
-          { position: w, label: 'W · Construction Point (0.5 h SRU)', color: '#8b5cf6' },
+          { position: x, label: 'X · Target construction', color: '#0d9488', showLabel: true, labelDirection: 'top', labelOffset: [0, -10] },
+          { position: y, label: 'Y · Baseline', color: '#0d9488', showLabel: true, labelDirection: 'left', labelOffset: [-10, 0] },
+          { position: w, label: 'W · SRU construction', color: '#8b5cf6', showLabel: true, labelDirection: 'right', labelOffset: [10, 0] },
         );
         lines.push(
           { from: a, to: x, color: '#0d9488', dashed: true, arrow: true, label: `AX · heading ${calculationInput.target.courseDeg.toFixed(1)}°T · ${calculationInput.target.speedKts * 0.5} NM` },
