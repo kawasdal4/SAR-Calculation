@@ -1,19 +1,14 @@
-/**
- * Aeronautical Drift Calculations Engine
- * Berdasarkan IAMSAR Manual Volume II Appendix K-5, K-6, K-7
- * (Aeronautical Drift Worksheet & Average Wind Aloft)
- */
+/** Aeronautical drift calculations for IAMSAR Appendix K-6/K-7. */
 
 import {
   type LatLng,
   type Vector,
   project,
-  distanceNm,
-  bearingDeg,
   addVectors,
-  vectorToUV,
-  uvToVector,
 } from './sarCalculations';
+
+export type HeadingReference = 'true' | 'magnetic' | 'compass';
+export type EastWest = 'E' | 'W';
 
 export interface AeroDriftInput {
   caseTitle: string;
@@ -21,183 +16,263 @@ export interface AeroDriftInput {
   date: string;
   plannerName: string;
   searchObject: string;
-
-  // A. Incident / Bailout Position
   incidentPos: LatLng;
-  incidentTime: string; // ISO or HH:mm
-
-  // B. Aircraft Glide Displacement
+  incidentTime: string;
   useAircraftGlide: boolean;
-  aircraftAltMaxFt: number; // Incident altitude (ft)
-  aircraftAltMinFt: number; // Bailout or terrain altitude (ft)
-  aircraftGlideRatio: number; // Horizontal / vertical distance (e.g. 10:1)
-  aircraftTASgKts: number; // Glide true air speed (kts)
-  aircraftDescentHeadingDeg?: number; // Heading during descent (°T)
-
-  // C. Parachute Glide / Drift Displacement
+  aircraftAltMaxFt: number;
+  aircraftAltMinFt: number;
+  aircraftGlideRatio: number;
+  aircraftTASgKts: number;
+  aircraftDescentHeadingDeg?: number;
+  aircraftHeadingReference: HeadingReference;
   useParachute: boolean;
   parachuteType: 'steerable' | 'round-zero-glide';
-  parachuteAltMaxFt: number; // Opening altitude (ft)
-  parachuteTerrainAltFt: number; // Terrain altitude (ft)
-  parachuteGlideRatio?: number; // For steerable (e.g. 3.0)
-  parachuteTASgKts?: number; // For steerable (e.g. 15 kts)
+  parachuteAltMaxFt: number;
+  parachuteTerrainAltFt: number;
+  parachuteGlideRatio?: number;
+  parachuteTASgKts?: number;
+  parachuteRateOfDescentFtMin: number;
   parachuteDescentHeadingDeg?: number;
-
-  // Winds Aloft during glide & descent (from AWA Worksheet Appendix K-10)
-  awaGlideDirFrom: number; // °T (from)
-  awaGlideSpeedKts: number; // kts
-
-  // D. Fix Errors & Safety Factor
-  fixErrorXNm: number; // Nav fix error (X)
-  safetyFactorFs: number; // fs factor (1.1, 1.6, 2.0, 2.3, 2.5)
+  parachuteHeadingReference: HeadingReference;
+  magneticVariationDeg?: number;
+  magneticVariationDirection: EastWest;
+  aircraftDeviationDeg?: number;
+  aircraftDeviationDirection: EastWest;
+  parachuteDeviationDeg?: number;
+  parachuteDeviationDirection: EastWest;
+  awaIsValid: boolean;
+  awaGlideDirFrom: number;
+  awaGlideSpeedKts: number;
+  fixErrorXNm: number;
+  safetyFactorFs: number;
 }
 
 export interface AeroDriftResult {
-  // Aircraft Glide Results
+  incidentPos: LatLng;
+  aircraftActive: boolean;
+  parachuteActive: boolean;
+  positionValid: boolean;
+  validationErrors: string[];
+  aircraftDescentHeadingTrueDeg: number | null;
+  parachuteDescentHeadingTrueDeg: number | null;
   aircraftAltLossFt: number;
   aircraftRateOfDescentFtMin: number;
   aircraftTimeOfDescentMin: number;
   aircraftGlideDistanceNm: number;
+  aircraftGlideVector: Vector;
+  aircraftWindVector: Vector;
   aircraftWindDisplacementNm: number;
-  aircraftWindDisplacementDir: number; // Downwind
-  aircraftGlideDisplacementVector: Vector; // Vector sum of glide + wind
+  aircraftWindDisplacementDir: number;
+  aircraftGlideDisplacementVector: Vector;
   aircraftEndGlidePos: LatLng;
-
-  // Parachute Results
   parachuteAltLossFt: number;
   parachuteRateOfDescentFtMin: number;
   parachuteTimeOfDescentMin: number;
   parachuteGlideDistanceNm: number;
+  parachuteGlideVector: Vector;
+  parachuteWindVector: Vector;
   parachuteWindDisplacementNm: number;
   parachuteWindDisplacementDir: number;
   parachuteDisplacementVector: Vector;
   landingPos: LatLng;
-
-  // Total Displacement from Incident
   totalDisplacementNm: number;
   totalDisplacementDir: number;
-
-  // Errors & Search Radius
-  driftErrorDeNm: number;
-  searchRadiusRNm: number;
-  searchAreaAoNm2: number;
+  /** Uncertainty belongs to the separate IAMSAR A.5 worksheet. */
+  driftErrorDeNm: number | null;
+  searchRadiusRNm: number | null;
+  searchAreaAoNm2: number | null;
 }
 
-/**
- * Hitung Aeronautical Drift sesuai Appendix K-6 & K-7
- */
+export function normalizeHeading(degrees: number): number {
+  return ((degrees % 360) + 360) % 360;
+}
+
+/** Convert a reported heading to True. East variation/deviation is positive. */
+export function convertHeadingToTrue(
+  headingDeg: number | undefined,
+  reference: HeadingReference,
+  variationDeg?: number,
+  variationDirection: EastWest = 'E',
+  deviationDeg?: number,
+  deviationDirection: EastWest = 'E',
+): number | null {
+  if (headingDeg === undefined || !Number.isFinite(headingDeg)) return null;
+  if (reference === 'true') return normalizeHeading(headingDeg);
+  if (variationDeg === undefined || !Number.isFinite(variationDeg)) return null;
+
+  const variation = variationDeg * (variationDirection === 'E' ? 1 : -1);
+  if (reference === 'magnetic') return normalizeHeading(headingDeg + variation);
+  if (deviationDeg === undefined || !Number.isFinite(deviationDeg)) return null;
+
+  const deviation = deviationDeg * (deviationDirection === 'E' ? 1 : -1);
+  return normalizeHeading(headingDeg + deviation + variation);
+}
+
+/** Calculate drift and geodesic resultant. No assumed heading or parachute ROD is used. */
 export function calculateAeroDrift(input: AeroDriftInput): AeroDriftResult {
-  // --- 1. AIRCRAFT GLIDE ---
+  const errors: string[] = [];
+  const windToDeg = normalizeHeading(input.awaGlideDirFrom + 180);
+  const awaReady = input.awaIsValid && Number.isFinite(input.awaGlideSpeedKts) &&
+    input.awaGlideSpeedKts >= 0 && Number.isFinite(input.awaGlideDirFrom);
+  if (!input.awaIsValid) errors.push('AWA belum tersedia atau belum valid.');
+  else if (!awaReady) errors.push('AWA tidak valid: arah harus numerik dan kecepatan tidak boleh negatif.');
+
   let aircraftAltLossFt = 0;
-  let aircraftRODFtMin = 1000;
+  let aircraftRODFtMin = 0;
   let aircraftTdMin = 0;
   let aircraftGlideDistNm = 0;
   let aircraftWindDispNm = 0;
-  let aircraftWindDispDir = (input.awaGlideDirFrom + 180) % 360; // downwind
-  let aircraftDispVector: Vector = { mag: 0, dir: 0 };
-  let currentPos = input.incidentPos;
+  let aircraftGlideVector: Vector = { mag: 0, dir: 0 };
+  let aircraftWindVector: Vector = { mag: 0, dir: windToDeg };
+  let aircraftVector: Vector = { mag: 0, dir: 0 };
+  let aircraftEndGlidePos = input.incidentPos;
+  let aircraftReady = !input.useAircraftGlide;
+  let aircraftHeadingTrue: number | null = null;
 
-  if (input.useAircraftGlide && input.aircraftAltMaxFt > input.aircraftAltMinFt) {
-    aircraftAltLossFt = input.aircraftAltMaxFt - input.aircraftAltMinFt;
-    const gr = Math.max(0.1, input.aircraftGlideRatio);
-    // Formula B.6: Rate of descent = (TASg * 101) / gr  (ft/min)
-    aircraftRODFtMin = (input.aircraftTASgKts * 101) / gr;
-    // Formula B.7: Time of descent = AltLoss / ROD (min)
-    aircraftTdMin = aircraftAltLossFt / Math.max(1, aircraftRODFtMin);
-    // Formula B.8: Glide distance = (TASg * td) / 60 (NM)
-    aircraftGlideDistNm = (input.aircraftTASgKts * aircraftTdMin) / 60;
+  if (input.useAircraftGlide) {
+    const altitudeValid = input.aircraftAltMaxFt > input.aircraftAltMinFt && input.aircraftAltMinFt >= 0;
+    const glideValid = input.aircraftGlideRatio > 0 && input.aircraftTASgKts > 0;
+    if (!altitudeValid) errors.push('Validasi B.1-B.3 pesawat: Altmax harus lebih besar dari Altmin.');
+    if (input.aircraftGlideRatio <= 0) errors.push('Validasi B.4 pesawat: glide ratio harus lebih besar dari 0.');
+    if (input.aircraftTASgKts <= 0) errors.push('Validasi B.5 pesawat: Glide TAS harus lebih besar dari 0 kts.');
 
-    // Formula B.11: Downwind displacement due to winds aloft = (td * AWA) / 60
-    aircraftWindDispNm = (aircraftTdMin * input.awaGlideSpeedKts) / 60;
-
-    // Formula B.12: Vector sum of glide heading (dg) + wind displacement (dd)
-    const glideHdg = input.aircraftDescentHeadingDeg ?? aircraftWindDispDir;
-    const glideVec: Vector = { mag: aircraftGlideDistNm, dir: glideHdg };
-    const windVec: Vector = { mag: aircraftWindDispNm, dir: aircraftWindDispDir };
-
-    aircraftDispVector = addVectors(glideVec, windVec);
-    currentPos = project(input.incidentPos, aircraftDispVector.dir, aircraftDispVector.mag);
+    aircraftHeadingTrue = convertHeadingToTrue(
+      input.aircraftDescentHeadingDeg,
+      input.aircraftHeadingReference,
+      input.magneticVariationDeg,
+      input.magneticVariationDirection,
+      input.aircraftDeviationDeg,
+      input.aircraftDeviationDirection,
+    );
+    if (aircraftHeadingTrue === null) {
+      errors.push(input.aircraftDescentHeadingDeg === undefined
+        ? 'B.9 pesawat belum diketahui; posisi akhir tidak dapat dipastikan.'
+        : 'B.9 pesawat belum dapat dikonversi ke True; periksa variasi dan deviasi.');
+    }
+    if (altitudeValid && glideValid) {
+      aircraftAltLossFt = input.aircraftAltMaxFt - input.aircraftAltMinFt;
+      aircraftRODFtMin = (input.aircraftTASgKts * 101) / input.aircraftGlideRatio;
+      aircraftTdMin = aircraftAltLossFt / aircraftRODFtMin;
+      aircraftGlideDistNm = (input.aircraftTASgKts * aircraftTdMin) / 60;
+      if (awaReady) aircraftWindDispNm = (aircraftTdMin * input.awaGlideSpeedKts) / 60;
+      if (aircraftHeadingTrue !== null) aircraftGlideVector = { mag: aircraftGlideDistNm, dir: aircraftHeadingTrue };
+      if (awaReady) aircraftWindVector = { mag: aircraftWindDispNm, dir: windToDeg };
+    }
+    aircraftReady = altitudeValid && glideValid && awaReady && aircraftHeadingTrue !== null;
+    if (aircraftReady) {
+      aircraftVector = addVectors(aircraftGlideVector, aircraftWindVector);
+      aircraftEndGlidePos = project(input.incidentPos, aircraftVector.dir, aircraftVector.mag);
+    }
   }
 
-  const aircraftEndGlidePos = currentPos;
-
-  // --- 2. PARACHUTE DESCENT / DRIFT ---
   let parachuteAltLossFt = 0;
-  let parachuteRODFtMin = 1000; // Standar parasut bulat ~1000 ft/min
+  let parachuteRODFtMin = 0;
   let parachuteTdMin = 0;
   let parachuteGlideDistNm = 0;
   let parachuteWindDispNm = 0;
-  let parachuteWindDispDir = (input.awaGlideDirFrom + 180) % 360;
-  let parachuteDispVector: Vector = { mag: 0, dir: 0 };
+  let parachuteGlideVector: Vector = { mag: 0, dir: 0 };
+  let parachuteWindVector: Vector = { mag: 0, dir: windToDeg };
+  let parachuteVector: Vector = { mag: 0, dir: 0 };
+  let parachuteHeadingTrue: number | null = null;
+  let parachuteReady = !input.useParachute;
 
-  if (input.useParachute && input.parachuteAltMaxFt > input.parachuteTerrainAltFt) {
-    parachuteAltLossFt = input.parachuteAltMaxFt - input.parachuteTerrainAltFt;
+  if (input.useParachute) {
+    const altitudeValid = input.parachuteAltMaxFt > input.parachuteTerrainAltFt && input.parachuteTerrainAltFt >= 0;
+    const rateValid = input.parachuteRateOfDescentFtMin > 0;
+    if (!altitudeValid) errors.push('Validasi B.1-B.3 parasut: Altmax harus lebih besar dari ketinggian terrain.');
+    if (!rateValid) errors.push('B.6 parasut: masukkan laju turun dari tabel N-13; nilai tidak diasumsikan.');
 
-    if (input.parachuteType === 'steerable' && input.parachuteGlideRatio && input.parachuteTASgKts) {
-      // Steerable parachute (part B)
-      const gr = Math.max(0.1, input.parachuteGlideRatio);
-      parachuteRODFtMin = (input.parachuteTASgKts * 101) / gr;
-      parachuteTdMin = parachuteAltLossFt / Math.max(1, parachuteRODFtMin);
-      parachuteGlideDistNm = (input.parachuteTASgKts * parachuteTdMin) / 60;
-      parachuteWindDispNm = (parachuteTdMin * input.awaGlideSpeedKts) / 60;
-
-      const pGlideHdg = input.parachuteDescentHeadingDeg ?? parachuteWindDispDir;
-      const pGlideVec: Vector = { mag: parachuteGlideDistNm, dir: pGlideHdg };
-      const pWindVec: Vector = { mag: parachuteWindDispNm, dir: parachuteWindDispDir };
-      parachuteDispVector = addVectors(pGlideVec, pWindVec);
-    } else {
-      // Round parachute zero glide ratio (part C)
-      // Standard descent rate ~ 1000 ft/min (16.7 ft/sec)
-      parachuteRODFtMin = 1000;
-      parachuteTdMin = parachuteAltLossFt / parachuteRODFtMin;
-      // Drift is solely downwind displacement:
-      parachuteWindDispNm = (parachuteTdMin * input.awaGlideSpeedKts) / 60;
-      parachuteDispVector = { mag: parachuteWindDispNm, dir: parachuteWindDispDir };
+    let glideValid = true;
+    if (input.parachuteType === 'steerable') {
+      glideValid = (input.parachuteGlideRatio ?? 0) > 0 && (input.parachuteTASgKts ?? 0) > 0;
+      if ((input.parachuteGlideRatio ?? 0) <= 0) errors.push('B.4 parasut steerable: glide ratio harus lebih besar dari 0.');
+      if ((input.parachuteTASgKts ?? 0) <= 0) errors.push('B.5 parasut steerable: Glide TAS harus lebih besar dari 0 kts.');
+      parachuteHeadingTrue = convertHeadingToTrue(
+        input.parachuteDescentHeadingDeg,
+        input.parachuteHeadingReference,
+        input.magneticVariationDeg,
+        input.magneticVariationDirection,
+        input.parachuteDeviationDeg,
+        input.parachuteDeviationDirection,
+      );
+      if (parachuteHeadingTrue === null) {
+        errors.push(input.parachuteDescentHeadingDeg === undefined
+          ? 'B.9 parasut steerable belum diketahui; posisi akhir tidak dapat dipastikan.'
+          : 'B.9 parasut steerable belum dapat dikonversi ke True; periksa variasi dan deviasi.');
+      }
     }
 
-    currentPos = project(aircraftEndGlidePos, parachuteDispVector.dir, parachuteDispVector.mag);
+    if (altitudeValid && rateValid && glideValid) {
+      parachuteAltLossFt = input.parachuteAltMaxFt - input.parachuteTerrainAltFt;
+      parachuteRODFtMin = input.parachuteRateOfDescentFtMin;
+      parachuteTdMin = parachuteAltLossFt / parachuteRODFtMin;
+      if (input.parachuteType === 'steerable') {
+        parachuteGlideDistNm = ((input.parachuteTASgKts ?? 0) * parachuteTdMin) / 60;
+        if (parachuteHeadingTrue !== null) {
+          parachuteGlideVector = { mag: parachuteGlideDistNm, dir: parachuteHeadingTrue };
+        }
+      }
+      if (awaReady) parachuteWindDispNm = (parachuteTdMin * input.awaGlideSpeedKts) / 60;
+      if (awaReady) parachuteWindVector = { mag: parachuteWindDispNm, dir: windToDeg };
+    }
+
+    parachuteReady = altitudeValid && rateValid && glideValid && awaReady &&
+      (input.parachuteType === 'round-zero-glide' || parachuteHeadingTrue !== null);
+    if (parachuteReady) {
+      parachuteVector = input.parachuteType === 'steerable'
+        ? addVectors(parachuteGlideVector, parachuteWindVector)
+        : parachuteWindVector;
+    }
   }
 
-  const landingPos = currentPos;
+  const hasSegment = input.useAircraftGlide || input.useParachute;
+  if (!hasSegment) errors.push('Pilih segmen pesawat dan/atau parasut untuk mulai menghitung.');
+  const positionValid = hasSegment && aircraftReady && parachuteReady;
+  const resultantVector = positionValid
+    ? addVectors(
+      input.useAircraftGlide ? aircraftVector : { mag: 0, dir: 0 },
+      input.useParachute ? parachuteVector : { mag: 0, dir: 0 },
+    )
+    : { mag: 0, dir: 0 };
+  const landingPos = positionValid
+    ? project(input.incidentPos, resultantVector.dir, resultantVector.mag)
+    : input.incidentPos;
 
-  // Total displacement from original incident position
-  const totalDisplacementNm = distanceNm(input.incidentPos, landingPos);
-  const totalDisplacementDir = bearingDeg(input.incidentPos, landingPos);
-
-  // Drift Error De = sum of drift errors or standard 12.5% to 25% of total displacement
-  const driftErrorDeNm = Math.max(1.0, totalDisplacementNm * 0.15);
-  // Total probable error E = sqrt(X^2 + De^2)
-  const E = Math.sqrt(input.fixErrorXNm * input.fixErrorXNm + driftErrorDeNm * driftErrorDeNm);
-
-  // Search Radius R = fs * E
-  const searchRadiusRNm = Math.max(1.0, input.safetyFactorFs * E);
-  // Point search area Ao = 4 * R^2
-  const searchAreaAoNm2 = 4 * searchRadiusRNm * searchRadiusRNm;
+  const totalDisplacementNm = positionValid ? resultantVector.mag : 0;
+  const totalDisplacementDir = positionValid ? resultantVector.dir : 0;
 
   return {
+    incidentPos: input.incidentPos,
+    aircraftActive: input.useAircraftGlide,
+    parachuteActive: input.useParachute,
+    positionValid,
+    validationErrors: [...new Set(errors)],
+    aircraftDescentHeadingTrueDeg: aircraftHeadingTrue,
+    parachuteDescentHeadingTrueDeg: parachuteHeadingTrue,
     aircraftAltLossFt,
     aircraftRateOfDescentFtMin: aircraftRODFtMin,
     aircraftTimeOfDescentMin: aircraftTdMin,
     aircraftGlideDistanceNm: aircraftGlideDistNm,
+    aircraftGlideVector,
+    aircraftWindVector,
     aircraftWindDisplacementNm: aircraftWindDispNm,
-    aircraftWindDisplacementDir: aircraftWindDispDir,
-    aircraftGlideDisplacementVector: aircraftDispVector,
+    aircraftWindDisplacementDir: windToDeg,
+    aircraftGlideDisplacementVector: aircraftVector,
     aircraftEndGlidePos,
-
     parachuteAltLossFt,
     parachuteRateOfDescentFtMin: parachuteRODFtMin,
     parachuteTimeOfDescentMin: parachuteTdMin,
     parachuteGlideDistanceNm: parachuteGlideDistNm,
+    parachuteGlideVector,
+    parachuteWindVector,
     parachuteWindDisplacementNm: parachuteWindDispNm,
-    parachuteWindDisplacementDir: parachuteWindDispDir,
-    parachuteDisplacementVector: parachuteDispVector,
+    parachuteWindDisplacementDir: windToDeg,
+    parachuteDisplacementVector: parachuteVector,
     landingPos,
-
     totalDisplacementNm,
     totalDisplacementDir,
-
-    driftErrorDeNm,
-    searchRadiusRNm,
-    searchAreaAoNm2,
+    driftErrorDeNm: null,
+    searchRadiusRNm: null,
+    searchAreaAoNm2: null,
   };
 }

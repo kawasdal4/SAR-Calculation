@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { WorksheetCard, NumberInput } from './WorksheetCard';
+import CoordinateInput from './CoordinateInput';
 import {
   computeWC,
   computeLW,
@@ -17,10 +18,12 @@ import {
   dirToCompass,
 } from '@/lib/sar/sarCalculations';
 import { cn } from '@/lib/utils';
+import { formatDMS } from '@/lib/sar/coordFormat';
 
 export interface DatumData {
   start: LatLng;
   driftInterval: number;
+  seaCurrent: Vector;
   aswDirFrom: number;
   aswSpeed: number;
   aswdve: number;
@@ -40,6 +43,8 @@ export interface DatumResults {
   dve: number;
   De: number;
   E: number;
+  X: number;
+  Y: number;
   wc: ReturnType<typeof computeWC>;
   lw: ReturnType<typeof computeLW>;
   twc: ReturnType<typeof computeTWC>;
@@ -94,14 +99,14 @@ export default function DatumWorksheet({
   onStateChange,
   initialState,
 }: DatumWorksheetProps) {
-  const [driftInterval, setDriftInterval] = useState<number>(initialState?.driftInterval ?? 6);
+  const [driftInterval, setDriftInterval] = useState<number>(initialState?.driftInterval ?? 0);
   const [latitude, setLatitude] = useState<number>(initialState?.latitude ?? Math.abs(startLat));
-  const [seaCurrentDir, setSeaCurrentDir] = useState<number>(initialState?.seaCurrentDir ?? 30);
-  const [seaCurrentSpeed, setSeaCurrentSpeed] = useState<number>(initialState?.seaCurrentSpeed ?? 0.5);
-  const [seaCurrentErr, setSeaCurrentErr] = useState<number>(initialState?.seaCurrentErr ?? 0.3);
-  const [leewayObjectId, setLeewayObjectId] = useState<string>(initialState?.leewayObjectId ?? 'raft-canopy-drogue');
-  const [X, setX] = useState<number>(initialState?.X ?? 2.0);
-  const [Y, setY] = useState<number>(initialState?.Y ?? 1.5);
+  const [seaCurrentDir, setSeaCurrentDir] = useState<number>(initialState?.seaCurrentDir ?? 0);
+  const [seaCurrentSpeed, setSeaCurrentSpeed] = useState<number>(initialState?.seaCurrentSpeed ?? 0);
+  const [seaCurrentErr, setSeaCurrentErr] = useState<number>(initialState?.seaCurrentErr ?? 0);
+  const [leewayObjectId, setLeewayObjectId] = useState<string>(initialState?.leewayObjectId ?? '');
+  const [X, setX] = useState<number>(initialState?.X ?? 0);
+  const [Y, setY] = useState<number>(initialState?.Y ?? 0);
 
   // Keep |latitude| (used for wind current divergence) synced with startLat
   useEffect(() => {
@@ -175,6 +180,7 @@ export default function DatumWorksheet({
     const data: DatumData = {
       start,
       driftInterval,
+      seaCurrent: { dir: seaCurrentDir, mag: seaCurrentSpeed },
       aswDirFrom,
       aswSpeed,
       aswdve,
@@ -194,6 +200,8 @@ export default function DatumWorksheet({
       dve: datum.dve,
       De: datum.De,
       E: e.E,
+      X: e.X,
+      Y: e.Y,
       wc,
       lw,
       twc,
@@ -233,14 +241,12 @@ export default function DatumWorksheet({
       >
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <div>
-            <Label className="text-xs">Latitude (°)</Label>
-            <NumberInput value={startLat} onChange={(v) => onLKPChange(v, startLng)} />
-            <p className="text-[10px] text-slate-400 mt-1">N = +, S = −</p>
+            <Label className="text-xs">Latitude (DMS)</Label>
+            <CoordinateInput axis="lat" value={startLat} onChange={(v) => onLKPChange(v, startLng)} aria-label="Latitude LKP" />
           </div>
           <div>
-            <Label className="text-xs">Longitude (°)</Label>
-            <NumberInput value={startLng} onChange={(v) => onLKPChange(startLat, v)} />
-            <p className="text-[10px] text-slate-400 mt-1">E = +, W = −</p>
+            <Label className="text-xs">Longitude (DMS)</Label>
+            <CoordinateInput axis="lng" value={startLng} onChange={(v) => onLKPChange(startLat, v)} aria-label="Longitude LKP" />
           </div>
           <div>
             <Label className="text-xs">Drift Interval (hours)</Label>
@@ -364,8 +370,8 @@ export default function DatumWorksheet({
           <StatBox label="Drift Distance" value={`${datum.driftDistance.toFixed(2)} NM`} accent />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-          <StatBox label="Datum (Left of Downwind)" value={`${datum.datumLeft.lat.toFixed(4)}, ${datum.datumLeft.lng.toFixed(4)}`} accent />
-          <StatBox label="Datum (Right of Downwind)" value={`${datum.datumRight.lat.toFixed(4)}, ${datum.datumRight.lng.toFixed(4)}`} accent />
+          <StatBox label="Datum (Left of Downwind)" value={`${formatDMS(datum.datumLeft.lat, false)}, ${formatDMS(datum.datumLeft.lng, true)}`} accent />
+          <StatBox label="Datum (Right of Downwind)" value={`${formatDMS(datum.datumRight.lat, false)}, ${formatDMS(datum.datumRight.lng, true)}`} accent />
         </div>
         <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200">
           <StatBox label="Divergence Distance (DD)" value={`${datum.divergenceDistance.toFixed(2)} NM`} />
@@ -380,12 +386,14 @@ export default function DatumWorksheet({
       >
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
           <div>
-            <Label className="text-xs">X — Initial position error (NM)</Label>
+            <Label className="text-xs">X — Distress craft fix error (NM), Table J</Label>
             <NumberInput value={X} onChange={setX} />
+            <p className="mt-1 text-[10px] leading-relaxed text-slate-500">Masukkan sesuai alat/metode fix distress craft pada Table J-1, J-2, atau J-3.</p>
           </div>
           <div>
-            <Label className="text-xs">Y — Search facility position error (NM)</Label>
+            <Label className="text-xs">Y — Search craft fix error (NM), Table J</Label>
             <NumberInput value={Y} onChange={setY} />
+            <p className="mt-1 text-[10px] leading-relaxed text-slate-500">Masukkan sesuai alat/metode fix sarana pencari pada Table J-1, J-2, atau J-3.</p>
           </div>
           <StatBox label="De — Drift Error" value={`${datum.De.toFixed(2)} NM`} />
         </div>

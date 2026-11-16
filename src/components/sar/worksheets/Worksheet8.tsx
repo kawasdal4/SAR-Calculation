@@ -3,70 +3,77 @@
 import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Printer } from 'lucide-react';
+import { lookupW8Wu, lookupFw, readFigureI12, W8_TARGET_OPTIONS, type W8Target, type SearchNumber } from '@/lib/sar/wscPodTables';
 
 interface Worksheet8Props {
   ws1Ao?: number;
   initialC?: number;
   initialPod?: number;
   readOnly?: boolean;
+  windKts?: number;
 }
 
 export default function Worksheet8({
-  ws1Ao = 400,
-  initialC = 1.0,
-  initialPod = 0.63,
+  ws1Ao = 0,
+  initialC = 0,
+  initialPod = 0,
   readOnly = false,
+  windKts = 0,
 }: Worksheet8Props) {
   // Case & Metadata state
-  const [caseTitle, setCaseTitle] = useState('SAR KECELAKAAN KAPAL MARITIM');
-  const [plannerName, setPlannerName] = useState('SAR PLANNER BASARNAS');
-  const [searchDate, setSearchDate] = useState('15 / 11 / 2026');
-  const [searchPlatform, setSearchPlatform] = useState('KN SAR 246 / RB 201');
-  const [searchObject, setSearchObject] = useState('Perahu Nelayan / Liferaft');
-  const [visibilityKm, setVisibilityKm] = useState(10);
-  const [windKts, setWindKts] = useState(15);
-  const [isFatigue, setIsFatigue] = useState(false);
-  const [vesselSpeedKts, setVesselSpeedKts] = useState(15); // Vessel search speed (kts)
+  const [caseTitle, setCaseTitle] = useState('-');
+  const [plannerName, setPlannerName] = useState('-');
+  const [searchDate, setSearchDate] = useState('-');
+  const [searchPlatform, setSearchPlatform] = useState('');
+  const [eyeHeight, setEyeHeight] = useState<''|'8'|'14'|'MERSHIP'>('');
+  const [searchObject, setSearchObject] = useState<W8Target|''>('');
+  const [visibilityKm, setVisibilityKm] = useState('');
+  const [isFatigue, setIsFatigue] = useState<''|'Yes'|'No'>('');
+  const [searchNumber, setSearchNumber] = useState<SearchNumber>(1);
+  const [vesselSpeedKts, setVesselSpeedKts] = useState(0); // Vessel search speed (kts)
 
   // Vessel eye heights: Eye height 8 ft (Small craft), Eye height 14 ft (Patrol boat), MERSHIP (Large ship bridge)
   const columns = ['Eye height 8 ft', 'Eye height 14 ft', 'MERSHIP'];
 
   // Correction factors (IAMSAR Table I-7)
-  const fw = windKts > 15 ? 0.9 : 1.0;
-  const ff = isFatigue ? 0.9 : 1.0;
+  const targetGroup = searchObject === 'person' || searchObject.startsWith('raft') || searchObject === 'boatUnder5' || searchObject === 'boat5to8' ? 'small' : 'other';
+  const fw = lookupFw(windKts, targetGroup);
+  const ff = isFatigue === 'Yes' ? 0.9 : isFatigue === 'No' ? 1 : 0;
 
   // Uncorrected sweep widths for vessels (Tables I-3, I-4)
-  const wuList = [1.8, 2.5, 3.2];
+  const heights = ['8','14','MERSHIP'] as const;
+  const wuList = heights.map((eye) => searchObject && visibilityKm ? lookupW8Wu(searchObject, eye, visibilityKm) ?? 0 : 0);
 
   // Calculated sweep width factors: W = Wu * Fw * Ff
-  const wFactors = wuList.map((wu) => Number((wu * fw * ff).toFixed(2)));
+  const ready = Boolean(searchObject && visibilityKm && windKts > 0 && isFatigue);
+  const wFactors = wuList.map((wu) => ready && wu > 0 ? Number((wu * fw * ff).toFixed(2)) : 0);
 
   // Practical track spacing S (NM)
-  const trackSpacings = [1.2, 1.8, 2.5];
+  const trackSpacings = wFactors.map((w) => w > 0 ? Math.max(0.25, Math.round(w / 0.25) * 0.25) : 0);
 
   // Coverage C = W / S
   const coverages = wFactors.map((w, idx) => Number((w / trackSpacings[idx]).toFixed(2)));
 
   // POD
-  const pods = coverages.map((c) => Math.min(99, Math.round((1 - Math.exp(-c)) * 100)));
+  const pods = coverages.map((c) => ready ? readFigureI12(c, searchNumber) : 0);
 
   // Search Area A from Worksheet 1 Ao
-  const searchAreaA = Math.round(ws1Ao);
+  const searchAreaA = ws1Ao;
 
   // Search Hours T required: T = A / (V * S)
   const hoursRequired = trackSpacings.map((s) =>
-    Number((searchAreaA / Math.max(1, vesselSpeedKts * s)).toFixed(1))
+    vesselSpeedKts > 0 && s > 0 ? Number((searchAreaA / (vesselSpeedKts * s)).toFixed(1)) : 0
   );
 
   // Available search hours from Worksheet No. 7
-  const [hoursAvailable, setHoursAvailable] = useState(6.0);
+  const [hoursAvailable, setHoursAvailable] = useState(0);
 
-  // Selected column for options: Eye height 14 ft (idx 1)
-  const selIdx = 1;
-  const selW = wFactors[selIdx];
-  const selS = trackSpacings[selIdx];
-  const selC = coverages[selIdx];
-  const selP = pods[selIdx];
+  // Selected eye-height column for Area A
+  const selIdx = heights.indexOf(eyeHeight as typeof heights[number]);
+  const selW = selIdx >= 0 ? wFactors[selIdx] : 0;
+  const selS = selIdx >= 0 ? trackSpacings[selIdx] : 0;
+  const selC = selIdx >= 0 ? coverages[selIdx] : 0;
+  const selP = selIdx >= 0 ? pods[selIdx] : 0;
 
   // Option A
   const optA_Area = searchAreaA;
@@ -81,9 +88,9 @@ export default function Worksheet8({
   const optB_P = selP;
 
   // Option C
-  const optC_S = Number((searchAreaA / Math.max(1, vesselSpeedKts * hoursAvailable)).toFixed(1));
-  const optC_C = Number((selW / Math.max(0.1, optC_S)).toFixed(2));
-  const optC_P = Math.min(99, Math.round((1 - Math.exp(-optC_C)) * 100));
+  const optC_S = vesselSpeedKts > 0 && hoursAvailable > 0 ? Number((searchAreaA / (vesselSpeedKts * hoursAvailable)).toFixed(2)) : 0;
+  const optC_C = optC_S > 0 ? Number((selW / optC_S).toFixed(2)) : 0;
+  const optC_P = ready ? readFigureI12(optC_C, searchNumber) : 0;
 
   // Option D compromises
   const optD_variations = [
@@ -94,8 +101,8 @@ export default function Worksheet8({
   ].map((item) => {
     const s = Number(item.sMod.toFixed(1));
     const a = Math.round(hoursAvailable * vesselSpeedKts * s);
-    const c = Number((selW / Math.max(0.1, s)).toFixed(2));
-    const p = Math.min(99, Math.round((1 - Math.exp(-c)) * 100));
+    const c = s > 0 ? Number((selW / s).toFixed(2)) : 0;
+    const p = ready ? readFigureI12(c, searchNumber) : 0;
     return { name: item.name, a, s, c, p };
   });
 
@@ -178,14 +185,7 @@ export default function Worksheet8({
           <div className="grid grid-cols-1 sm:grid-cols-3 border-b-2 border-slate-900 p-2.5 bg-slate-50/40 text-[11px] gap-2">
             <div>
               <span className="text-slate-600">Search Platform: </span>
-              <input
-                type="text"
-                value={searchPlatform}
-                disabled={readOnly}
-                suppressHydrationWarning
-                onChange={(e) => setSearchPlatform(e.target.value)}
-                className="font-bold text-blue-900 bg-white border-b border-dotted border-slate-600 px-1 w-44"
-              />
+              <span>Kapal laut (Worksheet 8)</span>
             </div>
             <div>
               <span className="text-slate-600">Kecepatan Kapal (V): </span>
@@ -194,60 +194,42 @@ export default function Worksheet8({
                 value={vesselSpeedKts}
                 disabled={readOnly}
                 suppressHydrationWarning
-                onChange={(e) => setVesselSpeedKts(Number(e.target.value) || 15)}
+                onChange={(e) => setVesselSpeedKts(Number(e.target.value) || 0)}
                 className="font-bold text-blue-900 bg-white border-b border-dotted border-slate-600 px-1 w-14 text-right font-mono"
               />{' '}
               <span className="font-semibold text-slate-700">Kts</span>
             </div>
             <div>
               <span className="text-slate-600">Search Object: </span>
-              <input
-                type="text"
-                value={searchObject}
-                disabled={readOnly}
-                suppressHydrationWarning
-                onChange={(e) => setSearchObject(e.target.value)}
-                className="font-bold text-blue-900 bg-white border-b border-dotted border-slate-600 px-1 w-44"
-              />
+              <select value={searchObject} disabled={readOnly} onChange={(e) => setSearchObject(e.target.value as W8Target|"")} className="font-bold text-blue-900 bg-white border border-slate-300 rounded px-1 w-48"><option value="">Pilih objek</option>{W8_TARGET_OPTIONS.filter((t) => eyeHeight !== 'MERSHIP' || ['person','raft4','raft6','raft15','raft25','boatUnder5','boat5to8','boat8to12','boat12to20'].includes(t.id)).map((t) => <option key={t.id} value={t.id}>{eyeHeight === 'MERSHIP' && t.id === 'boat5to8' ? 'Power Boat <7m' : eyeHeight === 'MERSHIP' && t.id === 'boat8to12' ? 'Power Boat <12m' : eyeHeight === 'MERSHIP' && t.id === 'boat12to20' ? 'Power Boat <24m' : t.label}</option>)}</select>
             </div>
 
             <div>
               <span className="text-slate-600">MET Visibility: </span>
-              <input
-                type="number"
-                value={visibilityKm}
-                disabled={readOnly}
-                suppressHydrationWarning
-                onChange={(e) => setVisibilityKm(Number(e.target.value) || 10)}
-                className="font-bold text-blue-900 bg-white border-b border-dotted border-slate-600 px-1 w-16 text-right font-mono"
-              />{' '}
-              <span className="font-semibold text-slate-700">KM</span>
+              <select value={visibilityKm} disabled={readOnly} onChange={(e) => setVisibilityKm(e.target.value)} className="font-bold text-blue-900 bg-white border border-slate-300 rounded px-1"><option value="">Pilih km</option>{['2','5','10','15','20','>25','30','40'].map((v) => <option key={v} value={v}>{v}</option>)}</select> KM
             </div>
             <div>
               <span className="text-slate-600">Wind: </span>
-              <input
-                type="number"
-                value={windKts}
-                disabled={readOnly}
-                suppressHydrationWarning
-                onChange={(e) => setWindKts(Number(e.target.value) || 15)}
-                className="font-bold text-blue-900 bg-white border-b border-dotted border-slate-600 px-1 w-14 text-right font-mono"
-              />{' '}
-              <span className="font-semibold text-slate-700">Kts</span>
+              <span className="font-bold text-blue-900">{windKts.toFixed(1)} Kts (ASW)</span>
             </div>
             <div>
               <span className="text-slate-600">Fatigue Factor: </span>
               <select
-                value={isFatigue ? 'Yes' : 'No'}
+                value={isFatigue}
                 disabled={readOnly}
                 suppressHydrationWarning
-                onChange={(e) => setIsFatigue(e.target.value === 'Yes')}
+                onChange={(e) => setIsFatigue(e.target.value as ''|'Yes'|'No')}
                 className="font-bold text-blue-900 bg-white border border-slate-300 rounded px-1.5 py-0.5 text-xs"
               >
-                <option value="No">No (1.0)</option>
+                <option value="">Pilih status</option><option value="No">No (1.0)</option>
                 <option value="Yes">Yes (0.9)</option>
               </select>
             </div>
+          </div>
+          <div className="px-3 py-2 bg-white border-b border-slate-300 flex flex-wrap gap-4 items-center text-[11px]">
+            <label>Eye height for Area A: <select value={eyeHeight} disabled={readOnly} onChange={(e) => setEyeHeight(e.target.value as ''|'8'|'14'|'MERSHIP')} className="border rounded px-1"><option value="">Pilih</option><option value="8">8 ft</option><option value="14">14 ft</option><option value="MERSHIP">MERSHIP</option></select></label>
+            <label>Urutan pencarian (Figure I-12): <select value={searchNumber} disabled={readOnly} onChange={(e) => setSearchNumber(Number(e.target.value) as SearchNumber)} className="border rounded px-1">{[1,2,3,4,5].map((n) => <option key={n} value={n}>{['First','Second','Third','Fourth','Fifth'][n-1]}</option>)}</select></label>
+            <span className="text-slate-500">Wu: Table {eyeHeight === 'MERSHIP' ? 'I-4' : 'I-3'} · POD: Figure I-12 (estimasi pembacaan kurva digital)</span>
           </div>
 
           {/* Main Evaluation Table: Vessel Sweep Width */}
@@ -324,7 +306,7 @@ export default function Worksheet8({
                 </td>
                 {trackSpacings.map((s, i) => (
                   <td key={i} className="py-1.5 px-2 text-center border-r border-slate-300 last:border-r-0 font-mono font-bold text-slate-800">
-                    {s.toFixed(1)} <span className="text-[10px] text-slate-500">NM</span>
+                    {s.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')} <span className="text-[10px] text-slate-500">NM</span>
                   </td>
                 ))}
               </tr>
@@ -336,7 +318,7 @@ export default function Worksheet8({
                 </td>
                 {coverages.map((c, i) => (
                   <td key={i} className="py-1.5 px-2 text-center border-r border-slate-300 last:border-r-0 font-mono font-bold text-indigo-900">
-                    {c.toFixed(2)}
+                    {c.toFixed(2)}{c > 0 && c < 0.5 && <span className="block text-[9px] text-amber-700">C &lt; 0.5</span>}
                   </td>
                 ))}
               </tr>
@@ -392,7 +374,7 @@ export default function Worksheet8({
                 value={hoursAvailable}
                 disabled={readOnly}
                 suppressHydrationWarning
-                onChange={(e) => setHoursAvailable(Number(e.target.value) || 6.0)}
+                onChange={(e) => setHoursAvailable(Number(e.target.value) || 0)}
                 className="font-bold text-blue-900 bg-white border border-slate-300 rounded px-2 py-0.5 w-16 text-right font-mono"
               />{' '}
               <span className="font-medium text-slate-600">hrs — (from Worksheet No. 7)</span>
@@ -408,8 +390,8 @@ export default function Worksheet8({
             <div className="border border-slate-300 rounded p-2 bg-white">
               <div className="font-sans font-bold text-slate-800 text-[11px] mb-1">
                 A. Whole Area Calculated at a Search Height of{' '}
-                <span className="text-blue-900 font-bold underline">Eye height 14 ft</span>{' '}
-                <span className="font-normal text-slate-500">(A = TVS, C = W/S, S = W/C)</span>
+                <span className="text-blue-900 font-bold underline">{eyeHeight ? eyeHeight === 'MERSHIP' ? 'MERSHIP' : `Eye height ${eyeHeight} ft` : 'pilih eye height'}</span>{' '}
+                <span className="font-normal text-slate-500">(A dari Worksheet 1; C = W/S)</span>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center text-xs">
                 <div className="border border-slate-300 p-1 rounded bg-slate-50">

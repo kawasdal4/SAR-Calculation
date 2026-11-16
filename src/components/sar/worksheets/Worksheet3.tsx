@@ -13,18 +13,18 @@ interface Worksheet3Props {
 
 export default function Worksheet3({
   searchResults,
-  E = 5.0,
+  E = 0,
   readOnly = false,
 }: Worksheet3Props) {
   // Case & Metadata state
-  const [caseTitle, setCaseTitle] = useState('SAR KECELAKAAN DARAT / PESAWAT');
-  const [plannerName, setPlannerName] = useState('SAR PLANNER BASARNAS');
-  const [searchDate, setSearchDate] = useState('15 / 11 / 2026');
-  const [searchObject, setSearchObject] = useState('Cessna 172 / Survivor Hutan');
-  const [visibilityKm, setVisibilityKm] = useState(10);
+  const [caseTitle, setCaseTitle] = useState('-');
+  const [plannerName, setPlannerName] = useState('-');
+  const [searchDate, setSearchDate] = useState('-');
+  const [searchObject, setSearchObject] = useState('-');
+  const [visibilityKm, setVisibilityKm] = useState(0);
   const [vegetationType, setVegetationType] = useState<'15-60' | '60-85' | '+85'>('15-60');
   const [isFatigue, setIsFatigue] = useState(false);
-  const searchTas = 120;
+  const searchTas = 0;
 
   // Correction factors for Land search (IAMSAR Table I-10)
   const fv = vegetationType === '15-60' ? 0.8 : vegetationType === '60-85' ? 0.6 : 0.4;
@@ -55,7 +55,7 @@ export default function Worksheet3({
   );
 
   // Available search hours
-  const [hoursAvailable, setHoursAvailable] = useState(4.0);
+  const [hoursAvailable, setHoursAvailable] = useState(0);
 
   // Selected height for options: 1000 ft (idx 1)
   const selIdx = 1;

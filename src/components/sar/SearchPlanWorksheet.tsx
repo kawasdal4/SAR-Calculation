@@ -34,6 +34,7 @@ import {
   dirToCompass,
 } from '@/lib/sar/sarCalculations';
 import { cn } from '@/lib/utils';
+import { formatDMS } from '@/lib/sar/coordFormat';
 
 export interface SearchPlanResults {
   E: number;
@@ -112,30 +113,13 @@ export default function SearchPlanWorksheet({
 }: SearchPlanWorksheetProps) {
   const [facilityType, setFacilityType] = useState<SearchFacilityType>(initialState?.facilityType ?? 'fixed-wing-aircraft');
   const [searchObject, setSearchObject] = useState<SearchObjectCategory>(initialState?.searchObject ?? 'raft-6-person');
-  const [visibility, setVisibility] = useState<number>(initialState?.visibility ?? 10);
-  const [windSpeed, setWindSpeed] = useState<number>(initialState?.windSpeed ?? 15);
-  const [altitudeFt, setAltitudeFt] = useState<number>(initialState?.altitudeFt ?? 1000);
+  const [visibility, setVisibility] = useState<number>(initialState?.visibility ?? 0);
+  const [windSpeed, setWindSpeed] = useState<number>(initialState?.windSpeed ?? 0);
+  const [altitudeFt, setAltitudeFt] = useState<number>(initialState?.altitudeFt ?? 0);
   const [conditions, setConditions] = useState<SearchConditions>(initialState?.conditions ?? 'normal');
   const [datumType, setDatumType] = useState<DatumType>(initialState?.datumType ?? 'leeway-divergence');
   const [facilities, setFacilities] = useState<FacilityRow[]>(
-    initialState?.facilities ?? [
-      {
-        id: '1',
-        name: 'SAR Aircraft #1',
-        speed: 150,
-        endurance: 5,
-        daylightHours: 8,
-        W: 0,
-      },
-      {
-        id: '2',
-        name: 'SAR Vessel #1',
-        speed: 12,
-        endurance: 12,
-        daylightHours: 8,
-        W: 0,
-      },
-    ],
+    initialState?.facilities ?? [],
   );
 
   // Apply visibility override from WeatherPanel
@@ -229,6 +213,10 @@ export default function SearchPlanWorksheet({
   const trackSpacing = sweep.W / Math.max(0.01, effort.C);
 
   useEffect(() => {
+    if (facilities.length === 0) {
+      onResults(null);
+      return;
+    }
     onResults({
       E,
       Zta,
@@ -244,7 +232,7 @@ export default function SearchPlanWorksheet({
       orientationDeg,
       trackSpacing,
     });
-  }, [E, Zta, effort, POD, searchAreaCenter, searchAreaLength, searchAreaWidth, orientationDeg, trackSpacing, onResults]);
+  }, [E, Zta, effort, POD, searchAreaCenter, searchAreaLength, searchAreaWidth, orientationDeg, trackSpacing, onResults, facilities.length]);
 
   const updateFacility = (idx: number, key: keyof FacilityRow, value: number | string) => {
     setFacilities((prev) => prev.map((f, i) => (i === idx ? { ...f, [key]: value } : f)));
@@ -255,10 +243,10 @@ export default function SearchPlanWorksheet({
       ...prev,
       {
         id: String(prev.length + 1),
-        name: `SAR Unit #${prev.length + 1}`,
-        speed: 100,
-        endurance: 4,
-        daylightHours: 8,
+        name: '-',
+        speed: 0,
+        endurance: 0,
+        daylightHours: 0,
         W: 0,
       },
     ]);
@@ -457,8 +445,8 @@ export default function SearchPlanWorksheet({
         badge="L-13"
       >
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
-          <StatBox label="Center Latitude" value={searchAreaCenter.lat.toFixed(4)} />
-          <StatBox label="Center Longitude" value={searchAreaCenter.lng.toFixed(4)} />
+          <StatBox label="Center Latitude" value={formatDMS(searchAreaCenter.lat, false)} />
+          <StatBox label="Center Longitude" value={formatDMS(searchAreaCenter.lng, true)} />
           <StatBox label="Length" value={`${searchAreaLength.toFixed(2)} NM`} accent />
           <StatBox label="Width" value={`${searchAreaWidth.toFixed(2)} NM`} accent />
         </div>

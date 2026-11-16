@@ -27,6 +27,7 @@ import {
   dirToCompass,
 } from '@/lib/sar/sarCalculations';
 import { cn } from '@/lib/utils';
+import { formatDMS } from '@/lib/sar/coordFormat';
 
 interface Scenario {
   id: string;
@@ -385,9 +386,9 @@ function ScenarioCard({
       </div>
 
       <div className="text-[10px] text-slate-500">
-        Datum L: {scenario.datumLeft.lat.toFixed(3)}, {scenario.datumLeft.lng.toFixed(3)}
+        Datum L: {formatDMS(scenario.datumLeft.lat, false)}, {formatDMS(scenario.datumLeft.lng, true)}
         <br />
-        Datum R: {scenario.datumRight.lat.toFixed(3)}, {scenario.datumRight.lng.toFixed(3)}
+        Datum R: {formatDMS(scenario.datumRight.lat, false)}, {formatDMS(scenario.datumRight.lng, true)}
       </div>
       {obj && (
         <div className="text-[10px] text-violet-600 italic">

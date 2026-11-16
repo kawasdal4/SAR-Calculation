@@ -1,25 +1,33 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Trash2, Printer, CheckCircle2, Plane, Compass } from 'lucide-react';
-import { type AWAObservation } from '@/lib/sar/sarCalculations';
+import { Plus, Trash2, Printer, CheckCircle2, Plane } from 'lucide-react';
+import { computeAWA, type AWAObservation, type AWAResult } from '@/lib/sar/sarCalculations';
 
 export type { AWAObservation };
 
 export interface AWAData {
   aswDirFrom: number;
   aswSpeed: number;
+  vectorSumKts?: number;
+  totalAltLossKft?: number;
+  directionDefined?: boolean;
+  isValid?: boolean;
+  rows?: AWAResult['rows'];
 }
 
 export interface AWAInitialState {
   observations?: AWAObservation[];
   distressAltFt?: number;
   caseTitle?: string;
+  forecastSource?: string;
+  forecastValidTime?: string;
 }
 
 interface AWAWorksheetProps {
   onDataChange: (data: AWAData) => void;
   onObservationsChange?: (observations: AWAObservation[]) => void;
+  onContextChange?: (context: Pick<AWAInitialState, 'distressAltFt' | 'forecastSource' | 'forecastValidTime'>) => void;
   initialState?: AWAInitialState | null;
   readOnly?: boolean;
   className?: string;
@@ -28,119 +36,108 @@ interface AWAWorksheetProps {
 export default function AWAWorksheet({
   onDataChange,
   onObservationsChange,
+  onContextChange,
   initialState,
   readOnly = false,
   className = '',
 }: AWAWorksheetProps) {
   // CONTOH 1 (Slide Basarnas I Kadek Dedi K.: Pesawat tempur PD-ABC bail out 10.000 ft)
   const defaultObsEx1: AWAObservation[] = [
-    { altObs: '0', altLow: 0, altHigh: 1500, windDirFrom: 70, windSpeed: 5 },
-    { altObs: '3000', altLow: 1500, altHigh: 4500, windDirFrom: 120, windSpeed: 10 },
-    { altObs: '6000', altLow: 4500, altHigh: 7500, windDirFrom: 10, windSpeed: 15 },
-    { altObs: '9000', altLow: 7500, altHigh: 10000, windDirFrom: 260, windSpeed: 22 },
+    { altObs: '0', windDirFrom: 70, windSpeed: 5 },
+    { altObs: '3000', windDirFrom: 120, windSpeed: 10 },
+    { altObs: '6000', windDirFrom: 10, windSpeed: 15 },
+    { altObs: '9000', windDirFrom: 260, windSpeed: 22 },
+    { altObs: '12000', windDirFrom: 215, windSpeed: 34 },
   ];
 
   // LATIHAN 1 (Slide Basarnas: B737 PD-DEF trouble engine FL 260 / 26.000 ft)
   const defaultObsLat1: AWAObservation[] = [
-    { altObs: '0', altLow: 0, altHigh: 1500, windDirFrom: 350, windSpeed: 10 },
-    { altObs: '3000', altLow: 1500, altHigh: 4500, windDirFrom: 35, windSpeed: 40 },
-    { altObs: '6000', altLow: 4500, altHigh: 7500, windDirFrom: 120, windSpeed: 15 },
-    { altObs: '9000', altLow: 7500, altHigh: 10500, windDirFrom: 90, windSpeed: 20 },
-    { altObs: '12000', altLow: 10500, altHigh: 15000, windDirFrom: 200, windSpeed: 15 },
-    { altObs: '18000', altLow: 15000, altHigh: 21000, windDirFrom: 240, windSpeed: 25 },
-    { altObs: '24000', altLow: 21000, altHigh: 26000, windDirFrom: 260, windSpeed: 35 },
+    { altObs: '0', windDirFrom: 350, windSpeed: 10 },
+    { altObs: '3000', windDirFrom: 35, windSpeed: 40 },
+    { altObs: '6000', windDirFrom: 120, windSpeed: 15 },
+    { altObs: '9000', windDirFrom: 90, windSpeed: 20 },
+    { altObs: '12000', windDirFrom: 200, windSpeed: 15 },
+    { altObs: '18000', windDirFrom: 240, windSpeed: 25 },
+    { altObs: '24000', windDirFrom: 260, windSpeed: 35 },
+    { altObs: '30000', windDirFrom: 300, windSpeed: 45 },
   ];
 
   // LATIHAN 2 (Slide Basarnas: C130 FL 160 / 16.000 ft)
   const defaultObsLat2: AWAObservation[] = [
-    { altObs: '0', altLow: 0, altHigh: 1500, windDirFrom: 290, windSpeed: 7 },
-    { altObs: '3000', altLow: 1500, altHigh: 4500, windDirFrom: 330, windSpeed: 21 },
-    { altObs: '6000', altLow: 4500, altHigh: 7500, windDirFrom: 355, windSpeed: 21 },
-    { altObs: '9000', altLow: 7500, altHigh: 10500, windDirFrom: 25, windSpeed: 26 },
-    { altObs: '12000', altLow: 10500, altHigh: 14000, windDirFrom: 30, windSpeed: 32 },
-    { altObs: '16000', altLow: 14000, altHigh: 16000, windDirFrom: 65, windSpeed: 36 },
-  ];
-
-  // Official IAMSAR Manual Volume II Appendix K-10 / Figure K-1 authentic data
-  const defaultObsFigK1: AWAObservation[] = [
-    { altObs: '8000', altLow: 7000, altHigh: 8000, windDirFrom: 270, windSpeed: 30 },
-    { altObs: '6000', altLow: 5000, altHigh: 7000, windDirFrom: 300, windSpeed: 25 },
-    { altObs: '4000', altLow: 3000, altHigh: 5000, windDirFrom: 300, windSpeed: 25 },
-    { altObs: '2000', altLow: 1000, altHigh: 3000, windDirFrom: 0, windSpeed: 23 },
-    { altObs: '0', altLow: 0, altHigh: 1000, windDirFrom: 45, windSpeed: 44 },
+    { altObs: '0', windDirFrom: 290, windSpeed: 7 },
+    { altObs: '3000', windDirFrom: 330, windSpeed: 21 },
+    { altObs: '6000', windDirFrom: 355, windSpeed: 21 },
+    { altObs: '9000', windDirFrom: 25, windSpeed: 26 },
+    { altObs: '12000', windDirFrom: 30, windSpeed: 32 },
+    { altObs: '16000', windDirFrom: 65, windSpeed: 36 },
   ];
 
   const [observations, setObservations] = useState<AWAObservation[]>(
     () => initialState?.observations ?? []
   );
-  const [distressAltFt, setDistressAltFt] = useState<number>(initialState?.distressAltFt ?? 10000);
+  const [distressAltFt, setDistressAltFt] = useState<number>(initialState?.distressAltFt ?? 0);
+  const [forecastSource, setForecastSource] = useState(initialState?.forecastSource ?? '');
+  const [forecastValidTime, setForecastValidTime] = useState(initialState?.forecastValidTime ?? '');
 
-  const [caseTitle, setCaseTitle] = useState(initialState?.caseTitle ?? 'OPERASI SAR PESAWAT UDARA');
-  const [caseNumber, setCaseNumber] = useState('SAR-01');
-  const [searchDate, setSearchDate] = useState('15 Nov 2026');
-  const [plannerName, setPlannerName] = useState('SAR Planner Basarnas');
-  const [datumNumber, setDatumNumber] = useState('01');
-  const [searchPlan, setSearchPlan] = useState<'A' | 'B' | 'C'>('A');
+  const [caseTitle, setCaseTitle] = useState(initialState?.caseTitle ?? '-');
+  const [caseNumber, setCaseNumber] = useState('0');
+  const [searchDate, setSearchDate] = useState('-');
+  const [plannerName, setPlannerName] = useState('-');
+  const [datumNumber, setDatumNumber] = useState('0');
+  const [searchPlan, setSearchPlan] = useState<'A' | 'B' | 'C' | ''>('');
 
   useEffect(() => {
     onObservationsChange?.(observations);
   }, [observations, onObservationsChange]);
 
-  // Vector calculation matching Maneuvering Board in slide deck
+  const summary = useMemo(() => computeAWA(observations, distressAltFt), [observations, distressAltFt]);
   const detailedRows = useMemo(() => {
-    return observations.map((obs) => {
-      const kft = Number((Math.max(0, obs.altHigh - obs.altLow) / 1000).toFixed(1));
-      const contrib = Number((kft * obs.windSpeed).toFixed(1));
-      const rad = (obs.windDirFrom * Math.PI) / 180;
-      const sinQ = Math.sin(rad);
-      const cosQ = Math.cos(rad);
-      const aSinQ = contrib * sinQ;
-      const aCosQ = contrib * cosQ;
-
-      return {
-        ...obs,
-        kft,
-        contrib,
-        rad,
-        sinQ,
-        cosQ,
-        aSinQ,
-        aCosQ,
-      };
+    const layersByInput = new Map<number, AWAResult['rows'][number]>(
+      summary.rows.map((row) => [row.inputIndex, row] as const),
+    );
+    const rows = observations
+      .map((observation, inputIndex) => {
+        const calculated = layersByInput.get(inputIndex);
+        const altitudeText = typeof observation.altObs === 'string'
+          ? observation.altObs
+          : String(observation.altitudeFt ?? observation.altLow ?? '');
+        const parsedAltitude = altitudeText.trim() === '' ? Number.NaN : Number(altitudeText);
+        return {
+          ...observation,
+          inputIndex,
+          altitudeFt: calculated?.altitudeFt ?? parsedAltitude,
+          intervalLowFt: calculated?.intervalLowFt ?? null,
+          intervalHighFt: calculated?.intervalHighFt ?? null,
+          kft: calculated?.altitudeKft ?? 0,
+          contrib: calculated?.contributionKts ?? 0,
+          windDirFrom: observation.windDirFrom,
+          windSpeed: observation.windSpeed,
+        };
+      });
+    if (summary.rows.length === 0) return rows;
+    return rows.sort((a, b) => {
+      if (!Number.isFinite(a.altitudeFt) && !Number.isFinite(b.altitudeFt)) return 0;
+      if (!Number.isFinite(a.altitudeFt)) return 1;
+      if (!Number.isFinite(b.altitudeFt)) return -1;
+      return a.altitudeFt - b.altitudeFt;
     });
-  }, [observations]);
-
-  // Totals & Resultant Vector matching Basarnas presentation
-  const summary = useMemo(() => {
-    const totalAltLossD = detailedRows.reduce((sum, r) => sum + r.kft, 0);
-    const sumASinQ = detailedRows.reduce((sum, r) => sum + r.aSinQ, 0);
-    const sumACosQ = detailedRows.reduce((sum, r) => sum + r.aCosQ, 0);
-
-    const Rx = sumACosQ;
-    const Ry = sumASinQ;
-    const vectorSumF = Math.sqrt(Rx * Rx + Ry * Ry);
-
-    let resultantDeg = Math.round((Math.atan2(Ry, Rx) * 180) / Math.PI);
-    if (resultantDeg < 0) resultantDeg += 360;
-
-    const awaSpeed = totalAltLossD > 0 ? Number((vectorSumF / totalAltLossD).toFixed(2)) : 0;
-    const awaDirFrom = resultantDeg;
-
-    return {
-      totalAltLossD: Math.round(totalAltLossD * 10) / 10,
-      vectorSumF: Math.round(vectorSumF * 10) / 10,
-      awaDirFrom,
-      awaSpeed,
-    };
-  }, [detailedRows]);
-
-  const emit = (dir: number, spd: number) => {
-    onDataChange({ aswDirFrom: dir, aswSpeed: spd });
-  };
+  }, [observations, summary.rows]);
 
   useEffect(() => {
-    emit(summary.awaDirFrom, summary.awaSpeed);
-  }, [summary.awaDirFrom, summary.awaSpeed]);
+    onDataChange({
+      aswDirFrom: summary.isValid ? summary.awaDirFrom : 0,
+      aswSpeed: summary.isValid ? summary.awaSpeed : 0,
+      vectorSumKts: summary.vectorSumKts,
+      totalAltLossKft: summary.totalAltLossKft,
+      directionDefined: summary.directionDefined,
+      isValid: summary.isValid,
+      rows: summary.rows,
+    });
+  }, [summary, onDataChange]);
+
+  useEffect(() => {
+    onContextChange?.({ distressAltFt, forecastSource, forecastValidTime });
+  }, [distressAltFt, forecastSource, forecastValidTime, onContextChange]);
 
   const update = (idx: number, key: keyof AWAObservation, value: any) => {
     const next = observations.map((o, i) => (i === idx ? { ...o, [key]: value } : o));
@@ -148,17 +145,19 @@ export default function AWAWorksheet({
   };
 
   const addRow = () => {
-    const first = observations[0];
-    const newHigh = first ? first.altHigh + 3000 : 9000;
-    const newLow = first ? first.altHigh : 6000;
+    const levels = observations.map((observation) => {
+      const value = typeof observation.altObs === 'string'
+        ? Number(observation.altObs)
+        : observation.altitudeFt ?? observation.altLow ?? Number.NaN;
+      return value;
+    }).filter(Number.isFinite);
+    const newAltitude = levels.length === 0 ? 0 : Math.max(...levels) + 3000;
     const next = [
       ...observations,
       {
-        altObs: String(newHigh),
-        altLow: newLow,
-        altHigh: newHigh,
-        windDirFrom: 280,
-        windSpeed: 20,
+        altObs: String(newAltitude),
+        windDirFrom: 0,
+        windSpeed: 0,
       },
     ];
     setObservations(next);
@@ -179,6 +178,8 @@ export default function AWAWorksheet({
     setCaseTitle(title);
     setPlannerName(planner);
     setDistressAltFt(altFt);
+    setForecastSource('');
+    setForecastValidTime('');
   };
 
   const handlePrint = () => {
@@ -215,7 +216,7 @@ export default function AWAWorksheet({
             </p>
           </div>
           <span className="text-xs bg-sky-100 text-sky-950 font-bold px-3 py-1 rounded border border-sky-300 font-mono">
-            AWA: {summary.awaDirFrom}°T / {summary.awaSpeed} kts
+            AWA: {summary.isValid ? `${summary.awaDirFrom.toFixed(1)}°T / ${summary.awaSpeed.toFixed(2)} kts` : 'belum valid'}
           </span>
         </div>
 
@@ -240,9 +241,12 @@ export default function AWAWorksheet({
             </div>
           </div>
           <div className="text-[11px] text-sky-800 italic">
-            Rumus Titik Tengah Interval: (AltAtas + AltBawah) / 2 per slide Diklat hal. 13-14
+            Target memotong lapisan; masukkan level Surface/0 ft dan level pengamatan di atau di atas target.
           </div>
         </div>
+        <p className="-mt-2 text-[11px] text-slate-600">
+          Arah angin pada kolom B adalah bearing True dan dipakai langsung untuk vektor; aplikasi tidak menambahkan 180°. Kecepatan harus dalam knots.
+        </p>
 
         {/* Metadata Block: Case title, Case number, Date, Planner, Datum, Search plan */}
         <div className="space-y-2 border-b-2 border-slate-900 pb-3 text-[11px]">
@@ -337,6 +341,31 @@ export default function AWAWorksheet({
               <span className="text-[10px] text-slate-500 italic">(Circle one)</span>
             </div>
           </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label className="flex items-center gap-1.5">
+              <span className="text-slate-700 font-semibold shrink-0">Forecast source:</span>
+              <input
+                type="text"
+                value={forecastSource}
+                disabled={readOnly}
+                onChange={(e) => setForecastSource(e.target.value)}
+                placeholder="Contoh: BMKG Aviation"
+                className="font-bold text-blue-900 bg-white border-b border-dotted border-slate-600 px-1 w-full"
+              />
+            </label>
+            <label className="flex items-center gap-1.5">
+              <span className="text-slate-700 font-semibold shrink-0">Forecast valid time:</span>
+              <input
+                type="text"
+                value={forecastValidTime}
+                disabled={readOnly}
+                onChange={(e) => setForecastValidTime(e.target.value)}
+                placeholder="Waktu UTC yang sama untuk semua level"
+                className="font-bold text-blue-900 bg-white border-b border-dotted border-slate-600 px-1 w-full font-mono"
+              />
+            </label>
+          </div>
         </div>
 
         {/* Action Buttons */}
@@ -372,7 +401,6 @@ export default function AWAWorksheet({
                 type="button"
                 onClick={() => {
                   setObservations([]);
-                  onDataChange({ aswDirFrom: 0, aswSpeed: 0 });
                 }}
                 className="text-[11px] bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold px-2.5 py-1 rounded border border-rose-300 flex items-center gap-1 shadow-2xs transition-colors"
                 title="Kosongkan seluruh baris pengamatan di tab AWA"
@@ -400,10 +428,10 @@ export default function AWAWorksheet({
                   <div>Altitude of</div>
                   <div>observation</div>
                 </th>
-                {/* Kolom 2: Altitude interval (–) */}
+                {/* Kolom 2: Altitude interval derived from adjacent observation midpoints */}
                 <th className="py-2 px-2 text-center w-[20%] border-r border-slate-400">
                   <div>Altitude</div>
-                  <div>interval (–)</div>
+                  <div>interval (A)</div>
                 </th>
                 {/* Kolom 3: Thousands of feet (A) */}
                 <th className="py-2 px-2 text-center w-[14%] border-r border-slate-400">
@@ -436,79 +464,59 @@ export default function AWAWorksheet({
                   </td>
                 </tr>
               ) : (
-                detailedRows.map((row, i) => (
-                <tr key={i} className="hover:bg-slate-50">
+                detailedRows.map((row) => (
+                <tr key={row.inputIndex} className="hover:bg-slate-50">
                   {/* Altitude of observation (HANYA SATU KETINGGIAN: 0, 3000, 6000, dst.) */}
                   <td className="py-2 px-2 text-center border-r border-slate-300 font-bold text-slate-900">
                     {readOnly ? (
-                      <span>{row.altObs ?? row.altLow}</span>
+                      <span>{row.altObs ?? (Number.isFinite(row.altitudeFt) ? row.altitudeFt : '—')}</span>
                     ) : (
                       <input
                         type="text"
-                        value={row.altObs ?? (row.altLow === 0 ? '0' : String(row.altLow))}
+                        value={row.altObs ?? (Number.isFinite(row.altitudeFt) ? String(row.altitudeFt) : '')}
                         suppressHydrationWarning
                         spellCheck={false}
                         data-ms-editor="true"
-                        onChange={(e) => update(i, 'altObs', e.target.value)}
+                        onChange={(e) => update(row.inputIndex, 'altObs', e.target.value)}
                         placeholder="3000"
                         className="w-16 text-center font-bold text-blue-900 bg-white border-b border-dotted border-slate-600 px-1 font-mono"
                       />
                     )}
                   </td>
 
-                  {/* Altitude interval (–) e.g. 0 - 1.5, 1.5 - 4.5 */}
+                  {/* Altitude interval derived from midpoints and clipped to target */}
                   <td className="py-2 px-2 text-center border-r border-slate-300">
-                    {readOnly ? (
+                    {row.intervalLowFt !== null && row.intervalHighFt !== null ? (
                       <span className="font-bold text-slate-800">
-                        {(row.altLow / 1000).toString().replace('.', ',')} – {(row.altHigh / 1000).toString().replace('.', ',')}
+                        {(row.intervalLowFt / 1000).toLocaleString('id-ID', { maximumFractionDigits: 2 })} – {(row.intervalHighFt / 1000).toLocaleString('id-ID', { maximumFractionDigits: 2 })}
                       </span>
                     ) : (
-                      <div className="flex items-center justify-center gap-1 font-mono">
-                        <input
-                          type="number"
-                          step="500"
-                          value={row.altLow}
-                          suppressHydrationWarning
-                          spellCheck={false}
-                          data-ms-editor="true"
-                          onChange={(e) => update(i, 'altLow', Number(e.target.value) || 0)}
-                          className="w-14 text-center font-bold text-blue-900 bg-white border-b border-dotted border-slate-600"
-                        />
-                        <span>–</span>
-                        <input
-                          type="number"
-                          step="500"
-                          value={row.altHigh}
-                          suppressHydrationWarning
-                          spellCheck={false}
-                          data-ms-editor="true"
-                          onChange={(e) => update(i, 'altHigh', Number(e.target.value) || 0)}
-                          className="w-14 text-center font-bold text-blue-900 bg-white border-b border-dotted border-slate-600"
-                        />
-                      </div>
+                      <span className="text-slate-400">
+                        {summary.rows.length > 0 && row.altitudeFt > distressAltFt ? 'Di atas target' : '—'}
+                      </span>
                     )}
                   </td>
 
                   {/* Thousands of feet (A) */}
                   <td className="py-2 px-2 text-center border-r border-slate-300 font-bold text-slate-900">
-                    {row.kft.toString().replace('.', ',')}
+                    {summary.rows.length > 0 ? row.kft.toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '—'}
                   </td>
 
                   {/* Wind direction (B) */}
                   <td className="py-2 px-2 text-center border-r border-slate-300">
                     {readOnly ? (
-                      <span className="font-bold text-blue-900">{String(row.windDirFrom).padStart(3, '0')}°T</span>
+                      <span className="font-bold text-blue-900">{Number.isFinite(row.windDirFrom) ? `${String(row.windDirFrom).padStart(3, '0')}°T` : '—'}</span>
                     ) : (
                       <div className="flex items-center justify-center gap-1">
                         <input
                           type="number"
                           min="0"
-                          max="359"
-                          value={row.windDirFrom}
+                          max="360"
+                          value={Number.isFinite(row.windDirFrom) ? row.windDirFrom : ''}
                           suppressHydrationWarning
                           spellCheck={false}
                           data-ms-editor="true"
-                          onChange={(e) => update(i, 'windDirFrom', Number(e.target.value) || 0)}
+                          onChange={(e) => update(row.inputIndex, 'windDirFrom', e.target.value === '' ? Number.NaN : Number(e.target.value))}
                           className="w-14 text-center font-bold text-blue-900 bg-blue-50/50 border-b border-dotted border-slate-600"
                         />
                         <span className="text-slate-600 font-sans">°T</span>
@@ -519,17 +527,17 @@ export default function AWAWorksheet({
                   {/* Wind speed (C) */}
                   <td className="py-2 px-2 text-center border-r border-slate-300">
                     {readOnly ? (
-                      <span className="font-bold text-blue-900">{row.windSpeed} kts</span>
+                      <span className="font-bold text-blue-900">{Number.isFinite(row.windSpeed) ? `${row.windSpeed} kts` : '—'}</span>
                     ) : (
                       <div className="flex items-center justify-center gap-1">
                         <input
                           type="number"
                           min="0"
-                          value={row.windSpeed}
+                          value={Number.isFinite(row.windSpeed) ? row.windSpeed : ''}
                           suppressHydrationWarning
                           spellCheck={false}
                           data-ms-editor="true"
-                          onChange={(e) => update(i, 'windSpeed', Number(e.target.value) || 0)}
+                          onChange={(e) => update(row.inputIndex, 'windSpeed', e.target.value === '' ? Number.NaN : Number(e.target.value))}
                           className="w-12 text-center font-bold text-blue-900 bg-blue-50/50 border-b border-dotted border-slate-600"
                         />
                         <span className="text-slate-600 font-sans">kts</span>
@@ -539,7 +547,7 @@ export default function AWAWorksheet({
 
                   {/* Wind contribution (A x C) */}
                   <td className="py-2 px-2 text-center border-r border-slate-300 font-bold text-blue-950 bg-blue-50/40">
-                    {row.contrib.toString().replace('.', ',')} <span className="font-normal text-slate-500 text-[10px]">kts</span>
+                    {summary.rows.length > 0 ? row.contrib.toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '—'} <span className="font-normal text-slate-500 text-[10px]">kts</span>
                   </td>
 
                   {/* Aksi */}
@@ -547,7 +555,7 @@ export default function AWAWorksheet({
                     <td className="py-2 px-1 text-center print:hidden">
                       <button
                         type="button"
-                        onClick={() => removeRow(i)}
+                        onClick={() => removeRow(row.inputIndex)}
                         className="text-slate-400 hover:text-rose-600 transition-colors"
                         title="Hapus baris"
                       >
@@ -565,14 +573,14 @@ export default function AWAWorksheet({
                   Total altitude loss (thousands of feet) (D):
                 </td>
                 <td className="py-2.5 px-2 text-center border-r border-slate-300 text-blue-950 text-xs">
-                  {summary.totalAltLossD.toString().replace('.', ',')} (D)
+                  {summary.rows.length > 0 ? `${summary.totalAltLossKft.toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} (D)` : '—'}
                 </td>
                 <td colSpan={2} className="py-2.5 px-2 text-right border-r border-slate-300 font-sans">
                   Vector sum of contributions (E) °T & (F) kts:
                 </td>
                 <td className="py-2.5 px-2 text-center border-r border-slate-300 text-blue-950 text-xs bg-blue-100/60">
-                  <div>{summary.awaDirFrom}°T (E)</div>
-                  <div>{summary.vectorSumF.toString().replace('.', ',')} kts (F)</div>
+                  <div>{summary.directionDefined ? `${summary.awaDirFrom.toFixed(1)}°T (E)` : '— (E)'}</div>
+                  <div>{summary.rows.length > 0 ? `${summary.vectorSumKts.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kts (F)` : '— (F)'}</div>
                 </td>
                 {!readOnly && <td className="print:hidden" />}
               </tr>
@@ -583,26 +591,42 @@ export default function AWAWorksheet({
                   Average wind aloft [(E)°T (F/D) kts]
                 </td>
                 <td colSpan={readOnly ? 3 : 4} className="py-2.5 px-3 text-right font-mono text-sm text-blue-950">
-                  AWA = <span className="text-sky-900 underline">{summary.awaDirFrom}°T</span> /{' '}
-                  <span className="text-sky-900 underline">{summary.awaSpeed.toString().replace('.', ',')} kts</span>
+                  AWA = <span className="text-sky-900 underline">{summary.isValid ? `${summary.awaDirFrom.toFixed(1)}°T` : '—'}</span> /{' '}
+                  <span className="text-sky-900 underline">{summary.isValid ? `${summary.awaSpeed.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kts` : '—'}</span>
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
 
+        {observations.length > 0 && summary.errors.length > 0 && (
+          <div className="p-3 bg-amber-50 border border-amber-300 rounded text-xs text-amber-950">
+            <div className="font-bold mb-1">Perlu perbaikan data AWA</div>
+            <ul className="list-disc pl-5 space-y-0.5">
+              {summary.errors.map((error, index) => <li key={`${index}-${error}`}>{error}</li>)}
+            </ul>
+          </div>
+        )}
+        {observations.length > 0 && (!forecastSource.trim() || !forecastValidTime.trim()) && (
+          <div className="p-2 bg-slate-50 border border-slate-200 rounded text-[11px] text-slate-600">
+            Catat sumber forecast dan waktu valid yang sama untuk semua level agar input dapat ditelusuri.
+          </div>
+        )}
+
         {/* Handover Banner to Aeronautical Drift Worksheet */}
-        <div className="p-3 bg-emerald-50 border border-emerald-300 rounded text-xs flex items-center justify-between gap-2">
+        {observations.length > 0 && <div className={`p-3 rounded text-xs flex items-center justify-between gap-2 ${summary.isValid ? 'bg-emerald-50 border border-emerald-300' : 'bg-slate-50 border border-slate-200'}`}>
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4 text-emerald-700 shrink-0" />
-            <span className="text-emerald-950 font-medium">
-              Hasil nilai AWA (<span className="font-bold">{summary.awaDirFrom}°T / {summary.awaSpeed} kts</span>) otomatis diteruskan ke baris B.10 Aeronautical Drift Worksheet (ADW) dan divisualisasikan pada Maneuvering Board (Mobo) di tab sebelah.
+            <CheckCircle2 className={`h-4 w-4 shrink-0 ${summary.isValid ? 'text-emerald-700' : 'text-slate-400'}`} />
+            <span className={`${summary.isValid ? 'text-emerald-950' : 'text-slate-700'} font-medium`}>
+              {summary.isValid ? (
+                <>Hasil AWA (<span className="font-bold">{summary.awaDirFrom.toFixed(1)}°T / {summary.awaSpeed.toFixed(2)} kts</span>) diteruskan ke ADW dan dipetakan pada Maneuvering Board.</>
+              ) : 'Nilai AWA belum diteruskan karena input atau cakupan altitude belum valid.'}
             </span>
           </div>
-          <span className="text-[10px] font-mono font-bold bg-white px-2 py-0.5 rounded border border-emerald-200 text-emerald-800 shrink-0">
+          <span className="text-[10px] font-mono font-bold bg-white px-2 py-0.5 rounded border border-slate-200 text-slate-700 shrink-0">
             IAMSAR App K-10
           </span>
-        </div>
+        </div>}
 
         {/* Form Running Footer */}
         <div className="pt-2 border-t-2 border-slate-900 flex items-center justify-between text-[11px] font-bold text-slate-800">

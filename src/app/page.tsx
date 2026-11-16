@@ -94,25 +94,28 @@ import {
   calculateAssetAllocationSummary,
 } from '@/lib/sar/assetAllocation';
 
-const DEFAULT_CENTER: LatLng = { lat: -6.1, lng: 106.8 }; // Jakarta area
+const DEFAULT_CENTER: LatLng = { lat: 0, lng: 0 };
 
 export default function Home() {
   // AWA & ASW states
-  const [awa, setAwa] = useState<AWAData>({ aswDirFrom: 45, aswSpeed: 18 });
+  const [awa, setAwa] = useState<AWAData>({ aswDirFrom: 0, aswSpeed: 0, isValid: false });
   const [asw, setAsw] = useState<ASWData>({
-    aswDirFrom: 90,
-    aswSpeed: 18,
-    aswErr: 2.0,
-    aswdve: 0.1,
+    aswDirFrom: 0,
+    aswSpeed: 0,
+    aswErr: 0,
+    aswdve: 0,
   });
 
   // Marine Datum & Search results
   const [datumData, setDatumData] = useState<DatumData | null>(null);
   const [datumResults, setDatumResults] = useState<DatumResults | null>(null);
   const [searchResults, setSearchResults] = useState<SearchPlanResults | null>(null);
+  const [worksheet1Ao, setWorksheet1Ao] = useState(0);
+  const [worksheet1Fs, setWorksheet1Fs] = useState(1.1);
 
   // Controlled LKP
-  const [lkp, setLkp] = useState<LatLng>({ lat: -6.1, lng: 106.8 });
+  const [lkp, setLkp] = useState<LatLng>({ lat: 0, lng: 0 });
+  const [isLkpSet, setIsLkpSet] = useState(false);
   const [pickMode, setPickMode] = useState<boolean>(false);
   const [pickSruMode, setPickSruMode] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>('all-worksheets');
@@ -125,44 +128,13 @@ export default function Home() {
   const [adwSyncLkp, setAdwSyncLkp] = useState<boolean>(true);
 
   // SRU Asset Allocation State (Multi-Asset Fleet)
-  const [assets, setAssets] = useState<SruAssetInput[]>([
-    {
-      id: 'sru-1',
-      name: 'KN SAR 246',
-      type: 'rescue-vessel',
-      homeBaseName: 'Pangkalan Tanjung Priok (Jakarta)',
-      homeBasePos: { lat: -6.095, lng: 106.885 },
-      transitSpeedKts: 18,
-      searchSpeedKts: 12,
-      enduranceHours: 12,
-      daylightHours: 10,
-      fuelReservePct: 15,
-      sweepWidthNm: 2.5,
-      targetCoverage: 1.0,
-      assignedSubArea: 'Sub-Area 1',
-    },
-    {
-      id: 'sru-2',
-      name: 'RB 201',
-      type: 'patrol-boat',
-      homeBaseName: 'Pangkalan Muara Baru (Jakarta)',
-      homeBasePos: { lat: -6.115, lng: 106.802 },
-      transitSpeedKts: 22,
-      searchSpeedKts: 14,
-      enduranceHours: 8,
-      daylightHours: 8,
-      fuelReservePct: 15,
-      sweepWidthNm: 1.8,
-      targetCoverage: 1.0,
-      assignedSubArea: 'Sub-Area 2',
-    },
-  ]);
+  const [assets, setAssets] = useState<SruAssetInput[]>([]);
 
   // Primary SRU for quick controls
   const primarySru = assets[0] || {
-    name: 'KN SAR 246',
-    homeBasePos: { lat: -6.095, lng: 106.885 },
-    transitSpeedKts: 18,
+    name: '-',
+    homeBasePos: { lat: 0, lng: 0 },
+    transitSpeedKts: 0,
   };
 
   // Search Pattern Settings
@@ -171,17 +143,11 @@ export default function Home() {
   const [tsReturn, setTsReturn] = useState<boolean>(false);
 
   // Raw state snapshots for saving cases
-  const [awaObservations, setAwaObservations] = useState<AWAObservation[]>([
-    { altLow: 0, altHigh: 2000, windDirFrom: 45, windSpeed: 15 },
-    { altLow: 2000, altHigh: 4000, windDirFrom: 50, windSpeed: 18 },
-    { altLow: 4000, altHigh: 6000, windDirFrom: 60, windSpeed: 22 },
-  ]);
+  const [awaObservations, setAwaObservations] = useState<AWAObservation[]>([]);
+  const [awaContext, setAwaContext] = useState<Pick<AWAInitialState, 'distressAltFt' | 'forecastSource' | 'forecastValidTime'>>({ distressAltFt: 0 });
   const [aswState, setAswState] = useState<{ observations: ASWObservation[]; aswErr: number }>({
-    observations: [
-      { timeStart: '00:00', timeEnd: '06:00', hours: 6, windDirFrom: 90, windSpeed: 18 },
-      { timeStart: '06:00', timeEnd: '10:00', hours: 4, windDirFrom: 110, windSpeed: 22 },
-    ],
-    aswErr: 2.0,
+    observations: [],
+    aswErr: 0,
   });
   const [datumState, setDatumState] = useState<DatumInitialState | null>(null);
   const [searchState, setSearchState] = useState<SearchPlanInitialState | null>(null);
@@ -203,25 +169,26 @@ export default function Home() {
 
   // Auto-sync ADW landing pos to LKP when enabled
   useEffect(() => {
-    if (aeroResults?.landingPos && adwSyncLkp) {
+    if (aeroResults && adwSyncLkp) {
+      const nextLkp = aeroResults.positionValid ? aeroResults.landingPos : aeroResults.incidentPos;
       setLkp((prev) => {
         if (
-          Math.abs(prev.lat - aeroResults.landingPos.lat) < 1e-6 &&
-          Math.abs(prev.lng - aeroResults.landingPos.lng) < 1e-6
+          Math.abs(prev.lat - nextLkp.lat) < 1e-6 &&
+          Math.abs(prev.lng - nextLkp.lng) < 1e-6
         ) {
           return prev;
         }
-        return aeroResults.landingPos;
+        return nextLkp;
       });
     }
-  }, [aeroResults?.landingPos, adwSyncLkp]);
+  }, [aeroResults, adwSyncLkp]);
 
   /** Build state for saving */
   const buildState = useCallback(() => {
     return {
       title: '',
       state: {
-        awa: { observations: awaObservations },
+        awa: { observations: awaObservations, ...awaContext },
         asw: { observations: aswState.observations, aswErr: aswState.aswErr },
         datum: datumState ?? {},
         search: searchState ?? {},
@@ -230,7 +197,7 @@ export default function Home() {
         patternType,
       },
     };
-  }, [awaObservations, aswState, datumState, searchState, lkp, assets, patternType]);
+  }, [awaObservations, awaContext, aswState, datumState, searchState, lkp, assets, patternType]);
 
   /** Apply loaded state */
   const applyState = useCallback((state: Record<string, unknown>) => {
@@ -241,9 +208,12 @@ export default function Home() {
     const lkpLoaded = state.lkp as LatLng | undefined;
     const assetsLoaded = state.assets as SruAssetInput[] | undefined;
     if (state.patternType) setPatternType(state.patternType as SearchPatternType);
+    setWorksheet1Ao(0);
+    setWorksheet1Fs(1.1);
     if (assetsLoaded && Array.isArray(assetsLoaded)) setAssets(assetsLoaded);
 
     setLoadedInitialState({ awa, asw, datum, search, lkp: lkpLoaded });
+    setAwaContext({ distressAltFt: awa.distressAltFt, forecastSource: awa.forecastSource, forecastValidTime: awa.forecastValidTime });
     if (lkpLoaded) setLkp(lkpLoaded);
     setCaseVersion((v) => v + 1);
   }, []);
@@ -252,19 +222,23 @@ export default function Home() {
   const handleClearAll = useCallback(() => {
     // Reset AWA & ASW
     setAwa({ aswDirFrom: 0, aswSpeed: 0 });
-    setAsw({ aswDirFrom: 0, aswSpeed: 0, aswErr: 2.0, aswdve: 0.1 });
+    setAsw({ aswDirFrom: 0, aswSpeed: 0, aswErr: 0, aswdve: 0 });
     setAwaObservations([]);
-    setAswState({ observations: [], aswErr: 2.0 });
+    setAwaContext({ distressAltFt: 0 });
+    setAswState({ observations: [], aswErr: 0 });
 
     // Reset Datum & Search
     setDatumData(null);
     setDatumResults(null);
     setSearchResults(null);
+    setWorksheet1Ao(0);
+    setWorksheet1Fs(1.1);
     setDatumState(null);
     setSearchState(null);
 
     // Reset Coordinates to default
     setLkp(DEFAULT_CENTER);
+    setIsLkpSet(false);
     setAeroResults(null);
 
     // Reset overrides
@@ -274,8 +248,8 @@ export default function Home() {
 
     // Explicitly set clean empty initialState so worksheets won't fall back to example datasets!
     setLoadedInitialState({
-      awa: { observations: [], distressAltFt: 10000, caseTitle: 'OPERASI SAR' },
-      asw: { observations: [], distressTime: '', datumTime: '', caseTitle: 'OPERASI SAR', aswErr: 2.0 },
+      awa: { observations: [], distressAltFt: 0, caseTitle: '-' },
+      asw: { observations: [], distressTime: '', datumTime: '', caseTitle: '-', aswErr: 0 },
       datum: {},
       search: {},
       lkp: DEFAULT_CENTER,
@@ -283,38 +257,7 @@ export default function Home() {
 
     // Reset Pattern & Assets
     setPatternType('PS');
-    setAssets([
-      {
-        id: 'sru-1',
-        name: 'KN SAR 246',
-        type: 'rescue-vessel',
-        homeBaseName: 'Pangkalan Tanjung Priok (Jakarta)',
-        homeBasePos: { lat: -6.095, lng: 106.885 },
-        transitSpeedKts: 18,
-        searchSpeedKts: 12,
-        enduranceHours: 12,
-        daylightHours: 10,
-        fuelReservePct: 15,
-        sweepWidthNm: 2.5,
-        targetCoverage: 1.0,
-        assignedSubArea: 'Sub-Area 1',
-      },
-      {
-        id: 'sru-2',
-        name: 'RB 201',
-        type: 'patrol-boat',
-        homeBaseName: 'Pangkalan Muara Baru (Jakarta)',
-        homeBasePos: { lat: -6.115, lng: 106.802 },
-        transitSpeedKts: 22,
-        searchSpeedKts: 14,
-        enduranceHours: 8,
-        daylightHours: 8,
-        fuelReservePct: 15,
-        sweepWidthNm: 1.8,
-        targetCoverage: 1.0,
-        assignedSubArea: 'Sub-Area 2',
-      },
-    ]);
+    setAssets([]);
 
     // Increment caseVersion to force re-mount of all keyed worksheets
     setCaseVersion((v) => v + 1);
@@ -355,7 +298,7 @@ export default function Home() {
 
   const handleApplyAWA = useCallback((data: {
     distressAltFt: number;
-    windData: { altObs: string; altLow: number; altHigh: number; windDirFrom: number; windSpeed: number }[];
+    windData: { altObs: string; windDirFrom: number; windSpeed: number }[];
     caseTitle?: string;
   }) => {
     setLoadedInitialState((prev) => ({
@@ -366,12 +309,14 @@ export default function Home() {
         caseTitle: data.caseTitle,
       },
     }));
+    setAwaContext({ distressAltFt: data.distressAltFt, forecastSource: '', forecastValidTime: '' });
     setCaseVersion((v) => v + 1);
     setActiveTab('awa');
   }, []);
 
   const handleApplyLKP = useCallback((data: { lat: number; lng: number }) => {
     setLkp(data);
+    setIsLkpSet(true);
   }, []);
 
   useEffect(() => {
@@ -381,7 +326,7 @@ export default function Home() {
   }, [datumState?.driftInterval]);
 
   // Luas Search Area dari Worksheet 1 (Ao)
-  const ws1Ao = searchResults?.Ao ?? (datumResults ? 4 * Math.ceil(datumResults.E * 1.6) * Math.ceil(datumResults.E * 1.6) : 320);
+  const ws1Ao = worksheet1Ao;
 
   // Titik Datum (Pusat Search Area): Midpoint antara Datum Left & Right
   const datumCenterPoint: LatLng = useMemo(() => {
@@ -416,10 +361,24 @@ export default function Home() {
   const searchAreaLength = searchSquareSide;
   const searchAreaWidth = searchSquareSide;
   const searchAreaOrientation = driftOrientationDeg;
-  const trackSpacing = searchResults?.trackSpacing ?? 1.5;
+  const trackSpacing = searchResults?.trackSpacing ?? 0;
 
   // Search Pattern generation
   const searchPatternResult: SearchPatternResult = useMemo(() => {
+    if (!searchResults) {
+      return {
+        type: patternType,
+        name: '-',
+        code: '-',
+        csp: searchAreaCenter,
+        exitPoint: searchAreaCenter,
+        waypoints: [],
+        segments: [],
+        totalDistanceNm: 0,
+        estimatedHours: 0,
+        description: '-',
+      };
+    }
     return generateSearchPattern(
       {
         type: patternType,
@@ -434,6 +393,7 @@ export default function Home() {
       primarySru.transitSpeedKts
     );
   }, [
+    searchResults,
     patternType,
     searchAreaCenter,
     searchAreaLength,
@@ -469,6 +429,7 @@ export default function Home() {
     (latlng: LatLng) => {
       if (pickMode) {
         setLkp(latlng);
+        setIsLkpSet(true);
         setPickMode(false);
       } else if (pickSruMode) {
         // Update home base of primary SRU
@@ -670,32 +631,27 @@ export default function Home() {
 
   // Vectors for Maneuvering Board in AWA tab (sesuai materi slide I Kadek Dedi K.)
   const awaBoardVectors: BoardVector[] = useMemo(() => {
-    const list: BoardVector[] = [];
-    let totalAltKft = 0;
-    awaObservations.forEach((obs, idx) => {
-      const kft = Math.max(0, (obs.altHigh - obs.altLow) / 1000);
-      totalAltKft += kft;
-      const contrib = kft * obs.windSpeed;
-      list.push({
-        id: `awa-obs-${idx}`,
-        label: `W${idx + 1} (${obs.altObs ?? (obs.altLow / 1000).toFixed(0) + 'k'}, ${contrib.toFixed(1)} kts)`,
-        dirDeg: obs.windDirFrom, // Plotting langsung arah angin (°T) sesuai slide hal. 17 & 21
-        mag: contrib > 0 ? contrib : obs.windSpeed,
+    const rows = awa.rows ?? [];
+    const list: BoardVector[] = rows
+      .filter((row) => row.contributionKts > 0)
+      .map((row, index) => ({
+        id: `awa-obs-${row.inputIndex}`,
+        label: `W${index + 1} (${(row.altitudeFt / 1000).toLocaleString('id-ID', { maximumFractionDigits: 1 })}k, ${row.contributionKts.toFixed(1)} kts)`,
+        dirDeg: row.windDirFrom,
+        mag: row.contributionKts,
         color: '#38bdf8',
-      });
-    });
-    const vectorSumMag = totalAltKft > 0 ? Number((awa.aswSpeed * totalAltKft).toFixed(1)) : awa.aswSpeed;
-    if (vectorSumMag > 0) {
+      }));
+    if (awa.isValid && awa.vectorSumKts && awa.vectorSumKts > 0) {
       list.push({
         id: 'awa-result',
-        label: `Vector Sum (${awa.aswDirFrom}°T / ${vectorSumMag} kts, AWA: ${awa.aswSpeed} kts)`,
+        label: `Vector Sum (${awa.aswDirFrom.toFixed(1)}°T / ${awa.vectorSumKts.toFixed(2)} kts, AWA: ${awa.aswSpeed.toFixed(2)} kts)`,
         dirDeg: awa.aswDirFrom,
-        mag: vectorSumMag,
+        mag: awa.vectorSumKts,
         color: '#ef4444',
       });
     }
     return list;
-  }, [awaObservations, awa]);
+  }, [awa]);
 
   // Vectors for Maneuvering Board in ASW tab (sesuai materi slide M. Fuadunnas)
   const aswBoardVectors: BoardVector[] = useMemo(() => {
@@ -896,6 +852,9 @@ export default function Home() {
                 datumData={datumData}
                 datumResults={datumResults}
                 searchResults={searchResults}
+                ws1Ao={ws1Ao}
+                onWorksheet1AoChange={setWorksheet1Ao}
+                selectedFs={worksheet1Fs}
                 aswDirFrom={asw.aswDirFrom}
                 aswSpeed={asw.aswSpeed}
                 awaDirFrom={awa.aswDirFrom}
@@ -913,6 +872,7 @@ export default function Home() {
                 key={`awa-${caseVersion}`}
                 onDataChange={setAwa}
                 onObservationsChange={setAwaObservations}
+                onContextChange={setAwaContext}
                 initialState={loadedInitialState?.awa}
               />
               <div className="print-companion-page">
@@ -934,7 +894,7 @@ export default function Home() {
                   <div>
                     <span className="font-bold text-sky-950">Integrasi Alur Operasional Basarnas:</span>
                     <p className="text-sky-800 text-[11px]">
-                      Input Angin Atas diambil otomatis dari <strong>AWA</strong> ({awa.aswDirFrom.toFixed(0)}°T / {awa.aswSpeed.toFixed(1)} kts).
+                      Input Angin Atas diambil otomatis dari <strong>AWA</strong> ({awa.isValid ? `${awa.aswDirFrom.toFixed(1)}°T / ${awa.aswSpeed.toFixed(2)} kts` : 'belum tersedia; lengkapi data AWA terlebih dahulu'}).
                       Hasil koordinat pendaratan (Landing Position) digunakan sebagai <strong>LKP</strong> operasi selanjutnya.
                     </p>
                   </div>
@@ -949,7 +909,7 @@ export default function Home() {
                     />
                     Sinkron Otomatis ke LKP
                   </label>
-                  {aeroResults && (
+                  {aeroResults?.positionValid && (
                     <button
                       type="button"
                       onClick={() => setLkp(aeroResults.landingPos)}
@@ -966,6 +926,7 @@ export default function Home() {
                 initialLkp={lkp}
                 awaDirFrom={awa.aswDirFrom}
                 awaSpeedKts={awa.aswSpeed}
+                awaIsValid={awa.isValid}
                 onResults={setAeroResults}
               />
               <PrintCompanionMap
@@ -989,9 +950,14 @@ export default function Home() {
               <UPSPlotter
                 key={`ups-${caseVersion}`}
                 lkp={lkp}
-                aeroIncidentPos={aeroResults ? lkp : undefined}
-                aeroEndGlidePos={aeroResults?.aircraftEndGlidePos}
-                aeroLandingPos={aeroResults?.landingPos}
+                aeroIncidentPos={aeroResults?.positionValid ? aeroResults.incidentPos : undefined}
+                aeroEndGlidePos={aeroResults?.positionValid && aeroResults.aircraftActive ? aeroResults.aircraftEndGlidePos : undefined}
+                aeroLandingPos={aeroResults?.positionValid ? aeroResults.landingPos : undefined}
+                aeroAircraftGlideVector={aeroResults?.positionValid && aeroResults.aircraftActive ? aeroResults.aircraftGlideVector : undefined}
+                aeroAircraftWindVector={aeroResults?.positionValid && aeroResults.aircraftActive ? aeroResults.aircraftWindVector : undefined}
+                aeroParachuteGlideVector={aeroResults?.positionValid && aeroResults.parachuteActive ? aeroResults.parachuteGlideVector : undefined}
+                aeroParachuteWindVector={aeroResults?.positionValid && aeroResults.parachuteActive ? aeroResults.parachuteWindVector : undefined}
+                aeroParachuteResultVector={aeroResults?.positionValid && aeroResults.parachuteActive ? aeroResults.parachuteDisplacementVector : undefined}
                 datumLeft={datumResults?.datumLeft}
                 datumRight={datumResults?.datumRight}
                 searchAreaCenter={searchResults?.searchAreaCenter}
@@ -1030,6 +996,9 @@ export default function Home() {
                 datumResults={datumResults}
                 aswDirFrom={asw.aswDirFrom}
                 aswSpeed={asw.aswSpeed}
+                onAoChange={setWorksheet1Ao}
+                selectedFs={worksheet1Fs}
+                onFsChange={setWorksheet1Fs}
               />
               <DatumWorksheet
                 aswDirFrom={asw.aswDirFrom}
@@ -1038,7 +1007,10 @@ export default function Home() {
                 aswdve={asw.aswdve}
                 startLat={lkp.lat}
                 startLng={lkp.lng}
-                onLKPChange={(lat, lng) => setLkp({ lat, lng })}
+                onLKPChange={(lat, lng) => {
+                  setLkp({ lat, lng });
+                  setIsLkpSet(true);
+                }}
                 onRequestMapPick={() => {
                   setPickMode(true);
                   setActiveTab('ws1');
@@ -1102,6 +1074,7 @@ export default function Home() {
               <Worksheet8
                 key={`ws8-${caseVersion}`}
                 ws1Ao={ws1Ao}
+                windKts={datumData?.aswSpeed ?? 0}
                 initialC={assetSummary.compositeCoverageC || searchResults?.C || 1.0}
                 initialPod={assetSummary.compositePOD || searchResults?.POD || 0.63}
               />
@@ -1386,7 +1359,7 @@ export default function Home() {
 
         {/* Right Column: Interactive Map & Weather Panel & Mission Summary */}
         <aside className="lg:col-span-2 space-y-4 lg:sticky lg:top-4 lg:self-start print:hidden">
-          <WeatherPanel
+          {isLkpSet && <WeatherPanel
             lkp={lkp}
             driftIntervalHours={driftIntervalForWeather}
             onApplyAsw={(dirFrom, speed) =>
@@ -1396,7 +1369,7 @@ export default function Home() {
             onApplySeaCurrent={(dir, speed) =>
               setSeaCurrentOverride({ dir, speed, ts: Date.now() })
             }
-          />
+          />}
 
           {/* Interactive Sea Chart Card */}
           <Card className="overflow-hidden border-slate-200 shadow-sm">
@@ -1514,12 +1487,12 @@ export default function Home() {
               />
               <SummaryItem
                 label="LKP Aktif"
-                value={`${lkp.lat.toFixed(3)}, ${lkp.lng.toFixed(3)}`}
+                value={`${formatDMS(lkp.lat, false)}, ${formatDMS(lkp.lng, true)}`}
                 accent
               />
               <SummaryItem
                 label="Datum Kiri"
-                value={datumResults ? `${datumResults.datumLeft.lat.toFixed(3)}, ${datumResults.datumLeft.lng.toFixed(3)}` : '—'}
+                value={datumResults ? `${formatDMS(datumResults.datumLeft.lat, false)}, ${formatDMS(datumResults.datumLeft.lng, true)}` : '—'}
               />
               <SummaryItem
                 label="Jarak Drift"
@@ -1542,12 +1515,12 @@ export default function Home() {
               />
               <SummaryItem
                 label="Status Kesiapan Aset"
-                value={assetSummary.isSufficient ? 'MEMADAI (CUKUP)' : `DEFISIT (-${assetSummary.deficitAreaNm2.toFixed(0)} NM²)`}
+                value={assets.length === 0 ? '-' : assetSummary.isSufficient ? 'MEMADAI (CUKUP)' : `DEFISIT (-${assetSummary.deficitAreaNm2.toFixed(0)} NM²)`}
                 accent
               />
               <SummaryItem
                 label="Coverage Gabungan"
-                value={`C = ${assetSummary.compositeCoverageC.toFixed(2)} (POD ${(assetSummary.compositePOD * 100).toFixed(0)}%)`}
+                value={assets.length === 0 ? '-' : `C = ${assetSummary.compositeCoverageC.toFixed(2)} (POD ${(assetSummary.compositePOD * 100).toFixed(0)}%)`}
               />
             </CardContent>
           </Card>

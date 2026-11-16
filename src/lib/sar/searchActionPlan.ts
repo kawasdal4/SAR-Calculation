@@ -5,7 +5,7 @@
  */
 
 import type { LatLng } from './sarCalculations';
-import { rectangleCorners } from './sarCalculations';
+import { formatLatLng, rectangleCorners } from './sarCalculations';
 
 export interface SearchActionPlanData {
   /** Date/time group of the message (ISO string). */
@@ -106,8 +106,7 @@ export interface SearchActionPlanData {
 /** Render the Search Action Plan as IAMSAR-style plain text (Appendix L-23 format). */
 export function renderSearchActionPlanText(d: SearchActionPlanData): string {
   const lines: string[] = [];
-  const fmtLatLng = (p: LatLng) =>
-    `${Math.abs(p.lat).toFixed(2)}${p.lat >= 0 ? 'N' : 'S'} ${Math.abs(p.lng).toFixed(2)}${p.lng >= 0 ? 'E' : 'W'}`;
+  const fmtLatLng = formatLatLng;
 
   lines.push('(Precedence and date/time group of the message)');
   lines.push(`MSG DTG: ${d.messageDateTime}`);
@@ -264,8 +263,8 @@ export function buildSearchActionPlanData(input: {
     generalLocation: input.generalLocation ?? 'Search area',
     searchDate,
     situationSummary:
-      `Distress alert received for ${input.searchObjectId ?? 'the search object'} at position ${input.lkp.lat.toFixed(4)}, ${input.lkp.lng.toFixed(4)} on ${msgDtg}. ` +
-      `Computed datum positions: left (${input.datumLeft.lat.toFixed(4)}, ${input.datumLeft.lng.toFixed(4)}) and right (${input.datumRight.lat.toFixed(4)}, ${input.datumRight.lng.toFixed(4)}) of downwind. ` +
+      `Distress alert received for ${input.searchObjectId ?? 'the search object'} at position ${formatLatLng(input.lkp)} on ${msgDtg}. ` +
+      `Computed datum positions: left (${formatLatLng(input.datumLeft)}) and right (${formatLatLng(input.datumRight)}) of downwind. ` +
       `Total probable error of position E = ${input.E_nm.toFixed(2)} NM. Search area dimensions: ${input.searchAreaLength_nm.toFixed(1)} × ${input.searchAreaWidth_nm.toFixed(1)} NM.`,
     descriptionOfCraft: 'See case file',
     personsOnBoard: input.personsOnBoard ?? 0,
@@ -278,7 +277,7 @@ export function buildSearchActionPlanData(input: {
     weatherForecastPeriod: input.weatherForecastPeriod ?? `${msgDtg} +24H`,
     actions: input.facilities.map((f, i) => ({
       agency: f.name,
-      tasking: `Search sub-area A-${i + 1}; pattern PS creep ${input.searchAreaOrientationDeg.toFixed(0)}T; commence search point ${input.lkp.lat.toFixed(2)}${input.lkp.lat >= 0 ? 'N' : 'S'} ${input.lkp.lng.toFixed(2)}${input.lkp.lng >= 0 ? 'E' : 'W'}.`,
+      tasking: `Search sub-area A-${i + 1}; pattern PS creep ${input.searchAreaOrientationDeg.toFixed(0)}T; commence search point ${formatLatLng(input.lkp)}.`,
     })),
     searchAreas: [
       {

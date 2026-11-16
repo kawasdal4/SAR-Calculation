@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import type { SearchPlanResults } from '@/components/sar/SearchPlanWorksheet';
 import { Printer } from 'lucide-react';
+import CoordinateInput from '@/components/sar/CoordinateInput';
 
 interface Worksheet4Props {
   searchResults?: SearchPlanResults | null;
@@ -14,38 +15,38 @@ interface Worksheet4Props {
 
 export default function Worksheet4({
   searchResults,
-  E = 5.0,
-  divergenceDistance = 7.8,
+  E = 0,
+  divergenceDistance = 0,
   readOnly = false,
 }: Worksheet4Props) {
   // Case & Metadata state
-  const [caseTitle, setCaseTitle] = useState('SAR-AERO-2026/01');
-  const [plannerName, setPlannerName] = useState('SAR PLANNER BASARNAS');
-  const [searchDate, setSearchDate] = useState('15 / 11 / 2026');
-  const [callsign, setCallsign] = useState('PK-XYZ / Cessna 172');
-  const [searchNo, setSearchNo] = useState('01');
-  const [commenceUtc, setCommenceUtc] = useState('08:00 UTC');
+  const [caseTitle, setCaseTitle] = useState('-');
+  const [plannerName, setPlannerName] = useState('-');
+  const [searchDate, setSearchDate] = useState('-');
+  const [callsign, setCallsign] = useState('-');
+  const [searchNo, setSearchNo] = useState('0');
+  const [commenceUtc, setCommenceUtc] = useState('-');
   const [prevSearchNo, setPrevSearchNo] = useState('-');
   const [prevCommenceUtc, setPrevCommenceUtc] = useState('-');
 
   // Position fixes / reports
-  const [latStr, setLatStr] = useState('06° 05.00\' S');
-  const [lngStr, setLngStr] = useState('106° 45.00\' E');
-  const [distressTimeUtc, setDistressTimeUtc] = useState('06:30 UTC');
-  const [lastFix, setLastFix] = useState('WAYPOINT ALPHA (06:00 UTC)');
-  const [lastReportedPos, setLastReportedPos] = useState('RADIAL 240 / 30 NM');
-  const [missedPos, setMissedPos] = useState('ESTIMATED FIX BRAVO');
-  const [nextPos, setNextPos] = useState('BANDARA TUJUAN');
+  const [latitude, setLatitude] = useState(0);
+  const [longitude, setLongitude] = useState(0);
+  const [distressTimeUtc, setDistressTimeUtc] = useState('-');
+  const [lastFix, setLastFix] = useState('-');
+  const [lastReportedPos, setLastReportedPos] = useState('-');
+  const [missedPos, setMissedPos] = useState('-');
+  const [nextPos, setNextPos] = useState('-');
 
   // Multi-position Track distances (Positions A, B, C, D)
   // Pos A: Last Positive Fix
   // Pos B: Last Reported Posn
   // Pos C: Missed Posn
   // Pos D: Next Posn
-  const [trList, setTrList] = useState<[number, number, number, number]>([15, 30, 45, 60]);
-  const [fixErrors, setFixErrors] = useState<[number, number, number, number]>([3.0, 5.0, 8.0, 10.0]);
-  const [yNavError, setYNavError] = useState(1.0); // GPS / Radar search craft error
-  const [safetyFactor, setSafetyFactor] = useState(1.1);
+  const [trList, setTrList] = useState<[number, number, number, number]>([0, 0, 0, 0]);
+  const [fixErrors, setFixErrors] = useState<[number, number, number, number]>([0, 0, 0, 0]);
+  const [yNavError, setYNavError] = useState(0);
+  const [safetyFactor, setSafetyFactor] = useState(0);
 
   // Calculated values for positions A, B, C, D
   // x = Fix + 10% Tr
@@ -138,24 +139,10 @@ export default function Worksheet4({
             <div className="p-2.5 border-r border-slate-800 space-y-1 bg-slate-50/30">
               <span className="font-bold text-slate-800 block">Reported Distress Position:</span>
               <div className="font-mono">
-                <input
-                  type="text"
-                  value={latStr}
-                  disabled={readOnly}
-                  suppressHydrationWarning
-                  onChange={(e) => setLatStr(e.target.value)}
-                  className="font-bold text-blue-900 bg-white border-b border-dotted border-slate-500 px-1 w-full"
-                />
+                <CoordinateInput axis="lat" value={latitude} onChange={setLatitude} disabled={readOnly} aria-label="Latitude distress" className="font-bold text-blue-900 bg-white border-b border-dotted border-slate-500 px-1 w-full" />
               </div>
               <div className="font-mono">
-                <input
-                  type="text"
-                  value={lngStr}
-                  disabled={readOnly}
-                  suppressHydrationWarning
-                  onChange={(e) => setLngStr(e.target.value)}
-                  className="font-bold text-blue-900 bg-white border-b border-dotted border-slate-500 px-1 w-full"
-                />
+                <CoordinateInput axis="lng" value={longitude} onChange={setLongitude} disabled={readOnly} aria-label="Longitude distress" className="font-bold text-blue-900 bg-white border-b border-dotted border-slate-500 px-1 w-full" />
               </div>
               <div>
                 <span className="text-slate-500 font-sans">Time: </span>
@@ -351,6 +338,7 @@ export default function Worksheet4({
                         onChange={(e) => setSafetyFactor(Number(e.target.value) || 1.1)}
                         className="font-bold text-blue-900 bg-white border border-slate-300 rounded px-1 py-0.5 text-xs font-mono"
                       >
+                      <option value="0">0</option>
                         <option value="1.1">1.1</option>
                         <option value="1.6">1.6</option>
                         <option value="2.0">2.0</option>

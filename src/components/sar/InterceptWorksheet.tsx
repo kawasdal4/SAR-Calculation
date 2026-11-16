@@ -14,22 +14,22 @@ export default function InterceptWorksheet({ onResults, className = '' }: Interc
   const [inputData, setInputData] = useState<InterceptInput>({
     type: 'head-on',
     target: {
-      name: 'Target',
-      pos: { lat: -4.0, lng: 123.0 },
-      speedKts: 10,
-      courseDeg: 90,
+      name: '-',
+      pos: { lat: 0, lng: 0 },
+      speedKts: 0,
+      courseDeg: 0,
     },
     sru: {
-      name: 'SRU',
-      pos: { lat: -4.0, lng: 123.5 },
-      speedKts: 20,
+      name: '-',
+      pos: { lat: 0, lng: 0 },
+      speedKts: 0,
     },
   });
 
   const results: InterceptResult = useMemo(() => calculateIntercept(inputData), [inputData]);
 
   useEffect(() => {
-    if (onResults) onResults(results);
+    if (onResults && inputData.target.speedKts > 0 && inputData.sru.speedKts > 0) onResults(results);
   }, [results, onResults]);
 
   // Simple method selector UI (head‑on / overtaking / beam‑on)
@@ -70,12 +70,12 @@ export default function InterceptWorksheet({ onResults, className = '' }: Interc
             ))}
           </div>
           {/* Simple result display */}
-          <div className="text-sm">
+          {inputData.target.speedKts > 0 && inputData.sru.speedKts > 0 && <div className="text-sm">
             <p>Feasible: {results.feasible ? 'Yes' : 'No'}</p>
             {results.message && <p>Message: {results.message}</p>}
             <p>Intercept Course: {results.interceptCourseDeg?.toFixed(1)}°T</p>
             <p>Time to Intercept: {results.timeToInterceptMin?.toFixed(0)} min</p>
-          </div>
+          </div>}
         </CardContent>
       </Card>
     </div>

@@ -344,7 +344,7 @@ export default function ManeuveringBoard({
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
-          className="relative w-full max-w-[640px] aspect-[2400/2618] bg-[#f7f5ee] rounded-xl overflow-hidden border border-slate-400 shadow-inner select-none cursor-grab active:cursor-grabbing flex items-center justify-center"
+          className="relative w-full max-w-[640px] aspect-[2400/2618] bg-white rounded-xl overflow-hidden border border-slate-400 shadow-inner select-none cursor-grab active:cursor-grabbing flex items-center justify-center"
         >
           <div
             style={{
@@ -352,13 +352,14 @@ export default function ManeuveringBoard({
               transformOrigin: 'center center',
               transition: isDragging ? 'none' : 'transform 0.1s ease-out',
             }}
-            className="relative w-full h-full"
+            className="relative w-full h-full bg-white"
           >
             {/* The Authentic Template Image (scanned DMAHTC 5090) */}
             <img
               src="/templates/maneuvering_board_web.jpg"
               alt="Authentic Maneuvering Board DMAHTC 5090"
               className="w-full h-full object-contain pointer-events-none"
+              style={{ filter: 'invert(1) hue-rotate(180deg)' }}
               draggable={false}
             />
 

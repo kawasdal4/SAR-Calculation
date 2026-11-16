@@ -176,7 +176,7 @@ export default function ASWWorksheet({
   const [distressTime, setDistressTime] = useState<string>(initialState?.distressTime ?? '');
   const [datumTime, setDatumTime] = useState<string>(initialState?.datumTime ?? '');
   const [obsIntervalMode, setObsIntervalMode] = useState<'6h' | '3h'>(initialState?.obsIntervalMode ?? '6h');
-  const [aswErr, setAswErr] = useState<number>(initialState?.aswErr ?? 2.0);
+  const [aswErr, setAswErr] = useState<number>(initialState?.aswErr ?? 0);
 
   // Auto-generate observation rows when distress/datum time or interval mode changes
   const regenerateObs = useCallback(() => {
@@ -202,12 +202,12 @@ export default function ASWWorksheet({
   }, [regenerateObs]);
   const [showTrigColumns, setShowTrigColumns] = useState<boolean>(false);
 
-  const [caseTitle, setCaseTitle] = useState(initialState?.caseTitle ?? 'OPERASI SAR');
-  const [caseNumber, setCaseNumber] = useState('SAR-01');
-  const [searchDate, setSearchDate] = useState('15 Nov 2026');
-  const [plannerName, setPlannerName] = useState('SAR Planner Basarnas');
-  const [datumNumber, setDatumNumber] = useState('01');
-  const [searchPlan, setSearchPlan] = useState<'A' | 'B' | 'C'>('A');
+  const [caseTitle, setCaseTitle] = useState(initialState?.caseTitle ?? '-');
+  const [caseNumber, setCaseNumber] = useState('0');
+  const [searchDate, setSearchDate] = useState('-');
+  const [plannerName, setPlannerName] = useState('-');
+  const [datumNumber, setDatumNumber] = useState('0');
+  const [searchPlan, setSearchPlan] = useState<'A' | 'B' | 'C' | ''>('');
 
   // Handle external wind override if active
   useEffect(() => {
@@ -314,16 +314,16 @@ export default function ASWWorksheet({
 
   const addRow = () => {
     const last = observations[observations.length - 1];
-    const newObs = last ? last.timeEnd : '12.00';
+    const newObs = last ? last.timeEnd : '-';
     setObservations([
       ...observations,
       {
         timeObs: newObs,
         timeStart: newObs,
-        timeEnd: '18.00',
-        hours: 6,
-        windDirFrom: 270,
-        windSpeed: 10,
+        timeEnd: '-',
+        hours: 0,
+        windDirFrom: 0,
+        windSpeed: 0,
       },
     ]);
   };
@@ -401,7 +401,7 @@ export default function ASWWorksheet({
                 spellCheck={false}
                 data-ms-editor="true"
                 onChange={(e) => setDistressTime(e.target.value)}
-                placeholder="1122.1600 Z"
+                placeholder="-"
                 className="w-28 text-center font-bold text-blue-900 bg-white border border-amber-300 rounded px-1.5 py-0.5 font-mono shadow-2xs"
               />
             </div>
@@ -416,7 +416,7 @@ export default function ASWWorksheet({
                 spellCheck={false}
                 data-ms-editor="true"
                 onChange={(e) => setDatumTime(e.target.value)}
-                placeholder="1123.0700 Z"
+                placeholder="-"
                 className="w-28 text-center font-bold text-blue-900 bg-white border border-amber-300 rounded px-1.5 py-0.5 font-mono shadow-2xs"
               />
             </div>

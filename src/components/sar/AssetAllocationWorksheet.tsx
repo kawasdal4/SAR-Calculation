@@ -82,18 +82,18 @@ export default function AssetAllocationWorksheet({
     const isAir = nextIdx % 2 === 0;
     const newAsset: SruAssetInput = {
       id: `sru-${Date.now()}`,
-      name: isAir ? `HR-15${nextIdx}` : `KN SAR 24${nextIdx}`,
+      name: '-',
       type: isAir ? 'fixed-wing-aircraft' : 'rescue-vessel',
-      homeBaseName: 'Pangkalan Tanjung Priok (Jakarta)',
-      homeBasePos: { lat: -6.095, lng: 106.885 },
-      transitSpeedKts: isAir ? 180 : 18,
-      searchSpeedKts: isAir ? 120 : 12,
-      enduranceHours: isAir ? 4 : 8,
-      daylightHours: 10,
-      fuelReservePct: 15,
-      sweepWidthNm: isAir ? 1.0 : 2.0,
-      targetCoverage: 1.0,
-      assignedSubArea: `Sub-Area ${nextIdx}`,
+      homeBaseName: '-',
+      homeBasePos: { lat: 0, lng: 0 },
+      transitSpeedKts: 0,
+      searchSpeedKts: 0,
+      enduranceHours: 0,
+      daylightHours: 0,
+      fuelReservePct: 0,
+      sweepWidthNm: 0,
+      targetCoverage: 0,
+      assignedSubArea: '-',
     };
     onAssetsChange([...assets, newAsset]);
     setSelectedAssetId(newAsset.id);

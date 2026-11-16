@@ -18,48 +18,32 @@ interface BriefingFormProps {
 }
 
 export default function BriefingForm({
-  lkp = { lat: -6.1, lng: 106.8 },
+  lkp = { lat: 0, lng: 0 },
   datumResults,
   searchResults,
-  aswDirFrom = 90,
-  aswSpeed = 15,
+  aswDirFrom = 0,
+  aswSpeed = 0,
   className = '',
 }: BriefingFormProps) {
   // Auto-filled state
   const [formData, setFormData] = useState({
-    opTitle: 'Operasi SAR Kecelakaan Kapal / Pesawat',
-    date: new Date().toISOString().split('T')[0],
-    sruName: 'KN SAR Yudistira / HR-3601',
-    captainPilot: 'Capt. Hendra / Pilot Mayor Pnb Bagus',
-    accidentDetails:
-      'Kapal nelayan mengalami mati mesin dan hilang kontak di perairan setelah cuaca buruk.',
-    targetDetails: 'KM Baruna 02 (Panjang 18m, Kayu Lambung Biru Putih)',
-    pobCount: '5 Orang POB (Semua Laki-laki)',
-    targetFrequencies: 'VHF Ch. 16 (156.800 MHz) / EPIRB 406 MHz',
+    opTitle: '-', date: '-', sruName: '-', captainPilot: '-', accidentDetails: '-',
+    targetDetails: '-', pobCount: '0', targetFrequencies: '-',
     searchAreaDesc: searchResults
       ? `Luas Area: ${searchResults.Ao.toFixed(0)} NM², Dimensi: ${searchResults.searchAreaLength.toFixed(1)} × ${searchResults.searchAreaWidth.toFixed(1)} NM`
-      : 'Luas Area: 400 NM²',
+      : '0',
     searchAreaCoords: datumResults
       ? `A: ${formatDMS(datumResults.datumLeft.lat + 0.1, false)} - ${formatDMS(datumResults.datumLeft.lng - 0.1, true)}\nB: ${formatDMS(datumResults.datumRight.lat + 0.1, false)} - ${formatDMS(datumResults.datumRight.lng + 0.1, true)}\nC: ${formatDMS(datumResults.datumRight.lat - 0.1, false)} - ${formatDMS(datumResults.datumRight.lng + 0.1, true)}\nD: ${formatDMS(datumResults.datumLeft.lat - 0.1, false)} - ${formatDMS(datumResults.datumLeft.lng - 0.1, true)}`
-      : 'A: 06°00\'00"S - 106°40\'00"E\nB: 06°00\'00"S - 107°00\'00"E\nC: 06°20\'00"S - 107°00\'00"E\nD: 06°20\'00"S - 106°40\'00"E',
-    searchPattern: 'Parallel Track Search (PS) — Track Spacing 1.5 NM',
-    aircraftAltitude: 'Air Asset: 500 - 1000 ft AGL / Maritime: Sea Level',
-    weatherData: `Angin: ${aswDirFrom}°T / ${aswSpeed} kts, Cuaca: Berawan, Gelombang: 1.0 - 1.5m, Visibilitas: 5 - 8 NM`,
+      : '-',
+    searchPattern: '-', aircraftAltitude: '-', weatherData: '-',
     cspCoords: searchResults
       ? `CSP: ${formatDMS(searchResults.searchAreaCenter.lat, false)}, ${formatDMS(searchResults.searchAreaCenter.lng, true)}`
-      : 'CSP: 06°05\'00"S, 106°45\'00"E',
-    commsFreqs:
-      'Kansar Primary: HF 5828 kHz / VHF Marine Ch. 16, Working Ch. 68 / Inter-SRU VHF Ch. 72',
+      : '-',
+    commsFreqs: '-',
 
     // Debriefing Section
-    pointOfDeparture: 'Dermaga Basarnas / Lanud',
-    pointOfLanding: 'Dermaga Basarnas / Lanud',
-    depTime: '07:00 WIB',
-    arrTime: '13:00 WIB',
-    fieldObstacles: 'Gelombang laut 1.5m dan arus permukaan cukup kuat.',
-    observerCount: '6 Personel Observer + 2 Teropong Binokular',
-    victimFoundStatus: 'Korban belum ditemukan / Pencarian dilanjutkan hari berikutnya.',
-    otherNotes: 'Ditemukan serpihan jeriken dan pelampung oranye di sektor tenggara sub-area.',
+    pointOfDeparture: '-', pointOfLanding: '-', depTime: '-', arrTime: '-',
+    fieldObstacles: '-', observerCount: '0', victimFoundStatus: '-', otherNotes: '-',
   });
 
   const updateField = (key: string, val: string) => {

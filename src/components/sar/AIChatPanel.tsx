@@ -18,6 +18,7 @@ import {
   File,
   UploadCloud,
 } from 'lucide-react';
+import { formatDMS } from '@/lib/sar/coordFormat';
 
 interface UploadedAttachment {
   name: string;
@@ -44,7 +45,7 @@ interface AIChatPanelProps {
   }) => void;
   onApplyAWA?: (data: {
     distressAltFt: number;
-    windData: { altObs: string; altLow: number; altHigh: number; windDirFrom: number; windSpeed: number }[];
+    windData: { altObs: string; windDirFrom: number; windSpeed: number }[];
     caseTitle?: string;
   }) => void;
   onApplyLKP?: (data: { lat: number; lng: number }) => void;
@@ -358,7 +359,7 @@ export default function AIChatPanel({
       }
       case 'set_lkp': {
         const a = fc.args as { lat?: number; lng?: number };
-        return `📍 LKP: ${a.lat?.toFixed(4)}, ${a.lng?.toFixed(4)}`;
+        return `📍 LKP: ${formatDMS(a.lat ?? 0, false)}, ${formatDMS(a.lng ?? 0, true)}`;
       }
       default:
         return `🔧 ${fc.name}`;

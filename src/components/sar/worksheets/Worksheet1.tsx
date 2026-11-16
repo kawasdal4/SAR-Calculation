@@ -1,9 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FileSpreadsheet, Printer } from 'lucide-react';
-import { type LatLng } from '@/lib/sar/sarCalculations';
+import { type LatLng, distanceNm } from '@/lib/sar/sarCalculations';
 import { formatDMS } from '@/lib/sar/coordFormat';
 import type { DatumData, DatumResults } from '@/components/sar/DatumWorksheet';
 
@@ -14,6 +14,9 @@ interface Worksheet1Props {
   aswDirFrom: number;
   aswSpeed: number;
   readOnly?: boolean;
+  onAoChange?: (ao: number) => void;
+  selectedFs?: number;
+  onFsChange?: (fs: number) => void;
 }
 
 export default function Worksheet1({
@@ -23,62 +26,74 @@ export default function Worksheet1({
   aswDirFrom,
   aswSpeed,
   readOnly = false,
+  onAoChange,
+  selectedFs,
+  onFsChange,
 }: Worksheet1Props) {
+  const [localFs, setLocalFs] = useState(1.1);
+  const fsSelected = selectedFs ?? localFs;
+  const [driftErrorPercent, setDriftErrorPercent] = useState(12.5);
+  const [measuredDistances, setMeasuredDistances] = useState({ left: '', right: '', leftRight: '' });
   // Calculations & parameters with safe defaults
-  const hours = datumData?.driftInterval ?? 6;
-  const targetDesc = datumResults?.lw?.objectType?.label ?? 'Life Raft (C-402)';
+  const hours = datumData?.driftInterval ?? 0;
+  const targetDesc = datumResults?.lw?.objectType?.label ?? '-';
   const lkpStr = `${formatDMS(lkp.lat, false)} - ${formatDMS(lkp.lng, true)}`;
 
   // Sea Current (SC)
-  const scDir = datumResults?.twc ? Number(datumResults.twc.twc.dir.toFixed(0)) : 135;
-  const scSpeed = datumResults?.twc ? Number(datumResults.twc.twc.mag.toFixed(2)) : 0.5;
+  const scDir = datumData?.seaCurrent.dir ?? 0;
+  const scSpeed = datumData?.seaCurrent.mag ?? 0;
   const scDist = scSpeed * hours;
 
   // Surface Wind (ASW)
-  const windDir = aswDirFrom || 270;
-  const windSpeed = aswSpeed || 15;
-  const windRecip = (windDir + 180) % 360;
+  const windDir = aswSpeed > 0 ? aswDirFrom : 0;
+  const windSpeed = aswSpeed;
+  const windRecip = windSpeed > 0 ? (windDir + 180) % 360 : 0;
 
   // Wind Current (WC)
-  const wcSpeed = datumResults?.wc?.wcDrift ?? 0.25;
+  const wcSpeed = datumResults?.wc?.wcDrift ?? 0;
   const wcDir = datumResults?.wc?.wcSet ?? windRecip;
   const wcDist = wcSpeed * hours;
 
   // Leeway (LW)
-  const lwDivAngle = datumResults?.lw?.divergenceAngle ?? 24;
+  const lwDivAngle = datumResults?.lw?.divergenceAngle ?? 0;
   const lwDirL = (windRecip - lwDivAngle + 360) % 360;
   const lwDirR = (windRecip + lwDivAngle) % 360;
-  const lwMult = datumResults?.lw?.objectType?.leewayRate ?? 0.037;
-  const lwMod = 0.11;
-  const lwSpeed = datumResults?.lw?.leewaySpeed ?? (lwMult * windSpeed + lwMod);
+  const lwMult = datumResults?.lw?.objectType?.leewayRate ?? 0;
+  const lwMod = datumResults?.lw?.objectType?.leewayModifier ?? 0;
+  const lwSpeed = datumResults?.lw?.leewaySpeed ?? 0;
   const lwDist = (datumResults?.lw?.leewaySpeed ?? lwSpeed) * hours;
 
-  // Drift Error (de)
-  const distL = datumResults ? Number((datumResults.driftDistance * 0.95).toFixed(1)) : Number((hours * 1.0).toFixed(1));
-  const distR = datumResults ? Number((datumResults.driftDistance * 1.05).toFixed(1)) : Number((hours * 1.2).toFixed(1));
-  const deL = Number((distL * 0.125).toFixed(4));
-  const deR = Number((distR * 0.125).toFixed(4));
-  const distLR = datumResults?.divergenceDistance ?? 5.0;
-  const De = datumResults?.De ?? Number(((deL + deR + distLR) / 2).toFixed(4));
+  // Drift error (Worksheet 1): use optional map measurements, otherwise show analytical estimates.
+  const estimatedDistL = datumResults ? distanceNm(lkp, datumResults.datumLeft) : 0;
+  const estimatedDistR = datumResults ? distanceNm(lkp, datumResults.datumRight) : 0;
+  const estimatedDistLR = datumResults ? distanceNm(datumResults.datumLeft, datumResults.datumRight) : 0;
+  const numericOverride = (value: string, fallback: number) => value.trim() !== '' && Number.isFinite(Number(value)) && Number(value) >= 0 ? Number(value) : fallback;
+  const distL = numericOverride(measuredDistances.left, estimatedDistL);
+  const distR = numericOverride(measuredDistances.right, estimatedDistR);
+  const distLR = numericOverride(measuredDistances.leftRight, estimatedDistLR);
+  const deL = distL * driftErrorPercent / 100;
+  const deR = distR * driftErrorPercent / 100;
+  const De = datumResults ? (deL + deR + distLR) / 2 : 0;
 
   // Fix Error
-  const distressCraftX = 0.1;
-  const searchCraftY = 0.1;
+  const distressCraftX = datumResults?.X ?? 0;
+  const searchCraftY = datumResults?.Y ?? 0;
 
   // Total Errors (E)
-  const E_squared = Number((De * De + distressCraftX * distressCraftX + searchCraftY * searchCraftY).toFixed(4));
-  const E = datumResults?.E ?? Number(Math.sqrt(E_squared).toFixed(2));
+  const E_squared = De * De + distressCraftX * distressCraftX + searchCraftY * searchCraftY;
+  const E = Math.sqrt(E_squared);
 
   // Search Area
   const fsOptions = [1.1, 1.6, 2.0, 2.3, 2.5];
-  const fsSelected = 1.6;
-  const R_exact = Number((E * fsSelected).toFixed(2));
+  const R_exact = E * fsSelected;
   const R_round = Math.ceil(R_exact);
   const Ao = 4 * R_round * R_round;
 
   const handlePrint = () => {
     window.print();
   };
+
+  useEffect(() => { onAoChange?.(Ao); }, [Ao, onAoChange]);
 
   return (
     <Card className="border-slate-400 shadow-md bg-white overflow-hidden text-slate-900 print:shadow-none print:border-none">
@@ -153,7 +168,7 @@ export default function Worksheet1({
                 </td>
                 <td colSpan={3} className="py-2 px-3">
                   <span className="font-bold font-mono text-blue-900 bg-blue-50/80 px-2 py-0.5 rounded border border-blue-200 inline-block ">
-                    0209.01000 UTC (0800 G)
+                    -
                   </span>
                 </td>
               </tr>
@@ -324,7 +339,7 @@ export default function Worksheet1({
                   </span>{' '}
                   <span className="text-slate-600 font-sans">Multiplier ×</span>{' '}
                   <span className="font-bold text-blue-900 bg-blue-50/80 px-1.5 py-0.5 rounded border border-blue-200">
-                    {windSpeed.toFixed(0)}
+                    {windSpeed.toFixed(2)}
                   </span>{' '}
                   <span className="text-slate-600 font-sans">Wind Speed =</span>{' '}
                   <span className="font-bold text-blue-900 bg-blue-50/80 px-1.5 py-0.5 rounded border border-blue-200">
@@ -369,19 +384,29 @@ export default function Worksheet1({
               </tr>
               <tr className="border-b border-slate-300">
                 <td className="py-2 px-3 font-medium text-slate-700 border-r border-slate-300">
-                  Distance(L) & Distance ( R )
+                  Distance (L/R), ukur di peta atau pakai estimasi
                 </td>
                 <td colSpan={3} className="py-2 px-3 font-mono">
-                  <span className="text-slate-600 font-sans">Distance(L):</span>{' '}
+                  <span className="text-slate-600 font-sans">L:</span>{' '}
+                  <input aria-label="Pengukuran jarak drift kiri dari peta NM" type="number" min="0" step="0.1" value={measuredDistances.left} onChange={(event) => setMeasuredDistances((current) => ({ ...current, left: event.target.value }))} disabled={readOnly} placeholder={estimatedDistL.toFixed(1)} className="w-20 rounded border border-slate-300 bg-white px-1.5 py-0.5 text-xs" />{' '}
                   <span className="font-bold text-blue-900 bg-blue-50/80 px-2 py-0.5 rounded border border-blue-200">
                     {distL.toFixed(1)}
                   </span>{' '}
                   <span className="text-slate-600 font-sans">nm |</span>{' '}
-                  <span className="text-slate-600 font-sans ml-2">Distance ( R ):</span>{' '}
+                  <span className="text-slate-600 font-sans ml-2">R:</span>{' '}
+                  <input aria-label="Pengukuran jarak drift kanan dari peta NM" type="number" min="0" step="0.1" value={measuredDistances.right} onChange={(event) => setMeasuredDistances((current) => ({ ...current, right: event.target.value }))} disabled={readOnly} placeholder={estimatedDistR.toFixed(1)} className="w-20 rounded border border-slate-300 bg-white px-1.5 py-0.5 text-xs" />{' '}
                   <span className="font-bold text-blue-900 bg-blue-50/80 px-2 py-0.5 rounded border border-blue-200">
                     {distR.toFixed(1)}
                   </span>{' '}
                   <span className="text-slate-600 font-sans">nm</span>
+                  <div className="mt-1 text-[10px] text-slate-500">Kosong = estimasi analitik dari posisi Datum; isi untuk mengganti dengan hasil ukur skala lintang.</div>
+                </td>
+              </tr>
+              <tr className="border-b border-slate-300">
+                <td className="py-2 px-3 font-medium text-slate-700 border-r border-slate-300">Persentase drift error (de)</td>
+                <td colSpan={3} className="py-2 px-3 font-mono">
+                  <input aria-label="Persentase drift error" type="number" min="12.5" max="33" step="0.5" value={driftErrorPercent} onChange={(event) => setDriftErrorPercent(Math.min(33, Math.max(12.5, Number(event.target.value) || 12.5)))} disabled={readOnly} className="w-24 rounded border border-slate-300 bg-white px-2 py-1 text-xs" />{' '}
+                  <span className="text-[10px] text-slate-500">% (12.5–33, ikuti instruksi kasus; contoh panduan: 12.5%)</span>
                 </td>
               </tr>
               <tr className="border-b border-slate-300">
@@ -403,15 +428,16 @@ export default function Worksheet1({
               </tr>
               <tr className="border-b-2 border-slate-700">
                 <td className="py-2 px-3 font-medium text-slate-700 border-r border-slate-300">
-                  Distance Left/Right & Total Drift Error (De)
+                  Distance L/R & Total Drift Error (De)
                 </td>
                 <td colSpan={3} className="py-2 px-3 font-mono">
-                  <span className="text-slate-600 font-sans">Distance L/R =</span>{' '}
+                  <span className="text-slate-600 font-sans">Jarak L/R:</span>{' '}
+                  <input aria-label="Pengukuran jarak antara datum kiri dan kanan NM" type="number" min="0" step="0.1" value={measuredDistances.leftRight} onChange={(event) => setMeasuredDistances((current) => ({ ...current, leftRight: event.target.value }))} disabled={readOnly} placeholder={estimatedDistLR.toFixed(1)} className="w-20 rounded border border-slate-300 bg-white px-1.5 py-0.5 text-xs" />{' '}
                   <span className="font-bold text-blue-900 bg-blue-50/80 px-2 py-0.5 rounded border border-blue-200">
                     {distLR.toFixed(1)}
                   </span>{' '}
                   <span className="text-slate-600 font-sans">nm |</span>{' '}
-                  <span className="text-slate-600 font-sans ml-2">De = [de(L) + de(R) + Dist L/R] / 2 =</span>{' '}
+                  <span className="text-slate-600 font-sans ml-2">De = [de(L) + de(R) + Distance L/R] / 2 =</span>{' '}
                   <span className="font-bold text-emerald-900 bg-emerald-50 px-2.5 py-0.5 rounded border border-emerald-300">
                     {De.toFixed(4)}
                   </span>{' '}
@@ -427,7 +453,7 @@ export default function Worksheet1({
               </tr>
               <tr className="border-b border-slate-300">
                 <td className="py-2 px-3 font-medium text-slate-700 border-r border-slate-300">
-                  Distress craft error (x): (Table J.1, J.2 or J.3)
+                  Distress craft error (x): Worksheet Datum / Table J
                 </td>
                 <td colSpan={3} className="py-2 px-3 font-mono">
                   <span className="font-bold text-blue-900 bg-blue-50/80 px-2 py-0.5 rounded border border-blue-200">
@@ -438,7 +464,7 @@ export default function Worksheet1({
               </tr>
               <tr className="border-b-2 border-slate-700">
                 <td className="py-2 px-3 font-medium text-slate-700 border-r border-slate-300">
-                  Search craft error (y): (Table J.1, J.2 or J.3)
+                  Search craft error (y): Worksheet Datum / Table J
                 </td>
                 <td colSpan={3} className="py-2 px-3 font-mono">
                   <span className="font-bold text-blue-900 bg-blue-50/80 px-2 py-0.5 rounded border border-blue-200">
@@ -483,20 +509,22 @@ export default function Worksheet1({
                 <td colSpan={3} className="py-2 px-3 font-mono">
                   <div className="flex flex-wrap items-center gap-2">
                     {fsOptions.map((opt) => (
-                      <span
+                      <button
+                        type="button"
+                        disabled={readOnly}
+                        onClick={() => { setLocalFs(opt); onFsChange?.(opt); }}
                         key={opt}
-                        className={`px-2.5 py-0.5 rounded border text-xs ${
+                        aria-pressed={opt === fsSelected}
+                        className={`px-2.5 py-0.5 rounded border text-xs disabled:cursor-not-allowed ${
                           opt === fsSelected
                             ? 'bg-blue-600 text-white font-bold border-blue-700 shadow-2xs'
                             : 'bg-slate-100 text-slate-600 border-slate-300'
                         }`}
                       >
                         {opt}
-                      </span>
+                      </button>
                     ))}
-                    <span className="text-slate-500 font-sans text-[11px] ml-2">
-                      (Dipilih fs = {fsSelected})
-                    </span>
+                    <span className="text-slate-500 font-sans text-[11px] ml-2">Safety factor pencarian ke-{fsOptions.indexOf(fsSelected) + 1}; pilih sesuai skenario.</span>
                   </div>
                 </td>
               </tr>
@@ -524,10 +552,10 @@ export default function Worksheet1({
               </tr>
               <tr className="bg-emerald-50/50">
                 <td className="py-3 px-3 font-bold text-emerald-950 border-r border-slate-300 text-sm">
-                  Search Area (Ao = 4 × R²)
+                  Search Area (Ao = (2R)²)
                 </td>
                 <td colSpan={3} className="py-3 px-3 font-mono">
-                  <span className="text-slate-700 font-sans">4 × ({R_round})² =</span>{' '}
+                  <span className="text-slate-700 font-sans">(2 × {R_round})² =</span>{' '}
                   <span className="font-black text-emerald-900 bg-emerald-100 text-base px-3.5 py-1 rounded border-2 border-emerald-500 shadow-2xs">
                     {Ao.toLocaleString()} NM²
                   </span>

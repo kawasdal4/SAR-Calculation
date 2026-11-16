@@ -18,44 +18,18 @@ interface Worksheet7Props {
 }
 
 export default function Worksheet7({ readOnly = false }: Worksheet7Props) {
-  const [rows, setRows] = useState<SubAreaRow[]>([
-    {
-      id: '1',
-      subAreaName: 'A-1',
-      facilityName: 'KN SAR Yudistira (Maritime)',
-      areaNm2: 120,
-      sweepWidthNm: 1.5,
-      trackSpacingNm: 1.5,
-    },
-    {
-      id: '2',
-      subAreaName: 'A-2',
-      facilityName: 'Heli Dauphin HR-3601 (Air)',
-      areaNm2: 180,
-      sweepWidthNm: 2.5,
-      trackSpacingNm: 2.0,
-    },
-    {
-      id: '3',
-      subAreaName: 'A-3',
-      facilityName: 'RIB 01 Kansar (Maritime)',
-      areaNm2: 60,
-      sweepWidthNm: 1.0,
-      trackSpacingNm: 1.0,
-    },
-  ]);
+  const [rows, setRows] = useState<SubAreaRow[]>([]);
 
   const addRow = () => {
-    const nextIdx = rows.length + 1;
     setRows([
       ...rows,
       {
         id: String(Date.now()),
-        subAreaName: `A-${nextIdx}`,
-        facilityName: `SRU ${nextIdx}`,
-        areaNm2: 100,
-        sweepWidthNm: 2.0,
-        trackSpacingNm: 2.0,
+        subAreaName: '-',
+        facilityName: '-',
+        areaNm2: 0,
+        sweepWidthNm: 0,
+        trackSpacingNm: 0,
       },
     ]);
   };

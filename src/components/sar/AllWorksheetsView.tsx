@@ -25,6 +25,9 @@ interface AllWorksheetsViewProps {
   datumData: DatumData | null;
   datumResults: DatumResults | null;
   searchResults: SearchPlanResults | null;
+  ws1Ao: number;
+  onWorksheet1AoChange?: (ao: number) => void;
+  selectedFs: number;
   aswDirFrom: number;
   aswSpeed: number;
   awaDirFrom: number;
@@ -41,29 +44,16 @@ export default function AllWorksheetsView({
   datumData,
   datumResults,
   searchResults,
+  ws1Ao,
+  onWorksheet1AoChange,
+  selectedFs,
   aswDirFrom,
   aswSpeed,
   awaDirFrom,
   awaSpeed,
-  csp = { lat: -6.05, lng: 106.85 },
-  exitPoint = { lat: -6.15, lng: 106.95 },
-  assets = [
-    {
-      id: 'sru-1',
-      name: 'KN SAR 246',
-      type: 'rescue-vessel',
-      homeBaseName: 'Pangkalan Tanjung Priok (Jakarta)',
-      homeBasePos: { lat: -6.095, lng: 106.885 },
-      transitSpeedKts: 18,
-      searchSpeedKts: 12,
-      enduranceHours: 12,
-      daylightHours: 10,
-      fuelReservePct: 15,
-      sweepWidthNm: 2.5,
-      targetCoverage: 1.0,
-      assignedSubArea: 'Sub-Area 1',
-    },
-  ],
+  csp = { lat: 0, lng: 0 },
+  exitPoint = { lat: 0, lng: 0 },
+  assets = [],
   onAssetsChange = () => {},
   className = '',
 }: AllWorksheetsViewProps) {
@@ -75,8 +65,6 @@ export default function AllWorksheetsView({
   const handlePrintAll = () => {
     window.print();
   };
-
-  const ws1Ao = searchResults?.Ao ?? (datumResults ? 4 * Math.ceil(datumResults.E * 1.6) * Math.ceil(datumResults.E * 1.6) : 320);
 
   if (!mounted) {
     return (
@@ -223,7 +211,7 @@ export default function AllWorksheetsView({
               Langkah 4: Worksheet 1 (Marine Datum Planning) — Appendix K-2
             </span>
             <p className="text-xs text-slate-500 mt-1">
-              Menggunakan ASW dari observasi angin permukaan untuk menghitung Wind Current (WC), Total Water Current (TWC), Leeway, Posisi Datum, dan Luas Search Area (Ao).
+              Menampilkan data Sea Current, Wind Current (WC), dan Leeway; merangkum Drift Error, Fix Error, Total Error (E), Safety Factor (Fs), radius, serta Search Area (Ao).
             </p>
           </div>
           <Worksheet1
@@ -233,6 +221,8 @@ export default function AllWorksheetsView({
             aswDirFrom={aswDirFrom}
             aswSpeed={aswSpeed}
             readOnly
+            selectedFs={selectedFs}
+            onAoChange={onWorksheet1AoChange}
           />
         </section>
 
@@ -268,8 +258,9 @@ export default function AllWorksheetsView({
           </div>
           <Worksheet8
             ws1Ao={ws1Ao}
-            initialC={searchResults?.C ?? 1.0}
-            initialPod={searchResults?.POD ?? 0.63}
+            windKts={datumData?.aswSpeed ?? 0}
+            initialC={searchResults?.C ?? 0}
+            initialPod={searchResults?.POD ?? 0}
             readOnly
           />
         </section>

@@ -91,7 +91,7 @@ const tools: FunctionDeclaration[] = [
   },
   {
     name: 'set_awa_case',
-    description: 'Mengisi worksheet AWA dengan data kasus penerbangan termasuk altitude dan data angin per ketinggian.',
+    description: 'Mengisi worksheet AWA dengan data level pengamatan angin. Sertakan level 0 ft dan minimal satu level pada atau di atas target; interval lapisan dihitung otomatis dari midpoint.',
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
@@ -107,15 +107,7 @@ const tools: FunctionDeclaration[] = [
             properties: {
               altObs: {
                 type: SchemaType.STRING,
-                description: 'Ketinggian observasi dalam feet, contoh: "3000"',
-              },
-              altLow: {
-                type: SchemaType.NUMBER,
-                description: 'Batas bawah ketinggian (feet)',
-              },
-              altHigh: {
-                type: SchemaType.NUMBER,
-                description: 'Batas atas ketinggian (feet)',
+                description: 'Altitude observasi dalam feet, contoh: "0" untuk Surface atau "3000"',
               },
               windDirFrom: {
                 type: SchemaType.NUMBER,
@@ -126,7 +118,7 @@ const tools: FunctionDeclaration[] = [
                 description: 'Kecepatan angin (knots)',
               },
             },
-            required: ['altObs', 'altLow', 'altHigh', 'windDirFrom', 'windSpeed'],
+            required: ['altObs', 'windDirFrom', 'windSpeed'],
           },
         },
         caseTitle: {

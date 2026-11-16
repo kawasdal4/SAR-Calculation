@@ -141,9 +141,12 @@ export function rectangleCorners(
 // ============================================================================
 
 export interface AWAObservation {
+  /** Observation altitude in feet. `altObs` is kept for older saved worksheets. */
+  altitudeFt?: number;
   altObs?: string;
-  altLow: number;
-  altHigh: number;
+  /** Legacy saved fields; when altitudeFt/altObs are missing, altLow is used as the observation level. */
+  altLow?: number;
+  altHigh?: number;
   windDirFrom: number;
   windSpeed: number;
 }
@@ -153,46 +156,143 @@ export interface AWAResult {
   totalWindVector: Vector;
   awaDirFrom: number;
   awaSpeed: number;
+  vectorSumKts: number;
+  directionDefined: boolean;
+  isValid: boolean;
+  errors: string[];
   rows: Array<{
+    inputIndex: number;
+    altitudeFt: number;
+    intervalLowFt: number | null;
+    intervalHighFt: number | null;
     altitudeKft: number;
     windDirFrom: number;
     windSpeed: number;
     contribution: Vector;
+    contributionKts: number;
+    eastComponent: number;
+    northComponent: number;
   }>;
 }
 
-export function computeAWA(observations: AWAObservation[]): AWAResult {
-  const rows: AWAResult['rows'] = [];
-  let totalAltKft = 0;
-  const contributions: Vector[] = [];
+export function computeAWA(observations: AWAObservation[], targetAltitudeFt: number): AWAResult {
+  const emptyResult = (errors: string[]): AWAResult => ({
+    totalAltLossKft: 0,
+    totalWindVector: { dir: 0, mag: 0 },
+    awaDirFrom: 0,
+    awaSpeed: 0,
+    vectorSumKts: 0,
+    directionDefined: false,
+    isValid: false,
+    errors,
+    rows: [],
+  });
+  const errors: string[] = [];
 
-  for (const obs of observations) {
-    const altKft = Math.max(0, (obs.altHigh - obs.altLow) / 1000);
-    if (altKft === 0) continue;
-    const downwindDir = normalizeAngle(obs.windDirFrom + 180);
-    const contribution: Vector = {
-      dir: downwindDir,
-      mag: altKft * obs.windSpeed,
-    };
-    rows.push({
-      altitudeKft: altKft,
-      windDirFrom: obs.windDirFrom,
-      windSpeed: obs.windSpeed,
-      contribution,
-    });
-    totalAltKft += altKft;
-    contributions.push(contribution);
+  if (!Number.isFinite(targetAltitudeFt) || targetAltitudeFt <= 0) {
+    errors.push('Ketinggian target harus lebih besar dari 0 ft.');
+  }
+  if (!Array.isArray(observations) || observations.length === 0) {
+    errors.push('Tambahkan data pengamatan angin terlebih dahulu.');
+    return emptyResult(errors);
   }
 
-  const totalVector = addVectors(...contributions);
-  const awaSpeed = totalAltKft > 0 ? totalVector.mag / totalAltKft : 0;
-  const awaDirFrom = normalizeAngle(totalVector.dir - 180);
+  const parsed = observations.map((obs, inputIndex) => {
+    const hasAltitudeText = typeof obs.altObs === 'string';
+    const altitudeValue = hasAltitudeText
+      ? (obs.altObs as string).trim() === '' ? Number.NaN : Number(obs.altObs)
+      : Number.isFinite(obs.altitudeFt) ? obs.altitudeFt as number : obs.altLow ?? Number.NaN;
+    const altitudeValid = Number.isFinite(altitudeValue) && altitudeValue >= 0;
+    const directionValid = Number.isFinite(obs.windDirFrom) && obs.windDirFrom >= 0 && obs.windDirFrom <= 360;
+    const speedValid = Number.isFinite(obs.windSpeed) && obs.windSpeed >= 0;
+
+    if (!altitudeValid) errors.push(`Baris ${inputIndex + 1}: altitude harus angka >= 0 ft.`);
+    if (!directionValid) errors.push(`Baris ${inputIndex + 1}: arah angin harus 000–360°T.`);
+    if (!speedValid) errors.push(`Baris ${inputIndex + 1}: kecepatan angin harus angka >= 0 kts.`);
+
+    return {
+      inputIndex,
+      altitudeFt: altitudeValid ? altitudeValue : Number.NaN,
+      windDirFrom: directionValid ? normalizeAngle(obs.windDirFrom) : Number.NaN,
+      windSpeed: speedValid ? obs.windSpeed : Number.NaN,
+    };
+  });
+
+  const validLevels = parsed.filter((row) => Number.isFinite(row.altitudeFt)).sort((a, b) => a.altitudeFt - b.altitudeFt);
+  for (let i = 1; i < validLevels.length; i += 1) {
+    if (validLevels[i].altitudeFt === validLevels[i - 1].altitudeFt) {
+      errors.push(`Altitude ${validLevels[i].altitudeFt} ft terduplikasi; setiap level harus unik.`);
+    }
+  }
+  if (!validLevels.some((row) => row.altitudeFt === 0)) {
+    errors.push('Data harus mencakup pengamatan Surface / 0 ft.');
+  }
+  if (
+    Number.isFinite(targetAltitudeFt) &&
+    targetAltitudeFt > 0 &&
+    validLevels.length > 0 &&
+    validLevels[validLevels.length - 1].altitudeFt < targetAltitudeFt
+  ) {
+    errors.push(`Data angin tertinggi (${validLevels[validLevels.length - 1].altitudeFt} ft) belum mencapai target ${targetAltitudeFt} ft; tambahkan level di atau di atas target.`);
+  }
+  if (errors.length > 0) return emptyResult(errors);
+
+  let totalAltKft = 0;
+  let eastTotal = 0;
+  let northTotal = 0;
+  const rows: AWAResult['rows'] = validLevels.map((observation, index) => {
+    const previous = validLevels[index - 1];
+    const next = validLevels[index + 1];
+    const layerLow = index === 0 ? 0 : (previous.altitudeFt + observation.altitudeFt) / 2;
+    const layerHigh = Math.min(
+      targetAltitudeFt,
+      next ? (observation.altitudeFt + next.altitudeFt) / 2 : targetAltitudeFt,
+    );
+    const hasLayer = layerHigh > layerLow && layerLow < targetAltitudeFt;
+    const intervalLowFt = hasLayer ? layerLow : null;
+    const intervalHighFt = hasLayer ? layerHigh : null;
+    const altitudeKft = hasLayer ? (layerHigh - layerLow) / 1000 : 0;
+    const contributionKts = altitudeKft * observation.windSpeed;
+    const directionRad = (observation.windDirFrom * Math.PI) / 180;
+    const eastComponent = contributionKts * Math.sin(directionRad);
+    const northComponent = contributionKts * Math.cos(directionRad);
+    totalAltKft += altitudeKft;
+    eastTotal += eastComponent;
+    northTotal += northComponent;
+
+    return {
+      inputIndex: observation.inputIndex,
+      altitudeFt: observation.altitudeFt,
+      intervalLowFt,
+      intervalHighFt,
+      altitudeKft,
+      windDirFrom: observation.windDirFrom,
+      windSpeed: observation.windSpeed,
+      contribution: { dir: observation.windDirFrom, mag: contributionKts },
+      contributionKts,
+      eastComponent,
+      northComponent,
+    };
+  });
+
+  const vectorSumKts = Math.hypot(eastTotal, northTotal);
+  const directionDefined = vectorSumKts > 1e-9;
+  const awaDirFrom = directionDefined
+    ? normalizeAngle((Math.atan2(eastTotal, northTotal) * 180) / Math.PI)
+    : 0;
+  const awaSpeed = totalAltKft > 0 ? vectorSumKts / totalAltKft : 0;
+  if (totalAltKft <= 0) errors.push('Tidak ada lapisan angin dengan ketebalan positif di bawah target.');
+  if (!directionDefined) errors.push('Resultan vektor mendekati nol; arah AWA tidak terdefinisi.');
 
   return {
     totalAltLossKft: totalAltKft,
-    totalWindVector: totalVector,
+    totalWindVector: { dir: awaDirFrom, mag: vectorSumKts },
     awaDirFrom,
     awaSpeed,
+    vectorSumKts,
+    directionDefined,
+    isValid: errors.length === 0,
+    errors,
     rows,
   };
 }
@@ -314,6 +414,8 @@ export interface LeewayObjectType {
   id: string;
   label: string;
   leewayRate: number;
+  /** Table I-1/I-2 modifier in knots, added to multiplier × wind speed. */
+  leewayModifier?: number;
   divergenceAngle: number;
   probableError: number;
 }
@@ -321,86 +423,98 @@ export interface LeewayObjectType {
 export const LEEWAY_OBJECT_TYPES: LeewayObjectType[] = [
   {
     id: 'piw-novice',
-    label: 'Person in water (PIW) – novice/no lifejacket',
-    leewayRate: 0.012,
-    divergenceAngle: 0,
+    label: 'Person in water (PIW) – general',
+    leewayRate: 0.011,
+    leewayModifier: 0.07,
+    divergenceAngle: 30,
     probableError: 0.07,
   },
   {
     id: 'piw-lifejacket',
-    label: 'Person in water with lifejacket',
-    leewayRate: 0.018,
-    divergenceAngle: 0,
-    probableError: 0.06,
+    label: 'Person in water (PIW) – horizontal, survival suit',
+    leewayRate: 0.014,
+    leewayModifier: 0.10,
+    divergenceAngle: 30,
+    probableError: 0.07,
   },
   {
     id: 'raft-46-person',
     label: '4-6 person liferaft (no canopy, no drogue)',
-    leewayRate: 0.040,
-    divergenceAngle: 15,
+    leewayRate: 0.057,
+    leewayModifier: 0.21,
+    divergenceAngle: 24,
     probableError: 0.18,
   },
   {
     id: 'raft-1520-person',
-    label: '15-20 person liferaft (no canopy, no drogue)',
+    label: '15-20 person liferaft, no ballast system (general)',
     leewayRate: 0.042,
-    divergenceAngle: 14,
+    leewayModifier: 0.03,
+    divergenceAngle: 28,
     probableError: 0.18,
   },
   {
     id: 'raft-canopy-drogue',
     label: 'Liferaft with canopy and drogue',
-    leewayRate: 0.025,
-    divergenceAngle: 13,
+    leewayRate: 0.030,
+    leewayModifier: 0,
+    divergenceAngle: 28,
     probableError: 0.12,
   },
   {
     id: 'raft-canopy-no-drogue',
     label: 'Liferaft with canopy, no drogue',
-    leewayRate: 0.030,
-    divergenceAngle: 14,
+    leewayRate: 0.037,
+    leewayModifier: 0.11,
+    divergenceAngle: 24,
     probableError: 0.16,
   },
   {
     id: 'dinghy-fibreglass',
-    label: 'Fibreglass dinghy (capsized)',
-    leewayRate: 0.020,
-    divergenceAngle: 30,
+    label: 'Maritime life raft – shallow ballast, capsized',
+    leewayRate: 0.017,
+    leewayModifier: -0.10,
+    divergenceAngle: 8,
     probableError: 0.12,
   },
   {
     id: 'dinghy-upright',
-    label: 'Fibreglass dinghy (upright)',
-    leewayRate: 0.030,
-    divergenceAngle: 35,
+    label: 'Maritime life raft – shallow ballast (general)',
+    leewayRate: 0.029,
+    leewayModifier: 0,
+    divergenceAngle: 22,
     probableError: 0.18,
   },
   {
     id: 'small-fishing',
-    label: 'Small fishing vessel (length < 15m)',
-    leewayRate: 0.025,
-    divergenceAngle: 30,
+    label: 'Commercial fishing vessel (general)',
+    leewayRate: 0.037,
+    leewayModifier: 0.02,
+    divergenceAngle: 48,
     probableError: 0.15,
   },
   {
     id: 'commercial-fishing',
-    label: 'Commercial fishing vessel (length 15-30m)',
-    leewayRate: 0.020,
-    divergenceAngle: 25,
+    label: 'Commercial fishing vessel – side-stern trawler',
+    leewayRate: 0.042,
+    leewayModifier: 0,
+    divergenceAngle: 48,
     probableError: 0.12,
   },
   {
     id: 'sailboat',
-    label: 'Sailboat (displacement, sails down)',
+    label: 'Sailing vessel – mono-hull, full keel',
     leewayRate: 0.030,
-    divergenceAngle: 30,
+    leewayModifier: 0,
+    divergenceAngle: 48,
     probableError: 0.18,
   },
   {
     id: 'merchant-vessel',
-    label: 'Merchant vessel (light)',
-    leewayRate: 0.018,
-    divergenceAngle: 20,
+    label: 'Coastal freighter',
+    leewayRate: 0.028,
+    leewayModifier: 0,
+    divergenceAngle: 48,
     probableError: 0.10,
   },
 ];
@@ -427,7 +541,7 @@ export function computeLW(
   objectType: LeewayObjectType,
 ): LWResult {
   const downwindDir = normalizeAngle(aswDirFrom + 180);
-  const leewaySpeed = aswSpeed * objectType.leewayRate;
+  const leewaySpeed = Math.max(0, aswSpeed * objectType.leewayRate + (objectType.leewayModifier ?? 0));
   const div = objectType.divergenceAngle;
   return {
     aswDirFrom,
@@ -855,9 +969,23 @@ export function formatNumber(n: number, decimals = 2): string {
 }
 
 export function formatLatLng(p: LatLng): string {
-  const lat = `${Math.abs(p.lat).toFixed(4)}°${p.lat >= 0 ? 'N' : 'S'}`;
-  const lng = `${Math.abs(p.lng).toFixed(4)}°${p.lng >= 0 ? 'E' : 'W'}`;
-  return `${lat} ${lng}`;
+  const format = (value: number, axis: 'lat' | 'lng') => {
+    const absolute = Math.abs(value);
+    const degrees = Math.floor(absolute);
+    const minuteValue = (absolute - degrees) * 60;
+    const minutes = Math.floor(minuteValue);
+    const seconds = Math.round((minuteValue - minutes) * 60);
+    let d = degrees;
+    let m = minutes;
+    let s = seconds;
+    if (s >= 60) { s -= 60; m += 1; }
+    if (m >= 60) { m -= 60; d += 1; }
+    const hemisphere = axis === 'lat'
+      ? (value >= 0 ? 'N' : 'S')
+      : (value >= 0 ? 'E' : 'W');
+    return `${String(d).padStart(axis === 'lat' ? 2 : 3, '0')}°${String(m).padStart(2, '0')}′${String(s).padStart(2, '0')}″${hemisphere}`;
+  };
+  return `${format(p.lat, 'lat')} ${format(p.lng, 'lng')}`;
 }
 
 export function formatDir(deg: number): string {

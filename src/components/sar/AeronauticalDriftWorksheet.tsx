@@ -1,19 +1,23 @@
 'use client';
 
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Printer, Plane, CheckCircle2, ArrowRight } from 'lucide-react';
 import {
+  type HeadingReference,
+  type EastWest,
   type AeroDriftInput,
   type AeroDriftResult,
   calculateAeroDrift,
 } from '@/lib/sar/aeroDriftCalculations';
 import { type LatLng } from '@/lib/sar/sarCalculations';
 import { formatDMS } from '@/lib/sar/coordFormat';
+import CoordinateInput from './CoordinateInput';
 
 interface AeronauticalDriftWorksheetProps {
   initialLkp?: LatLng;
   awaDirFrom?: number;
   awaSpeedKts?: number;
+  awaIsValid?: boolean;
   onResults?: (results: AeroDriftResult) => void;
   onStateChange?: (state: AeroDriftInput) => void;
   className?: string;
@@ -25,79 +29,237 @@ function formatFt(val: number): string {
     .replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
 
+interface HeadingInputProps {
+  label: string;
+  value?: number;
+  convertedHeading?: number | null;
+  reference: HeadingReference;
+  variation?: number;
+  variationDirection: EastWest;
+  deviation?: number;
+  deviationDirection: EastWest;
+  onValueChange: (value?: number) => void;
+  onReferenceChange: (value: HeadingReference) => void;
+  onVariationChange: (value?: number) => void;
+  onVariationDirectionChange: (value: EastWest) => void;
+  onDeviationChange: (value?: number) => void;
+  onDeviationDirectionChange: (value: EastWest) => void;
+}
+
+function HeadingInput({
+  label,
+  value,
+  convertedHeading,
+  reference,
+  variation,
+  variationDirection,
+  deviation,
+  deviationDirection,
+  onValueChange,
+  onReferenceChange,
+  onVariationChange,
+  onVariationDirectionChange,
+  onDeviationChange,
+  onDeviationDirectionChange,
+}: HeadingInputProps) {
+  const inputClass = 'min-w-0 w-16 rounded border border-slate-300 bg-white px-1 py-0.5 text-right font-mono';
+  const selectClass = 'min-w-0 rounded border border-slate-300 bg-white px-1 py-0.5 text-[10px]';
+  const parseOptionalNumber = (raw: string) => raw === '' ? undefined : Number(raw);
+
+  return (
+    <div className="w-36 space-y-1">
+      <div className="flex items-center gap-1">
+        <input
+          aria-label={`${label} reported heading`}
+          type="number"
+          min="0"
+          max="359.9"
+          step="0.1"
+          value={value ?? ''}
+          onChange={(event) => onValueChange(parseOptionalNumber(event.target.value))}
+          className={inputClass}
+        />
+        <span>°</span>
+        <select
+          aria-label={`${label} heading reference`}
+          value={reference}
+          onChange={(event) => onReferenceChange(event.target.value as HeadingReference)}
+          className={selectClass}
+        >
+          <option value="true">True</option>
+          <option value="magnetic">Magnetic</option>
+          <option value="compass">Compass</option>
+        </select>
+      </div>
+      {reference !== 'true' && (
+        <div className="flex items-center gap-1 text-[10px]">
+          <span className="shrink-0">Var</span>
+          <input
+            aria-label={`${label} magnetic variation`}
+            type="number"
+            min="0"
+            step="0.1"
+            value={variation ?? ''}
+            onChange={(event) => onVariationChange(parseOptionalNumber(event.target.value))}
+            className={inputClass}
+          />
+          <select
+            aria-label="Magnetic variation direction"
+            value={variationDirection}
+            onChange={(event) => onVariationDirectionChange(event.target.value as EastWest)}
+            className={selectClass}
+          >
+            <option value="E">E</option>
+            <option value="W">W</option>
+          </select>
+        </div>
+      )}
+      {reference === 'compass' && (
+        <div className="flex items-center gap-1 text-[10px]">
+          <span className="shrink-0">Dev</span>
+          <input
+            aria-label={`${label} compass deviation`}
+            type="number"
+            min="0"
+            step="0.1"
+            value={deviation ?? ''}
+            onChange={(event) => onDeviationChange(parseOptionalNumber(event.target.value))}
+            className={inputClass}
+          />
+          <select
+            aria-label={`${label} deviation direction`}
+            value={deviationDirection}
+            onChange={(event) => onDeviationDirectionChange(event.target.value as EastWest)}
+            className={selectClass}
+          >
+            <option value="E">E</option>
+            <option value="W">W</option>
+          </select>
+        </div>
+      )}
+      <div className="text-[9px] text-slate-600">B.9 True: {convertedHeading == null ? '-' : `${convertedHeading.toFixed(1)}°T`}</div>
+    </div>
+  );
+}
+
+function formatUtcEnd(dateValue: string, timeValue: string, minutes: number): string | null {
+  const dateInput = dateValue.trim();
+  let year: number;
+  let month: number;
+  let day: number;
+  const isoMatch = dateInput.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoMatch) {
+    year = Number(isoMatch[1]);
+    month = Number(isoMatch[2]);
+    day = Number(isoMatch[3]);
+  } else {
+    const textMatch = dateInput.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/i);
+    if (!textMatch) return null;
+    const monthIndex = new Map([
+      ['jan', 1], ['january', 1], ['januari', 1], ['feb', 2], ['february', 2], ['februari', 2], ['mar', 3], ['march', 3], ['maret', 3],
+      ['april', 4], ['may', 5], ['mei', 5], ['june', 6], ['juni', 6], ['july', 7], ['juli', 7],
+      ['aug', 8], ['august', 8], ['agustus', 8], ['sep', 9], ['september', 9], ['oct', 10], ['october', 10], ['oktober', 10],
+      ['nov', 11], ['november', 11], ['dec', 12], ['december', 12], ['desember', 12],
+    ]).get(textMatch[2].toLowerCase());
+    if (!monthIndex) return null;
+    day = Number(textMatch[1]);
+    month = monthIndex;
+    year = Number(textMatch[3]);
+  }
+  const timeMatch = timeValue.trim().match(/^(\d{1,2}):?(\d{2})\s*Z?$/i);
+  if (!timeMatch) return null;
+  const hour = Number(timeMatch[1]);
+  const minute = Number(timeMatch[2]);
+  const date = new Date(Date.UTC(year, month - 1, day, hour, minute));
+  if (
+    hour > 23 || minute > 59 ||
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) return null;
+  date.setUTCMinutes(date.getUTCMinutes() + Math.round(minutes));
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const hhmm = `${String(date.getUTCHours()).padStart(2, '0')}${String(date.getUTCMinutes()).padStart(2, '0')}`;
+  const finalDate = `${String(date.getUTCDate()).padStart(2, '0')} ${months[date.getUTCMonth()]} ${date.getUTCFullYear()}`;
+  return `${hhmm} Z, ${finalDate}`;
+}
+
 export default function AeronauticalDriftWorksheet({
-  initialLkp = { lat: -6.1, lng: 106.8 },
-  awaDirFrom = 45,
-  awaSpeedKts = 25,
+  initialLkp = { lat: 0, lng: 0 },
+  awaDirFrom = 0,
+  awaSpeedKts = 0,
+  awaIsValid = false,
   onResults,
   onStateChange,
   className = '',
 }: AeronauticalDriftWorksheetProps) {
   const [formData, setFormData] = useState<AeroDriftInput>({
-    caseTitle: 'Operasi SAR Pesawat Udara',
-    caseNumber: 'SAR-AERO-01',
-    date: '15 / 11 / 2026',
-    plannerName: 'SAR Planner Basarnas',
-    searchObject: 'Cessna 172 / Pilot with Parachute',
+    caseTitle: '-',
+    caseNumber: '0',
+    date: '-',
+    plannerName: '-',
+    searchObject: '-',
 
     incidentPos: initialLkp,
-    incidentTime: '10:00',
+    incidentTime: '-',
 
-    useAircraftGlide: true,
-    aircraftAltMaxFt: 10000,
-    aircraftAltMinFt: 3000,
-    aircraftGlideRatio: 9.0, // Standard 9:1 for light aircraft
-    aircraftTASgKts: 70,
-    aircraftDescentHeadingDeg: 120,
+    useAircraftGlide: false,
+    aircraftAltMaxFt: 0,
+    aircraftAltMinFt: 0,
+    aircraftGlideRatio: 0,
+    aircraftTASgKts: 0,
+    aircraftDescentHeadingDeg: undefined,
+    aircraftHeadingReference: 'true',
 
-    useParachute: true,
+    useParachute: false,
     parachuteType: 'round-zero-glide',
-    parachuteAltMaxFt: 3000,
+    parachuteAltMaxFt: 0,
     parachuteTerrainAltFt: 0,
     parachuteGlideRatio: 0,
     parachuteTASgKts: 0,
+    parachuteRateOfDescentFtMin: 0,
+    parachuteDescentHeadingDeg: undefined,
+    parachuteHeadingReference: 'true',
+    magneticVariationDeg: undefined,
+    magneticVariationDirection: 'E',
+    aircraftDeviationDeg: undefined,
+    aircraftDeviationDirection: 'E',
+    parachuteDeviationDeg: undefined,
+    parachuteDeviationDirection: 'E',
 
+    awaIsValid,
     awaGlideDirFrom: awaDirFrom,
     awaGlideSpeedKts: awaSpeedKts,
 
-    fixErrorXNm: 2.0,
-    safetyFactorFs: 1.6,
+    fixErrorXNm: 0,
+    safetyFactorFs: 0,
   });
 
-  const [searchPlanOption, setSearchPlanOption] = useState<'A' | 'B' | 'C'>('A');
+  const [searchPlanOption, setSearchPlanOption] = useState<'A' | 'B' | 'C' | ''>('');
   const [viewMode, setViewMode] = useState<'dual' | 'aircraft' | 'parachute'>('dual');
 
-  // Keep external AWA in sync
+  // Keep external AWA in sync, including whether it came from a valid worksheet.
   useEffect(() => {
     setFormData((prev) => {
-      if (prev.awaGlideDirFrom === awaDirFrom && prev.awaGlideSpeedKts === awaSpeedKts) {
+      if (prev.awaGlideDirFrom === awaDirFrom && prev.awaGlideSpeedKts === awaSpeedKts && prev.awaIsValid === awaIsValid) {
         return prev;
       }
       return {
         ...prev,
+        awaIsValid,
         awaGlideDirFrom: awaDirFrom,
         awaGlideSpeedKts: awaSpeedKts,
       };
     });
-  }, [awaDirFrom, awaSpeedKts]);
+  }, [awaDirFrom, awaSpeedKts, awaIsValid]);
 
   const results: AeroDriftResult = useMemo(() => {
     return calculateAeroDrift(formData);
   }, [formData]);
 
-  const prevLandingPosRef = useRef<LatLng | null>(null);
-
   useEffect(() => {
     if (!onResults) return;
-    const prev = prevLandingPosRef.current;
-    if (
-      !prev ||
-      Math.abs(prev.lat - results.landingPos.lat) > 1e-6 ||
-      Math.abs(prev.lng - results.landingPos.lng) > 1e-6
-    ) {
-      prevLandingPosRef.current = results.landingPos;
-      onResults(results);
-    }
+    onResults(results);
   }, [results, onResults]);
 
   const updateField = <K extends keyof AeroDriftInput>(key: K, value: AeroDriftInput[K]) => {
@@ -113,6 +275,7 @@ export default function AeronauticalDriftWorksheet({
   };
 
   const downwindDir = (formData.awaGlideDirFrom + 180) % 360;
+  const anySegmentActive = formData.useAircraftGlide || formData.useParachute;
 
   return (
     <div className={`space-y-4 ${className} text-slate-900 font-sans`}>
@@ -197,7 +360,7 @@ export default function AeronauticalDriftWorksheet({
               />
             </div>
             <div className="sm:col-span-3 flex items-center gap-2">
-              <span className="font-medium text-slate-700 shrink-0">Date</span>
+              <span className="font-medium text-slate-700 shrink-0">Date (UTC)</span>
               <input
                 type="text"
                 value={formData.date}
@@ -227,7 +390,7 @@ export default function AeronauticalDriftWorksheet({
               <span className="font-medium text-slate-700 shrink-0">Datum number</span>
               <input
                 type="text"
-                defaultValue="01"
+                defaultValue="0"
                 suppressHydrationWarning
                 spellCheck={false}
                 data-ms-editor="true"
@@ -280,7 +443,7 @@ export default function AeronauticalDriftWorksheet({
           <div className="space-y-1.5 pl-6 text-xs text-slate-800">
             <div className="flex flex-wrap items-center gap-2">
               <span className="w-4 font-bold text-slate-900">1</span>
-              <span className="w-36 text-slate-700">Date/time</span>
+              <span className="w-36 text-slate-700">Date/time (UTC)</span>
               <div className="flex items-center gap-2">
                 <input
                   type="text"
@@ -299,49 +462,8 @@ export default function AeronauticalDriftWorksheet({
               <span className="w-4 font-bold text-slate-900">2</span>
               <span className="w-36 text-slate-700">Latitude, longitude</span>
               <div className="flex flex-wrap items-center gap-2 font-mono">
-                <input
-                  type="number"
-                  step="0.0001"
-                  value={formData.incidentPos.lat}
-                  suppressHydrationWarning
-                  spellCheck={false}
-                  data-ms-editor="true"
-                  onChange={(e) =>
-                    updateField('incidentPos', {
-                      ...formData.incidentPos,
-                      lat: parseFloat(e.target.value) || 0,
-                    })
-                  }
-                  className="font-bold text-blue-900 border-b border-dotted border-slate-700 bg-transparent px-1 w-24 text-center focus:outline-none"
-                />
-                <span className="font-bold text-slate-900">
-                  {formData.incidentPos.lat < 0 ? 'S' : 'N'}
-                </span>
-                <span className="text-[10px] text-slate-500 mr-2">
-                  ({formatDMS(formData.incidentPos.lat, false)})
-                </span>
-
-                <input
-                  type="number"
-                  step="0.0001"
-                  value={formData.incidentPos.lng}
-                  suppressHydrationWarning
-                  spellCheck={false}
-                  data-ms-editor="true"
-                  onChange={(e) =>
-                    updateField('incidentPos', {
-                      ...formData.incidentPos,
-                      lng: parseFloat(e.target.value) || 0,
-                    })
-                  }
-                  className="font-bold text-blue-900 border-b border-dotted border-slate-700 bg-transparent px-1 w-28 text-center focus:outline-none"
-                />
-                <span className="font-bold text-slate-900">
-                  {formData.incidentPos.lng < 0 ? 'W' : 'E'}
-                </span>
-                <span className="text-[10px] text-slate-500">
-                  ({formatDMS(formData.incidentPos.lng, true)})
-                </span>
+                <CoordinateInput axis="lat" value={formData.incidentPos.lat} onChange={(lat) => updateField('incidentPos', { ...formData.incidentPos, lat })} aria-label="Incident latitude" className="w-40 bg-transparent text-center font-mono font-bold text-blue-900 border-b border-dotted border-slate-700 px-1 focus:outline-none" />
+                <CoordinateInput axis="lng" value={formData.incidentPos.lng} onChange={(lng) => updateField('incidentPos', { ...formData.incidentPos, lng })} aria-label="Incident longitude" className="w-44 bg-transparent text-center font-mono font-bold text-blue-900 border-b border-dotted border-slate-700 px-1 focus:outline-none" />
               </div>
             </div>
           </div>
@@ -356,6 +478,39 @@ export default function AeronauticalDriftWorksheet({
           <p className="text-[11px] text-slate-600 italic pl-6">
             (For both aircraft and parachute glide, use this part twice; once for the aircraft glide and again for the parachute glide. For parachutes with zero glide ratios, go to part C below.)
           </p>
+
+          <div className="ml-6 flex flex-wrap items-center gap-4 rounded border border-slate-200 bg-slate-50 p-2 text-[11px]">
+            <label className="flex items-center gap-1.5 font-semibold text-sky-900">
+              <input type="checkbox" checked={formData.useAircraftGlide} onChange={(event) => updateField('useAircraftGlide', event.target.checked)} />
+              Hitung glide pesawat
+            </label>
+            <label className="flex items-center gap-1.5 font-semibold text-amber-900">
+              <input type="checkbox" checked={formData.useParachute} onChange={(event) => updateField('useParachute', event.target.checked)} />
+              Hitung bagian parasut
+            </label>
+            {formData.useParachute && (
+              <label className="flex items-center gap-2 text-slate-700">
+                Jenis parasut
+                <select
+                  value={formData.parachuteType}
+                  onChange={(event) => updateField('parachuteType', event.target.value as AeroDriftInput['parachuteType'])}
+                  className="rounded border border-slate-300 bg-white px-1.5 py-0.5"
+                >
+                  <option value="round-zero-glide">Round / zero glide</option>
+                  <option value="steerable">Steerable</option>
+                </select>
+              </label>
+            )}
+          </div>
+          {anySegmentActive && results.validationErrors.length > 0 && (
+            <div role="status" className="ml-6 space-y-1 rounded border border-amber-300 bg-amber-50 p-2 text-[11px] text-amber-950">
+              <div className="font-bold">Hasil koordinat belum dapat ditetapkan:</div>
+              {results.validationErrors.map((error) => <div key={error}>• {error}</div>)}
+              {!formatUtcEnd(formData.date, formData.incidentTime, 0) && (
+                <div>• B.13: isi tanggal yang valid dan waktu UTC/Z (HHMM atau HH:MM) untuk waktu akhir.</div>
+              )}
+            </div>
+          )}
 
           {/* Lines 1 through 14 (Exact Replica of K-6 Form with dual or single column) */}
           <div className="space-y-2 pl-6 pt-1 text-xs">
@@ -517,9 +672,9 @@ export default function AeronauticalDriftWorksheet({
                 )}
                 {(viewMode === 'dual' || viewMode === 'parachute') && (
                   <div className="flex items-center gap-1 font-mono w-36 justify-end">
-                    <span className="w-20 font-bold text-slate-500 border-b border-dotted border-slate-700 text-right pr-1">
-                      0
-                    </span>
+                    {formData.parachuteType === 'steerable' ? (
+                      <input type="number" min="0" step="0.1" value={formData.parachuteGlideRatio ?? 0} onChange={(e) => updateField('parachuteGlideRatio', Number(e.target.value) || 0)} className="w-20 font-bold text-blue-900 border-b border-dotted border-slate-700 bg-transparent text-right pr-1 focus:outline-none" aria-label="Parachute glide ratio" />
+                    ) : <span className="w-20 text-right text-slate-500">-</span>}
                     <span className="text-slate-400 font-sans text-xs w-4"></span>
                   </div>
                 )}
@@ -549,9 +704,9 @@ export default function AeronauticalDriftWorksheet({
                 )}
                 {(viewMode === 'dual' || viewMode === 'parachute') && (
                   <div className="flex items-center gap-1 font-mono w-36 justify-end">
-                    <span className="w-20 font-bold text-slate-400 border-b border-dotted border-slate-700 text-right pr-1">
-                      0
-                    </span>
+                    {formData.parachuteType === 'steerable' ? (
+                      <input type="number" min="0" step="1" value={formData.parachuteTASgKts ?? 0} onChange={(e) => updateField('parachuteTASgKts', Number(e.target.value) || 0)} className="w-20 font-bold text-blue-900 border-b border-dotted border-slate-700 bg-transparent text-right pr-1 focus:outline-none" aria-label="Parachute glide TAS" />
+                    ) : <span className="w-20 text-right text-slate-500">-</span>}
                     <span className="text-slate-600 font-sans text-xs">kts</span>
                   </div>
                 )}
@@ -582,10 +737,16 @@ export default function AeronauticalDriftWorksheet({
                 )}
                 {(viewMode === 'dual' || viewMode === 'parachute') && (
                   <div className="flex items-center gap-1 font-mono w-36 justify-end">
-                    <span className="w-20 font-bold text-blue-950 border-b border-dotted border-slate-700 text-right pr-1">
-                      {formatFt(results.parachuteRateOfDescentFtMin)}
-                    </span>
-                    <span className="text-slate-600 font-sans text-xs">ft/min</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={formData.parachuteRateOfDescentFtMin}
+                      onChange={(e) => updateField('parachuteRateOfDescentFtMin', Number(e.target.value) || 0)}
+                      className="w-20 font-bold text-blue-900 border-b border-dotted border-slate-700 bg-transparent text-right pr-1 focus:outline-none"
+                      aria-label="Parachute rate of descent from table N-13"
+                    />
+                    <span className="text-slate-600 font-sans text-xs">ft/min N-13</span>
                   </div>
                 )}
               </div>
@@ -634,8 +795,8 @@ export default function AeronauticalDriftWorksheet({
                 )}
                 {(viewMode === 'dual' || viewMode === 'parachute') && (
                   <div className="flex items-center gap-1 font-mono w-36 justify-end">
-                    <span className="w-20 font-bold text-slate-400 border-b border-dotted border-slate-700 text-right pr-1">
-                      0.00
+                    <span className="w-20 font-bold text-blue-950 border-b border-dotted border-slate-700 text-right pr-1">
+                      {results.parachuteGlideDistanceNm.toFixed(2)}
                     </span>
                     <span className="text-slate-600 font-sans text-xs">NM</span>
                   </div>
@@ -651,28 +812,42 @@ export default function AeronauticalDriftWorksheet({
               </div>
               <div className="flex items-center gap-6">
                 {(viewMode === 'dual' || viewMode === 'aircraft') && (
-                  <div className="flex items-center gap-1 font-mono w-36 justify-end">
-                    <input
-                      type="number"
-                      value={formData.aircraftDescentHeadingDeg ?? 120}
-                      suppressHydrationWarning
-                      spellCheck={false}
-                      data-ms-editor="true"
-                      onChange={(e) =>
-                        updateField('aircraftDescentHeadingDeg', Number(e.target.value) || 0)
-                      }
-                      className="w-20 font-bold text-blue-900 border-b border-dotted border-slate-700 bg-transparent text-right pr-1 focus:outline-none"
-                    />
-                    <span className="text-slate-600 font-sans text-xs">°T</span>
-                  </div>
+                  <HeadingInput
+                    label="Aircraft"
+                    value={formData.aircraftDescentHeadingDeg}
+                    convertedHeading={results.aircraftDescentHeadingTrueDeg}
+                    reference={formData.aircraftHeadingReference}
+                    variation={formData.magneticVariationDeg}
+                    variationDirection={formData.magneticVariationDirection}
+                    deviation={formData.aircraftDeviationDeg}
+                    deviationDirection={formData.aircraftDeviationDirection}
+                    onValueChange={(value) => updateField('aircraftDescentHeadingDeg', value)}
+                    onReferenceChange={(value) => updateField('aircraftHeadingReference', value)}
+                    onVariationChange={(value) => updateField('magneticVariationDeg', value)}
+                    onVariationDirectionChange={(value) => updateField('magneticVariationDirection', value)}
+                    onDeviationChange={(value) => updateField('aircraftDeviationDeg', value)}
+                    onDeviationDirectionChange={(value) => updateField('aircraftDeviationDirection', value)}
+                  />
                 )}
                 {(viewMode === 'dual' || viewMode === 'parachute') && (
-                  <div className="flex items-center gap-1 font-mono w-36 justify-end">
-                    <span className="w-20 font-bold text-slate-400 border-b border-dotted border-slate-700 text-right pr-1">
-                      -
-                    </span>
-                    <span className="text-slate-400 font-sans text-xs">°T</span>
-                  </div>
+                  formData.parachuteType === 'steerable' ? (
+                    <HeadingInput
+                      label="Parachute"
+                      value={formData.parachuteDescentHeadingDeg}
+                      convertedHeading={results.parachuteDescentHeadingTrueDeg}
+                      reference={formData.parachuteHeadingReference}
+                      variation={formData.magneticVariationDeg}
+                      variationDirection={formData.magneticVariationDirection}
+                      deviation={formData.parachuteDeviationDeg}
+                      deviationDirection={formData.parachuteDeviationDirection}
+                      onValueChange={(value) => updateField('parachuteDescentHeadingDeg', value)}
+                      onReferenceChange={(value) => updateField('parachuteHeadingReference', value)}
+                      onVariationChange={(value) => updateField('magneticVariationDeg', value)}
+                      onVariationDirectionChange={(value) => updateField('magneticVariationDirection', value)}
+                      onDeviationChange={(value) => updateField('parachuteDeviationDeg', value)}
+                      onDeviationDirectionChange={(value) => updateField('parachuteDeviationDirection', value)}
+                    />
+                  ) : <div className="w-36 text-right text-slate-500">- (zero glide)</div>
                 )}
               </div>
             </div>
@@ -692,25 +867,15 @@ export default function AeronauticalDriftWorksheet({
                 {(viewMode === 'dual' || viewMode === 'aircraft') && (
                   <div className="flex items-center gap-1 w-36 justify-end">
                     <span className="font-bold text-blue-950 border-b border-dotted border-slate-700 px-1">
-                      {formData.awaGlideDirFrom.toString().padStart(3, '0')}
+                      {formData.awaIsValid ? `${formData.awaGlideDirFrom.toString().padStart(3, '0')}°T / ${formData.awaGlideSpeedKts} kts` : '- (AWA belum valid)'}
                     </span>
-                    <span className="text-slate-600 font-sans text-xs">°T</span>
-                    <span className="font-bold text-blue-950 border-b border-dotted border-slate-700 px-1 ml-1">
-                      {formData.awaGlideSpeedKts}
-                    </span>
-                    <span className="text-slate-600 font-sans text-xs">kts</span>
                   </div>
                 )}
                 {(viewMode === 'dual' || viewMode === 'parachute') && (
                   <div className="flex items-center gap-1 w-36 justify-end">
                     <span className="font-bold text-blue-950 border-b border-dotted border-slate-700 px-1">
-                      {formData.awaGlideDirFrom.toString().padStart(3, '0')}
+                      {formData.awaIsValid ? `${formData.awaGlideDirFrom.toString().padStart(3, '0')}°T / ${formData.awaGlideSpeedKts} kts` : '- (AWA belum valid)'}
                     </span>
-                    <span className="text-slate-600 font-sans text-xs">°T</span>
-                    <span className="font-bold text-blue-950 border-b border-dotted border-slate-700 px-1 ml-1">
-                      {formData.awaGlideSpeedKts}
-                    </span>
-                    <span className="text-slate-600 font-sans text-xs">kts</span>
                   </div>
                 )}
               </div>
@@ -728,11 +893,11 @@ export default function AeronauticalDriftWorksheet({
                 {(viewMode === 'dual' || viewMode === 'aircraft') && (
                   <div className="flex items-center gap-1 w-36 justify-end">
                     <span className="font-bold text-blue-950 border-b border-dotted border-slate-700 px-1">
-                      {downwindDir.toFixed(0).padStart(3, '0')}
+                      {formData.awaIsValid ? downwindDir.toFixed(0).padStart(3, '0') : '-'}
                     </span>
                     <span className="text-slate-600 font-sans text-xs">°T</span>
                     <span className="font-bold text-blue-950 border-b border-dotted border-slate-700 px-1 ml-1">
-                      {results.aircraftWindDisplacementNm.toFixed(2)}
+                      {formData.awaIsValid ? results.aircraftWindDisplacementNm.toFixed(2) : '-'}
                     </span>
                     <span className="text-slate-600 font-sans text-xs">NM</span>
                   </div>
@@ -740,11 +905,11 @@ export default function AeronauticalDriftWorksheet({
                 {(viewMode === 'dual' || viewMode === 'parachute') && (
                   <div className="flex items-center gap-1 w-36 justify-end">
                     <span className="font-bold text-blue-950 border-b border-dotted border-slate-700 px-1">
-                      {downwindDir.toFixed(0).padStart(3, '0')}
+                      {formData.awaIsValid ? downwindDir.toFixed(0).padStart(3, '0') : '-'}
                     </span>
                     <span className="text-slate-600 font-sans text-xs">°T</span>
                     <span className="font-bold text-blue-950 border-b border-dotted border-slate-700 px-1 ml-1">
-                      {results.parachuteWindDisplacementNm.toFixed(2)}
+                      {formData.awaIsValid ? results.parachuteWindDisplacementNm.toFixed(2) : '-'}
                     </span>
                     <span className="text-slate-600 font-sans text-xs">NM</span>
                   </div>
@@ -764,11 +929,11 @@ export default function AeronauticalDriftWorksheet({
                 {(viewMode === 'dual' || viewMode === 'aircraft') && (
                   <div className="flex items-center gap-1 w-36 justify-end">
                     <span className="font-black text-blue-950 border-b-2 border-slate-900 px-1">
-                      {results.aircraftGlideDisplacementVector.dir.toFixed(0).padStart(3, '0')}
+                      {results.positionValid && formData.useAircraftGlide ? results.aircraftGlideDisplacementVector.dir.toFixed(1).padStart(5, '0') : '-'}
                     </span>
                     <span className="text-slate-800 font-sans text-xs">°T</span>
                     <span className="font-black text-blue-950 border-b-2 border-slate-900 px-1 ml-1">
-                      {results.aircraftGlideDisplacementVector.mag.toFixed(2)}
+                      {results.positionValid && formData.useAircraftGlide ? results.aircraftGlideDisplacementVector.mag.toFixed(2) : '-'}
                     </span>
                     <span className="text-slate-800 font-sans text-xs">NM</span>
                   </div>
@@ -776,11 +941,11 @@ export default function AeronauticalDriftWorksheet({
                 {(viewMode === 'dual' || viewMode === 'parachute') && (
                   <div className="flex items-center gap-1 w-36 justify-end">
                     <span className="font-black text-blue-950 border-b-2 border-slate-900 px-1">
-                      {results.parachuteDisplacementVector.dir.toFixed(0).padStart(3, '0')}
+                      {results.positionValid && formData.useParachute ? results.parachuteDisplacementVector.dir.toFixed(1).padStart(5, '0') : '-'}
                     </span>
                     <span className="text-slate-800 font-sans text-xs">°T</span>
                     <span className="font-black text-blue-950 border-b-2 border-slate-900 px-1 ml-1">
-                      {results.parachuteDisplacementVector.mag.toFixed(2)}
+                      {results.positionValid && formData.useParachute ? results.parachuteDisplacementVector.mag.toFixed(2) : '-'}
                     </span>
                     <span className="text-slate-800 font-sans text-xs">NM</span>
                   </div>
@@ -800,17 +965,20 @@ export default function AeronauticalDriftWorksheet({
                 {(viewMode === 'dual' || viewMode === 'aircraft') && (
                   <div className="flex items-center gap-1 w-36 justify-end">
                     <span className="font-bold text-blue-950 border-b border-dotted border-slate-700 px-1">
-                      {formData.incidentTime} + {Math.round(results.aircraftTimeOfDescentMin)}m
+                      {formData.useAircraftGlide ? formatUtcEnd(formData.date, formData.incidentTime, results.aircraftTimeOfDescentMin) ?? '-' : '-'}
                     </span>
-                    <span className="text-slate-800 font-sans text-xs font-bold">Z</span>
                   </div>
                 )}
                 {(viewMode === 'dual' || viewMode === 'parachute') && (
                   <div className="flex items-center gap-1 w-36 justify-end">
                     <span className="font-bold text-blue-950 border-b border-dotted border-slate-700 px-1">
-                      {formData.incidentTime} + {Math.round(results.aircraftTimeOfDescentMin + results.parachuteTimeOfDescentMin)}m
+                      {formData.useParachute ? formatUtcEnd(
+                        formData.date,
+                        formData.incidentTime,
+                        (formData.useAircraftGlide ? results.aircraftTimeOfDescentMin : 0) +
+                          (formData.useParachute ? results.parachuteTimeOfDescentMin : 0),
+                      ) ?? '-' : '-'}
                     </span>
-                    <span className="text-slate-800 font-sans text-xs font-bold">Z</span>
                   </div>
                 )}
               </div>
@@ -833,24 +1001,25 @@ export default function AeronauticalDriftWorksheet({
                 {(viewMode === 'dual' || viewMode === 'aircraft') && (
                   <div className="text-right w-36">
                     <div className="font-bold text-blue-950 text-[11px]">
-                      {formatDMS(results.aircraftEndGlidePos.lat, false)}
+                      {results.positionValid && formData.useAircraftGlide ? formatDMS(results.aircraftEndGlidePos.lat, false) : '-'}
                     </div>
                     <div className="font-bold text-blue-950 text-[11px]">
-                      {formatDMS(results.aircraftEndGlidePos.lng, true)}
+                      {results.positionValid && formData.useAircraftGlide ? formatDMS(results.aircraftEndGlidePos.lng, true) : '-'}
                     </div>
                   </div>
                 )}
                 {(viewMode === 'dual' || viewMode === 'parachute') && (
                   <div className="text-right w-36 bg-emerald-50/80 p-1 rounded border border-emerald-300">
                     <div className="text-[9px] font-bold uppercase text-emerald-800">
-                      Final LKP Pendaratan
+                      Hasil geodesik (B.14)
                     </div>
                     <div className="font-black text-emerald-950 text-xs">
-                      {formatDMS(results.landingPos.lat, false)}
+                      {results.positionValid ? formatDMS(results.landingPos.lat, false) : '-'}
                     </div>
                     <div className="font-black text-emerald-950 text-xs">
-                      {formatDMS(results.landingPos.lng, true)}
+                      {results.positionValid ? formatDMS(results.landingPos.lng, true) : '-'}
                     </div>
+                    <div className="text-[9px] text-emerald-800">Pembacaan manual UPS dapat berbeda</div>
                   </div>
                 )}
               </div>
@@ -863,16 +1032,19 @@ export default function AeronauticalDriftWorksheet({
           <div className="flex items-center gap-2">
             <CheckCircle2 className="h-5 w-5 text-emerald-600" />
             <div>
-              <span className="font-bold text-slate-900">Titik Akhir Pendaratan (LKP Terjun / Jatuh):</span>
+              <span className="font-bold text-slate-900">{results.positionValid ? 'Posisi akhir hasil hitung geodesik:' : 'Posisi akhir belum tersedia:'}</span>
               <p className="text-slate-600 font-mono text-[11px]">
-                {formatDMS(results.landingPos.lat, false)}, {formatDMS(results.landingPos.lng, true)} | Pergeseran Total: {results.totalDisplacementNm.toFixed(2)} NM ({results.totalDisplacementDir.toFixed(0)}°T)
+                {results.positionValid
+                  ? `${formatDMS(results.landingPos.lat, false)}, ${formatDMS(results.landingPos.lng, true)} | Pergeseran total ${results.totalDisplacementNm.toFixed(2)} NM pada ${results.totalDisplacementDir.toFixed(1)}°T`
+                  : 'Periksa data yang diperlukan; posisi koordinat tidak ditebak dari nilai yang belum tersedia.'}
               </p>
             </div>
           </div>
           <button
             type="button"
-            onClick={() => onResults?.(results)}
-            className="flex items-center gap-1.5 bg-sky-700 hover:bg-sky-800 text-white font-bold px-3 py-1.5 rounded text-xs transition-colors shadow-2xs"
+            disabled={!results.positionValid}
+            onClick={() => results.positionValid && onResults?.(results)}
+            className="flex items-center gap-1.5 bg-sky-700 hover:bg-sky-800 disabled:bg-slate-300 disabled:text-slate-600 disabled:cursor-not-allowed text-white font-bold px-3 py-1.5 rounded text-xs transition-colors shadow-2xs"
           >
             Terapkan Jadi LKP Operasi <ArrowRight className="h-3.5 w-3.5" />
           </button>

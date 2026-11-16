@@ -6,6 +6,7 @@ import { type LatLng } from '@/lib/sar/sarCalculations';
 import { formatDMS } from '@/lib/sar/coordFormat';
 import type { DatumData, DatumResults } from '@/components/sar/DatumWorksheet';
 import { Printer } from 'lucide-react';
+import { lookupW2Wu, lookupFw, lookupFs, readFigureI12, W2_TARGET_OPTIONS, W2_VISIBILITY_LABELS, type W2Target, type SearchNumber } from '@/lib/sar/wscPodTables';
 
 interface Worksheet2Props {
   lkp: LatLng;
@@ -21,58 +22,56 @@ export default function Worksheet2({
   datumData,
   datumResults,
   aswDirFrom,
-  ws1Ao = 400,
+  ws1Ao = 0,
   readOnly = false,
 }: Worksheet2Props) {
   // Case & Metadata state
-  const [caseTitle, setCaseTitle] = useState('SAR KECELAKAAN KAPAL / PESAWAT');
-  const [plannerName, setPlannerName] = useState('SAR PLANNER BASARNAS');
-  const [searchDate, setSearchDate] = useState('15 / 11 / 2026');
-  const [searchPlatform, setSearchPlatform] = useState('C-212 Aviocar / CN-235');
-  const [searchTas, setSearchTas] = useState(120);
-  const [searchObject, setSearchObject] = useState('Perahu Nelayan / Liferaft 6 P');
-  const [visibilityKm, setVisibilityKm] = useState(10);
-  const [windKts, setWindKts] = useState(15);
-  const [isFatigue, setIsFatigue] = useState(false);
-
-  // Correction factors
-  const fw = windKts > 15 ? 0.9 : 1.0;
-  const fs = searchTas <= 120 ? 1.0 : 0.9;
-  const ff = isFatigue ? 0.9 : 1.0;
-
-  // Uncorrected sweep widths (Wu) for 500, 1000, 1500, 2000 ft (from Table I-3/I-4/I-5)
-  const wuList = [2.4, 3.2, 3.8, 4.0];
+  const [caseTitle, setCaseTitle] = useState('-');
+  const [plannerName, setPlannerName] = useState('-');
+  const [searchDate, setSearchDate] = useState('-');
+  const [searchPlatform, setSearchPlatform] = useState<'' | 'fixed-wing' | 'helicopter'>('');
+  const [searchTas, setSearchTas] = useState(0);
+  const [searchObject, setSearchObject] = useState<W2Target | ''>('');
+  const [visibilityIndex, setVisibilityIndex] = useState(-1);
+  const [isFatigue, setIsFatigue] = useState<'' | 'Yes' | 'No'>('');
+  const [piwFlotationKnown, setPiwFlotationKnown] = useState(false);
+  const [searchNumber, setSearchNumber] = useState<SearchNumber>(1);
+  const [selectedHeight, setSelectedHeight] = useState<500 | 1000 | 1500 | 2000 | 0>(0);
+  const windKts = datumData?.aswSpeed ?? 0;
   const heights = [500, 1000, 1500, 2000];
-
-  // Calculated sweep width factors: W = Wu * Fw * Fs * Ff
-  const wFactors = wuList.map((wu) => Number((wu * fw * fs * ff).toFixed(2)));
-
-  // Practical track spacing S (NM) — typically 1.0 to 2.0 NM
-  const trackSpacings = [1.5, 2.0, 2.5, 3.0];
-
-  // Coverage C = W / S
-  const coverages = wFactors.map((w, idx) => Number((w / trackSpacings[idx]).toFixed(2)));
-
-  // POD (IAMSAR curve approx: POD = 1 - e^-C)
-  const pods = coverages.map((c) => Math.min(99, Math.round((1 - Math.exp(-c)) * 100)));
+  const targetMeta = W2_TARGET_OPTIONS.find((target) => target.id === searchObject);
+  const fw = targetMeta && windKts > 0 ? lookupFw(windKts, targetMeta.fwGroup) : 0;
+  const fs = searchPlatform && searchObject ? lookupFs(searchObject, searchPlatform, searchTas) ?? 0 : 0;
+  const ff = isFatigue === 'Yes' ? 0.9 : isFatigue === 'No' ? 1 : 0;
+  const wuList = heights.map((height) => {
+    if (!searchPlatform || !searchObject || visibilityIndex < 0) return 0;
+    const value = lookupW2Wu(searchPlatform, searchObject, height as 500 | 1000 | 1500 | 2000, visibilityIndex);
+    return value === null ? 0 : value * (targetMeta?.isPiw && piwFlotationKnown && height === 500 ? 4 : 1);
+  });
+  const factorsReady = Boolean(searchPlatform && searchObject && visibilityIndex >= 0 && windKts > 0 && fs > 0 && isFatigue);
+  const wFactors = wuList.map((wu) => factorsReady ? wu * fw * fs * ff : 0);
+  const spacingStep = searchPlatform === 'fixed-wing' ? 0.5 : searchPlatform === 'helicopter' ? 0.25 : 0;
+  const trackSpacings = wFactors.map((w) => spacingStep && w > 0 ? Math.max(spacingStep, Math.round(w / spacingStep) * spacingStep) : 0);
+  const coverages = wFactors.map((w, idx) => trackSpacings[idx] > 0 ? w / trackSpacings[idx] : 0);
+  const pods = coverages.map((c) => factorsReady ? readFigureI12(c, searchNumber) : 0);
 
   // Search Area A from Worksheet 1 Ao
-  const searchAreaAo = Math.round(ws1Ao);
+  const searchAreaAo = ws1Ao;
 
   // Search Hours T required: T = A / (V * S)
   const hoursRequired = trackSpacings.map((s) =>
-    Number((searchAreaAo / Math.max(1, searchTas * s)).toFixed(1))
+    searchTas > 0 && s > 0 ? searchAreaAo / (searchTas * s) : 0
   );
 
   // Available search hours (e.g. from 2 sorties of 2.5 hrs = 5.0 hrs)
-  const [hoursAvailable, setHoursAvailable] = useState(4.5);
+  const [hoursAvailable, setHoursAvailable] = useState(0);
 
   // Sections A, B, C, D calculations based on chosen height (1000 ft -> idx 1)
-  const selIdx = 1;
-  const selW = wFactors[selIdx];
-  const selS = trackSpacings[selIdx];
-  const selC = coverages[selIdx];
-  const selP = pods[selIdx];
+  const selIdx = heights.indexOf(selectedHeight);
+  const selW = selIdx >= 0 ? wFactors[selIdx] : 0;
+  const selS = selIdx >= 0 ? trackSpacings[selIdx] : 0;
+  const selC = selIdx >= 0 ? coverages[selIdx] : 0;
+  const selP = selIdx >= 0 ? pods[selIdx] : 0;
 
   // Option A: Whole Area at chosen height
   const optA_Area = searchAreaAo;
@@ -81,15 +80,15 @@ export default function Worksheet2({
   const optA_P = selP;
 
   // Option B: Modified Area at Calculated Spacing in Available Hours (A = T * V * S)
-  const optB_Area = Math.round(hoursAvailable * searchTas * selS);
+  const optB_Area = hoursAvailable * searchTas * selS;
   const optB_S = selS;
   const optB_C = selC;
   const optB_P = selP;
 
   // Option C: Whole Area at Modified Track Spacing in Available Hours (S = A / (V * T))
-  const optC_S = Number((searchAreaAo / Math.max(1, searchTas * hoursAvailable)).toFixed(1));
-  const optC_C = Number((selW / Math.max(0.1, optC_S)).toFixed(2));
-  const optC_P = Math.min(99, Math.round((1 - Math.exp(-optC_C)) * 100));
+  const optC_S = searchTas > 0 && hoursAvailable > 0 ? searchAreaAo / (searchTas * hoursAvailable) : 0;
+  const optC_C = optC_S > 0 ? selW / optC_S : 0;
+  const optC_P = factorsReady ? readFigureI12(optC_C, searchNumber) : 0;
 
   // Option D compromises
   const optD_variations = [
@@ -99,9 +98,9 @@ export default function Worksheet2({
     { sMod: selS * 1.5, name: '(iv)' },
   ].map((item) => {
     const s = Number(item.sMod.toFixed(1));
-    const a = Math.round(hoursAvailable * searchTas * s);
-    const c = Number((selW / Math.max(0.1, s)).toFixed(2));
-    const p = Math.min(99, Math.round((1 - Math.exp(-c)) * 100));
+    const a = hoursAvailable * searchTas * s;
+    const c = s > 0 ? selW / s : 0;
+    const p = factorsReady ? readFigureI12(c, searchNumber) : 0;
     return { name: item.name, a, s, c, p };
   });
 
@@ -184,14 +183,12 @@ export default function Worksheet2({
           <div className="grid grid-cols-1 sm:grid-cols-3 border-b-2 border-slate-900 p-2.5 bg-slate-50/40 text-[11px] gap-2">
             <div>
               <span className="text-slate-600">Search Platform: </span>
-              <input
-                type="text"
+              <select
                 value={searchPlatform}
                 disabled={readOnly}
-                suppressHydrationWarning
-                onChange={(e) => setSearchPlatform(e.target.value)}
-                className="font-bold text-blue-900 bg-white border-b border-dotted border-slate-600 px-1 w-44"
-              />
+                onChange={(e) => setSearchPlatform(e.target.value as '' | 'fixed-wing' | 'helicopter')}
+                className="font-bold text-blue-900 bg-white border border-slate-300 rounded px-1 w-44"
+              ><option value="">Pilih platform</option><option value="fixed-wing">Fixed Wing</option><option value="helicopter">Helicopter</option></select>
             </div>
             <div>
               <span className="text-slate-600">Search Platform TAS: </span>
@@ -200,33 +197,29 @@ export default function Worksheet2({
                 value={searchTas}
                 disabled={readOnly}
                 suppressHydrationWarning
-                onChange={(e) => setSearchTas(Number(e.target.value) || 120)}
+                onChange={(e) => setSearchTas(Number(e.target.value) || 0)}
                 className="font-bold text-blue-900 bg-white border-b border-dotted border-slate-600 px-1 w-16 text-right font-mono"
               />{' '}
               <span className="font-semibold text-slate-700">Kts</span>
             </div>
             <div>
               <span className="text-slate-600">Search Object: </span>
-              <input
-                type="text"
+              <select
                 value={searchObject}
                 disabled={readOnly}
-                suppressHydrationWarning
-                onChange={(e) => setSearchObject(e.target.value)}
-                className="font-bold text-blue-900 bg-white border-b border-dotted border-slate-600 px-1 w-48"
-              />
+                onChange={(e) => setSearchObject(e.target.value as W2Target | '')}
+                className="font-bold text-blue-900 bg-white border border-slate-300 rounded px-1 w-48"
+              ><option value="">Pilih Search Object</option>{W2_TARGET_OPTIONS.map((target) => <option key={target.id} value={target.id}>{target.label}</option>)}</select>
             </div>
 
             <div>
               <span className="text-slate-600">MET Visibility: </span>
-              <input
-                type="number"
-                value={visibilityKm}
+              <select
+                value={visibilityIndex}
                 disabled={readOnly}
-                suppressHydrationWarning
-                onChange={(e) => setVisibilityKm(Number(e.target.value) || 10)}
-                className="font-bold text-blue-900 bg-white border-b border-dotted border-slate-600 px-1 w-16 text-right font-mono"
-              />{' '}
+                onChange={(e) => setVisibilityIndex(Number(e.target.value))}
+                className="font-bold text-blue-900 bg-white border border-slate-300 rounded px-1 w-20"
+              ><option value={-1}>Pilih km</option>{W2_VISIBILITY_LABELS.map((label, index) => <option key={label} value={index}>{label}</option>)}</select>
               <span className="font-semibold text-slate-700">KM</span>
             </div>
             <div>
@@ -234,30 +227,26 @@ export default function Worksheet2({
               <span className="font-bold text-blue-900 font-mono px-1">
                 {aswDirFrom.toString().padStart(3, '0')}°
               </span>{' '}
-              /{' '}
-              <input
-                type="number"
-                value={windKts}
-                disabled={readOnly}
-                suppressHydrationWarning
-                onChange={(e) => setWindKts(Number(e.target.value) || 15)}
-                className="font-bold text-blue-900 bg-white border-b border-dotted border-slate-600 px-1 w-14 text-right font-mono"
-              />{' '}
-              <span className="font-semibold text-slate-700">Kts</span>
+              / <span className="font-bold text-blue-900 font-mono">{windKts.toFixed(1)}</span> <span className="font-semibold text-slate-700">Kts (ASW)</span>
             </div>
             <div>
               <span className="text-slate-600">Fatigue Factor: </span>
               <select
-                value={isFatigue ? 'Yes' : 'No'}
+                value={isFatigue}
                 disabled={readOnly}
-                suppressHydrationWarning
-                onChange={(e) => setIsFatigue(e.target.value === 'Yes')}
+                onChange={(e) => setIsFatigue(e.target.value as '' | 'Yes' | 'No')}
                 className="font-bold text-blue-900 bg-white border border-slate-300 rounded px-1.5 py-0.5 text-xs"
               >
+                <option value="">Pilih status</option>
                 <option value="No">No (1.0)</option>
                 <option value="Yes">Yes (0.9)</option>
               </select>
             </div>
+            <div><span className="text-slate-600">Figure I-12 Search: </span><select value={searchNumber} disabled={readOnly} onChange={(e) => setSearchNumber(Number(e.target.value) as SearchNumber)} className="font-bold text-blue-900 bg-white border border-slate-300 rounded px-1.5 py-0.5"><option value={1}>First</option><option value={2}>Second</option><option value={3}>Third</option><option value={4}>Fourth</option><option value={5}>Fifth</option></select></div>
+            <div><span className="text-slate-600">Height for Area A: </span><select value={selectedHeight} disabled={readOnly} onChange={(e) => setSelectedHeight(Number(e.target.value) as 0 | 500 | 1000 | 1500 | 2000)} className="font-bold text-blue-900 bg-white border border-slate-300 rounded px-1.5 py-0.5"><option value={0}>Pilih ft</option>{heights.map((height) => <option key={height} value={height}>{height} ft</option>)}</select></div>
+            {targetMeta?.isPiw && <label className="flex items-center gap-1 text-slate-700"><input type="checkbox" checked={piwFlotationKnown} disabled={readOnly} onChange={(e) => setPiwFlotationKnown(e.target.checked)} /> PIW menggunakan flotation device (Table I-5/I-6 note; hanya 500 ft)</label>}
+            {searchPlatform && searchTas > 0 && fs === 0 && <p className="text-[10px] text-amber-800">TAS tidak cocok dengan kolom Table I-8 untuk platform ini; perlukan keputusan planner, tidak dilakukan interpolasi.</p>}
+            <span className="text-[10px] text-slate-500">POD dari Figure I-12; persentase merupakan estimasi pembacaan kurva digital.</span>
           </div>
 
           {/* Main Evaluation Table: Multi-Altitude Sweep Width */}
@@ -354,7 +343,7 @@ export default function Worksheet2({
                 </td>
                 {trackSpacings.map((s, i) => (
                   <td key={i} className="py-1.5 px-2 text-center border-r border-slate-300 last:border-r-0 font-mono font-bold text-slate-800">
-                    {s.toFixed(1)} <span className="text-[10px] text-slate-500">NM</span>
+                    {s.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')} <span className="text-[10px] text-slate-500">NM</span>
                   </td>
                 ))}
               </tr>
@@ -366,7 +355,7 @@ export default function Worksheet2({
                 </td>
                 {coverages.map((c, i) => (
                   <td key={i} className="py-1.5 px-2 text-center border-r border-slate-300 last:border-r-0 font-mono font-bold text-indigo-900">
-                    {c.toFixed(2)}
+                    {c.toFixed(2)}{c > 0 && c < 0.5 && <span className="block text-[9px] text-amber-700">C &lt; 0.5</span>}
                   </td>
                 ))}
               </tr>
@@ -422,7 +411,7 @@ export default function Worksheet2({
                 value={hoursAvailable}
                 disabled={readOnly}
                 suppressHydrationWarning
-                onChange={(e) => setHoursAvailable(Number(e.target.value) || 4.5)}
+                onChange={(e) => setHoursAvailable(Number(e.target.value) || 0)}
                 className="font-bold text-blue-900 bg-white border border-slate-300 rounded px-2 py-0.5 w-16 text-right font-mono"
               />{' '}
               <span className="font-medium text-slate-600">hrs — (from Worksheet No. 6)</span>

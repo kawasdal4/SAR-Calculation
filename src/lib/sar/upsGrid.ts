@@ -1,6 +1,7 @@
 /**
  * Universal Plotting Sheet (UPS) Mathematics & Grid Helper
- * Standard VP-OS Universal Plotting Sheet (Mercator mid-latitude projection)
+ * Local screen approximation used to place points on the VP-OS preview.
+ * This is not a calibrated VP-OS graticule or a geodetic map projection.
  */
 
 import { type LatLng } from './sarCalculations';
@@ -13,7 +14,7 @@ export interface UPSConfig {
 }
 
 /**
- * Konversi Latitude/Longitude ke koordinat lokal (x, y) dalam Nautical Miles pada UPS.
+ * Approximate local latitude/longitude offset in nautical miles for screen placement.
  * x: Jarak barat (-) ke timur (+) dalam NM
  * y: Jarak selatan (-) ke utara (+) dalam NM
  */
@@ -25,7 +26,7 @@ export function latLonToUPS(
   const dLatMin = (pos.lat - centerLat) * 60; // 1 menit busur lat = 1 NM
   const midLatRad = (centerLat * Math.PI) / 180;
   const dLonMin = (pos.lng - centerLon) * 60;
-  // Pada proyeksi Mercator di lintang tengah Lm: 1 menit busur lon = cos(Lm) NM
+  // Equirectangular approximation: longitude scale is reduced by cos(center latitude).
   const dLonNm = dLonMin * Math.cos(midLatRad);
 
   return {

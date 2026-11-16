@@ -8,6 +8,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { renderSearchActionPlanText, type SearchActionPlanData } from '@/lib/sar/searchActionPlan';
+import { formatDMS } from '@/lib/sar/coordFormat';
 
 interface ExportButtonsProps {
   data: SearchActionPlanData | null;
@@ -192,9 +193,9 @@ export default function ExportButtons({ data, caseTitle }: ExportButtonsProps) {
         startY: y,
         head: [['Parameter', 'Value']],
         body: [
-          ['LKP (Lat, Lon)', `${s.lkp.lat.toFixed(4)}, ${s.lkp.lng.toFixed(4)}`],
-          ['Datum (Left of Downwind)', `${s.datumLeft.lat.toFixed(4)}, ${s.datumLeft.lng.toFixed(4)}`],
-          ['Datum (Right of Downwind)', `${s.datumRight.lat.toFixed(4)}, ${s.datumRight.lng.toFixed(4)}`],
+          ['LKP (Lat, Lon)', `${formatDMS(s.lkp.lat, false)}, ${formatDMS(s.lkp.lng, true)}`],
+          ['Datum (Left of Downwind)', `${formatDMS(s.datumLeft.lat, false)}, ${formatDMS(s.datumLeft.lng, true)}`],
+          ['Datum (Right of Downwind)', `${formatDMS(s.datumRight.lat, false)}, ${formatDMS(s.datumRight.lng, true)}`],
           ['Drift Distance (NM)', s.driftDistanceNm.toFixed(2)],
           ['Divergence Distance DD (NM)', s.divergenceDistanceNm.toFixed(2)],
           ['Total Probable Error E (NM)', s.E_nm.toFixed(2)],
@@ -341,8 +342,8 @@ export default function ExportButtons({ data, caseTitle }: ExportButtonsProps) {
           e.location,
           e.pattern,
           e.creep,
-          e.commenceSearchPoint.lat.toFixed(4),
-          e.commenceSearchPoint.lng.toFixed(4),
+          formatDMS(e.commenceSearchPoint.lat, false),
+          formatDMS(e.commenceSearchPoint.lng, true),
           e.altitude,
         ]),
       ];
@@ -384,12 +385,12 @@ export default function ExportButtons({ data, caseTitle }: ExportButtonsProps) {
       const summaryRows: (string | number)[][] = [
         ['Worksheet Summary'],
         ['Parameter', 'Value', 'Unit'],
-        ['LKP Lat', s.lkp.lat.toFixed(4), 'degrees'],
-        ['LKP Lng', s.lkp.lng.toFixed(4), 'degrees'],
-        ['Datum Left Lat', s.datumLeft.lat.toFixed(4), 'degrees'],
-        ['Datum Left Lng', s.datumLeft.lng.toFixed(4), 'degrees'],
-        ['Datum Right Lat', s.datumRight.lat.toFixed(4), 'degrees'],
-        ['Datum Right Lng', s.datumRight.lng.toFixed(4), 'degrees'],
+        ['LKP Latitude', formatDMS(s.lkp.lat, false), 'DMS'],
+        ['LKP Longitude', formatDMS(s.lkp.lng, true), 'DMS'],
+        ['Datum Left Latitude', formatDMS(s.datumLeft.lat, false), 'DMS'],
+        ['Datum Left Longitude', formatDMS(s.datumLeft.lng, true), 'DMS'],
+        ['Datum Right Latitude', formatDMS(s.datumRight.lat, false), 'DMS'],
+        ['Datum Right Longitude', formatDMS(s.datumRight.lng, true), 'DMS'],
         ['Drift Distance', s.driftDistanceNm.toFixed(2), 'NM'],
         ['Divergence Distance DD', s.divergenceDistanceNm.toFixed(2), 'NM'],
         ['Total Probable Error E', s.E_nm.toFixed(2), 'NM'],
@@ -462,7 +463,7 @@ export default function ExportButtons({ data, caseTitle }: ExportButtonsProps) {
 
 function fmtLL(p: { lat: number; lng: number }): string {
   if (!p) return '';
-  const lat = `${Math.abs(p.lat).toFixed(2)}${p.lat >= 0 ? 'N' : 'S'}`;
-  const lng = `${Math.abs(p.lng).toFixed(2)}${p.lng >= 0 ? 'E' : 'W'}`;
+  const lat = formatDMS(p.lat, false);
+  const lng = formatDMS(p.lng, true);
   return `${lat} ${lng}`;
 }

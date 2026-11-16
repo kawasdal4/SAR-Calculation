@@ -283,7 +283,7 @@ function ConceptSection() {
 // ---------------------------------------------------------------------------
 
 function DistanceSection() {
-  const [value, setValue] = useState('1');
+  const [value, setValue] = useState('0');
   const [from, setFrom] = useState<DistanceUnit>('m');
   const num = parseNum(value);
   const results = useMemo(
@@ -369,14 +369,14 @@ function DistanceSection() {
 
 function TimeSection() {
   // Desimal → jam menit detik
-  const [dec, setDec] = useState('1,68');
+  const [dec, setDec] = useState('0');
   const decNum = parseNum(dec);
   const hms = decNum !== null ? decimalHoursToHms(decNum) : null;
 
   // Jam menit detik → desimal
-  const [hh, setHh] = useState('3');
-  const [mm, setMm] = useState('12');
-  const [ss, setSs] = useState('18');
+  const [hh, setHh] = useState('0');
+  const [mm, setMm] = useState('0');
+  const [ss, setSs] = useState('0');
   const decOut = useMemo(() => {
     const h = parseNum(hh) ?? 0;
     const m = parseNum(mm) ?? 0;
@@ -466,7 +466,7 @@ function parseHhmm(raw: string): number | null {
 }
 
 function TimezoneSection() {
-  const [time, setTime] = useState('0500');
+  const [time, setTime] = useState('0');
   const [from, setFrom] = useState<TzZone>('UTC');
   const parsed = parseHhmm(time);
   const results = parsed !== null ? convertTimezone(parsed, from) : null;
@@ -711,7 +711,7 @@ function SvtSection() {
             variant="ghost"
             size="sm"
             className="h-7 px-2 text-[11px]"
-            onClick={() => { setS(''); setV(''); setT(''); }}
+            onClick={() => { setS('0'); setV('0'); setT('0'); }}
           >
             <RotateCcw className="mr-1 h-3 w-3" /> Reset
           </Button>
@@ -775,8 +775,8 @@ function SvtSection() {
  * Sesuai materi Diklat SARPLAN Angkatan XL (Slide 36–37) & kebutuhan operasional SAR (arus laut BMKG/sensor).
  */
 function CurrentSpeedConverter() {
-  const [msVal, setMsVal] = useState('1.5');
-  const [cmsVal, setCmsVal] = useState('27');
+  const [msVal, setMsVal] = useState('0');
+  const [cmsVal, setCmsVal] = useState('0');
 
   const numMs = parseNum(msVal);
   const numCms = parseNum(cmsVal);
@@ -965,7 +965,7 @@ function CurrentSpeedConverter() {
 }
 
 function SpeedConverter() {
-  const [value, setValue] = useState('75');
+  const [value, setValue] = useState('0');
   const [from, setFrom] = useState<SpeedUnit>('kts');
   const num = parseNum(value);
   const results = num !== null ? convertSpeed(num, from) : null;
@@ -1051,10 +1051,10 @@ function AreaSection() {
   };
 
   // Kalkulator jumlah pencari
-  const [nA, setNA] = useState('2880');
-  const [nT, setNT] = useState('3');
-  const [nV, setNV] = useState('120');
-  const [nS, setNS] = useState('1');
+  const [nA, setNA] = useState('0');
+  const [nT, setNT] = useState('0');
+  const [nV, setNV] = useState('0');
+  const [nS, setNS] = useState('0');
   const nANum = parseNum(nA);
   const nTNum = parseNum(nT);
   const nVNum = parseNum(nV);
@@ -1065,8 +1065,8 @@ function AreaSection() {
       : null;
 
   // Persentase area tersapu
-  const [pSwept, setPSwept] = useState('10800');
-  const [pTotal, setPTotal] = useState('22980');
+  const [pSwept, setPSwept] = useState('0');
+  const [pTotal, setPTotal] = useState('0');
   const pSweptNum = parseNum(pSwept);
   const pTotalNum = parseNum(pTotal);
   const pct =
@@ -1117,7 +1117,7 @@ function AreaSection() {
               {p.lbl}
             </Button>
           ))}
-          <Button variant="ghost" size="sm" className="h-7 px-2 text-[11px]" onClick={() => { setA(''); setT(''); setV(''); setS(''); }}>
+          <Button variant="ghost" size="sm" className="h-7 px-2 text-[11px]" onClick={() => { setA('0'); setT('0'); setV('0'); setS('0'); }}>
             <RotateCcw className="mr-1 h-3 w-3" /> Reset
           </Button>
         </div>

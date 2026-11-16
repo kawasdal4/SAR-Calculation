@@ -1398,7 +1398,7 @@ export default function SeaMap({
         icon: makeColoredIcon(color, m.isStart, m.isDatum),
       }).addTo(layer);
       marker.bindPopup(
-        `<b>${m.label}</b><br/>${m.position.lat.toFixed(4)}, ${m.position.lng.toFixed(4)}`,
+        `<b>${m.label}</b><br/>${formatDMS(m.position.lat, true)}, ${formatDMS(m.position.lng, false)}`,
       );
       marker.on('click', (e) => {
         if (pickModeRef.current && onMapClickRef.current) {

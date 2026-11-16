@@ -16,52 +16,36 @@ interface RenopsFormProps {
 }
 
 export default function RenopsForm({
-  lkp = { lat: -6.1, lng: 106.8 },
+  lkp = { lat: 0, lng: 0 },
   datumResults,
   searchResults,
   className = '',
 }: RenopsFormProps) {
   const [formData, setFormData] = useState({
-    opDay: 'HARI KE-1',
-    accidentType: 'KECELAKAAN KAPAL',
-    targetName: 'KM BARUNA JAYA 08',
-    kansarName: 'KANTOR PENCARIAN DAN PERTOLONGAN (BASARNAS)',
-    twInfo: '1508.0800 G',
-    infoSource: 'VTS / Polairud / Nelayan Setempat',
-    accidentTime: '1508.0630 G',
-    callSign: 'YDC-2026 / MMSI 525001234',
-    route: 'Pelabuhan Asal menuju Wilayah Tangkap Perairan Utara',
-    pobCrew: '8 Orang ABK',
-    pobPassengers: '0 Orang',
-    cause: 'Mati mesin di tengah cuaca buruk dan terombang-ambing',
-    effortsDone: 'Pencarian awal oleh kapal nelayan sekitar lokasi kejadian',
+    opDay: '-', accidentType: '-', targetName: '-', kansarName: '-', twInfo: '-',
+    infoSource: '-', accidentTime: '-', callSign: '-', route: '-', pobCrew: '0',
+    pobPassengers: '0', cause: '-', effortsDone: '-',
 
     // Section B: Task
-    taskMission:
-      'Melaksanakan operasi SAR (Pencarian dan Pertolongan) terhadap ABK KM Baruna Jaya 08 menggunakan unsur gabungan potensi SAR.',
+    taskMission: '-',
 
     // Section C: Planning Stage
-    searchAreaSize: searchResults ? `${searchResults.Ao.toFixed(0)} NM²` : '400 NM²',
+    searchAreaSize: searchResults ? `${searchResults.Ao.toFixed(0)} NM²` : '0',
     datumPos: datumResults
       ? `Datum Left: ${formatDMS(datumResults.datumLeft.lat, false)}, ${formatDMS(datumResults.datumLeft.lng, true)} | Datum Right: ${formatDMS(datumResults.datumRight.lat, false)}, ${formatDMS(datumResults.datumRight.lng, true)}`
-      : '06°05\'00"S - 106°45\'00"E',
+      : '-',
     areaCoords: datumResults
       ? `A: ${formatDMS(datumResults.datumLeft.lat + 0.1, false)} - ${formatDMS(datumResults.datumLeft.lng - 0.1, true)}\nB: ${formatDMS(datumResults.datumRight.lat + 0.1, false)} - ${formatDMS(datumResults.datumRight.lng + 0.1, true)}\nC: ${formatDMS(datumResults.datumRight.lat - 0.1, false)} - ${formatDMS(datumResults.datumRight.lng + 0.1, true)}\nD: ${formatDMS(datumResults.datumLeft.lat - 0.1, false)} - ${formatDMS(datumResults.datumLeft.lng - 0.1, true)}`
-      : 'A: 06°00\'00"S - 106°40\'00"E\nB: 06°00\'00"S - 107°00\'00"E\nC: 06°20\'00"S - 107°00\'00"E\nD: 06°20\'00"S - 106°40\'00"E',
+      : '-',
 
     // SRU Resources
-    sruAir: 'Heli Dauphin HR-3601 (Basarnas Air)',
-    sruSea: 'KN SAR Yudistira, RIB 01 Kansar, Kapal Patroli Polairud',
-    sruLand: 'Tim Rescue Kansar, Tagana, Potensi SAR Lokal',
-    equipment: 'Peralatan water rescue, Drone thermal, Kantung mayat, Tenda posko',
+    sruAir: '-', sruSea: '-', sruLand: '-', equipment: '-',
 
     // Section D: Logistik
-    logistics: 'BBM Dexlite 2.000 Liter, Avtur 1.500 Liter, Ransum 50 pack, Medis 1 Tim',
+    logistics: '-',
 
     // Section E: Komando
-    smcName: 'Kakansar / Kasi Operasi',
-    oscName: 'Komandan KN SAR Yudistira',
-    commsFreqs: 'VHF Ch 16, Working Ch 68 / HF 5828 kHz Basarnas',
+    smcName: '-', oscName: '-', commsFreqs: '-',
   });
 
   const updateField = (key: string, val: string) => {
