@@ -277,7 +277,20 @@ export default function AIChatPanel({
           }),
         });
 
-        const data = await res.json();
+        const responseBody = await res.text();
+        let data: {
+          error?: string;
+          text?: string;
+          functionCalls?: ChatMessage['functionCalls'];
+        };
+        try {
+          data = JSON.parse(responseBody);
+        } catch {
+          const detail = responseBody.trim().slice(0, 600);
+          throw new Error(
+            `Server mengembalikan respons non-JSON (HTTP ${res.status}). ${detail || 'Isi respons kosong.'}`
+          );
+        }
 
         if (!res.ok) {
           throw new Error(data.error || 'API Error');
@@ -285,7 +298,7 @@ export default function AIChatPanel({
 
         const assistantMsg: ChatMessage = {
           role: 'assistant',
-          content: data.text,
+          content: data.text || 'Server tidak mengirim teks jawaban.',
           functionCalls: data.functionCalls,
         };
         setMessages([...newMessages, assistantMsg]);
