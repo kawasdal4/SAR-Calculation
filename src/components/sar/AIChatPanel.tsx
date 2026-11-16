@@ -267,14 +267,24 @@ export default function AIChatPanel({
       setIsLoading(true);
 
       try {
+        const requestPayload = {
+          messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
+          apiKey,
+          files: filesToSend.map((f) => ({ name: f.name, type: f.type, base64: f.base64 })),
+        };
+        const requestBody = JSON.stringify(requestPayload);
+        // Vercel Functions reject request bodies above 4.5 MB before this route runs.
+        // Leave headroom for platform/proxy overhead and give users a useful error.
+        if (new Blob([requestBody]).size > 4 * 1024 * 1024) {
+          throw new Error(
+            'Ukuran lampiran dan riwayat chat melewati batas upload Vercel (4,5 MB). Kompres file atau kirim file yang lebih kecil (sekitar 3 MB atau kurang).'
+          );
+        }
+
         const res = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
-            apiKey,
-            files: filesToSend.map((f) => ({ name: f.name, type: f.type, base64: f.base64 })),
-          }),
+          body: requestBody,
         });
 
         const responseBody = await res.text();
