@@ -145,9 +145,9 @@ const tools: FunctionDeclaration[] = [
 
 const GEMINI_MODEL = 'gemini-3.8-flash';
 
-// PDF analysis and Gemini reasoning can exceed Vercel's short default timeout.
-// Hobby projects support up to 60 seconds; higher plans may allow more.
-export const maxDuration = 60;
+// This Vercel project supports 300-second functions; complex SAR case analysis
+// and document understanding can exceed the shorter 60-second default.
+export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
   try {
@@ -213,6 +213,8 @@ export async function POST(req: NextRequest) {
         key === 'type' && typeof child === 'string' ? child.toLowerCase() : normalizeSchema(child),
       ]));
     };
+    const geminiStartedAt = Date.now();
+    console.info(`[AI chat] Gemini request started (model=${GEMINI_MODEL}, files=${incomingFiles.length}).`);
     const response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
@@ -230,6 +232,7 @@ export async function POST(req: NextRequest) {
         store: false,
       }),
     });
+    console.info(`[AI chat] Gemini response received (status=${response.status}, durationMs=${Date.now() - geminiStartedAt}).`);
     const result = await response.json();
     if (!response.ok) {
       const detail = result?.error?.message || `Gemini API returned HTTP ${response.status}`;
