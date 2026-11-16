@@ -145,6 +145,10 @@ const tools: FunctionDeclaration[] = [
 
 const GEMINI_MODEL = 'gemini-3.8-flash';
 
+// PDF analysis and Gemini reasoning can exceed Vercel's short default timeout.
+// Hobby projects support up to 60 seconds; higher plans may allow more.
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   try {
     const { messages, apiKey, files } = await req.json();
