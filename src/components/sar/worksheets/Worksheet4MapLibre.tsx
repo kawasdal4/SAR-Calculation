@@ -40,9 +40,19 @@ function rasterStyle(choice: BasemapChoice): maplibregl.StyleSpecification {
     sources: {
       basemap: {
         type: 'raster',
-        tiles: [isTopo
-          ? 'https://{a-c}.tile.opentopomap.org/{z}/{x}/{y}.png'
-          : 'https://{a-c}.tile.openstreetmap.org/{z}/{x}/{y}.png'],
+        // MapLibre does not expand Leaflet's `{a-c}` subdomain shorthand.
+        // List each tile host explicitly so requests are distributed correctly.
+        tiles: isTopo
+          ? [
+              'https://a.tile.opentopomap.org/{z}/{x}/{y}.png',
+              'https://b.tile.opentopomap.org/{z}/{x}/{y}.png',
+              'https://c.tile.opentopomap.org/{z}/{x}/{y}.png',
+            ]
+          : [
+              'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
+              'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
+              'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png',
+            ],
         tileSize: 256,
         attribution: isTopo
           ? 'Map data © OpenStreetMap contributors, SRTM | Map style © OpenTopoMap (CC-BY-SA)'
