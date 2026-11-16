@@ -82,6 +82,8 @@ export interface SeaMapProps {
   measureMode?: boolean;
   /** Isolates map controls and persisted view preferences for this map instance. */
   preferenceKey?: string;
+  /** Isolated chart style for specialized worksheets. */
+  basemap?: 'nautical' | 'onc';
 }
 
 function escapeHtml(value: string): string {
@@ -153,6 +155,8 @@ const OSM_MAX_ZOOM = 19;
 const SEAMARK_URL = 'https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png';
 const SEAMARK_ATTR = '© OpenSeaMap';
 const SEAMARK_MAX_ZOOM = 18;
+const ONC_URL = 'https://services.arcgisonline.com/ArcGIS/rest/services/Specialty/World_Navigation_Charts/MapServer/tile/{z}/{y}/{x}';
+const ONC_ATTR = '© Esri, East View Cartographic';
 
 function mapControlId(scope: string, control: string): string {
   return `seamap-${scope}-${control}`;
@@ -261,7 +265,11 @@ export default function SeaMap({
   pickMode = false,
   measureMode = false,
   preferenceKey,
+  basemap = 'nautical',
 }: SeaMapProps) {
+  const mapDisclaimer = basemap === 'onc'
+    ? 'Peta ONC referensi; bukan pengganti chart/produk aeronautika resmi.'
+    : 'Bukan untuk navigasi pelayaran; akurasi tidak dijamin.';
   const reactMapId = useId();
   const mapScope = (preferenceKey ?? reactMapId).replace(/[^a-zA-Z0-9_-]/g, '_');
   const viewPrefsStorageKey = preferenceKey ? `${VIEW_PREFS_KEY}:${mapScope}` : VIEW_PREFS_KEY;
@@ -402,21 +410,21 @@ export default function SeaMap({
   // ---- Depth layer state ----
   // Mirrors viewPrefs.depth so we can pass a stable ref into the map's
   // once-bound moveend handler.
-  const depthEnabledRef = useRef<boolean>(viewPrefs.depth);
+  const depthEnabledRef = useRef<boolean>(basemap === 'onc' ? false : viewPrefs.depth);
   const depthDensityRef = useRef<Density>('sedang');
   const [depthDensity, setDepthDensityState] = useState<Density>(() => loadDepthDensity(depthDensityStorageKey));
   const [depthStatus, setDepthStatus] = useState<DepthStatus>('idle');
   const [depthHint, setDepthHint] = useState<string | null>(null);
 
   useEffect(() => {
-    depthEnabledRef.current = viewPrefs.depth;
+    depthEnabledRef.current = basemap === 'onc' ? false : viewPrefs.depth;
     // Trigger an immediate redraw of the depth canvas when toggled on.
     if (mapRef.current) {
       // The map's moveend handler will run scheduleDepthRedraw; but the user
       // just toggled the checkbox, so fire it manually.
       window.dispatchEvent(new Event(depthToggleEvent));
     }
-  }, [viewPrefs.depth, depthToggleEvent]);
+  }, [viewPrefs.depth, depthToggleEvent, basemap]);
 
   useEffect(() => {
     depthDensityRef.current = depthDensity;
@@ -444,19 +452,12 @@ export default function SeaMap({
       return !disposed && mapRef.current === map && Boolean(containerRef.current?.isConnected && mapPane?.isConnected);
     };
 
-    // Base OSM layer
-    L.tileLayer(OSM_URL, {
-      attribution: OSM_ATTR,
-      maxZoom: OSM_MAX_ZOOM,
-    }).addTo(map);
-
-    // OpenSeaMap seamark overlay
-    L.tileLayer(SEAMARK_URL, {
-      attribution: SEAMARK_ATTR,
-      maxZoom: SEAMARK_MAX_ZOOM,
-      tileSize: 256,
-      opacity: 0.9,
-    }).addTo(map);
+    if (basemap === 'onc') {
+      L.tileLayer(ONC_URL, { attribution: ONC_ATTR, minZoom: 3, maxZoom: 10 }).addTo(map);
+    } else {
+      L.tileLayer(OSM_URL, { attribution: OSM_ATTR, maxZoom: OSM_MAX_ZOOM }).addTo(map);
+      L.tileLayer(SEAMARK_URL, { attribution: SEAMARK_ATTR, maxZoom: SEAMARK_MAX_ZOOM, tileSize: 256, opacity: 0.9 }).addTo(map);
+    }
 
     // ---- Nautical chart scale border (canvas-based) ----
     // Style: NO black/white band. Each side is a 1 px outline at the very
@@ -1156,8 +1157,8 @@ export default function SeaMap({
     const DisclaimerControl = L.Control.extend({
       onAdd: () => {
         const div = L.DomUtil.create('div', 'sar-disclaimer-badge');
-        div.textContent = '⚠ Bukan untuk navigasi pelayaran';
-        div.title = 'Bukan untuk navigasi pelayaran; akurasi tidak dijamin.';
+        div.textContent = `⚠ ${mapDisclaimer}`;
+        div.title = mapDisclaimer;
         return div;
       },
     });
@@ -1170,16 +1171,14 @@ export default function SeaMap({
         const depthSourceLabel = getDepthSourceLabel();
         div.innerHTML = `
           <h4>Map Layers</h4>
-          <div class="layer-row">
-            <label><input type="checkbox" id="${mapControlId(mapScope, 'osm')}" checked suppressHydrationWarning /> OpenStreetMap (base)</label>
-          </div>
-          <div class="layer-row">
-            <label><input type="checkbox" id="${mapControlId(mapScope, 'seamark')}" checked suppressHydrationWarning /> OpenSeaMap (seamark)</label>
-          </div>
+          ${basemap === 'onc'
+            ? `<div class="layer-row"><label><input type="checkbox" id="${mapControlId(mapScope, 'onc')}" checked /> ONC · World Navigation Charts (1:1.000.000)</label></div>`
+            : `<div class="layer-row"><label><input type="checkbox" id="${mapControlId(mapScope, 'osm')}" checked /> OpenStreetMap (base)</label></div>
+               <div class="layer-row"><label><input type="checkbox" id="${mapControlId(mapScope, 'seamark')}" checked /> OpenSeaMap (seamark)</label></div>`}
           <div class="layer-row">
             <label><input type="checkbox" id="${mapControlId(mapScope, 'grid')}" checked suppressHydrationWarning /> Bingkai skala</label>
           </div>
-          <div class="layer-row">
+          ${basemap !== 'onc' ? `<div class="layer-row">
             <label><input type="checkbox" id="${mapControlId(mapScope, 'depth')}" suppressHydrationWarning /> Angka kedalaman</label>
             <div class="layer-density" id="${mapControlId(mapScope, 'density-wrap')}" style="display:none; margin-top:4px;">
               <label class="layer-density-label">Kepadatan:
@@ -1194,7 +1193,7 @@ export default function SeaMap({
               <div class="layer-status" id="${mapControlId(mapScope, 'depth-status')}"></div>
               <div class="layer-hint" id="${mapControlId(mapScope, 'depth-hint')}" style="display:none;"></div>
             </div>
-          </div>
+          </div>` : ''}
         `;
         return div;
       },
@@ -1240,6 +1239,7 @@ export default function SeaMap({
       // osm/seamark toggles: locate the tile layers by URL
       const osmCb = document.getElementById(mapControlId(mapScope, 'osm')) as HTMLInputElement | null;
       const seamarkCb = document.getElementById(mapControlId(mapScope, 'seamark')) as HTMLInputElement | null;
+      const oncCb = document.getElementById(mapControlId(mapScope, 'onc')) as HTMLInputElement | null;
       if (osmTile) {
         for (const key of Object.keys(osmTile)) {
           const layer = osmTile[key];
@@ -1250,6 +1250,14 @@ export default function SeaMap({
           } else if (layer._url === SEAMARK_URL && seamarkCb) {
             seamarkCb.addEventListener('change', () =>
               seamarkCb.checked ? map.addLayer(layer as unknown as L.Layer) : map.removeLayer(layer as unknown as L.Layer));
+          }
+        }
+        if (oncCb) {
+          for (const key of Object.keys(osmTile)) {
+            const layer = osmTile[key];
+            if (layer?._url === ONC_URL) oncCb.addEventListener('change', () => oncCb.checked
+              ? map.addLayer(layer as unknown as L.Layer)
+              : map.removeLayer(layer as unknown as L.Layer));
           }
         }
       }
@@ -1408,7 +1416,7 @@ export default function SeaMap({
       mapRef.current = null;
       layersRef.current = {};
     };
-  }, [mapScope, depthToggleEvent, depthPanelSyncEvent]);
+  }, [mapScope, depthToggleEvent, depthPanelSyncEvent, basemap, mapDisclaimer]);
 
   // ---- Update center/zoom when props change ----
   useEffect(() => {
@@ -1664,7 +1672,7 @@ export default function SeaMap({
     <div
       style={{ display: 'flex', flexDirection: 'column', height, width: '100%' }}
       role="application"
-      aria-label="Interactive sea map showing search and rescue datum, search areas, and bathymetry"
+      aria-label={basemap === 'onc' ? 'Peta ONC udara Worksheet 4 dengan radius pencarian' : 'Interactive sea map showing search and rescue datum, search areas, and bathymetry'}
     >
       <div
         className={mapWrapperClassName}
@@ -1752,14 +1760,16 @@ export default function SeaMap({
                 />
                 <span>Peringatan</span>
               </label>
-              <label className="seamap-tampilan-row">
-                <input
-                  type="checkbox"
-                  checked={viewPrefs.depth}
-                  onChange={() => togglePref('depth')} suppressHydrationWarning
-                />
-                <span>Angka kedalaman</span>
-              </label>
+              {basemap !== 'onc' && (
+                <label className="seamap-tampilan-row">
+                  <input
+                    type="checkbox"
+                    checked={viewPrefs.depth}
+                    onChange={() => togglePref('depth')} suppressHydrationWarning
+                  />
+                  <span>Angka kedalaman</span>
+                </label>
+              )}
               <button
                 type="button"
                 className="seamap-tampilan-all"
@@ -1789,8 +1799,8 @@ export default function SeaMap({
        * When the depth layer is active, also show the data-source
        * attribution (GEBCO / BIG) and the "interpolasi grid" note here. */}
       <div className="seamap-disclaimer-strip">
-        <strong>⚠ Bukan untuk navigasi pelayaran</strong>; akurasi tidak dijamin.
-        {viewPrefs.depth && (
+        <strong>⚠ {mapDisclaimer}</strong>
+        {basemap !== 'onc' && viewPrefs.depth && (
           <>
             {' '}
             Angka kedalaman hasil interpolasi grid (GEBCO sekitar 450 m / BATNAS sekitar 180 m), bukan hasil survei.

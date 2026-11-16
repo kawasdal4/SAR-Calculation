@@ -21,7 +21,7 @@ ALUR ANALISIS KASUS:
 
 PEMILIHAN WORKSHEET DAN KETERGANTUNGAN:
 - Mandiri (tidak memerlukan hasil worksheet lain): Worksheet 4, Intercept, dan Penghitungan Dasar. Pilih sesuai permintaan/data soal; jangan menunggu Worksheet 1/2/8.
-- Jika target dicari di darat dengan helikopter atau pesawat fixed-wing, wajib arahkan ke Worksheet 3 (Land). Bila salah satu input perhitungan WS3 belum ada dan belum dapat dipasok dari worksheet hulu pada kasus yang sama, tanyakan data yang hilang dengan pertanyaan singkat dan spesifik.
+- Jika target dicari di darat dengan helikopter atau pesawat fixed-wing, wajib arahkan ke Worksheet 3 (Land). Input wajib WS3: kategori objek Table I-9, visibility 5/10/20/30/40 km, kategori vegetasi Table I-10, status fatigue, platform, dan Search Number Figure I-12. Jika ada yang belum diketahui, tanyakan sebelum mengisi. Search Speed V hanya wajib bila pengguna meminta T; jangan menyamakan TAS dan V tanpa keterangan.
 - Worksheet 1/2/8 dan alokasi aset mengikuti alur worksheet hulu sesuai panduan. Jangan menganggap semuanya mandiri.
 - Bila data wajib worksheet yang dipilih kurang, JANGAN mengisi worksheet itu dengan nilai default/contoh. Tanyakan balik sebelum menjalankan perhitungan. Sebutkan per worksheet data apa yang kurang.
 - Jika menemukan prasyarat/data wajib yang kurang, panggil ask_for_case_data berisi nama worksheet dan pertanyaan spesifik; panggilan worksheet lain yang sudah memiliki data lengkap tetap boleh dibuat.
@@ -56,9 +56,9 @@ WORKSHEET YANG TERSEDIA:
 - Datum / Worksheet 1: Gunakan LKP, lama drift, ASW, arus laut, dan jenis objek bila tersedia; Worksheet 1 menghitung error dan search area dengan safety factor pilihan pengguna.
 - Worksheet 2: Gunakan untuk perencanaan sub-area maritim bila objek, platform pencari udara, TAS, visibilitas, tinggi pencarian, dan status fatigue diketahui.
 - Worksheet 8: Gunakan untuk POSC pencarian kapal bila objek, tinggi mata, visibilitas, dan fatigue diketahui.
-- Worksheet 3 (Land): Wajib untuk pencarian darat menggunakan helikopter atau pesawat fixed-wing; membutuhkan visibilitas, vegetasi, fatigue, TAS, jam pencarian, dan search area dari Worksheet 1 atau data soal.
+- Worksheet 3 (Land): Wajib untuk pencarian darat menggunakan helikopter atau pesawat fixed-wing; Wu memakai Table I-9, Fv memakai Table I-10, W = Wu × Fv × Ff, S dihitung khusus WS3 dengan pembulatan ke interval 0.5 NM untuk fixed-wing atau 0.25 NM untuk helicopter, C = W/S, POD dibaca dari Figure I-12 dengan Search Number yang dipilih. Jangan memakai rumus atau nilai S dari Worksheet 2. T = A/(V×S) hanya jika A dan Search Speed V tersedia.
 - Worksheet 4 dan Penghitungan Dasar bersifat mandiri; Intercept juga mandiri.
-- Untuk kasus WS 4 yang meminta radius, gunakan set_ws4_case hanya bila empat track, empat fix error, error navigasi, dan safety factor tersedia. Jika ada yang kurang, tanyakan nilai tersebut terlebih dahulu. Untuk pertanyaan hitung dasar satu rumus, gunakan perhitungan dasar langsung tanpa memaksa worksheet SAR lain.
+- Untuk WS4, tentukan Tr A dari jarak yang diketahui atau TAS × waktu/60 sejak Last Positive Fix. Hitung Tr B/C/D secara kumulatif dengan jarak tiap leg rute; jangan memakai jarak lurus bila sumber memberi route distance. x untuk GPS/self-contained = 5 NM; aircraft lain/non-GPS = 10 NM; hanya DR yang menambah 10% Tr ke baseline error fix. Appendix J-1 untuk y: GPS 0.1 NM, Radar 1 NM, Visual 1 NM, Celestial 2 NM, Marine Radio Beacon 4 NM, LORAN C 1 NM; INS 0.5 NM per jam terbang tanpa update; VOR/TACAN memakai nilai lebih besar dari ±3° arc plus 3% jarak atau radius 0.5 NM. Untuk INS/VOR/TACAN, minta jarak/waktu yang dibutuhkan bila belum ada. Safety Factor harus dipilih eksplisit. Bila mode atau input wajib tidak jelas, tanyakan. Kirim waypoint yang memiliki koordinat agar aplikasi dapat memplotnya di peta ONC terpisah.
 
 ATURAN OBSERVASI ASW:
 Per 6 Jam: 00.00 (21–03), 06.00 (03–09), 12.00 (09–15), 18.00 (15–21)
@@ -245,7 +245,7 @@ const tools: FunctionDeclaration[] = [
   },
   {
     name: 'set_ws4_case',
-    description: 'Mengisi Worksheet 4 Search Radius yang bersifat mandiri. Gunakan bila soal berisi data radius/track empat posisi. Wajib ekstrak empat jarak track Tr, empat fix error, error navigasi y, dan safety factor (1.1, 1.6, 2.0, 2.3, 2.5). Jika ada yang tidak tersedia, jangan panggil tool; tanyakan balik.',
+    description: 'Mengisi Worksheet 4 Search Radius mandiri. Aplikasi menghitung Tr A langsung atau dari TAS × menit/60, lalu menghitung Tr kumulatif B/C/D dari route distance per leg atau koordinat waypoint. Pilih targetNavigationType: self-contained (x=5 NM dari Appendix J-2), other-aircraft (x=10 NM), dead-reckoning (base fix error + 10% Tr), atau custom. Jangan menambahkan 10% Tr untuk GPS/non-GPS biasa. y harus berasal dari akurasi navigasi SRU/Appendix J-1; Fs wajib dipilih eksplisit. Jika data untuk radius belum ada, tanyakan. Sertakan routePoints bila koordinat posisi tersedia untuk peta ONC terpisah. Aktifkan applyDre hanya atas keputusan planner/SOP.',
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
@@ -257,30 +257,44 @@ const tools: FunctionDeclaration[] = [
         latitude: { type: SchemaType.NUMBER, description: 'Lintang titik distress jika tersedia, selatan negatif.' },
         longitude: { type: SchemaType.NUMBER, description: 'Bujur titik distress jika tersedia, barat negatif.' },
         distressTimeUtc: { type: SchemaType.STRING },
-        trList: { type: SchemaType.ARRAY, items: { type: SchemaType.NUMBER }, description: 'Empat jarak track NM berurutan A-D.' },
-        fixErrors: { type: SchemaType.ARRAY, items: { type: SchemaType.NUMBER }, description: 'Empat error fix NM berurutan A-D.' },
-        yNavError: { type: SchemaType.NUMBER, description: 'Error navigasi pencari NM.' },
+        trStartMode: { type: SchemaType.STRING, description: 'manual jika Tr A diketahui langsung; elapsed-time jika Tr A dihitung dari TAS dan waktu sejak Last Positive Fix.' },
+        initialTrNm: { type: SchemaType.NUMBER, description: 'Jarak Tr A langsung NM. Isi 0 jika trStartMode elapsed-time.' },
+        elapsedMinutesSinceLastFix: { type: SchemaType.NUMBER, description: 'Menit sejak Last Positive Fix sampai titik A; isi 0 untuk mode manual.' },
+        targetTasKts: { type: SchemaType.NUMBER, description: 'TAS target untuk menghitung Tr A pada mode elapsed-time; isi 0 untuk mode manual.' },
+        routeLegDistancesNm: { type: SchemaType.ARRAY, items: { type: SchemaType.NUMBER }, description: 'Jarak rute NM untuk leg A-B, B-C, C-D. Ambil dari kasus/route; jika koordinat waypoint tersedia aplikasi dapat menghitung leg yang tidak diberi angka; gunakan 0 hanya bila leg tidak ada.' },
+        routePoints: { type: SchemaType.ARRAY, items: { type: SchemaType.OBJECT, properties: {
+          name: { type: SchemaType.STRING, description: 'Nama waypoint.' },
+          lat: { type: SchemaType.NUMBER, description: 'Lintang desimal, selatan negatif.' },
+          lng: { type: SchemaType.NUMBER, description: 'Bujur desimal, barat negatif.' },
+          active: { type: SchemaType.BOOLEAN, description: 'True jika posisi ini tercantum/terkonfirmasi dalam kasus.' },
+        }, required: ['name', 'lat', 'lng', 'active'] }, description: 'Empat waypoint kandidat A-D untuk peta. Jangan mengarang koordinat.' },
+        trList: { type: SchemaType.ARRAY, items: { type: SchemaType.NUMBER }, description: 'Legacy: empat Tr kumulatif A-D jika memang diberikan/dihitung dari soal; aplikasi tetap mengonversinya menjadi jarak awal dan tiap leg.' },
+        targetNavigationType: { type: SchemaType.STRING, description: 'self-contained, other-aircraft, dead-reckoning, atau custom. Jangan menebak klasifikasi.' },
+        fixErrors: { type: SchemaType.ARRAY, items: { type: SchemaType.NUMBER }, description: 'Base fix error NM per A-D; dibutuhkan untuk DR/custom saja. Untuk DR komponen 10% Tr ditambahkan oleh aplikasi.' },
+        yNavError: { type: SchemaType.NUMBER, description: 'Search craft navigation error SRU dalam NM, dari akurasi aktual/Appendix J-1; jangan gunakan contoh 0.1 sebagai default.' },
         safetyFactor: { type: SchemaType.NUMBER, description: 'Safety factor yang secara eksplisit diberikan/dipilih dalam soal.' },
+        applyDre: { type: SchemaType.BOOLEAN, description: 'True hanya jika DRe diperintahkan planner/SOP; jika tidak, false.' },
       },
-      required: ['trList', 'fixErrors', 'yNavError', 'safetyFactor'],
+      required: ['trStartMode', 'initialTrNm', 'elapsedMinutesSinceLastFix', 'targetTasKts', 'routeLegDistancesNm', 'targetNavigationType', 'yNavError', 'safetyFactor'],
     },
   },
   {
     name: 'set_ws3_case',
-    description: 'Mengisi Worksheet 3 (Land) untuk pencarian di darat oleh heli/fixed-wing. Gunakan hanya bila objek, visibilitas, vegetasi, fatigue, TAS, dan jam tersedia; area bisa dari kasus atau Worksheet 1 yang diisi pada respons yang sama. Jika prasyarat tidak lengkap, jangan panggil; tanyakan data yang kurang.',
+    description: 'Mengisi Worksheet 3 (Land) agar aplikasi menghitung Wu dari Table I-9, Fv dari Table I-10, Ff, W, S dengan aturan khusus Worksheet 3 (fixed-wing interval 0.5 NM; helicopter 0.25 NM), C, dan POD dari Figure I-12. Jangan memakai nilai atau aturan S Worksheet 2. Panggil hanya jika kategori target, visibilitas tepat 5/10/20/30/40 km, kategori vegetasi, fatigue, platform, dan Search Number 1-5 diketahui; jika ada yang kurang tanyakan dahulu. Search Speed V opsional kecuali pengguna meminta T; jangan menyamakan TAS dengan V bila tidak dinyatakan sama. Area opsional: gunakan dari Worksheet 1 jika tidak diberikan.',
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
         caseTitle: { type: SchemaType.STRING },
-        searchObject: { type: SchemaType.STRING, description: 'Jenis objek sasaran pencarian.' },
-        visibilityKm: { type: SchemaType.NUMBER, description: 'Jarak pandang kilometer.' },
-        vegetationType: { type: SchemaType.STRING, description: 'Kategori tutupan vegetasi: 15-60, 60-85, atau +85.' },
+        searchObject: { type: SchemaType.STRING, description: 'ID kategori target: person, vehicle, aircraft-under-5700, atau aircraft-over-5700.' },
+        visibilityKm: { type: SchemaType.NUMBER, description: 'Jarak pandang kilometer, tepat salah satu 5, 10, 20, 30, 40.' },
+        vegetationType: { type: SchemaType.STRING, description: 'Kategori Table I-10: under-15, 15-60, 60-85, over-85.' },
         isFatigue: { type: SchemaType.BOOLEAN, description: 'True jika kru/pencari mengalami fatigue.' },
-        searchTas: { type: SchemaType.NUMBER, description: 'TAS pesawat/helikopter saat pencarian, knot.' },
-        hoursAvailable: { type: SchemaType.NUMBER, description: 'Jam pencarian tersedia.' },
+        searchPlatform: { type: SchemaType.STRING, description: 'Platform Worksheet 3: fixed-wing atau helicopter. Dibutuhkan untuk aturan S Worksheet 3.' },
+        searchNumber: { type: SchemaType.NUMBER, description: 'Nomor pencarian pada Figure I-12, integer 1 sampai 5.' },
+        searchSpeedKts: { type: SchemaType.NUMBER, description: 'Kecepatan pencarian V dalam knot. Opsional, tetapi harus diketahui bila menghitung T; jangan isi dari TAS tanpa konfirmasi.' },
         searchAreaNm2: { type: SchemaType.NUMBER, description: 'Area pencarian NM² hanya jika disebutkan dalam kasus. Bila tidak disebutkan tetapi Worksheet 1 dihitung bersama, hilangkan agar nilai Worksheet 1 dipakai.' },
       },
-      required: ['searchObject', 'visibilityKm', 'vegetationType', 'isFatigue', 'searchTas', 'hoursAvailable'],
+      required: ['searchObject', 'visibilityKm', 'vegetationType', 'isFatigue', 'searchPlatform', 'searchNumber'],
     },
   },
   {

@@ -244,12 +244,14 @@ export default function AIChatPanel({
         }
         case 'set_ws3_case': {
           const data = args as Worksheet3InitialState;
-          if (typeof data.searchObject === 'string' && data.searchObject.trim().length > 0
-            && Number.isFinite(data.visibilityKm) && (data.visibilityKm ?? 0) > 0
-            && ['15-60', '60-85', '+85'].includes(data.vegetationType ?? '')
+          if (['person', 'vehicle', 'aircraft-under-5700', 'aircraft-over-5700'].includes(data.searchObject ?? '')
+            && [5, 10, 20, 30, 40].includes(data.visibilityKm ?? 0)
+            && ['under-15', '15-60', '60-85', 'over-85'].includes(data.vegetationType ?? '')
             && typeof data.isFatigue === 'boolean'
-            && Number.isFinite(data.searchTas) && (data.searchTas ?? 0) > 0
-            && Number.isFinite(data.hoursAvailable) && (data.hoursAvailable ?? 0) > 0
+            && ['fixed-wing', 'helicopter'].includes(data.searchPlatform ?? '')
+            && [1, 2, 3, 4, 5].includes(data.searchNumber ?? 0)
+            && (data.searchSpeedKts === undefined || (Number.isFinite(data.searchSpeedKts) && data.searchSpeedKts >= 0))
+            && (data.searchTas === undefined || (Number.isFinite(data.searchTas) && data.searchTas >= 0))
             && (data.searchAreaNm2 === undefined || (Number.isFinite(data.searchAreaNm2) && data.searchAreaNm2 >= 0))) {
             onApplyWS3?.(data);
             applied = true;
@@ -260,8 +262,21 @@ export default function AIChatPanel({
         case 'set_ws4_case': {
           const data = args as Worksheet4InitialState;
           const validFactors = [1.1, 1.6, 2, 2.3, 2.5];
-          if (Array.isArray(data.trList) && data.trList.length === 4 && data.trList.every((value) => Number.isFinite(value) && value >= 0)
-            && Array.isArray(data.fixErrors) && data.fixErrors.length === 4 && data.fixErrors.every((value) => Number.isFinite(value) && value >= 0)
+          const validLegs = Array.isArray(data.routeLegDistancesNm) && data.routeLegDistancesNm.length === 3 && data.routeLegDistancesNm.every((value) => Number.isFinite(value) && value >= 0);
+          const validLegacyTr = Array.isArray(data.trList) && data.trList.length === 4 && data.trList.every((value) => Number.isFinite(value) && value >= 0);
+          const validStart = data.trStartMode === 'manual'
+            ? Number.isFinite(data.initialTrNm) && (data.initialTrNm ?? -1) >= 0
+            : data.trStartMode === 'elapsed-time'
+              && Number.isFinite(data.targetTasKts) && (data.targetTasKts ?? 0) > 0
+              && Number.isFinite(data.elapsedMinutesSinceLastFix) && (data.elapsedMinutesSinceLastFix ?? -1) >= 0;
+          const validTargetNav = ['self-contained', 'other-aircraft', 'dead-reckoning', 'custom'].includes(data.targetNavigationType ?? '');
+          const requiresBaseErrors = data.targetNavigationType === 'dead-reckoning' || data.targetNavigationType === 'custom';
+          const validFixErrors = !requiresBaseErrors || (Array.isArray(data.fixErrors) && data.fixErrors.length === 4 && data.fixErrors.every((value) => Number.isFinite(value) && value >= 0));
+          const validWaypoints = data.routePoints === undefined || (Array.isArray(data.routePoints) && data.routePoints.length === 4 && data.routePoints.every((point) => point !== null && typeof point === 'object' && typeof point.name === 'string'
+            && Number.isFinite(point.lat) && Math.abs(point.lat) <= 90 && Number.isFinite(point.lng) && Math.abs(point.lng) <= 180
+            && typeof point.active === 'boolean'));
+          if ((validStart && (validLegs || validWaypoints) || validLegacyTr)
+            && validTargetNav && validFixErrors && validWaypoints
             && Number.isFinite(data.yNavError) && (data.yNavError ?? -1) >= 0
             && validFactors.includes(data.safetyFactor ?? 0)) {
             onApplyWS4?.(data);
@@ -562,11 +577,11 @@ export default function AIChatPanel({
       }
       case 'set_ws3_case': {
         const a = fc.args as Worksheet3InitialState;
-        return `🌲 WS 3 (Land): ${a.searchObject ?? 'objek?'} · visibilitas ${a.visibilityKm ?? '?'} km · TAS ${a.searchTas ?? '?'} kt · area ${a.searchAreaNm2 ?? 'dari WS 1'} NM²`;
+        return `🌲 WS 3 (Land): ${a.searchObject ?? 'objek?'} · ${a.searchPlatform ?? 'platform?'} · visibilitas ${a.visibilityKm ?? '?'} km · search no. ${a.searchNumber ?? '?'} · V ${a.searchSpeedKts ?? a.searchTas ?? '?'} kt · area ${a.searchAreaNm2 ?? 'dari WS 1'} NM²`;
       }
       case 'set_ws4_case': {
         const a = fc.args as Worksheet4InitialState;
-        return `📐 WS 4 (mandiri): Track ${a.trList?.join('/') ?? '?'} NM · fix ${a.fixErrors?.join('/') ?? '?'} NM · nav ${a.yNavError ?? '?'} NM · Fs ${a.safetyFactor ?? '?'}`;
+        return `📐 WS 4 (mandiri): Tr A ${a.trStartMode === 'elapsed-time' ? `${a.targetTasKts} kt × ${a.elapsedMinutesSinceLastFix} menit` : `${a.initialTrNm ?? a.trList?.[0] ?? '?'} NM`} · route legs ${(a.routeLegDistancesNm ?? []).join('/')} NM · nav target ${a.targetNavigationType ?? '?'} · y ${a.yNavError ?? '?'} NM · Fs ${a.safetyFactor ?? '?'}`;
       }
       case 'set_ws8_case': {
         const a = fc.args as Worksheet8InitialState;
