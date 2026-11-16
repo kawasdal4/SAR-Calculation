@@ -8,9 +8,21 @@
  * - TS: Track Line Search (Pola Garis Haluan)
  */
 
-import { type LatLng, project, distanceNm } from './sarCalculations';
+import { type LatLng, project, distanceNm, bearingDeg, rectangleCorners } from './sarCalculations';
 
 export type SearchPatternType = 'PS' | 'CS' | 'SS' | 'VS' | 'TS';
+
+export interface SearchPatternPlanInitialState {
+  patternType: SearchPatternType;
+  orientationDeg: number;
+  turnDirection?: 'right' | 'left';
+  tsReturn?: boolean;
+  sectorAngleDeg?: number;
+  sectorLegLengthNm?: number;
+  sectorLegCount?: number;
+  trackLineLengthNm?: number;
+  tsReturnOffsetNm?: number;
+}
 
 export interface SearchPatternParams {
   type: SearchPatternType;
@@ -21,6 +33,12 @@ export interface SearchPatternParams {
   trackSpacingNm: number; // S (Track spacing)
   turnDirection?: 'right' | 'left'; // For SS and VS
   tsReturn?: boolean; // For TS: return track?
+  startPoint?: LatLng;
+  sectorAngleDeg?: number;
+  sectorLegLengthNm?: number;
+  sectorLegCount?: number;
+  trackLineLengthNm?: number;
+  tsReturnOffsetNm?: number;
 }
 
 export interface SearchPatternResult {
@@ -43,31 +61,43 @@ export function generateSearchPattern(
   params: SearchPatternParams,
   sruSpeedKts: number = 15
 ): SearchPatternResult {
-  const S = Math.max(0.1, params.trackSpacingNm || 1.0);
-  const L = Math.max(S * 2, params.lengthNm || 10.0);
-  const W = Math.max(S * 2, params.widthNm || 8.0);
+  const S = params.trackSpacingNm;
+  const L = params.lengthNm;
+  const W = params.widthNm;
   const orient = ((params.orientationDeg % 360) + 360) % 360;
+
+  if (!(L > 0) || !(W > 0) || !Number.isFinite(orient)) return emptyPattern(params, 'Search Area persegi belum tersedia.');
 
   switch (params.type) {
     case 'PS':
-      return generateParallelSearch(params.center, L, W, orient, S, sruSpeedKts);
+      if (!(S > 0)) return emptyPattern(params, 'S belum tersedia dari Worksheet yang sesuai dengan platform SRU.');
+      return generateParallelSearch(params.center, L, W, orient, S, sruSpeedKts, params.startPoint);
     case 'CS':
-      return generateCreepingLineSearch(params.center, L, W, orient, S, sruSpeedKts);
+      if (!(S > 0)) return emptyPattern(params, 'S belum tersedia dari Worksheet yang sesuai dengan platform SRU.');
+      return generateCreepingLineSearch(params.center, L, W, orient, S, sruSpeedKts, params.startPoint);
     case 'SS':
+      if (!(S > 0)) return emptyPattern(params, 'S belum tersedia dari Worksheet yang sesuai dengan platform SRU.');
       return generateExpandingSquareSearch(params.center, S, orient, params.turnDirection || 'right', sruSpeedKts);
     case 'VS':
-      return generateSectorSearch(params.center, Math.max(1, W / 2), orient, params.turnDirection || 'right', sruSpeedKts);
+      if (!(params.sectorAngleDeg && params.sectorAngleDeg > 0 && params.sectorAngleDeg < 360)
+        || !(params.sectorLegLengthNm && params.sectorLegLengthNm > 0)
+        || !(params.sectorLegCount && Number.isInteger(params.sectorLegCount) && params.sectorLegCount > 0)) {
+        return emptyPattern(params, 'Sector angle, panjang leg, dan jumlah leg wajib ditentukan planner.');
+      }
+      return generateSectorSearch(params.center, params.sectorAngleDeg, params.sectorLegLengthNm, params.sectorLegCount, orient, params.turnDirection || 'right', sruSpeedKts);
     case 'TS':
-      return generateTrackLineSearch(params.center, L, orient, S, params.tsReturn ?? false, sruSpeedKts);
+      if (!(params.trackLineLengthNm && params.trackLineLengthNm > 0)) return emptyPattern(params, 'Panjang Track Line harus berasal dari rencana rute.');
+      if (params.tsReturn && !(params.tsReturnOffsetNm && params.tsReturnOffsetNm > 0)) return emptyPattern(params, 'Offset jalur pulang harus ditentukan planner; S tidak digunakan sebagai offset.');
+      return generateTrackLineSearch(params.center, params.trackLineLengthNm, orient, params.tsReturn ?? false, params.tsReturnOffsetNm ?? 0, sruSpeedKts);
     default:
-      return generateParallelSearch(params.center, L, W, orient, S, sruSpeedKts);
+      return emptyPattern(params, 'Jenis pola tidak tersedia.');
   }
 }
 
 /**
  * PS: Parallel Track Search
  * Long legs parallel to the major axis (L).
- * Starts at corner (CSP), offset S/2 from the border.
+ * Starts at the automatically derived CSP and keeps lane centerlines S NM apart.
  */
 function generateParallelSearch(
   center: LatLng,
@@ -75,7 +105,8 @@ function generateParallelSearch(
   widthNm: number,
   orientationDeg: number,
   S: number,
-  speedKts: number
+  speedKts: number,
+  plannedCsp?: LatLng,
 ): SearchPatternResult {
   const waypoints: LatLng[] = [];
   const halfL = lengthNm / 2;
@@ -87,16 +118,16 @@ function generateParallelSearch(
   const dirCross = (dirMajor + 90) % 360;
   const dirCrossRev = (dirMajor + 270) % 360;
 
-  // Corner reference: start at Top-Left corner of search box
-  // Corner = Center projected halfW along dirCrossRev, then halfL along dirMajorRev
-  const p1 = project(center, dirCrossRev, halfW - S / 2);
-  const csp = project(p1, dirMajorRev, halfL - S / 2);
+  const numLegs = Math.max(1, Math.floor(widthNm / S));
+  const crossMargin = numLegs === 1 ? halfW : (widthNm - (numLegs - 1) * S) / 2;
+  const alongMargin = crossMargin;
+  const p1 = project(center, dirCrossRev, halfW - crossMargin);
+  const csp = plannedCsp ?? project(p1, dirMajorRev, halfL - alongMargin);
 
   let currentPoint = csp;
   waypoints.push(currentPoint);
 
-  const numLegs = Math.max(2, Math.floor(widthNm / S));
-  const legDistance = lengthNm - S;
+  const legDistance = Math.max(0, lengthNm - 2 * alongMargin);
 
   for (let i = 0; i < numLegs; i++) {
     // Search leg along major axis
@@ -125,8 +156,8 @@ function generateParallelSearch(
     waypoints,
     segments,
     totalDistanceNm,
-    estimatedHours: totalDistanceNm / Math.max(1, speedKts),
-    description: `Pola Paralel (PS): ${numLegs} sapuan sejajar sumbu utama (${orientationDeg.toFixed(0)}°), spasi S = ${S.toFixed(1)} NM. Digunakan untuk area pencarian luas berbentuk persegi panjang dengan kemungkinan posisi target tersebar merata.`,
+    estimatedHours: speedKts > 0 ? totalDistanceNm / speedKts : 0,
+    description: `Pola Paralel (PS): ${numLegs} search leg sejajar pada heading ${orientationDeg.toFixed(0)}°T; jarak antar-centerline ${S.toFixed(2)} NM. Batas area tetap persegi.`,
   };
 }
 
@@ -140,7 +171,8 @@ function generateCreepingLineSearch(
   widthNm: number,
   orientationDeg: number,
   S: number,
-  speedKts: number
+  speedKts: number,
+  plannedCsp?: LatLng,
 ): SearchPatternResult {
   const waypoints: LatLng[] = [];
   const halfL = lengthNm / 2;
@@ -151,15 +183,16 @@ function generateCreepingLineSearch(
   const dirCross = (dirMajor + 90) % 360;
   const dirCrossRev = (dirMajor + 270) % 360;
 
-  // CSP: Offset S/2 from the starting end of major axis and side of cross axis
-  const p1 = project(center, (dirMajor + 180) % 360, halfL - S / 2);
-  const csp = project(p1, dirCrossRev, halfW - S / 2);
+  const numLegs = Math.max(1, Math.floor(lengthNm / S));
+  const alongMargin = numLegs === 1 ? halfL : (lengthNm - (numLegs - 1) * S) / 2;
+  const crossMargin = alongMargin;
+  const p1 = project(center, (dirMajor + 180) % 360, halfL - alongMargin);
+  const csp = plannedCsp ?? project(p1, dirCrossRev, halfW - crossMargin);
 
   let currentPoint = csp;
   waypoints.push(currentPoint);
 
-  const numLegs = Math.max(2, Math.floor(lengthNm / S));
-  const legDistance = widthNm - S;
+  const legDistance = Math.max(0, widthNm - 2 * crossMargin);
 
   for (let i = 0; i < numLegs; i++) {
     // Cross leg across width
@@ -188,8 +221,8 @@ function generateCreepingLineSearch(
     waypoints,
     segments,
     totalDistanceNm,
-    estimatedHours: totalDistanceNm / Math.max(1, speedKts),
-    description: `Pola Merayap (CS): ${numLegs} sapuan tegak lurus sumbu utama (${orientationDeg.toFixed(0)}°), spasi S = ${S.toFixed(1)} NM. Digunakan bila target kemungkinan besar berada di dekat garis haluan atau datum memanjang dan salah satu ujung area pencarian memiliki prioritas lebih tinggi.`,
+    estimatedHours: speedKts > 0 ? totalDistanceNm / speedKts : 0,
+    description: `Pola Merayap (CS): ${numLegs} search leg pada heading ${orientationDeg.toFixed(0)}°T; jarak antar-centerline ${S.toFixed(2)} NM. Batas area tetap persegi.`,
   };
 }
 
@@ -236,20 +269,20 @@ function generateExpandingSquareSearch(
     waypoints,
     segments,
     totalDistanceNm,
-    estimatedHours: totalDistanceNm / Math.max(1, speedKts),
+    estimatedHours: speedKts > 0 ? totalDistanceNm / speedKts : 0,
     description: `Pola Kotak Membesar (SS): Mulai dari Datum/CSP dengan belokan 90° ke ${turn === 'right' ? 'kanan' : 'kiri'}. Panjang kaki: 1S, 1S, 2S, 2S, 3S, 3S... Cocok untuk posisi target yang diketahui secara akurat di area kecil dan probabilitas tinggi di dekat datum.`,
   };
 }
 
 /**
  * VS: Sector Search
- * Radius R from Datum.
- * Starts at center, flies/steers to edge distance R, turns 120°, crosses through center,
- * repeats 3 triangles (9 legs total, 60° sectors, 3 passes through datum).
+ * Sector geometry uses planner-supplied sector angle, spoke length, and spoke count.
  */
 function generateSectorSearch(
   center: LatLng,
-  radiusNm: number,
+  sectorAngleDeg: number,
+  legLengthNm: number,
+  legCount: number,
   orientationDeg: number,
   turn: 'right' | 'left',
   speedKts: number
@@ -258,31 +291,12 @@ function generateSectorSearch(
   const csp = center;
   waypoints.push(csp);
 
-  const R = Math.max(0.5, radiusNm);
-  const turnAngle = turn === 'right' ? 120 : 240;
+  const turnAngle = (turn === 'right' ? 1 : -1) * sectorAngleDeg / 2;
   let currentDir = orientationDeg;
-
-  let currentPoint = csp;
-
-  // 3 triangles = 9 legs total
-  for (let i = 0; i < 3; i++) {
-    // Leg 1: Center to Outer Perimeter (distance R)
-    const pOuter1 = project(currentPoint, currentDir, R);
-    waypoints.push(pOuter1);
-
-    // Leg 2: Cross track along perimeter chord (distance R, turn 120°)
-    const chordDir = (currentDir + turnAngle) % 360;
-    const pOuter2 = project(pOuter1, chordDir, R);
-    waypoints.push(pOuter2);
-
-    // Leg 3: Back through center (turn 120° again)
-    const returnDir = (chordDir + turnAngle) % 360;
-    const pCenter = project(pOuter2, returnDir, R);
-    waypoints.push(pCenter);
-    currentPoint = pCenter;
-
-    // Advance direction by 60° for next triangle pass
-    currentDir = (currentDir + (turn === 'right' ? 60 : 300)) % 360;
+  for (let i = 0; i < legCount; i++) {
+    waypoints.push(project(center, currentDir, legLengthNm));
+    waypoints.push(center);
+    currentDir = (currentDir + turnAngle + 360) % 360;
   }
 
   const exitPoint = waypoints[waypoints.length - 1];
@@ -297,8 +311,8 @@ function generateSectorSearch(
     waypoints,
     segments,
     totalDistanceNm,
-    estimatedHours: totalDistanceNm / Math.max(1, speedKts),
-    description: `Pola Sektor (VS): Radius R = ${R.toFixed(1)} NM dari Datum. Melakukan 3 lintasan melewati datum (total 9 kaki, sudut sektor 60°). Menghasilkan cakupan maksimum (POD sangat tinggi) di titik datum.`,
+    estimatedHours: speedKts > 0 ? totalDistanceNm / speedKts : 0,
+    description: `Pola Sektor (VS): ${legCount} leg dengan sudut sektor ${sectorAngleDeg.toFixed(1)}° dan panjang leg ${legLengthNm.toFixed(1)} NM; rotasi antar-leg 1/2 sudut sektor sesuai rencana planner.`,
   };
 }
 
@@ -311,27 +325,23 @@ function generateTrackLineSearch(
   center: LatLng,
   lengthNm: number,
   orientationDeg: number,
-  S: number,
   tsReturn: boolean,
+  returnOffsetNm: number,
   speedKts: number
 ): SearchPatternResult {
   const waypoints: LatLng[] = [];
-  const halfL = lengthNm / 2;
-  const dirRev = (orientationDeg + 180) % 360;
+  const csp = project(center, (orientationDeg + 180) % 360, lengthNm / 2);
   const dirRight = (orientationDeg + 90) % 360;
 
-  // CSP: start of route
-  const csp = project(center, dirRev, halfL);
   waypoints.push(csp);
 
-  // Outbound leg along track
-  const endPoint = project(center, orientationDeg, halfL);
+  const endPoint = project(center, orientationDeg, lengthNm / 2);
   waypoints.push(endPoint);
 
   if (tsReturn) {
-    // Step S across and return
-    const offset1 = project(endPoint, dirRight, S);
-    const returnEnd = project(csp, dirRight, S);
+    // Return-track offset is an explicit planner input, never inferred from S.
+    const offset1 = project(endPoint, dirRight, returnOffsetNm);
+    const returnEnd = project(csp, dirRight, returnOffsetNm);
     waypoints.push(offset1);
     waypoints.push(returnEnd);
   }
@@ -348,7 +358,7 @@ function generateTrackLineSearch(
     waypoints,
     segments,
     totalDistanceNm,
-    estimatedHours: totalDistanceNm / Math.max(1, speedKts),
+    estimatedHours: speedKts > 0 ? totalDistanceNm / speedKts : 0,
     description: `Pola Garis Haluan (${tsReturn ? 'TSR' : 'TSN'}): Menyusuri jalur penerbangan/pelayaran sepanjang ${lengthNm.toFixed(1)} NM (${orientationDeg.toFixed(0)}°T). Digunakan bila target diasumsikan hilang di sepanjang rute perjalanannya.`,
   };
 }
@@ -377,4 +387,83 @@ function buildSegments(waypoints: LatLng[]): {
   }
 
   return { segments, totalDistanceNm };
+}
+
+function emptyPattern(params: SearchPatternParams, reason: string): SearchPatternResult {
+  return {
+    type: params.type,
+    name: 'Search Pattern',
+    code: params.type,
+    csp: params.startPoint ?? params.center,
+    exitPoint: params.startPoint ?? params.center,
+    waypoints: [],
+    segments: [],
+    totalDistanceNm: 0,
+    estimatedHours: 0,
+    description: reason,
+  };
+}
+
+/** Clip each pattern leg to the existing square boundary without resizing it. */
+export function clipSearchPatternToSquare(
+  pattern: SearchPatternResult,
+  center: LatLng,
+  sideNm: number,
+  areaOrientationDeg: number,
+): SearchPatternResult {
+  if (!(sideNm > 0) || pattern.segments.length === 0) return pattern;
+  const toLocal = (point: LatLng) => {
+    const distance = distanceNm(center, point);
+    const bearing = (bearingDeg(center, point) * Math.PI) / 180;
+    return { x: distance * Math.sin(bearing), y: distance * Math.cos(bearing) };
+  };
+  const toGeo = (point: { x: number; y: number }): LatLng => {
+    const distance = Math.hypot(point.x, point.y);
+    const bearing = (Math.atan2(point.x, point.y) * 180) / Math.PI;
+    return project(center, bearing, distance);
+  };
+  const polygon = rectangleCorners(center, sideNm, sideNm, areaOrientationDeg).map(toLocal);
+  const area2 = polygon.reduce((sum, point, index) => {
+    const next = polygon[(index + 1) % polygon.length];
+    return sum + point.x * next.y - next.x * point.y;
+  }, 0);
+  const orientation = area2 >= 0 ? 1 : -1;
+
+  const segments = pattern.segments.flatMap((segment) => {
+    const start = toLocal(segment.from);
+    const end = toLocal(segment.to);
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    let tEnter = 0;
+    let tExit = 1;
+    for (let index = 0; index < polygon.length; index++) {
+      const edgeStart = polygon[index];
+      const edgeEnd = polygon[(index + 1) % polygon.length];
+      const ex = edgeEnd.x - edgeStart.x;
+      const ey = edgeEnd.y - edgeStart.y;
+      const valueAtStart = orientation * (ex * (start.y - edgeStart.y) - ey * (start.x - edgeStart.x));
+      const valueChange = orientation * (ex * dy - ey * dx);
+      if (Math.abs(valueChange) < 1e-9) {
+        if (valueAtStart < 0) return [];
+        continue;
+      }
+      const crossing = -valueAtStart / valueChange;
+      if (valueChange > 0) tEnter = Math.max(tEnter, crossing);
+      else tExit = Math.min(tExit, crossing);
+      if (tEnter > tExit) return [];
+    }
+    const from = toGeo({ x: start.x + dx * tEnter, y: start.y + dy * tEnter });
+    const to = toGeo({ x: start.x + dx * tExit, y: start.y + dy * tExit });
+    const distance = distanceNm(from, to);
+    return distance > 0.001 ? [{ ...segment, from, to, distanceNm: distance }] : [];
+  });
+  const waypoints = segments.length ? [segments[0].from, ...segments.map((segment) => segment.to)] : [];
+  return {
+    ...pattern,
+    csp: segments[0]?.from ?? pattern.csp,
+    exitPoint: segments.at(-1)?.to ?? pattern.exitPoint,
+    waypoints,
+    segments,
+    totalDistanceNm: segments.reduce((sum, segment) => sum + segment.distanceNm, 0),
+  };
 }

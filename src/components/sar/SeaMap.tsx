@@ -48,6 +48,9 @@ export interface MapLine {
   label?: string;
   dashed?: boolean;
   arrow?: boolean;
+  weight?: number;
+  opacity?: number;
+  labelClassName?: string;
 }
 
 export interface MapPolygon {
@@ -469,16 +472,8 @@ export default function SeaMap({
     // tiles. Labels (every major interval) sit just inside the map, with a
     // white pill background.
     //
-    // Label-interval contract:
-    //   - Major (labelled) interval is LOCKED to multiples of 30′
-    //     (1800″, 3600″, 7200″, 18000″ — i.e. 30′, 1°, 2°, 5°).
-    //   - Default major interval is 30′. Step up to 1°/2°/5° ONLY when 30′
-    //     labels would be too tight (per-axis threshold: 60 px for lng,
-    //     30 px for lat — lat threshold is lower so 30′ labels appear on
-    //     left/right even at wide zoom).
-    //   - At very close zoom, major interval stays at 30′; minor ticks
-    //     densify (1′, 30″, …) as long as they stay ≥ 5 px apart on screen.
-    //   - Labels are NEVER shown at 20′, 10′, 5′, 2′ or 1′.
+    // Label interval adapts to zoom: 5′, 10′, and 20′ appear at close zoom;
+    // coarser intervals are selected as the map zooms out.
     //
     // The four sides share one `drawBand` function — no per-side duplication.
     const MAJOR_TICK_PX = 10;
@@ -488,7 +483,7 @@ export default function SeaMap({
     const MINOR_MIN_PX = 5;
     const MINOR_DENSIFY_PX = 60;
 
-    const MAJOR_LABEL_STEPS_SEC = [1800, 3600, 7200, 18000];
+    const MAJOR_LABEL_STEPS_SEC = [300, 600, 1200, 1800, 3600, 7200, 18000];
 
     let scaleBorderCanvas: HTMLCanvasElement | null = null;
     let scaleBorderRAF: number | null = null;
@@ -1537,6 +1532,7 @@ export default function SeaMap({
   // ---- Draw lines ----
   useEffect(() => {
     if (!mapRef.current || !layersRef.current.lines) return;
+    const map = mapRef.current;
     const layer = layersRef.current.lines;
     layer.clearLayers();
     lines.forEach((l) => {
@@ -1547,29 +1543,35 @@ export default function SeaMap({
         ],
         {
           color: l.color,
-          weight: 2.5,
-          opacity: 0.85,
+          weight: l.weight ?? 2.5,
+          opacity: l.opacity ?? 0.85,
           dashArray: l.dashed ? '6 6' : undefined,
         },
       ).addTo(layer);
       if (l.arrow) {
-        const startPx = mapRef.current!.latLngToLayerPoint([l.from.lat, l.from.lng]);
-        const endPx = mapRef.current!.latLngToLayerPoint([l.to.lat, l.to.lng]);
+        const startPx = map.latLngToLayerPoint([l.from.lat, l.from.lng]);
+        const endPx = map.latLngToLayerPoint([l.to.lat, l.to.lng]);
         const dx = endPx.x - startPx.x;
         const dy = endPx.y - startPx.y;
-        const screenBearing = (Math.atan2(dx, -dy) * 180) / Math.PI;
-        const arrowPoint = mapRef.current!.layerPointToLatLng([
-          startPx.x + dx * 0.68,
-          startPx.y + dy * 0.68,
+        const anchorX = startPx.x + dx * 0.68;
+        const anchorY = startPx.y + dy * 0.68;
+        const angle = Math.atan2(dy, dx);
+        const arrowLength = 8;
+        const spread = 0.55;
+        const left = map.layerPointToLatLng([
+          anchorX + arrowLength * Math.cos(angle + Math.PI - spread),
+          anchorY + arrowLength * Math.sin(angle + Math.PI - spread),
         ]);
-        L.marker(arrowPoint, {
+        const anchor = map.layerPointToLatLng([anchorX, anchorY]);
+        const right = map.layerPointToLatLng([
+          anchorX + arrowLength * Math.cos(angle + Math.PI + spread),
+          anchorY + arrowLength * Math.sin(angle + Math.PI + spread),
+        ]);
+        L.polyline([[left.lat, left.lng], [anchor.lat, anchor.lng], [right.lat, right.lng]], {
+          color: l.color,
+          weight: l.weight ?? 2.5,
+          opacity: l.opacity ?? 0.85,
           interactive: false,
-          icon: L.divIcon({
-            className: 'sar-line-arrow',
-            html: `<span style="display:block;color:${l.color};font-size:18px;font-weight:800;line-height:1;text-shadow:0 0 2px #fff;transform:rotate(${screenBearing}deg)">▲</span>`,
-            iconSize: [18, 18],
-            iconAnchor: [9, 9],
-          }),
         }).addTo(layer);
       }
       if (l.label) {
@@ -1577,7 +1579,7 @@ export default function SeaMap({
           lat: (l.from.lat + l.to.lat) / 2,
           lng: (l.from.lng + l.to.lng) / 2,
         };
-        L.tooltip({ permanent: true, direction: 'top', className: 'sar-label' })
+        L.tooltip({ permanent: true, direction: 'top', className: l.labelClassName ?? 'sar-label' })
           .setContent(l.label)
           .setLatLng([mid.lat, mid.lng])
           .addTo(layer);

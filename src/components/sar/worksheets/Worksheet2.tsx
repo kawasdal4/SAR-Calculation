@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { type LatLng } from '@/lib/sar/sarCalculations';
 import { formatDMS } from '@/lib/sar/coordFormat';
@@ -28,6 +28,7 @@ interface Worksheet2Props {
   ws1Ao?: number;
   readOnly?: boolean;
   initialState?: Worksheet2InitialState;
+  onTrackSpacingChange?: (result: { platform: 'fixed-wing' | 'helicopter' | null; spacingNm: number; selection: string }) => void;
 }
 
 export default function Worksheet2({
@@ -38,6 +39,7 @@ export default function Worksheet2({
   ws1Ao = 0,
   readOnly = false,
   initialState,
+  onTrackSpacingChange,
 }: Worksheet2Props) {
   // Case & Metadata state
   const [caseTitle, setCaseTitle] = useState(initialState?.caseTitle ?? '-');
@@ -86,6 +88,14 @@ export default function Worksheet2({
   const selS = selIdx >= 0 ? trackSpacings[selIdx] : 0;
   const selC = selIdx >= 0 ? coverages[selIdx] : 0;
   const selP = selIdx >= 0 ? pods[selIdx] : 0;
+
+  useEffect(() => {
+    onTrackSpacingChange?.({
+      platform: searchPlatform || null,
+      spacingNm: selS,
+      selection: selectedHeight ? `${selectedHeight} ft` : 'belum dipilih',
+    });
+  }, [onTrackSpacingChange, searchPlatform, selectedHeight, selS]);
 
   // Option A: Whole Area at chosen height
   const optA_Area = searchAreaAo;

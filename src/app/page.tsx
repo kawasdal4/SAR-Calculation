@@ -88,8 +88,10 @@ import PrintCompanionMap from '@/components/sar/PrintCompanionMap';
 import AIChatPanel from '@/components/sar/AIChatPanel';
 import {
   generateSearchPattern,
+  clipSearchPatternToSquare,
   type SearchPatternType,
   type SearchPatternResult,
+  type SearchPatternPlanInitialState,
 } from '@/lib/sar/searchPatterns';
 import AssetAllocationWorksheet, {
   SRU_BASE_PRESETS,
@@ -101,13 +103,13 @@ import {
 
 const DEFAULT_CENTER: LatLng = { lat: 0, lng: 0 };
 const SEARCH_PATTERN_COLORS: Record<SearchPatternType, string> = {
-  PS: '#2563eb',
-  CS: '#7c3aed',
-  SS: '#0891b2',
-  VS: '#db2777',
-  TS: '#16a34a',
+  PS: '#9a3412',
+  CS: '#c026d3',
+  SS: '#0d9488',
+  VS: '#65a30d',
+  TS: '#475569',
 };
-const SEARCH_CONNECTOR_COLOR = '#f59e0b';
+const SEARCH_CONNECTOR_COLOR = '#a16207';
 
 export default function Home() {
   // AWA & ASW states
@@ -125,6 +127,9 @@ export default function Home() {
   const [searchResults, setSearchResults] = useState<SearchPlanResults | null>(null);
   const [worksheet1Ao, setWorksheet1Ao] = useState(0);
   const [worksheet1Fs, setWorksheet1Fs] = useState(1.1);
+  const [ws2TrackSpacing, setWs2TrackSpacing] = useState<{ platform: 'fixed-wing' | 'helicopter' | null; spacingNm: number; selection: string } | null>(null);
+  const [ws3TrackSpacing, setWs3TrackSpacing] = useState<{ platform: 'fixed-wing' | 'helicopter' | null; heights: readonly number[]; spacingByHeight: Array<number | null> } | null>(null);
+  const [ws8TrackSpacing, setWs8TrackSpacing] = useState<{ spacingNm: number; selection: string } | null>(null);
 
   // Controlled LKP
   const [lkp, setLkp] = useState<LatLng>({ lat: 0, lng: 0 });
@@ -158,8 +163,18 @@ export default function Home() {
 
   // Search Pattern Settings
   const [patternType, setPatternType] = useState<SearchPatternType>('PS');
+  const [patternAssetId, setPatternAssetId] = useState('');
   const [patternTurn, setPatternTurn] = useState<'right' | 'left'>('right');
   const [tsReturn, setTsReturn] = useState<boolean>(false);
+  const [patternOrientationText, setPatternOrientationText] = useState('');
+  const [patternEnvironment, setPatternEnvironment] = useState<'' | 'water' | 'land'>('');
+  const [patternWorksheetSource, setPatternWorksheetSource] = useState<'' | 'ws2' | 'ws3' | 'ws8'>('');
+  const [patternLandHeight, setPatternLandHeight] = useState<number | null>(null);
+  const [sectorAngleText, setSectorAngleText] = useState('');
+  const [sectorLegLengthText, setSectorLegLengthText] = useState('');
+  const [sectorLegCountText, setSectorLegCountText] = useState('');
+  const [trackLineLengthText, setTrackLineLengthText] = useState('');
+  const [tsReturnOffsetText, setTsReturnOffsetText] = useState('');
 
   // Raw state snapshots for saving cases
   const [awaObservations, setAwaObservations] = useState<AWAObservation[]>([]);
@@ -218,9 +233,19 @@ export default function Home() {
         lkp,
         assets,
         patternType,
+        patternAssetId,
+        patternOrientationText,
+        patternEnvironment,
+        patternWorksheetSource,
+        patternLandHeight,
+        sectorAngleText,
+        sectorLegLengthText,
+        sectorLegCountText,
+        trackLineLengthText,
+        tsReturnOffsetText,
       },
     };
-  }, [awaObservations, awaContext, aswState, datumState, searchState, lkp, assets, patternType]);
+  }, [awaObservations, awaContext, aswState, datumState, searchState, lkp, assets, patternType, patternAssetId, patternOrientationText, patternEnvironment, patternWorksheetSource, patternLandHeight, sectorAngleText, sectorLegLengthText, sectorLegCountText, trackLineLengthText, tsReturnOffsetText]);
 
   /** Apply loaded state */
   const applyState = useCallback((state: Record<string, unknown>) => {
@@ -231,6 +256,16 @@ export default function Home() {
     const lkpLoaded = state.lkp as LatLng | undefined;
     const assetsLoaded = state.assets as SruAssetInput[] | undefined;
     if (state.patternType) setPatternType(state.patternType as SearchPatternType);
+    if (typeof state.patternAssetId === 'string') setPatternAssetId(state.patternAssetId);
+    if (typeof state.patternOrientationText === 'string') setPatternOrientationText(state.patternOrientationText);
+    if (state.patternEnvironment === 'land' || state.patternEnvironment === 'water') setPatternEnvironment(state.patternEnvironment);
+    if (state.patternWorksheetSource === 'ws2' || state.patternWorksheetSource === 'ws3' || state.patternWorksheetSource === 'ws8') setPatternWorksheetSource(state.patternWorksheetSource);
+    if (typeof state.patternLandHeight === 'number') setPatternLandHeight(state.patternLandHeight);
+    if (typeof state.sectorAngleText === 'string') setSectorAngleText(state.sectorAngleText);
+    if (typeof state.sectorLegLengthText === 'string') setSectorLegLengthText(state.sectorLegLengthText);
+    if (typeof state.sectorLegCountText === 'string') setSectorLegCountText(state.sectorLegCountText);
+    if (typeof state.trackLineLengthText === 'string') setTrackLineLengthText(state.trackLineLengthText);
+    if (typeof state.tsReturnOffsetText === 'string') setTsReturnOffsetText(state.tsReturnOffsetText);
     setWorksheet1Ao(0);
     setWorksheet1Fs(1.1);
     if (assetsLoaded && Array.isArray(assetsLoaded)) setAssets(assetsLoaded);
@@ -256,6 +291,9 @@ export default function Home() {
     setSearchResults(null);
     setWorksheet1Ao(0);
     setWorksheet1Fs(0);
+    setWs2TrackSpacing(null);
+    setWs3TrackSpacing(null);
+    setWs8TrackSpacing(null);
     setDatumState(null);
     setSearchState(null);
 
@@ -288,8 +326,18 @@ export default function Home() {
 
     // Reset Pattern & Assets
     setPatternType('PS');
+    setPatternAssetId('');
     setPatternTurn('right');
     setTsReturn(false);
+    setPatternOrientationText('');
+    setPatternEnvironment('');
+    setPatternWorksheetSource('');
+    setPatternLandHeight(null);
+    setSectorAngleText('');
+    setSectorLegLengthText('');
+    setSectorLegCountText('');
+    setTrackLineLengthText('');
+    setTsReturnOffsetText('');
     setAssets([]);
     setAiInterceptInput(null);
 
@@ -339,9 +387,13 @@ export default function Home() {
         setLoadedInitialState((prev) => ({ ...(prev ?? {}), datum: {}, search: {}, lkp: { lat: 0, lng: 0 } }));
         break;
       case 'ws2':
+        setWs2TrackSpacing(null);
+        setPatternWorksheetSource((source) => source === 'ws2' ? '' : source);
         setLoadedInitialState((prev) => ({ ...(prev ?? {}), ws2: { caseTitle: '-', searchTas: 0, visibilityIndex: -1 } }));
         break;
       case 'ws8':
+        setWs8TrackSpacing(null);
+        setPatternWorksheetSource((source) => source === 'ws8' ? '' : source);
         setLoadedInitialState((prev) => ({ ...(prev ?? {}), ws8: { caseTitle: '-', visibilityKm: '', vesselSpeedKts: 0 } }));
         break;
       case 'asset-allocation':
@@ -349,10 +401,22 @@ export default function Home() {
         break;
       case 'search-pattern':
         setPatternType('PS');
+        setPatternAssetId('');
         setPatternTurn('right');
         setTsReturn(false);
+        setPatternOrientationText('');
+        setPatternEnvironment('');
+        setPatternWorksheetSource('');
+        setPatternLandHeight(null);
+        setSectorAngleText('');
+        setSectorLegLengthText('');
+        setSectorLegCountText('');
+        setTrackLineLengthText('');
+        setTsReturnOffsetText('');
         break;
       case 'ws3':
+        setWs3TrackSpacing(null);
+        setPatternWorksheetSource((source) => source === 'ws3' ? '' : source);
         setLoadedInitialState((prev) => ({
           ...(prev ?? {}),
           ws3: { caseTitle: '-', searchObject: '-', visibilityKm: 0, vegetationType: '-', isFatigue: null, searchTas: 0, hoursAvailable: 0, searchAreaNm2: 0 },
@@ -465,15 +529,25 @@ export default function Home() {
 
   const handleApplyWS2 = useCallback((data: Worksheet2InitialState) => {
     setLoadedInitialState((prev) => ({ ...prev, ws2: data }));
+    setPatternEnvironment('water');
+    setPatternWorksheetSource('ws2');
+    const requiredAssetType = data.searchPlatform === 'helicopter' ? 'helicopter' : 'fixed-wing-aircraft';
+    const matchingAsset = assets.find((asset) => asset.type === requiredAssetType);
+    setPatternAssetId(matchingAsset?.id ?? '__case-derived__');
     setCaseVersion((version) => version + 1);
     setActiveTab('ws2');
-  }, []);
+  }, [assets]);
 
   const handleApplyWS3 = useCallback((data: Worksheet3InitialState) => {
     setLoadedInitialState((prev) => ({ ...prev, ws3: data }));
+    setPatternEnvironment('land');
+    setPatternWorksheetSource('ws3');
+    const requiredAssetType = data.searchPlatform === 'helicopter' ? 'helicopter' : 'fixed-wing-aircraft';
+    const matchingAsset = assets.find((asset) => asset.type === requiredAssetType);
+    setPatternAssetId(matchingAsset?.id ?? '__case-derived__');
     setCaseVersion((version) => version + 1);
     setActiveTab('ws3');
-  }, []);
+  }, [assets]);
 
   const handleApplyWS4 = useCallback((data: Worksheet4InitialState) => {
     setLoadedInitialState((prev) => ({ ...prev, ws4: data }));
@@ -483,8 +557,37 @@ export default function Home() {
 
   const handleApplyWS8 = useCallback((data: Worksheet8InitialState) => {
     setLoadedInitialState((prev) => ({ ...prev, ws8: data }));
+    setPatternEnvironment('');
+    setPatternWorksheetSource('ws8');
+    const matchingAsset = assets.find((asset) => asset.type === data.sruType);
+    setPatternAssetId(matchingAsset?.id ?? '__case-derived__');
     setCaseVersion((version) => version + 1);
     setActiveTab('ws8');
+  }, [assets]);
+
+  const handleApplySearchPattern = useCallback((data: SearchPatternPlanInitialState) => {
+    setPatternType(data.patternType);
+    setPatternOrientationText(String(data.orientationDeg));
+    if (data.turnDirection) setPatternTurn(data.turnDirection);
+    if (data.sectorAngleDeg !== undefined) setSectorAngleText(String(data.sectorAngleDeg));
+    if (data.sectorLegLengthNm !== undefined) setSectorLegLengthText(String(data.sectorLegLengthNm));
+    if (data.sectorLegCount !== undefined) setSectorLegCountText(String(data.sectorLegCount));
+    if (data.trackLineLengthNm !== undefined) setTrackLineLengthText(String(data.trackLineLengthNm));
+    if (data.tsReturn !== undefined) setTsReturn(data.tsReturn);
+    if (data.tsReturnOffsetNm !== undefined) setTsReturnOffsetText(String(data.tsReturnOffsetNm));
+    setActiveTab('search-pattern');
+    setIsAiChatOpen(false);
+    toast.success('Rencana search pattern dari analisis kasus telah dimasukkan ke peta.');
+  }, []);
+
+  const handleWS2TrackSpacingChange = useCallback((result: { platform: 'fixed-wing' | 'helicopter' | null; spacingNm: number; selection: string }) => {
+    setWs2TrackSpacing(result);
+  }, []);
+  const handleWS3TrackSpacingChange = useCallback((result: { platform: 'fixed-wing' | 'helicopter' | null; heights: readonly number[]; spacingByHeight: Array<number | null> }) => {
+    setWs3TrackSpacing(result);
+  }, []);
+  const handleWS8TrackSpacingChange = useCallback((result: { spacingNm: number; selection: string }) => {
+    setWs8TrackSpacing(result);
   }, []);
 
   const handleApplyIntercept = useCallback((data: InterceptInput) => {
@@ -538,11 +641,52 @@ export default function Home() {
   const searchAreaLength = searchSquareSide;
   const searchAreaWidth = searchSquareSide;
   const searchAreaOrientation = driftOrientationDeg;
-  const trackSpacing = searchResults?.trackSpacing ?? 0;
+  const patternSruRecord = patternAssetId === '__case-derived__' ? undefined : assets.find((asset) => asset.id === patternAssetId) ?? assets[0];
+  const caseDerivedSruType = patternWorksheetSource === 'ws8'
+    ? loadedInitialState?.ws8?.sruType
+    : patternWorksheetSource === 'ws2'
+      ? loadedInitialState?.ws2?.searchPlatform === 'helicopter' ? 'helicopter' : loadedInitialState?.ws2?.searchPlatform === 'fixed-wing' ? 'fixed-wing-aircraft' : undefined
+      : patternWorksheetSource === 'ws3'
+        ? loadedInitialState?.ws3?.searchPlatform === 'helicopter' ? 'helicopter' : loadedInitialState?.ws3?.searchPlatform === 'fixed-wing' ? 'fixed-wing-aircraft' : undefined
+        : undefined;
+  const patternSruType = patternSruRecord?.type ?? caseDerivedSruType;
+  const patternAssetIsAir = patternSruType === 'helicopter' || patternSruType === 'fixed-wing-aircraft';
+  const selectedPatternSource = patternSruRecord
+    ? patternAssetIsAir
+      ? patternEnvironment === 'land' ? 'ws3' : patternEnvironment === 'water' ? 'ws2' : patternWorksheetSource === 'ws2' || patternWorksheetSource === 'ws3' ? patternWorksheetSource : ''
+      : 'ws8'
+    : patternWorksheetSource;
+  const primaryIsAir = selectedPatternSource === 'ws2' || selectedPatternSource === 'ws3' || (!selectedPatternSource && patternAssetIsAir);
+  const primaryWorksheetPlatform = patternSruType === 'helicopter' ? 'helicopter'
+    : patternSruType === 'fixed-wing-aircraft' ? 'fixed-wing'
+      : selectedPatternSource === 'ws2' ? ws2TrackSpacing?.platform ?? null
+        : selectedPatternSource === 'ws3' ? ws3TrackSpacing?.platform ?? null : null;
+  const ws3HeightIndex = ws3TrackSpacing?.heights.indexOf(patternLandHeight ?? -1) ?? -1;
+  const ws3SelectedSpacing = ws3HeightIndex >= 0 ? ws3TrackSpacing?.spacingByHeight[ws3HeightIndex] ?? null : null;
+  const wsPlatformMatches = (worksheetPlatform: 'fixed-wing' | 'helicopter' | null | undefined) => !patternSruRecord || (patternAssetIsAir && worksheetPlatform === primaryWorksheetPlatform);
+  const trackSpacing = selectedPatternSource === 'ws2' && wsPlatformMatches(ws2TrackSpacing?.platform)
+    ? ws2TrackSpacing?.spacingNm ?? 0
+    : selectedPatternSource === 'ws3' && wsPlatformMatches(ws3TrackSpacing?.platform)
+      ? ws3SelectedSpacing ?? 0
+      : selectedPatternSource === 'ws8' && (!patternSruRecord || !patternAssetIsAir)
+        ? ws8TrackSpacing?.spacingNm ?? 0
+        : 0;
+  const patternSpacingSource = trackSpacing > 0
+    ? selectedPatternSource === 'ws2' ? `Worksheet 2 · ${ws2TrackSpacing?.selection ?? ''}`
+      : selectedPatternSource === 'ws3' ? `Worksheet 3 · ${patternLandHeight ?? ''} ft`
+        : selectedPatternSource === 'ws8' ? `Worksheet 8 · ${ws8TrackSpacing?.selection ?? ''}` : ''
+    : '';
+  const caseSruTypeName: Record<string, string> = {
+    'fixed-wing-aircraft': 'Pesawat fixed wing', helicopter: 'Helikopter',
+    'rescue-vessel': 'Kapal SAR', 'patrol-boat': 'Kapal patroli', rib: 'RIB', 'sea-rider': 'Sea Rider',
+  };
+  const patternSruName = patternSruRecord?.name ?? (patternSruType ? caseSruTypeName[patternSruType] ?? 'SRU dari analisis kasus' : 'SRU dari analisis kasus');
+  const patternSpeedKts = patternSruRecord?.transitSpeedKts ?? 0;
+  const patternOrientation = patternOrientationText.trim() === '' ? null : Number(patternOrientationText);
 
   // Search Pattern generation
   const searchPatternResult: SearchPatternResult = useMemo(() => {
-    if (!searchResults) {
+    if (!(searchSquareSide > 0)) {
       return {
         type: patternType,
         name: '-',
@@ -553,33 +697,58 @@ export default function Home() {
         segments: [],
         totalDistanceNm: 0,
         estimatedHours: 0,
-        description: '-',
+        description: 'Search Area persegi belum tersedia dari Worksheet 1.',
       };
     }
-    return generateSearchPattern(
+    if (patternOrientation === null || !Number.isFinite(patternOrientation) || patternOrientation < 0 || patternOrientation >= 360) {
+      return {
+        type: patternType, name: 'Search Pattern', code: patternType, csp: searchAreaCenter, exitPoint: searchAreaCenter,
+        waypoints: [], segments: [], totalDistanceNm: 0, estimatedHours: 0,
+        description: 'Masukkan heading True pola dari rencana planner (0° sampai kurang dari 360°).',
+      };
+    }
+    const generated = generateSearchPattern(
       {
         type: patternType,
         center: searchAreaCenter,
         lengthNm: searchAreaLength,
         widthNm: searchAreaWidth,
-        orientationDeg: searchAreaOrientation,
+        orientationDeg: patternOrientation,
         trackSpacingNm: trackSpacing,
         turnDirection: patternTurn,
         tsReturn,
+        sectorAngleDeg: Number(sectorAngleText) || undefined,
+        sectorLegLengthNm: Number(sectorLegLengthText) || undefined,
+        sectorLegCount: Number(sectorLegCountText) || undefined,
+        trackLineLengthNm: Number(trackLineLengthText) || undefined,
+        tsReturnOffsetNm: Number(tsReturnOffsetText) || undefined,
       },
-      primarySru.transitSpeedKts
+      patternSpeedKts
     );
+    const clipped = clipSearchPatternToSquare(generated, searchAreaCenter, searchSquareSide, searchAreaOrientation);
+    return clipped.segments.length > 0
+      ? {
+        ...clipped,
+        description: `${clipped.description} CSP: ${formatDMS(clipped.csp.lat, false)}, ${formatDMS(clipped.csp.lng, true)}. Exit Point: ${formatDMS(clipped.exitPoint.lat, false)}, ${formatDMS(clipped.exitPoint.lng, true)}.`,
+      }
+      : { ...clipped, description: `${generated.description} Tidak ada segmen lintasan yang berada di dalam Search Area persegi.` };
   }, [
-    searchResults,
     patternType,
     searchAreaCenter,
     searchAreaLength,
     searchAreaWidth,
+    searchSquareSide,
     searchAreaOrientation,
+    patternOrientation,
     trackSpacing,
     patternTurn,
     tsReturn,
-    primarySru.transitSpeedKts,
+    sectorAngleText,
+    sectorLegLengthText,
+    sectorLegCountText,
+    trackLineLengthText,
+    tsReturnOffsetText,
+    patternSpeedKts,
   ]);
 
   const csp = searchPatternResult.csp;
@@ -664,31 +833,31 @@ export default function Home() {
       });
     });
 
-    // CSP
-    list.push({
-      position: csp,
-      label: `CSP (Commence Search Point): ${formatDMS(csp.lat, false)}, ${formatDMS(csp.lng, true)}`,
-      color: '#10b981',
-    });
-
-    // Exit Point
-    list.push({
-      position: exitPoint,
-      label: `Exit Point: ${formatDMS(exitPoint.lat, false)}, ${formatDMS(exitPoint.lng, true)}`,
-      color: '#f97316',
-    });
-
-    searchPatternResult.waypoints.forEach((position, index) => {
+    if (searchPatternResult.segments.length > 0) {
       list.push({
-        position,
-        label: `Waypoint ${index + 1}: ${formatDMS(position.lat, true)}, ${formatDMS(position.lng, false)}`,
-        color: SEARCH_PATTERN_COLORS[patternType],
-        sequence: index + 1,
+        position: csp,
+        label: `CSP: ${formatDMS(csp.lat, false)}, ${formatDMS(csp.lng, true)}`,
+        color: '#10b981',
+        showLabel: true,
       });
-    });
+      list.push({
+        position: exitPoint,
+        label: `Exit Point: ${formatDMS(exitPoint.lat, false)}, ${formatDMS(exitPoint.lng, true)}`,
+        color: '#f97316',
+        showLabel: true,
+      });
+      searchPatternResult.waypoints.forEach((position, index) => {
+        list.push({
+          position,
+          label: `Waypoint ${index + 1}: ${formatDMS(position.lat, false)}, ${formatDMS(position.lng, true)}`,
+          color: SEARCH_PATTERN_COLORS[patternType],
+          sequence: index + 1,
+        });
+      });
+    }
 
     return list;
-  }, [lkp, datumResults, assets, csp, exitPoint, searchPatternResult.waypoints, patternType]);
+  }, [lkp, datumResults, assets, csp, exitPoint, searchPatternResult.waypoints, searchPatternResult.segments.length, patternType]);
 
   const interactiveMapMarkers: MapMarker[] = useMemo(() => [
     ...markers,
@@ -730,6 +899,33 @@ export default function Home() {
   // Map lines: Drift, TWC, Search Pattern Tracks, Transit Go & Transit Back
   const lines: MapLine[] = useMemo(() => {
     const list: MapLine[] = [];
+
+    // Draw the pattern first; Worksheet 1 vectors are appended above it so they
+    // retain visual priority where the two geometries cross.
+    searchPatternResult.segments.forEach((seg) => {
+      const segmentIndex = seg.legIndex - 1;
+      const isConnector = patternType === 'PS' || patternType === 'CS'
+        ? segmentIndex % 2 === 1
+        : patternType === 'TS' && segmentIndex === 1;
+      const color = isConnector ? SEARCH_CONNECTOR_COLOR : SEARCH_PATTERN_COLORS[patternType];
+      const bearing = bearingDeg(seg.from, seg.to);
+      const spacingLabel = !isConnector && trackSpacing > 0 && (patternType === 'PS' || patternType === 'CS')
+        ? ` · S ${trackSpacing.toFixed(2)} NM`
+        : patternType === 'SS' && trackSpacing > 0
+          ? ` · ${(seg.distanceNm / trackSpacing).toFixed(0)}S`
+          : '';
+      list.push({
+        from: seg.from,
+        to: seg.to,
+        color,
+        arrow: true,
+        dashed: isConnector,
+        weight: isConnector ? 1.5 : 2,
+        opacity: 0.58,
+        labelClassName: 'sar-pattern-label',
+        label: `${patternSruName} · ${isConnector ? 'Cross leg / turn' : `Search leg ${seg.legIndex}`} · ${bearing.toFixed(0)}°T · ${seg.distanceNm.toFixed(1)} NM${spacingLabel}${patternSpacingSource ? ` · ${patternSpacingSource}` : ''}`,
+      });
+    });
 
     // Worksheet 1 vector components, each plotted in a distinct color.
     if (datumData && datumResults) {
@@ -823,29 +1019,6 @@ export default function Home() {
       });
     }
 
-    // Search pattern legs and their connecting turns are styled separately.
-    searchPatternResult.segments.forEach((seg) => {
-      const segmentIndex = seg.legIndex - 1;
-      const isConnector = patternType === 'PS' || patternType === 'CS'
-        ? segmentIndex % 2 === 1
-        : patternType === 'TS' && segmentIndex === 1;
-      const color = isConnector ? SEARCH_CONNECTOR_COLOR : SEARCH_PATTERN_COLORS[patternType];
-      const bearing = bearingDeg(seg.from, seg.to);
-      const spacingLabel = !isConnector && trackSpacing > 0 && (patternType === 'PS' || patternType === 'CS')
-        ? ` · S ${trackSpacing.toFixed(2)} NM`
-        : patternType === 'SS' && trackSpacing > 0
-          ? ` · ${(seg.distanceNm / trackSpacing).toFixed(0)}S`
-          : '';
-      list.push({
-        from: seg.from,
-        to: seg.to,
-        color,
-        arrow: true,
-        dashed: isConnector,
-        label: `${isConnector ? 'Turn/connector' : `Leg ${seg.legIndex}`} · ${bearing.toFixed(0)}°T · ${seg.distanceNm.toFixed(1)} NM${spacingLabel}`,
-      });
-    });
-
     // Add all SRU Transit Go & Back lines
     list.push(...assetTransitLines);
 
@@ -856,6 +1029,8 @@ export default function Home() {
     searchPatternResult.segments,
     patternType,
     trackSpacing,
+    patternSruName,
+    patternSpacingSource,
     assetTransitLines,
   ]);
 
@@ -947,6 +1122,51 @@ export default function Home() {
     driftOrientationDeg,
     ws1Ao,
   ]);
+
+  const searchAreaCornerMarkers: MapMarker[] = useMemo(() => polygons.flatMap((area, areaIndex) => {
+    if (area.points.length !== 4) return [];
+    const center = {
+      lat: area.points.reduce((sum, point) => sum + point.lat, 0) / 4,
+      lng: area.points.reduce((sum, point) => sum + point.lng, 0) / 4,
+    };
+    const clockwise = area.points.map((position) => {
+      const distance = distanceNm(center, position);
+      const bearing = (bearingDeg(center, position) * Math.PI) / 180;
+      const x = distance * Math.sin(bearing);
+      const y = distance * Math.cos(bearing);
+      return { position, x, y, angle: (Math.atan2(x, y) * 180 / Math.PI + 360) % 360 };
+    }).sort((a, b) => a.angle - b.angle);
+    const startIndex = clockwise.reduce((best, point, index, points) => {
+      const score = point.y - point.x;
+      const bestScore = points[best].y - points[best].x;
+      return score > bestScore ? index : best;
+    }, 0);
+    const cornerOrder = [...clockwise.slice(startIndex), ...clockwise.slice(0, startIndex)];
+    const areaName = area.label?.startsWith('Worksheet 1') ? 'WS1' : area.label?.startsWith('Worksheet 3') ? 'WS3' : `Area ${areaIndex + 1}`;
+    return cornerOrder.map(({ position }, index): MapMarker => ({
+      position,
+      label: `${String.fromCharCode(65 + index)} · ${areaName}`,
+      color: '#0f172a',
+      showLabel: true,
+    }));
+  }), [polygons]);
+
+  const searchAreaCornerDescriptions = useMemo(() => {
+    const groups = new Map<string, MapMarker[]>();
+    searchAreaCornerMarkers.forEach((marker) => {
+      const areaName = marker.label.split(' · ')[1] ?? 'Search Area';
+      groups.set(areaName, [...(groups.get(areaName) ?? []), marker]);
+    });
+    return [...groups.entries()].map(([areaName, corners]) => `${areaName}: ${corners.map((corner) => {
+      const letter = corner.label.split(' · ')[0];
+      return `${letter}: (${formatDMS(corner.position.lat, false)}, ${formatDMS(corner.position.lng, true)})`;
+    }).join('; ')}`);
+  }, [searchAreaCornerMarkers]);
+
+  const mainMapMarkers = useMemo(
+    () => [...interactiveMapMarkers, ...searchAreaCornerMarkers],
+    [interactiveMapMarkers, searchAreaCornerMarkers],
+  );
 
   // Vectors for Maneuvering Board in AWA tab (sesuai materi slide I Kadek Dedi K.)
   const awaBoardVectors: BoardVector[] = useMemo(() => {
@@ -1380,6 +1600,7 @@ export default function Home() {
                 aswDirFrom={asw.aswDirFrom}
                 ws1Ao={ws1Ao}
                 initialState={loadedInitialState?.ws2}
+                onTrackSpacingChange={handleWS2TrackSpacingChange}
               />
               <PrintCompanionMap
                 title="LAMPIRAN: PETA OPERASI SAR — WORKSHEET 2 (SUB-AREA & LEEWAY DIVERGENCE)"
@@ -1408,6 +1629,7 @@ export default function Home() {
                 initialC={searchResults?.C ?? 0}
                 initialPod={searchResults?.POD ?? 0}
                 initialState={loadedInitialState?.ws8}
+                onTrackSpacingChange={handleWS8TrackSpacingChange}
               />
             </TabsContent>
 
@@ -1479,6 +1701,17 @@ export default function Home() {
                         <Route className="h-4 w-4 text-emerald-600" /> 1. Konfigurasi Pola Pencarian
                       </h3>
 
+                      {assets.length > 0 && (
+                        <div>
+                          <label className="text-xs font-semibold text-slate-700 block mb-1">SRU / asset yang polanya ditampilkan</label>
+                          <select value={patternSruRecord?.id ?? (patternWorksheetSource ? '__case-derived__' : '')} onChange={(e) => setPatternAssetId(e.target.value)} className="w-full text-xs bg-white border border-slate-300 rounded p-1.5">
+                            {patternWorksheetSource && !patternSruRecord && <option value="__case-derived__">{patternSruName} · dipilih dari analisis AI</option>}
+                            {assets.map((asset) => <option key={asset.id} value={asset.id}>{asset.name} · {asset.type}</option>)}
+                          </select>
+                          {assets.length > 1 && <p className="mt-1 text-[10px] text-amber-800">Pilih satu SRU per tampilan. Geometri sub-area terpisah per SRU belum ditentukan, jadi lintasan tidak digandakan pada batas area yang sama.</p>}
+                        </div>
+                      )}
+
                       <div>
                         <label className="text-xs font-semibold text-slate-700 block mb-1">
                           Jenis Pola Pencarian (Search Pattern):
@@ -1495,6 +1728,58 @@ export default function Home() {
                           <option value="TS">Track Line Search (TS) — Garis Haluan / Rute Perjalanan</option>
                         </select>
                       </div>
+
+                      {primaryIsAir && (
+                        <div>
+                          <label className="text-xs font-semibold text-slate-700 block mb-1">Konteks pencarian SRU udara</label>
+                          <select value={patternEnvironment} onChange={(e) => {
+                            const value = e.target.value as '' | 'water' | 'land';
+                            setPatternEnvironment(value);
+                            setPatternWorksheetSource(value === 'water' ? 'ws2' : value === 'land' ? 'ws3' : '');
+                          }} className="w-full text-xs bg-white border border-slate-300 rounded p-1.5">
+                            <option value="">Pilih area pencarian</option>
+                            <option value="water">Di laut — gunakan Worksheet 2</option>
+                            <option value="land">Di darat — gunakan Worksheet 3</option>
+                          </select>
+                        </div>
+                      )}
+                      {primaryIsAir && patternEnvironment === 'land' && (
+                        <div>
+                          <label className="text-xs font-semibold text-slate-700 block mb-1">Ketinggian observasi dari Worksheet 3</label>
+                          <select value={patternLandHeight ?? ''} onChange={(e) => setPatternLandHeight(e.target.value ? Number(e.target.value) : null)} className="w-full text-xs bg-white border border-slate-300 rounded p-1.5">
+                            <option value="">Pilih kolom ketinggian Worksheet 3</option>
+                            {ws3TrackSpacing?.heights.map((height) => <option key={height} value={height}>{height.toLocaleString('id-ID')} ft</option>)}
+                          </select>
+                        </div>
+                      )}
+
+                      <div className="rounded border border-slate-200 bg-white p-2 text-[11px]">
+                        <div className="font-semibold text-slate-700">Track Spacing S untuk {patternSruName}</div>
+                        <div className={trackSpacing > 0 && patternSpacingSource ? 'font-mono font-bold text-emerald-800' : 'text-amber-800'}>
+                          {trackSpacing > 0 && patternSpacingSource ? `${trackSpacing.toFixed(2)} NM · ${patternSpacingSource}` : 'Belum tersedia. Lengkapi worksheet sumber dan pilih konteks pencarian.'}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="text-[11px] font-semibold text-slate-700">Heading pola (°T)
+                          <input type="number" min="0" max="359.999" step="0.1" value={patternOrientationText} onChange={(e) => setPatternOrientationText(e.target.value)} placeholder="Dari planner" className="mt-1 w-full rounded border border-slate-300 bg-white px-2 py-1 font-mono" />
+                        </label>
+                      </div>
+
+                      {patternType === 'VS' && (
+                        <div className="grid grid-cols-3 gap-2">
+                          <label className="text-[11px] font-semibold text-slate-700">Sector angle (°)<input type="number" min="0" max="359.9" value={sectorAngleText} onChange={(e) => setSectorAngleText(e.target.value)} placeholder="Planner" className="mt-1 w-full rounded border border-slate-300 px-2 py-1" /></label>
+                          <label className="text-[11px] font-semibold text-slate-700">Panjang leg (NM)<input type="number" min="0" value={sectorLegLengthText} onChange={(e) => setSectorLegLengthText(e.target.value)} placeholder="Planner" className="mt-1 w-full rounded border border-slate-300 px-2 py-1" /></label>
+                          <label className="text-[11px] font-semibold text-slate-700">Jumlah leg<input type="number" min="1" step="1" value={sectorLegCountText} onChange={(e) => setSectorLegCountText(e.target.value)} placeholder="Planner" className="mt-1 w-full rounded border border-slate-300 px-2 py-1" /></label>
+                        </div>
+                      )}
+
+                      {patternType === 'TS' && (
+                        <div className="grid grid-cols-2 gap-2">
+                          <label className="text-[11px] font-semibold text-slate-700">Panjang Track Line (NM)<input type="number" min="0" value={trackLineLengthText} onChange={(e) => setTrackLineLengthText(e.target.value)} placeholder="Dari rencana rute" className="mt-1 w-full rounded border border-slate-300 px-2 py-1" /></label>
+                          {tsReturn && <label className="text-[11px] font-semibold text-slate-700">Offset jalur pulang (NM)<input type="number" min="0" value={tsReturnOffsetText} onChange={(e) => setTsReturnOffsetText(e.target.value)} placeholder="Dari planner" className="mt-1 w-full rounded border border-slate-300 px-2 py-1" /></label>}
+                        </div>
+                      )}
 
                       {(patternType === 'SS' || patternType === 'VS') && (
                         <div>
@@ -1536,7 +1821,7 @@ export default function Home() {
                     <div className="space-y-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
                       <div className="flex items-center justify-between">
                         <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                          <Anchor className="h-4 w-4 text-purple-600" /> 2. SRU Utama ({primarySru.name})
+                          <Anchor className="h-4 w-4 text-purple-600" /> 2. SRU Terpilih ({patternSruName})
                         </h3>
                         <button
                           type="button"
@@ -1557,19 +1842,19 @@ export default function Home() {
 
                       <div className="text-xs space-y-1.5 text-slate-700">
                         <div>
-                          Pangkalan Asal: <strong>{primarySru.homeBaseName}</strong>
+                          Pangkalan Asal: <strong>{patternSruRecord?.homeBaseName ?? '-'}</strong>
                         </div>
                         <div className="font-mono text-[11px] text-slate-600">
-                          {formatDMS(primarySru.homeBasePos.lat, false)}, {formatDMS(primarySru.homeBasePos.lng, true)}
+                          {patternSruRecord ? `${formatDMS(patternSruRecord.homeBasePos.lat, false)}, ${formatDMS(patternSruRecord.homeBasePos.lng, true)}` : '—'}
                         </div>
                         <div className="flex justify-between pt-1 text-[11px]">
-                          <span>Kecepatan Transit: <strong>{primarySru.transitSpeedKts} kts</strong></span>
-                          <span>Kecepatan Cari: <strong>{primarySru.searchSpeedKts} kts</strong></span>
+                          <span>Kecepatan Transit: <strong>{patternSpeedKts || '—'} kts</strong></span>
+                          <span>Kecepatan Cari: <strong>{patternSruRecord?.searchSpeedKts ?? 0} kts</strong></span>
                         </div>
                       </div>
 
                       <div className="bg-purple-50 p-2 rounded border border-purple-200 text-[11px] text-purple-900">
-                        Sweep Width Area SRU Utama: <strong>{assetSummary.perAsset[0]?.sweepAreaNm2.toFixed(2) || 0} NM²</strong>
+                        Sweep Width Area SRU Terpilih: <strong>{assetSummary.perAsset.find((result) => result.asset.id === patternSruRecord?.id)?.sweepAreaNm2.toFixed(2) || 0} NM²</strong>
                       </div>
                     </div>
                   </div>
@@ -1585,8 +1870,12 @@ export default function Home() {
                       </span>
                     </div>
                     <div className="text-right text-[11px] font-mono text-slate-300">
-                      <div>CSP: {formatDMS(csp.lat, false)}, {formatDMS(csp.lng, true)}</div>
-                      <div>Exit: {formatDMS(exitPoint.lat, false)}, {formatDMS(exitPoint.lng, true)}</div>
+                      {searchPatternResult.segments.length > 0 ? <>
+                        <div>CSP: {formatDMS(csp.lat, false)}, {formatDMS(csp.lng, true)}</div>
+                        <div>Exit: {formatDMS(exitPoint.lat, false)}, {formatDMS(exitPoint.lng, true)}</div>
+                        <div>Heading: {patternOrientation?.toFixed(1)}°T</div>
+                        <div>S: {trackSpacing > 0 ? `${trackSpacing.toFixed(2)} NM · ${patternSpacingSource}` : 'tidak dipakai'}</div>
+                      </> : <div>Lengkapi input planner dan worksheet sumber untuk menggambar pola.</div>}
                     </div>
                   </div>
                 </CardContent>
@@ -1616,6 +1905,7 @@ export default function Home() {
                 searchResults={searchResults}
                 E={datumResults?.E ?? 5.0}
                 initialState={loadedInitialState?.ws3}
+                onTrackSpacingChange={handleWS3TrackSpacingChange}
               />
               {datumResults && (
                 <SearchPlanWorksheet
@@ -1811,7 +2101,7 @@ export default function Home() {
                 <SeaMapMount
                   center={mapCenter}
                   zoom={8}
-                  markers={interactiveMapMarkers}
+                  markers={mainMapMarkers}
                   lines={lines}
                   polygons={polygons}
                   circles={circles}
@@ -1836,7 +2126,11 @@ export default function Home() {
                   <span className="w-2.5 h-2.5 bg-amber-500 inline-block" /> Drift
                 </span>
                 <span className="inline-flex items-center gap-1">
-                  <span className="w-2.5 h-2.5 bg-emerald-600 inline-block" /> Area & Pola Track
+                  <span className="w-2.5 h-2.5 bg-emerald-600 inline-block" /> Search Area
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <span className="w-4 border-t-2 inline-block" style={{ borderColor: SEARCH_PATTERN_COLORS[patternType] }} />
+                  Search Pattern {searchPatternResult.segments.length ? `(${patternSruName})` : ''}
                 </span>
                 <span className="inline-flex items-center gap-1">
                   <span className="w-2.5 h-2.5 bg-purple-600 inline-block" /> Transit Go
@@ -1845,6 +2139,12 @@ export default function Home() {
                   <span className="w-2.5 h-2.5 bg-orange-500 inline-block" /> Transit Back
                 </span>
               </div>
+              {searchAreaCornerDescriptions.length > 0 && (
+                <div className="px-3 py-2 bg-white border-t border-slate-200 text-[10px] leading-relaxed text-slate-700">
+                  <strong className="text-slate-900">Koordinat sudut Search Area (A → B → C → D searah jarum jam):</strong>
+                  {searchAreaCornerDescriptions.map((description) => <div key={description} className="font-mono">{description}</div>)}
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -1974,6 +2274,7 @@ export default function Home() {
         onApplyWS3={handleApplyWS3}
         onApplyWS4={handleApplyWS4}
         onApplyWS8={handleApplyWS8}
+        onApplySearchPattern={handleApplySearchPattern}
         onApplyIntercept={handleApplyIntercept}
         onFocusWorksheet={(worksheet) => setActiveTab(worksheet === 'datum' ? 'ws1' : worksheet)}
       />

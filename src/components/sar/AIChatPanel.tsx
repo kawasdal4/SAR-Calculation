@@ -25,6 +25,7 @@ import type { Worksheet3InitialState } from '@/components/sar/worksheets/Workshe
 import type { Worksheet4InitialState } from '@/components/sar/worksheets/Worksheet4';
 import type { Worksheet8InitialState } from '@/components/sar/worksheets/Worksheet8';
 import { W2_TARGET_OPTIONS, W8_TARGET_OPTIONS } from '@/lib/sar/wscPodTables';
+import type { SearchPatternPlanInitialState } from '@/lib/sar/searchPatterns';
 
 interface UploadedAttachment {
   name: string;
@@ -70,6 +71,7 @@ interface AIChatPanelProps {
   onApplyWS3?: (data: Worksheet3InitialState) => void;
   onApplyWS4?: (data: Worksheet4InitialState) => void;
   onApplyWS8?: (data: Worksheet8InitialState) => void;
+  onApplySearchPattern?: (data: SearchPatternPlanInitialState) => void;
   onApplyIntercept?: (data: InterceptInput) => boolean;
   onFocusWorksheet?: (worksheet: string) => void;
   isOpen?: boolean;
@@ -151,6 +153,7 @@ export default function AIChatPanel({
   onApplyWS3,
   onApplyWS4,
   onApplyWS8,
+  onApplySearchPattern,
   onApplyIntercept,
   onFocusWorksheet,
   isOpen: controlledIsOpen,
@@ -290,7 +293,8 @@ export default function AIChatPanel({
           const validVisibility = data.eyeHeight === 'MERSHIP'
             ? ['5', '10', '20', '30', '40'].includes(data.visibilityKm ?? '')
             : ['2', '5', '10', '15', '20', '>25'].includes(data.visibilityKm ?? '');
-          if (['8', '14', 'MERSHIP'].includes(data.eyeHeight ?? '')
+          if (['rescue-vessel', 'patrol-boat', 'rib', 'sea-rider'].includes(data.sruType ?? '')
+            && ['8', '14', 'MERSHIP'].includes(data.eyeHeight ?? '')
             && validVisibility
             && ['Yes', 'No'].includes(data.isFatigue ?? '')
             && (data.searchNumber === undefined || [1, 2, 3, 4, 5].includes(data.searchNumber))
@@ -299,6 +303,30 @@ export default function AIChatPanel({
             onApplyWS8?.(data);
             applied = true;
             appliedWorksheets.push('ws8');
+          }
+          break;
+        }
+        case 'set_search_pattern_case': {
+          const data = args as unknown as SearchPatternPlanInitialState;
+          const validType = ['PS', 'CS', 'SS', 'VS', 'TS'].includes(data.patternType);
+          const validHeading = Number.isFinite(data.orientationDeg) && data.orientationDeg >= 0 && data.orientationDeg < 360;
+          const validTurn = data.turnDirection === 'right' || data.turnDirection === 'left';
+          const validPatternParameters = data.patternType === 'VS'
+            ? Number.isFinite(data.sectorAngleDeg) && (data.sectorAngleDeg ?? 0) > 0 && (data.sectorAngleDeg ?? 360) < 360
+              && Number.isFinite(data.sectorLegLengthNm) && (data.sectorLegLengthNm ?? 0) > 0
+              && Number.isInteger(data.sectorLegCount) && (data.sectorLegCount ?? 0) > 0
+              && validTurn
+            : data.patternType === 'SS'
+              ? validTurn
+              : data.patternType === 'TS'
+                ? Number.isFinite(data.trackLineLengthNm) && (data.trackLineLengthNm ?? 0) > 0
+                  && typeof data.tsReturn === 'boolean'
+                  && (!data.tsReturn || (Number.isFinite(data.tsReturnOffsetNm) && (data.tsReturnOffsetNm ?? 0) > 0))
+                : true;
+          if (validType && validHeading && validPatternParameters) {
+            onApplySearchPattern?.(data);
+            applied = true;
+            appliedWorksheets.push('search-pattern');
           }
           break;
         }
@@ -321,6 +349,7 @@ export default function AIChatPanel({
       }
     }
     const preferredWorksheet = appliedWorksheets.includes('intercept') ? 'intercept'
+      : appliedWorksheets.includes('search-pattern') ? 'search-pattern'
       : appliedWorksheets.includes('ws3') ? 'ws3'
         : appliedWorksheets.includes('ws4') ? 'ws4'
         : appliedWorksheets.includes('ws2') ? 'ws2'
@@ -330,7 +359,7 @@ export default function AIChatPanel({
           : appliedWorksheets.includes('asw') ? 'asw' : '';
     if (preferredWorksheet) onFocusWorksheet?.(preferredWorksheet);
     return { applied, invalidIntercept, preferredWorksheet };
-  }, [onApplyASW, onApplyAWA, onApplyLKP, onApplyDatum, onApplyWS2, onApplyWS3, onApplyWS4, onApplyWS8, onApplyIntercept, onFocusWorksheet]);
+  }, [onApplyASW, onApplyAWA, onApplyLKP, onApplyDatum, onApplyWS2, onApplyWS3, onApplyWS4, onApplyWS8, onApplySearchPattern, onApplyIntercept, onFocusWorksheet]);
 
   // Load API key and chat history from localStorage
   useEffect(() => {

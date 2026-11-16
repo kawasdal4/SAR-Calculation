@@ -9,7 +9,7 @@ import CoordinateInput from '@/components/sar/CoordinateInput';
 import { bearingDeg, distanceNm, project, rectangleCorners, type LatLng } from '@/lib/sar/sarCalculations';
 import type { MapCircle, MapLine, MapMarker, MapPolygon } from '@/components/sar/SeaMap';
 
-const Worksheet4Map = dynamic(() => import('@/components/sar/SeaMap'), { ssr: false });
+const Worksheet4Map = dynamic(() => import('@/components/sar/worksheets/Worksheet4MapLibre'), { ssr: false });
 
 export type Worksheet4TrStartMode = 'manual' | 'elapsed-time';
 export type Worksheet4TargetNavigation = 'self-contained' | 'other-aircraft' | 'dead-reckoning' | 'custom';
@@ -135,7 +135,7 @@ export default function Worksheet4({
       lat: activeMappedPoints.reduce((sum, item) => sum + item.point.lat, 0) / activeMappedPoints.length,
       lng: activeMappedPoints.reduce((sum, item) => sum + item.point.lng, 0) / activeMappedPoints.length,
     }
-    : { lat: latitude, lng: longitude };
+    : { lat: -2.5, lng: 118 };
   const mapZoom = mapSpanNm <= 45 ? 10 : mapSpanNm <= 180 ? 8 : mapSpanNm <= 500 ? 6 : 4;
   const ws4Markers: MapMarker[] = activeMappedPoints.map(({ point, index, name }) => ({
     position: point, label: `${String.fromCharCode(65 + index)} · ${name}`, showLabel: true,
@@ -567,7 +567,7 @@ export default function Worksheet4({
           <section className="border-b-2 border-slate-900 p-3">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <div>
-                <h3 className="text-sm font-bold text-slate-900">Peta Worksheet 4 · ONC (Operational Navigation Chart)</h3>
+                <h3 className="text-sm font-bold text-slate-900">Peta udara Worksheet 4 · OpenAIP</h3>
                 <p className="text-[10px] text-slate-600">Peta ini berdiri sendiri dan tidak berbagi layer dengan peta Worksheet 1. Lingkaran memakai Rounded up Radius.</p>
               </div>
               {dreGeometryEnabled && <span className="rounded bg-violet-100 px-2 py-1 text-[10px] font-semibold text-violet-900">Geometri DRe aktif atas pilihan planner</span>}
@@ -580,11 +580,10 @@ export default function Worksheet4({
               polygons={ws4Polygons}
               circles={ws4Circles}
               height="520px"
-              preferenceKey="worksheet4-onc"
-              basemap="onc"
             />
             {activeMappedPoints.length === 0 && <p className="mt-2 text-[10px] text-amber-800">Masukkan koordinat waypoint A–D agar radius dan area koridor dapat ditampilkan.</p>}
             <p className="mt-2 text-[10px] text-slate-500">Garis dan jarak segmen dapat ditelusuri dari waypoint. Tanpa DRe, peta menampilkan koridor persegi; trapezium hanya muncul saat DRe diaktifkan planner.</p>
+            <p className="mt-1 text-[10px] text-amber-800">OpenAIP dikelola komunitas. Verifikasi data dengan AIP Indonesia; peta ini alat bantu dan tidak menggantikan penilaian SAR Mission Coordinator maupun prosedur resmi.</p>
           </section>
 
           {/* Form Footer */}

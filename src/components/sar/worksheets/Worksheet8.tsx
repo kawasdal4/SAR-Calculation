@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Printer } from 'lucide-react';
 import { lookupW8Wu, lookupFw, readFigureI12, W8_TARGET_OPTIONS, type W8Target, type SearchNumber } from '@/lib/sar/wscPodTables';
 
 export interface Worksheet8InitialState {
   caseTitle?: string;
+  sruType?: 'rescue-vessel' | 'patrol-boat' | 'rib' | 'sea-rider';
   eyeHeight?: '8' | '14' | 'MERSHIP';
   searchObject?: W8Target;
   visibilityKm?: string;
@@ -22,6 +23,7 @@ interface Worksheet8Props {
   readOnly?: boolean;
   windKts?: number;
   initialState?: Worksheet8InitialState;
+  onTrackSpacingChange?: (result: { spacingNm: number; selection: string }) => void;
 }
 
 export default function Worksheet8({
@@ -31,6 +33,7 @@ export default function Worksheet8({
   readOnly = false,
   windKts = 0,
   initialState,
+  onTrackSpacingChange,
 }: Worksheet8Props) {
   // Case & Metadata state
   const [caseTitle, setCaseTitle] = useState(initialState?.caseTitle ?? '-');
@@ -86,6 +89,13 @@ export default function Worksheet8({
   const selS = selIdx >= 0 ? trackSpacings[selIdx] : 0;
   const selC = selIdx >= 0 ? coverages[selIdx] : 0;
   const selP = selIdx >= 0 ? pods[selIdx] : 0;
+
+  useEffect(() => {
+    onTrackSpacingChange?.({
+      spacingNm: selS,
+      selection: eyeHeight || 'belum dipilih',
+    });
+  }, [onTrackSpacingChange, eyeHeight, selS]);
 
   // Option A
   const optA_Area = searchAreaA;

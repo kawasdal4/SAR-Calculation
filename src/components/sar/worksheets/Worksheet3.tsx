@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import type { SearchPlanResults } from '@/components/sar/SearchPlanWorksheet';
 import { Printer } from 'lucide-react';
@@ -37,6 +37,7 @@ interface Worksheet3Props {
   E?: number;
   readOnly?: boolean;
   initialState?: Worksheet3InitialState;
+  onTrackSpacingChange?: (result: { platform: LandSearchPlatform | null; heights: readonly number[]; spacingByHeight: Array<number | null> }) => void;
 }
 
 function asLandTarget(value?: string): LandSearchTarget | null {
@@ -53,7 +54,7 @@ function asVegetation(value?: Worksheet3InitialState['vegetationType']): LandVeg
   return null;
 }
 
-export default function Worksheet3({ searchResults, readOnly = false, initialState }: Worksheet3Props) {
+export default function Worksheet3({ searchResults, readOnly = false, initialState, onTrackSpacingChange }: Worksheet3Props) {
   const [caseTitle, setCaseTitle] = useState(initialState?.caseTitle ?? '-');
   const [plannerName, setPlannerName] = useState('-');
   const [searchDate, setSearchDate] = useState('-');
@@ -73,6 +74,14 @@ export default function Worksheet3({ searchResults, readOnly = false, initialSta
   const wFactors = wuList.map((wu) => wu !== null && fv !== null && ff !== null ? Number((wu * fv * ff).toFixed(2)) : null);
   // Worksheet 3 has its own practical-spacing rule. It is intentionally independent of Worksheet 2.
   const trackSpacings = wFactors.map((width) => width !== null && searchPlatform ? nearestLandTrackSpacing(width, searchPlatform) : null);
+  const trackSpacingSignature = trackSpacings.map((spacing) => spacing ?? '').join(',');
+  useEffect(() => {
+    onTrackSpacingChange?.({
+      platform: searchPlatform,
+      heights,
+      spacingByHeight: trackSpacingSignature ? trackSpacingSignature.split(',').map((spacing) => spacing === '' ? null : Number(spacing)) : [],
+    });
+  }, [onTrackSpacingChange, searchPlatform, trackSpacingSignature]);
   const coverages = wFactors.map((width, index) => width !== null && trackSpacings[index] ? width / trackSpacings[index]! : null);
   const pods = coverages.map((coverage) => coverage !== null && searchNumber !== null ? readFigureI12(coverage, searchNumber) : null);
   const hasSearchArea = (searchResults?.Ao ?? initialState?.searchAreaNm2 ?? 0) > 0;
