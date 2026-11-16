@@ -189,8 +189,15 @@ export async function POST(req: NextRequest) {
     const userPrompt = lastMessage.content?.trim() || (incomingFiles.length > 0
       ? 'Tolong telaah dan analisis dokumen/gambar yang dilampirkan untuk kasus perhitungan SAR.'
       : 'Halo');
-    const conversation = messages.slice(0, -1)
-      .map((msg: { role: string; content: string }) => `${msg.role === 'user' ? 'Pengguna' : 'Asisten'}: ${msg.content || ''}`)
+    // Keep the context useful without resending a long chat history (which can
+    // make the model call slow, especially after repeated failed attempts).
+    const conversation = messages.slice(-13, -1)
+      .filter((msg: { role: string; content: string }) =>
+        !(msg.role !== 'user' && msg.content?.startsWith('❌ Error:'))
+      )
+      .map((msg: { role: string; content: string }) =>
+        `${msg.role === 'user' ? 'Pengguna' : 'Asisten'}: ${(msg.content || '').slice(0, 6000)}`
+      )
       .join('\n');
     input.unshift({
       type: 'text',
@@ -213,6 +220,7 @@ export async function POST(req: NextRequest) {
         model: GEMINI_MODEL,
         input,
         system_instruction: SYSTEM_PROMPT,
+        generation_config: { max_output_tokens: 8192 },
         tools: tools.map((tool) => ({
           type: 'function',
           name: tool.name,
