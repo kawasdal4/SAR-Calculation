@@ -69,6 +69,15 @@ export default function Worksheet3({
 
   // Available search hours
   const [hoursAvailable, setHoursAvailable] = useState(initialState?.hoursAvailable ?? 0);
+  const hasWorksheet3Inputs = Boolean(
+    (caseTitle.trim() && caseTitle !== '-') ||
+    (searchObject.trim() && searchObject !== '-') ||
+    visibilityKm > 0 ||
+    vegetationType !== '-' ||
+    isFatigue !== null ||
+    searchTas > 0 ||
+    hoursAvailable > 0
+  );
 
   // Selected height for options: 1000 ft (idx 1)
   const selIdx = 1;
@@ -266,7 +275,7 @@ export default function Worksheet3({
                 </td>
                 {wuList.map((wu, i) => (
                   <td key={i} className="py-1.5 px-2 text-center border-r border-slate-300 last:border-r-0">
-                    <span className="font-bold text-blue-900 font-mono">{wu.toFixed(1)}</span>{' '}
+                    <span className="font-bold text-blue-900 font-mono">{(hasWorksheet3Inputs ? wu : 0).toFixed(1)}</span>{' '}
                     <span className="text-slate-500 text-[10px]">NM</span>
                   </td>
                 ))}
@@ -318,7 +327,7 @@ export default function Worksheet3({
                 </td>
                 {trackSpacings.map((s, i) => (
                   <td key={i} className="py-1.5 px-2 text-center border-r border-slate-300 last:border-r-0 font-mono font-bold text-slate-800">
-                    {s.toFixed(1)} <span className="text-[10px] text-slate-500">NM</span>
+                    {(hasWorksheet3Inputs ? s : 0).toFixed(1)} <span className="text-[10px] text-slate-500">NM</span>
                   </td>
                 ))}
               </tr>
