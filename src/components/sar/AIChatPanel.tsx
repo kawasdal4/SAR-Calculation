@@ -19,6 +19,7 @@ import {
   UploadCloud,
 } from 'lucide-react';
 import { formatDMS } from '@/lib/sar/coordFormat';
+import type { InterceptInput } from '@/lib/sar/interceptCalculations';
 
 interface UploadedAttachment {
   name: string;
@@ -49,6 +50,7 @@ interface AIChatPanelProps {
     caseTitle?: string;
   }) => void;
   onApplyLKP?: (data: { lat: number; lng: number }) => void;
+  onApplyIntercept?: (data: InterceptInput) => boolean;
   isOpen?: boolean;
   onToggle?: (open: boolean) => void;
   className?: string;
@@ -76,7 +78,7 @@ const QUICK_PROMPTS = [
   {
     label: 'Jelaskan ASW & Mobo',
     prompt:
-      'Jelaskan cara menentukan arah dan kecepatan Average Surface Wind (ASW) menggunakan Maneuvering Board (IAMSAR Vol II).',
+      'Jelaskan cara menentukan arah dan kecepatan Average Surface Wind (ASW) menggunakan Maneuvering Board.',
   },
 ];
 
@@ -123,6 +125,7 @@ export default function AIChatPanel({
   onApplyASW,
   onApplyAWA,
   onApplyLKP,
+  onApplyIntercept,
   isOpen: controlledIsOpen,
   onToggle,
   className = '',
@@ -306,11 +309,39 @@ export default function AIChatPanel({
           throw new Error(data.error || 'API Error');
         }
 
+        const interceptCall = data.functionCalls?.find((call) => call.name === 'set_intercept_case');
+        let interceptApplied = false;
+        if (interceptCall && onApplyIntercept) {
+          const args = interceptCall.args as unknown as InterceptInput;
+          const target = args.target;
+          const sru = args.sru;
+          const validType = ['head-on', 'overtaking', 'beam-on'].includes(args.type);
+          const validCoordinates = [target?.pos?.lat, target?.pos?.lng, sru?.pos?.lat, sru?.pos?.lng]
+            .every((value) => typeof value === 'number' && Number.isFinite(value));
+          const validSpeeds = [target?.speedKts, sru?.speedKts]
+            .every((value) => typeof value === 'number' && Number.isFinite(value) && value > 0);
+          const validHeading = typeof target?.courseDeg === 'number'
+            && Number.isFinite(target.courseDeg)
+            && target.courseDeg >= 0
+            && target.courseDeg < 360;
+          const validLatLng = typeof target?.pos?.lat === 'number' && Math.abs(target.pos.lat) <= 90
+            && typeof sru?.pos?.lat === 'number' && Math.abs(sru.pos.lat) <= 90
+            && typeof target?.pos?.lng === 'number' && Math.abs(target.pos.lng) <= 180
+            && typeof sru?.pos?.lng === 'number' && Math.abs(sru.pos.lng) <= 180;
+          if (validType && validCoordinates && validSpeeds && validHeading && validLatLng) {
+            interceptApplied = onApplyIntercept(args);
+          }
+        }
+
         const assistantMsg: ChatMessage = {
           role: 'assistant',
           content: data.text || 'Server tidak mengirim teks jawaban.',
           functionCalls: data.functionCalls,
+          applied: interceptApplied,
         };
+        if (interceptCall && !interceptApplied) {
+          assistantMsg.content += '\n\nData Intercept belum diterapkan karena posisi, kecepatan, atau haluan belum lengkap/valid. Periksa kembali soal atau lampiran.';
+        }
         setMessages([...newMessages, assistantMsg]);
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : 'Unknown error';
@@ -322,7 +353,7 @@ export default function AIChatPanel({
         setIsLoading(false);
       }
     },
-    [apiKey, attachedFiles, isLoading, messages]
+    [apiKey, attachedFiles, isLoading, messages, onApplyIntercept]
   );
 
   const handleApply = useCallback(
@@ -339,11 +370,14 @@ export default function AIChatPanel({
           case 'set_lkp':
             onApplyLKP?.(fc.args as Parameters<NonNullable<typeof onApplyLKP>>[0]);
             break;
+          case 'set_intercept_case':
+            onApplyIntercept?.(fc.args as unknown as InterceptInput);
+            break;
         }
       }
       setMessages((prev) => prev.map((m, i) => (i === idx ? { ...m, applied: true } : m)));
     },
-    [onApplyASW, onApplyAWA, onApplyLKP]
+    [onApplyASW, onApplyAWA, onApplyLKP, onApplyIntercept]
   );
 
   const clearHistory = useCallback(() => {
@@ -383,6 +417,10 @@ export default function AIChatPanel({
       case 'set_lkp': {
         const a = fc.args as { lat?: number; lng?: number };
         return `📍 LKP: ${formatDMS(a.lat ?? 0, false)}, ${formatDMS(a.lng ?? 0, true)}`;
+      }
+      case 'set_intercept_case': {
+        const a = fc.args as unknown as InterceptInput;
+        return `🎯 Intercept: ${a.target?.name || 'Target'} → ${a.sru?.name || 'SRU'}\nMetode: ${a.type}\nTarget: ${formatDMS(a.target?.pos?.lat ?? 0, false)}, ${formatDMS(a.target?.pos?.lng ?? 0, true)} · ${a.target?.speedKts ?? 0} kt · haluan ${a.target?.courseDeg ?? 0}°T\nSRU: ${formatDMS(a.sru?.pos?.lat ?? 0, false)}, ${formatDMS(a.sru?.pos?.lng ?? 0, true)} · ${a.sru?.speedKts ?? 0} kt`;
       }
       default:
         return `🔧 ${fc.name}`;
@@ -585,7 +623,9 @@ export default function AIChatPanel({
                             </button>
                           ) : (
                             <div className="mt-2 text-[11px] text-emerald-800 font-bold text-center py-1 bg-emerald-50 rounded">
-                              ✅ Data sudah diterapkan ke Worksheet
+                              {msg.functionCalls?.some((call) => call.name === 'set_intercept_case')
+                                ? '✅ Data otomatis diterapkan; hasil dihitung dan dipetakan di tab Intercept'
+                                : '✅ Data sudah diterapkan ke Worksheet'}
                             </div>
                           )}
                         </div>

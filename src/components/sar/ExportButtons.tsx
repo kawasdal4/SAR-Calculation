@@ -41,7 +41,7 @@ export default function ExportButtons({ data, caseTitle }: ExportButtonsProps) {
       pdf.setTextColor(255, 255, 255);
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(14);
-      pdf.text('IAMSAR Search Action Plan', margin, 28);
+      pdf.text('SAR Search Action Plan', margin, 28);
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(9);
       pdf.text(`Appendix L-23  •  ${data.messageDateTime}`, margin, 44);
@@ -241,10 +241,10 @@ export default function ExportButtons({ data, caseTitle }: ExportButtonsProps) {
 
       // Metadata
       pdf.setProperties({
-        title: `IAMSAR Search Action Plan — ${data.searchObjectId}`,
-        subject: 'Search Action Plan (IAMSAR Manual Vol. II Appendix L-23)',
-        author: 'IAMSAR Mission Co-ordinator Workbench',
-        creator: 'Z.ai IAMSAR Workbench',
+        title: `SAR Search Action Plan — ${data.searchObjectId}`,
+        subject: 'Search Action Plan — Appendix L-23',
+        author: 'SAR Mission Planning Workbench',
+        creator: 'SAR Mission Planning Workbench',
       });
 
       pdf.save(`${safeName}.pdf`);
@@ -268,8 +268,8 @@ export default function ExportButtons({ data, caseTitle }: ExportButtonsProps) {
 
       // Sheet 1: Header / Situation
       const headerRows: (string | number)[][] = [
-        ['IAMSAR SEARCH ACTION PLAN'],
-        ['Appendix L-23 — IAMSAR Manual Volume II (2016)'],
+        ['SAR SEARCH ACTION PLAN'],
+        ['Appendix L-23'],
         [],
         ['Message DTG', data.messageDateTime],
         ['From (RCC)', data.fromRcc],

@@ -67,13 +67,14 @@ import type { MapMarker, MapLine, MapPolygon, MapCircle } from '@/components/sar
 import BasicCalculation from '@/components/sar/BasicCalculation';
 import SeaMapMount from '@/components/sar/SeaMapMount';
 
-// New Training & IAMSAR Worksheets
+// Worksheet navigation and training tools
 import ManeuveringBoard from '@/components/sar/ManeuveringBoard';
 import type { BoardVector } from '@/lib/sar/maneuveringBoard';
 import UPSPlotter from '@/components/sar/UPSPlotter';
 import AeronauticalDriftWorksheet from '@/components/sar/AeronauticalDriftWorksheet';
 import type { AeroDriftResult } from '@/lib/sar/aeroDriftCalculations';
 import InterceptWorksheet from '@/components/sar/InterceptWorksheet';
+import type { InterceptInput } from '@/lib/sar/interceptCalculations';
 import Worksheet1 from '@/components/sar/worksheets/Worksheet1';
 import Worksheet2 from '@/components/sar/worksheets/Worksheet2';
 import Worksheet3 from '@/components/sar/worksheets/Worksheet3';
@@ -137,6 +138,8 @@ export default function Home() {
   const [isPrintA3Open, setIsPrintA3Open] = useState<boolean>(false);
   const [isAiChatOpen, setIsAiChatOpen] = useState<boolean>(false);
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState<boolean>(false);
+  const [aiInterceptInput, setAiInterceptInput] = useState<InterceptInput | null>(null);
+  const [interceptCaseVersion, setInterceptCaseVersion] = useState(0);
 
   // Aeronautical Drift State & auto-sync to LKP
   const [aeroResults, setAeroResults] = useState<AeroDriftResult | null>(null);
@@ -273,6 +276,7 @@ export default function Home() {
     // Reset Pattern & Assets
     setPatternType('PS');
     setAssets([]);
+    setAiInterceptInput(null);
 
     // Increment caseVersion to force re-mount of all keyed worksheets
     setCaseVersion((v) => v + 1);
@@ -332,6 +336,15 @@ export default function Home() {
   const handleApplyLKP = useCallback((data: { lat: number; lng: number }) => {
     setLkp(data);
     setIsLkpSet(true);
+  }, []);
+
+  const handleApplyIntercept = useCallback((data: InterceptInput) => {
+    setAiInterceptInput(data);
+    setInterceptCaseVersion((version) => version + 1);
+    setActiveTab('intercept');
+    setIsAiChatOpen(false);
+    toast.success('Data kasus otomatis dimasukkan ke worksheet Intercept.');
+    return true;
   }, []);
 
   useEffect(() => {
@@ -896,7 +909,7 @@ export default function Home() {
               </div>
               <div>
                 <h1 className="text-base sm:text-lg font-bold tracking-tight">
-                  Sistem Kalkulasi & Operasional SAR Terpadu (IAMSAR Vol II)
+                  Sistem Kalkulasi & Operasional SAR Terpadu
                 </h1>
                 <p className="text-xs text-slate-300">
                   Alur: AWA → ADW (LKP) → ASW → WS 1 (Ao) → WS 2 & 8 → Alokasi Aset SRU & Pola Pencarian
@@ -932,7 +945,7 @@ export default function Home() {
               <CaseManager buildState={buildState} applyState={applyState} />
               <ExportButtons data={searchActionPlanData} caseTitle="SAR_Search_Action_Plan" />
               <Badge variant="secondary" className="bg-slate-800 text-slate-200 border-slate-700">
-                IAMSAR Vol II
+                SAR Planning
               </Badge>
             </div>
           </div>
@@ -1237,7 +1250,7 @@ export default function Home() {
               />
             </TabsContent>
 
-            {/* TAB 7: PENGHITUNGAN ALOKASI ASET SRU (IAMSAR L-7) */}
+            {/* TAB 7: PENGHITUNGAN ALOKASI ASET SRU */}
             <TabsContent value="asset-allocation" className="mt-0 space-y-4">
               <AssetAllocationWorksheet
                 key={`assets-${caseVersion}`}
@@ -1249,7 +1262,7 @@ export default function Home() {
               />
               <PrintCompanionMap
                 title="LAMPIRAN: PETA ALOKASI ASET SRU & RUTE TRANSIT"
-                worksheetRef="ALOKASI ASET SRU (IAMSAR L-7)"
+                worksheetRef="ALOKASI ASET SRU"
                 lkp={lkp}
                 mapCenter={mapCenter}
                 markers={markers}
@@ -1277,7 +1290,7 @@ export default function Home() {
                           POLA PENCARIAN (SEARCH PATTERN) & LINTASAN KAKI TRACK
                         </CardTitle>
                         <p className="text-[11px] text-slate-500 font-mono">
-                          Berdasarkan Materi Diklat Basarnas & IAMSAR Manual Volume II Chapter 5
+                          Berdasarkan Materi Diklat Basarnas dan panduan perencanaan SAR
                         </p>
                       </div>
                     </div>
@@ -1471,7 +1484,10 @@ export default function Home() {
 
             {/* TAB: INTERCEPT CALCULATOR */}
             <TabsContent value="intercept" className="mt-0">
-              <InterceptWorksheet key={`intercept-${caseVersion}`} />
+              <InterceptWorksheet
+                key={`intercept-${caseVersion}-${interceptCaseVersion}`}
+                initialInput={aiInterceptInput}
+              />
             </TabsContent>
 
             {/* TAB: BRIEFING & RENOPS (PERBAN 3/2020) */}
@@ -1790,12 +1806,13 @@ export default function Home() {
         onApplyASW={handleApplyASW}
         onApplyAWA={handleApplyAWA}
         onApplyLKP={handleApplyLKP}
+        onApplyIntercept={handleApplyIntercept}
       />
 
       <footer className="mt-auto bg-slate-900 text-slate-400 text-xs">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <p>
-            Platform Operasional & Kalkulasi SAR Terpadu — Berdasarkan IAMSAR Manual Volume II (2016) & Peraturan No. 3 Tahun 2020.{' '}
+            Platform Operasional & Kalkulasi SAR Terpadu — Berdasarkan panduan operasi SAR & Peraturan No. 3 Tahun 2020.{' '}
             <span className="text-slate-300">
               Dilengkapi Worksheet 1, 2, 3, 4, 8, Papan Manuver Polar, Universal Plotting Sheet (UPS), Intercept Solver, Pola Pencarian & Penghitungan Alokasi Aset SRU.
             </span>

@@ -15,15 +15,15 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "IAMSAR Mission Co-ordinator Workbench — SAR Worksheet Calculator",
-  description: "Calculate IAMSAR Manual Volume II worksheets (AWA, ASW, Wind Current, Leeway, Datum, Sweep Width, Effort Allocation) and plot the resulting search area on an interactive OpenSeaMap sea chart.",
-  keywords: ["IAMSAR", "SAR", "search and rescue", "sea map", "AWA", "ASW", "leeway", "datum", "search planning", "OpenSeaMap"],
+  title: "SAR Mission Planning Workbench — SAR Worksheet Calculator",
+  description: "Calculate SAR worksheets (AWA, ASW, Wind Current, Leeway, Datum, Sweep Width, Effort Allocation) and plot the resulting search area on an interactive OpenSeaMap sea chart.",
+  keywords: ["SAR", "search and rescue", "sea map", "AWA", "ASW", "leeway", "datum", "search planning", "OpenSeaMap"],
   authors: [{ name: "Z.ai" }],
   icons: {
     icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
   },
   openGraph: {
-    title: "IAMSAR Mission Co-ordinator Workbench",
+    title: "SAR Mission Planning Workbench",
     description: "SAR worksheet calculator with interactive sea map",
     url: "https://chat.z.ai",
     siteName: "Z.ai",
@@ -31,7 +31,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "IAMSAR Mission Co-ordinator Workbench",
+    title: "SAR Mission Planning Workbench",
     description: "SAR worksheet calculator with interactive sea map",
   },
 };

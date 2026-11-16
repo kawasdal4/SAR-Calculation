@@ -81,7 +81,7 @@ export default function Worksheet7({ readOnly = false }: Worksheet7Props) {
                 WORKSHEET 7 — COMPOSITE POD (PROBABILITY OF DETECTION GABUNGAN)
               </CardTitle>
               <p className="text-[11px] text-slate-500 font-mono">
-                IAMSAR Manual Volume II Appendix L-20 (Evaluasi Hasil Pencarian Multi-Aset)
+                Appendix L-20 (Evaluasi Hasil Pencarian Multi-Aset)
               </p>
             </div>
           </div>

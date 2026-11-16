@@ -1232,7 +1232,7 @@ export default function BasicCalculation() {
     <div data-testid="basic-calculation">
       <WorksheetCard
         title="Penghitungan Dasar SAR"
-        description="Introduction to SAR Calculation — IAMSAR Manual Volume II"
+        description="Introduction to SAR Calculation"
         badge="SARPLAN"
       >
         <div className="mb-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">

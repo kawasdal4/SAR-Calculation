@@ -869,7 +869,7 @@ export default function UPSPlotter({
               <span>Petunjuk Template Universal Plotting Sheet:</span>
             </div>
             <ul className="list-disc list-inside space-y-1 text-slate-700">
-              <li>Template lembar asli <strong>VP-OS (Universal Plotting Sheet)</strong> standar IAMSAR.</li>
+              <li>Template lembar <strong>VP-OS (Universal Plotting Sheet)</strong>.</li>
               <li>Hasil Aeronautical Drift (Glide & Parachute) memplot lintasan ke <strong>LKP</strong>.</li>
               <li>Dari LKP, vektor drift laut berlanjut ke <strong>Datum Left</strong> & <strong>Datum Right</strong>.</li>
               <li>Gunakan <strong>drag/geser</strong> untuk menggeser sheet dan <strong>zoom</strong> untuk detail kompas.</li>

@@ -24,7 +24,7 @@ import {
  */
 function podIdeal(c: number): number {
   if (c <= 0) return 0;
-  // Approximate the upper curve from IAMSAR figure N-10
+  // Approximate the upper curve from figure N-10
   return Math.min(0.999, 1 - Math.exp(-c * 1.6));
 }
 function podNormal(c: number): number {
@@ -232,7 +232,7 @@ interface ProbMapProps {
 }
 
 export function PointDatumProbMap({ E_nm }: ProbMapProps) {
-  // Standard IAMSAR initial probability map for a point datum (fig 4-10)
+  // Initial probability map for a point datum (figure 4-10)
   const grid = [
     [1.42, 9.08, 1.42],
     [9.08, 57.91, 9.08],

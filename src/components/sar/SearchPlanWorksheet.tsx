@@ -459,7 +459,7 @@ export default function SearchPlanWorksheet({
         </div>
         <p className="text-xs text-slate-500 mt-3 leading-relaxed">
           Search legs harus sejajar dengan arah pergerakan objek selama pencarian
-          (lihat IAMSAR Vol II §4.7.7(d) dan §5.9).
+          (lihat bagian panduan orientasi pencarian dan jarak antarjalur).
         </p>
       </WorksheetCard>
     </div>

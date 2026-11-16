@@ -35,7 +35,7 @@ export default function Worksheet8({
   // Vessel eye heights: Eye height 8 ft (Small craft), Eye height 14 ft (Patrol boat), MERSHIP (Large ship bridge)
   const columns = ['Eye height 8 ft', 'Eye height 14 ft', 'MERSHIP'];
 
-  // Correction factors (IAMSAR Table I-7)
+  // Correction factors (Table I-7)
   const targetGroup = searchObject === 'person' || searchObject.startsWith('raft') || searchObject === 'boatUnder5' || searchObject === 'boat5to8' ? 'small' : 'other';
   const fw = lookupFw(windKts, targetGroup);
   const ff = isFatigue === 'Yes' ? 0.9 : isFatigue === 'No' ? 1 : 0;

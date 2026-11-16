@@ -1,5 +1,5 @@
 /**
- * IAMSAR Volume II Chapter 4 & 5 - SAR Asset Allocation Calculation Engine
+ * SAR Asset Allocation Calculation Engine
  * (Kalkulasi Alokasi Aset & Efektivitas SRU)
  */
 

@@ -26,7 +26,7 @@ export default function Worksheet3({
   const [isFatigue, setIsFatigue] = useState(false);
   const searchTas = 0;
 
-  // Correction factors for Land search (IAMSAR Table I-10)
+  // Correction factors for land search (Table I-10)
   const fv = vegetationType === '15-60' ? 0.8 : vegetationType === '60-85' ? 0.6 : 0.4;
   const ff = isFatigue ? 0.9 : 1.0;
 

@@ -1,5 +1,5 @@
 /**
- * IAMSAR Vol II Chapter 5 & Basarnas Search Patterns Generator
+ * Basarnas Search Patterns Generator
  * Generates exact coordinate waypoints and track segments for:
  * - PS: Parallel Track Search (Pola Paralel)
  * - CS: Creeping Line Search (Pola Merayap)

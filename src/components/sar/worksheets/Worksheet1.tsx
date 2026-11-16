@@ -107,7 +107,7 @@ export default function Worksheet1({
                 WORKSHEET 1 MARITIME PLANNING (MARINE DATUM)
               </CardTitle>
               <p className="text-xs text-slate-300 font-mono print:text-slate-600">
-                Form Asli Diklat Basarnas / IAMSAR Manual Volume II Appendix K
+                Form Diklat Basarnas / Appendix K
               </p>
             </div>
           </div>

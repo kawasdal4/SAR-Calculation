@@ -312,7 +312,7 @@ export default function AeronauticalDriftWorksheet({
               Lembar Terjun Payung (dp)
             </button>
           </div>
-          <span className="font-mono text-slate-900">K-6 IAMSAR MANUAL VOLUME II</span>
+          <span className="font-mono text-slate-900">K-6</span>
           <button
             type="button"
             onClick={handlePrint}
@@ -517,7 +517,7 @@ export default function AeronauticalDriftWorksheet({
             {/* Header when dual mode is active */}
             {viewMode === 'dual' && (
               <div className="flex items-center justify-between pb-1 border-b border-slate-300 text-[11px] font-bold text-slate-700">
-                <span className="w-1/2">Parameter / Deskripsi IAMSAR</span>
+                <span className="w-1/2">Parameter / Deskripsi</span>
                 <div className="w-1/2 flex items-center justify-end gap-6 text-center">
                   <span className="w-36 text-sky-900 bg-sky-50 px-2 py-0.5 rounded border border-sky-200">
                     Aircraft Glide (da)
@@ -1053,7 +1053,7 @@ export default function AeronauticalDriftWorksheet({
         {/* Running Document Footer (Appendix K-6 Authentic Running Footer) */}
         <div className="pt-3 border-t-2 border-slate-900 flex items-center justify-between text-[11px] font-bold text-slate-800">
           <span className="font-mono">K-6</span>
-          <span className="tracking-wide">IAMSAR MANUAL VOLUME II</span>
+          <span className="tracking-wide">WORKSHEET AERONAUTICAL DRIFT</span>
         </div>
         <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono">
           <span>SAR Planning | Angkatan XXXVIII</span>

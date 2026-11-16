@@ -128,7 +128,7 @@ export default function AssetAllocationWorksheet({
                   PENGHITUNGAN ALOKASI ASET SRU & LEMBAR KERJA OSE/EST ASLI
                 </CardTitle>
                 <p className="text-[11px] text-slate-500 font-mono">
-                  Berdasarkan Form Asli Diklat Basarnas (EST Maritime / EST Air Asset / IAMSAR Manual Vol II)
+                  Berdasarkan Form Diklat Basarnas (EST Maritime / EST Air Asset)
                 </p>
               </div>
             </div>

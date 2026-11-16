@@ -1,8 +1,8 @@
 /**
- * IAMSAR Volume II - Search and Rescue calculation engine
+ * Search and Rescue calculation engine
  * Implements worksheets from Appendix K (Determining Datum) and Appendix L (Search planning)
  *
- * All calculations follow the formulas described in the IAMSAR Manual Volume II (2016 edition).
+ * Calculations follow the referenced SAR planning formulas.
  * Wind directions use meteorological convention (direction FROM which wind blows, in °T).
  * Current/leeway directions use the oceanographic convention (direction TOWARD which current flows).
  */

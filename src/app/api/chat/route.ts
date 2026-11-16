@@ -12,6 +12,13 @@ KEMAMPUANMU:
 4. Mengisi worksheet secara otomatis melalui function calling.
 5. Menjelaskan langkah-langkah perhitungan matematis dan vektor secara jelas.
 
+ATURAN KASUS INTERCEPT:
+- Jika soal meminta perhitungan/intercept atau medevac dan memuat posisi, kecepatan, serta haluan target/SRU, WAJIB panggil set_intercept_case dengan data yang ditemukan.
+- Koordinat harus berupa derajat desimal; lintang selatan dan bujur barat bernilai negatif.
+- Pilih beam-on untuk SRU yang berangkat dari pangkalan menuju target yang bergerak pada haluan tertentu. Head-on hanya untuk gerak saling mendekat di baseline; overtaking hanya untuk lintasan searah.
+- Jangan memilih expanding square sebagai metode intercept. Jangan menghitung atau mengarang hasil waktu, jarak, bearing, ETA, atau koordinat intercept di jawaban. Aplikasi akan menghitungnya dan menggambar vektor/peta.
+- Jika tanggal tidak tersedia, jangan mengarang tanggal; waktu intercept dan koordinat tetap dapat dihitung, sedangkan ETA ditampilkan bila waktu referensi tersedia.
+
 JIKA PENGGUNA MELAMPIRKAN FILE/GAMBAR:
 - Bacalah isi dokumen atau amati gambar dengan teliti.
 - Ekstrak data operasional: Distress Time, Datum Time, Data Angin BMKG (waktu, arah °T, kecepatan kts), ketinggian, LKP, jenis musibah.
@@ -124,6 +131,57 @@ const tools: FunctionDeclaration[] = [
     },
   },
   {
+    name: 'set_intercept_case',
+    description: 'Mengekstrak data kasus Intercept dari soal lalu mengisi worksheet Intercept agar aplikasi menghitung hasil dan menggambar vektor/peta. WAJIB gunakan untuk soal perhitungan Intercept lengkap. Koordinat desimal; selatan/barat negatif. Jika tanggal referensi tidak disebutkan, hilangkan referenceTime.',
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        type: {
+          type: SchemaType.STRING,
+          description: 'Metode worksheet: beam-on untuk target bergerak pada haluan tertentu dan SRU berangkat dari pangkalan; head-on untuk saling mendekat pada baseline; overtaking untuk mengejar pada lintasan searah.',
+        },
+        referenceTime: {
+          type: SchemaType.STRING,
+          description: 'Tanggal/waktu lokal format YYYY-MM-DDTHH:mm hanya jika tanggal dan waktu tersedia dari soal. Jangan mengarang tanggal.',
+        },
+        target: {
+          type: SchemaType.OBJECT,
+          properties: {
+            name: { type: SchemaType.STRING, description: 'Nama kapal/target.' },
+            pos: {
+              type: SchemaType.OBJECT,
+              properties: {
+                lat: { type: SchemaType.NUMBER, description: 'Lintang target dalam derajat desimal; selatan negatif.' },
+                lng: { type: SchemaType.NUMBER, description: 'Bujur target dalam derajat desimal; barat negatif.' },
+              },
+              required: ['lat', 'lng'],
+            },
+            speedKts: { type: SchemaType.NUMBER, description: 'Kecepatan target dalam knot.' },
+            courseDeg: { type: SchemaType.NUMBER, description: 'Haluan target derajat True, 0 sampai kurang dari 360.' },
+          },
+          required: ['name', 'pos', 'speedKts', 'courseDeg'],
+        },
+        sru: {
+          type: SchemaType.OBJECT,
+          properties: {
+            name: { type: SchemaType.STRING, description: 'Nama/unit SRU.' },
+            pos: {
+              type: SchemaType.OBJECT,
+              properties: {
+                lat: { type: SchemaType.NUMBER, description: 'Lintang posisi SRU/pangkalan dalam derajat desimal; selatan negatif.' },
+                lng: { type: SchemaType.NUMBER, description: 'Bujur posisi SRU/pangkalan dalam derajat desimal; barat negatif.' },
+              },
+              required: ['lat', 'lng'],
+            },
+            speedKts: { type: SchemaType.NUMBER, description: 'Kecepatan SRU dalam knot.' },
+          },
+          required: ['name', 'pos', 'speedKts'],
+        },
+      },
+      required: ['type', 'target', 'sru'],
+    },
+  },
+  {
     name: 'set_lkp',
     description: 'Mengatur posisi LKP (Last Known Position) untuk operasi SAR.',
     parameters: {
@@ -201,10 +259,19 @@ export async function POST(req: NextRequest) {
         `${msg.role === 'user' ? 'Pengguna' : 'Asisten'}: ${(msg.content || '').slice(0, 6000)}`
       )
       .join('\n');
+    const extractedFileText = input
+      .filter((part) => part.type === 'text')
+      .map((part) => part.text || '')
+      .join('\n');
     input.unshift({
       type: 'text',
       text: `${conversation ? `Riwayat percakapan:\n${conversation}\n\n` : ''}${userPrompt}`,
     });
+
+    const interceptSourceText = `${userPrompt}\n${extractedFileText}`;
+    const speedMentions = [...interceptSourceText.matchAll(/\b\d+(?:[.,]\d+)?\s*(?:knots?|kts?|kt)\b/gi)];
+    const interceptCaseDetected = /\b(intercept|intersep|pintasan|medevac)\b/i.test(interceptSourceText)
+      && speedMentions.length >= 2;
 
     // Interactions API uses lowercase JSON Schema types for function tools.
     const normalizeSchema = (value: unknown): unknown => {
@@ -234,6 +301,11 @@ export async function POST(req: NextRequest) {
               generation_config: {
                 max_output_tokens: 8192,
                 thinking_level: model === 'gemini-3.5-flash-lite' ? 'minimal' : 'low',
+                ...(interceptCaseDetected ? {
+                  tool_choice: {
+                    allowed_tools: { mode: 'any', tools: ['set_intercept_case'] },
+                  },
+                } : {}),
               },
               tools: tools.map((tool) => ({
                 type: 'function',
@@ -277,6 +349,10 @@ export async function POST(req: NextRequest) {
       throw new Error(lastError?.message || 'Gemini sedang sibuk. Silakan coba lagi beberapa saat lagi.');
     }
 
+    if (!Array.isArray(result.steps)) {
+      throw new Error('Format respons Gemini tidak berisi langkah jawaban yang dapat diproses.');
+    }
+
     const steps = Array.isArray(result.steps) ? result.steps as Array<{ type?: string; name?: string; arguments?: unknown; content?: Array<{ type?: string; text?: string }> }> : [];
     const functionCalls = steps.filter((step): step is typeof step & { name: string } =>
       step.type === 'function_call' && typeof step.name === 'string'
@@ -293,9 +369,26 @@ export async function POST(req: NextRequest) {
         .map((part: { text?: string }) => part.text || '')
         .join('');
 
+      const interceptCall = calls.find((call) => call.name === 'set_intercept_case');
+      if (interceptCaseDetected && !interceptCall) {
+        return NextResponse.json({
+          text: 'Soal Intercept terdeteksi, tetapi datanya belum berhasil dipetakan ke worksheet. Hasil angka tidak ditampilkan agar tidak mengarang perhitungan. Periksa kelengkapan posisi, haluan, dan kecepatan target serta SRU, lalu kirim ulang.',
+          functionCalls: null,
+        });
+      }
+      const responseText = interceptCall
+        ? 'Data kasus Intercept berhasil dianalisis. Saya memasukkan data ke worksheet Intercept; hasil hitung dan vektornya akan dibuat oleh kalkulator aplikasi.'
+        : text || 'Data telah disiapkan. Klik "Terapkan" untuk mengisi worksheet.';
       return NextResponse.json({
-        text: `${usedModel !== GEMINI_MODELS[0] ? 'Model utama sedang sibuk; jawaban diproses dengan model cadangan.\n\n' : ''}${text || 'Data telah disiapkan. Klik "Terapkan" untuk mengisi worksheet.'}`,
+        text: `${usedModel !== GEMINI_MODELS[0] ? 'Model utama sedang sibuk; jawaban diproses dengan model cadangan.\n\n' : ''}${responseText}`,
         functionCalls: calls,
+      });
+    }
+
+    if (interceptCaseDetected) {
+      return NextResponse.json({
+        text: 'Soal Intercept terdeteksi, tetapi data tidak berhasil dipetakan ke worksheet. Hasil angka tidak ditampilkan agar tidak mengarang perhitungan. Periksa kelengkapan posisi, haluan, dan kecepatan target serta SRU, lalu kirim ulang.',
+        functionCalls: null,
       });
     }
 

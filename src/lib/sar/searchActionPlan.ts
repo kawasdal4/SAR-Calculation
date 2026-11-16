@@ -1,5 +1,5 @@
 /**
- * Build the IAMSAR Volume II Appendix L-23 Search Action Plan message
+ * Build the Appendix L-23 Search Action Plan message
  * from the current worksheet state. Returns a structured object that
  * can be rendered as plain text, PDF, or Excel.
  */
@@ -103,7 +103,7 @@ export interface SearchActionPlanData {
   };
 }
 
-/** Render the Search Action Plan as IAMSAR-style plain text (Appendix L-23 format). */
+/** Render the Search Action Plan as plain text (Appendix L-23 format). */
 export function renderSearchActionPlanText(d: SearchActionPlanData): string {
   const lines: string[] = [];
   const fmtLatLng = formatLatLng;
@@ -125,7 +125,7 @@ export function renderSearchActionPlanText(d: SearchActionPlanData): string {
   lines.push(`SEARCH ACTION PLAN FOR ${d.searchDate}`);
   lines.push('');
   lines.push('A   (References)');
-  lines.push('    IAMSAR Manual Vol. II (2016) Appendix L');
+  lines.push('    Appendix L');
   lines.push('');
   lines.push('1   SITUATION:');
   lines.push(`A   SUMMARY: ${d.situationSummary}`);

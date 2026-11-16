@@ -1,4 +1,4 @@
-/** Aeronautical drift calculations for IAMSAR Appendix K-6/K-7. */
+/** Aeronautical drift calculations for worksheet appendices K-6/K-7. */
 
 import {
   type LatLng,
@@ -77,7 +77,7 @@ export interface AeroDriftResult {
   landingPos: LatLng;
   totalDisplacementNm: number;
   totalDisplacementDir: number;
-  /** Uncertainty belongs to the separate IAMSAR A.5 worksheet. */
+  /** Uncertainty belongs to the separate A.5 worksheet. */
   driftErrorDeNm: number | null;
   searchRadiusRNm: number | null;
   searchAreaAoNm2: number | null;

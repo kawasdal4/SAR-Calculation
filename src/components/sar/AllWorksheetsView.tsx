@@ -105,7 +105,7 @@ export default function AllWorksheetsView({
             <FileCheck className="h-5 w-5 text-emerald-600" />
             <div>
               <h2 className="text-sm font-bold text-slate-900">
-                Dokumentasi Lengkap Seluruh Lembar Kerja Operasi SAR (IAMSAR Manual Volume II)
+                Dokumentasi Lengkap Seluruh Lembar Kerja Operasi SAR
               </h2>
               <p className="text-xs text-slate-600">
                 Alur Berurutan: AWA → ADW (menghasilkan LKP) → ASW → Worksheet 1 (menghasilkan Ao) → Worksheet 2 & 8 → Worksheet 3 & 4 (mandiri).
@@ -265,7 +265,7 @@ export default function AllWorksheetsView({
           />
         </section>
 
-        {/* 7. ALOKASI ASET SRU & KAPABILITAS UPAYA CARI (IAMSAR L-7) */}
+        {/* 7. ALOKASI ASET SRU & KAPABILITAS UPAYA CARI */}
         <section id="sec-assets" className="scroll-mt-6 print:break-after-page">
           <div className="mb-2">
             <span className="text-xs font-bold uppercase tracking-wider text-purple-800 bg-purple-100 px-2 py-1 rounded">

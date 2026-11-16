@@ -12,6 +12,7 @@ import { calculateIntercept, type InterceptInput, type InterceptResult, type Int
 
 interface InterceptWorksheetProps {
   onResults?: (results: InterceptResult) => void;
+  initialInput?: InterceptInput | null;
   className?: string;
 }
 
@@ -36,16 +37,26 @@ const METHOD_DETAILS: Record<InterceptType, { label: string; guidance: string }>
 
 const METHODS: InterceptType[] = ['head-on', 'overtaking', 'beam-on'];
 
-export default function InterceptWorksheet({ onResults, className = '' }: InterceptWorksheetProps) {
-  const [method, setMethod] = useState<InterceptType>('head-on');
-  const [coords, setCoords] = useState<CoordinateFields>({ targetLat: '', targetLng: '', sruLat: '', sruLng: '' });
-  const [inputData, setInputData] = useState<InterceptInput>({
+export default function InterceptWorksheet({ onResults, initialInput, className = '' }: InterceptWorksheetProps) {
+  const [method, setMethod] = useState<InterceptType>(initialInput?.type ?? 'head-on');
+  const [coords, setCoords] = useState<CoordinateFields>(() => initialInput ? {
+    targetLat: String(initialInput.target.pos.lat),
+    targetLng: String(initialInput.target.pos.lng),
+    sruLat: String(initialInput.sru.pos.lat),
+    sruLng: String(initialInput.sru.pos.lng),
+  } : { targetLat: '', targetLng: '', sruLat: '', sruLng: '' });
+  const [inputData, setInputData] = useState<InterceptInput>(() => initialInput ? {
+    ...initialInput,
+    referenceTime: initialInput.referenceTime || '',
+    target: { ...initialInput.target, departureTime: initialInput.referenceTime || '' },
+    sru: { ...initialInput.sru, departureTime: initialInput.referenceTime || '' },
+  } : {
     type: 'head-on',
     referenceTime: '',
     target: { name: '', pos: { lat: 0, lng: 0 }, speedKts: 0, courseDeg: 0 },
     sru: { name: '', pos: { lat: 0, lng: 0 }, speedKts: 0 },
   });
-  const [headingText, setHeadingText] = useState('');
+  const [headingText, setHeadingText] = useState(() => initialInput ? String(initialInput.target.courseDeg) : '');
   const [droppedPoints, setDroppedPoints] = useState<DroppedPoint[]>([]);
   const [selectedDroppedPointId, setSelectedDroppedPointId] = useState<string | null>(null);
   const [mapToolMode, setMapToolMode] = useState<MapToolMode>('pan');
@@ -61,7 +72,7 @@ export default function InterceptWorksheet({ onResults, className = '' }: Interc
   const heading = headingText.trim() === '' ? null : Number(headingText);
   const headingReady = method !== 'beam-on' || (heading !== null && Number.isFinite(heading) && heading >= 0 && heading < 360);
   const inputReady = Boolean(
-    positionsReady && inputData.referenceTime &&
+    positionsReady &&
     inputData.target.speedKts > 0 && inputData.sru.speedKts > 0 && headingReady,
   );
 
@@ -206,7 +217,7 @@ export default function InterceptWorksheet({ onResults, className = '' }: Interc
       <Card className="border-slate-200 shadow-sm bg-white">
         <CardHeader className="bg-slate-50 border-b border-slate-200 py-3 px-4 flex flex-row items-center justify-between">
           <CardTitle className="text-base flex items-center gap-2 text-slate-800">
-            <Target className="h-4 w-4 text-rose-600" /> Intercept Calculator (IAMSAR Vol II)
+            <Target className="h-4 w-4 text-rose-600" /> Intercept Calculator
           </CardTitle>
           <div className="flex items-center gap-2">
             <button type="button" onClick={reset} className="inline-flex items-center gap-1.5 text-xs rounded border border-slate-300 px-2.5 py-1.5 text-slate-700 hover:bg-white">

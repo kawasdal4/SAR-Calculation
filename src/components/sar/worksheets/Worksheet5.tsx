@@ -40,7 +40,7 @@ export default function Worksheet5({
                 WORKSHEET 5 — EFFORT ALLOCATION (LINE / TRACKLINE DATUM)
               </CardTitle>
               <p className="text-[11px] text-slate-500 font-mono">
-                IAMSAR Manual Volume II Appendix L-13 (Alokasi Upaya Datum Garis / Rute Jalur)
+                Appendix L-13 (Alokasi Upaya Datum Garis / Rute Jalur)
               </p>
             </div>
           </div>
@@ -56,7 +56,7 @@ export default function Worksheet5({
             <thead>
               <tr className="bg-slate-200/80 text-slate-700 font-semibold border-b border-slate-300">
                 <th className="py-2 px-3 text-left w-1/4">Parameter Garis</th>
-                <th className="py-2 px-3 text-left w-1/3">Deskripsi & Rumus IAMSAR</th>
+                <th className="py-2 px-3 text-left w-1/3">Deskripsi & Rumus</th>
                 <th className="py-2 px-3 text-left w-1/6">Satuan</th>
                 <th className="py-2 px-3 text-right w-1/4">Nilai Perhitungan</th>
               </tr>

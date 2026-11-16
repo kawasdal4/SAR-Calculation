@@ -26,7 +26,7 @@ interface LeewayChartProps {
 }
 
 /**
- * Interactive Leeway graph (figures N-2/N-3 from IAMSAR Manual).
+ * Interactive Leeway graph (figures N-2/N-3).
  * Plots leeway speed (kts) as a function of wind speed (kts) for all
  * search object types, highlighting the currently selected one.
  */

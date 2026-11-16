@@ -293,7 +293,7 @@ export default function ASWWorksheet({
     };
   }, [detailedRows]);
 
-  // Probable error of drift velocity due to ASW error (ASWDVe = ASWe * 0.08 per IAMSAR K-20)
+  // Probable error of drift velocity due to ASW error (ASWDVe = ASWe * 0.08)
   const aswdve = Number((aswErr * 0.08).toFixed(2));
 
   // Emit data to parent
@@ -359,7 +359,7 @@ export default function ASWWorksheet({
       <div className="flex items-center justify-between border-b-2 border-slate-900 pb-1 text-[11px] font-bold text-slate-700">
         <span className="tracking-wide">Appendix K – Determining datum</span>
         <div className="flex items-center gap-3">
-          <span className="font-mono text-slate-900">K-19 IAMSAR MANUAL VOLUME II</span>
+          <span className="font-mono text-slate-900">K-19</span>
           <button
             type="button"
             onClick={handlePrint}
@@ -379,7 +379,7 @@ export default function ASWWorksheet({
               Average surface wind (ASW) worksheet
             </h1>
             <p className="text-[11px] text-slate-500 font-mono">
-              Formulir Asli IAMSAR Manual Volume II Appendix K-19 (Perhitungan Angin Permukaan / Average Surface Wind)
+              Perhitungan Angin Permukaan / Average Surface Wind
             </p>
           </div>
           <span className="text-xs bg-sky-100 text-sky-950 font-bold px-3 py-1 rounded border border-sky-300 font-mono">
@@ -842,7 +842,7 @@ export default function ASWWorksheet({
                 <span className="font-bold text-slate-900 mr-2">2</span>
                 <span>Probable error of drift velocity due to ASW error (ASWDVe):</span>
                 <p className="text-[10px] text-slate-500 italic mt-0.5">
-                  (Rumus IAMSAR: ASWe × 0.08 = {aswErr.toFixed(1)} × 0.08)
+                  (Rumus: ASWe × 0.08 = {aswErr.toFixed(1)} × 0.08)
                 </p>
               </div>
               <div className="flex items-center gap-1 font-mono">
@@ -864,13 +864,13 @@ export default function ASWWorksheet({
             </span>
           </div>
           <span className="text-[10px] font-mono font-bold bg-white px-2 py-0.5 rounded border border-emerald-200 text-emerald-800 shrink-0">
-            IAMSAR App K-19
+            Appendix K-19
           </span>
         </div>
 
         {/* Form Running Footer */}
         <div className="pt-2 border-t-2 border-slate-900 flex items-center justify-between text-[11px] font-bold text-slate-800">
-          <span className="tracking-wide">IAMSAR MANUAL VOLUME II</span>
+          <span className="tracking-wide">AVERAGE SURFACE WIND</span>
           <span className="font-mono">K-19</span>
         </div>
       </div>

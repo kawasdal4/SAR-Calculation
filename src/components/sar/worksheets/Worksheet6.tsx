@@ -53,7 +53,7 @@ export default function Worksheet6({
                 WORKSHEET 6 — TRACK SPACING, SEARCH AREA & EST (OSE)
               </CardTitle>
               <p className="text-[11px] text-slate-500 font-mono">
-                IAMSAR Manual Volume II Appendix L-16 & EST Formula Standar Basarnas
+                Appendix L-16 & Formula Standar Basarnas
               </p>
             </div>
           </div>
@@ -69,7 +69,7 @@ export default function Worksheet6({
             <thead>
               <tr className="bg-slate-200/80 text-slate-700 font-semibold border-b border-slate-300">
                 <th className="py-2 px-3 text-left w-1/4">Langkah Perhitungan</th>
-                <th className="py-2 px-3 text-left w-1/3">Deskripsi & Rumus IAMSAR</th>
+                <th className="py-2 px-3 text-left w-1/3">Deskripsi & Rumus</th>
                 <th className="py-2 px-3 text-left w-1/6">Satuan</th>
                 <th className="py-2 px-3 text-right w-1/4">Hasil / Penetapan</th>
               </tr>

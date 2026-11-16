@@ -192,7 +192,7 @@ export default function AWAWorksheet({
       <div className="flex items-center justify-between border-b-2 border-slate-900 pb-1 text-[11px] font-bold text-slate-700">
         <span className="tracking-wide">Appendix K – Determining datum</span>
         <div className="flex items-center gap-3">
-          <span className="font-mono text-slate-900">K-10 IAMSAR MANUAL VOLUME II</span>
+          <span className="font-mono text-slate-900">K-10</span>
           <button
             type="button"
             onClick={handlePrint}
@@ -212,7 +212,7 @@ export default function AWAWorksheet({
               Average wind aloft (AWA) worksheet
             </h1>
             <p className="text-[11px] text-slate-500 font-mono">
-              Formulir Asli IAMSAR Manual Volume II Appendix K-10 (Perhitungan Angin Atas / Average Wind Aloft)
+              Perhitungan Angin Atas / Average Wind Aloft
             </p>
           </div>
           <span className="text-xs bg-sky-100 text-sky-950 font-bold px-3 py-1 rounded border border-sky-300 font-mono">
@@ -389,10 +389,10 @@ export default function AWAWorksheet({
               </button>
               <button
                 type="button"
-                onClick={() => loadPreset(defaultObsEx1, 'EXAMPLE 1 (IAMSAR K-10)', 'IAMSAR Manual', 10000)}
+                onClick={() => loadPreset(defaultObsEx1, 'EXAMPLE 1 (K-10)', 'Contoh', 10000)}
                 className="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-2 py-0.5 rounded border border-slate-300 transition-colors"
               >
-                Contoh IAMSAR
+                Contoh
               </button>
             </div>
 
@@ -624,14 +624,14 @@ export default function AWAWorksheet({
             </span>
           </div>
           <span className="text-[10px] font-mono font-bold bg-white px-2 py-0.5 rounded border border-slate-200 text-slate-700 shrink-0">
-            IAMSAR App K-10
+            Appendix K-10
           </span>
         </div>}
 
         {/* Form Running Footer */}
         <div className="pt-2 border-t-2 border-slate-900 flex items-center justify-between text-[11px] font-bold text-slate-800">
           <span className="font-mono">K-10</span>
-          <span className="tracking-wide">IAMSAR MANUAL VOLUME II</span>
+          <span className="tracking-wide">AVERAGE WIND ALOFT</span>
         </div>
       </div>
     </div>

@@ -380,7 +380,7 @@ export default function Worksheet4({
 
           {/* Form Footer */}
           <div className="p-2 bg-slate-100 flex items-center justify-between text-[11px] text-slate-600">
-            <span className="italic">IAMSAR Manual Volume II — Appendix K-5</span>
+            <span className="italic">Appendix K-5</span>
             <span className="font-bold font-mono">K-5</span>
           </div>
         </div>
