@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { processUploadedFile } from '@/lib/sar/fileExtractor';
 
 const SYSTEM_PROMPT = `Kamu adalah Asisten SAR Planner AI untuk Badan SAR Nasional (Basarnas) Indonesia.
-Kamu membantu dalam perhitungan dan analisis operasi SAR berdasarkan IAMSAR Manual Volume II (2016) dan Peraturan No. 3 Tahun 2020.
+Kamu membantu dalam perhitungan dan analisis operasi SAR berdasarkan panduan operasi SAR dan Peraturan No. 3 Tahun 2020.
 
 KEMAMPUANMU:
 1. Menganalisis file lampiran (PDF soal/skenario, dokumen Word/Office, spreadsheet Excel data angin, presentasi PowerPoint modul SAR, atau foto/gambar soal kasus/peta/papan manuver).
@@ -144,7 +144,8 @@ const tools: FunctionDeclaration[] = [
 ];
 
 const GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-3.7-flash'] as const;
-const MAX_RETRIES_PER_MODEL = 2;
+const MAX_RETRIES_PER_MODEL = 1;
+const GEMINI_REQUEST_TIMEOUT_MS = 45_000;
 
 // This Vercel project supports 300-second functions; complex SAR case analysis
 // and document understanding can exceed the shorter 60-second default.
@@ -225,6 +226,7 @@ export async function POST(req: NextRequest) {
           const response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+            signal: AbortSignal.timeout(GEMINI_REQUEST_TIMEOUT_MS),
             body: JSON.stringify({
               model,
               input,
@@ -253,6 +255,11 @@ export async function POST(req: NextRequest) {
           if (!transient) throw lastError;
         } catch (requestError) {
           if (requestError instanceof Error && requestError.message.includes('(model:')) throw requestError;
+          if (requestError instanceof Error && (requestError.name === 'TimeoutError' || requestError.name === 'AbortError')) {
+            lastError = new Error(`Gemini ${model} tidak merespons dalam ${GEMINI_REQUEST_TIMEOUT_MS / 1000} detik.`);
+            console.warn(`[AI chat] Gemini request timed out (model=${model}, timeoutMs=${GEMINI_REQUEST_TIMEOUT_MS}).`);
+            break;
+          }
           lastError = requestError instanceof Error ? requestError : new Error('Koneksi ke Gemini gagal.');
         }
 
