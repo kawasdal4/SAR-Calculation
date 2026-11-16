@@ -1,10 +1,4 @@
-import {
-  GoogleGenerativeAI,
-  type FunctionDeclaration,
-  type Part,
-  type EnhancedGenerateContentResponse,
-  SchemaType,
-} from '@google/generative-ai';
+import { type FunctionDeclaration, SchemaType } from '@google/generative-ai';
 import { NextRequest, NextResponse } from 'next/server';
 import { processUploadedFile } from '@/lib/sar/fileExtractor';
 
@@ -149,10 +143,7 @@ const tools: FunctionDeclaration[] = [
   },
 ];
 
-const CANDIDATE_MODELS = [
-  'gemini-3.8-flash',
-  'gemini-3.8-pro',
-];
+const GEMINI_MODEL = 'gemini-3.8-flash';
 
 export async function POST(req: NextRequest) {
   try {
@@ -165,104 +156,87 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-
-    // Build chat history
-    const history = messages.slice(0, -1).map((msg: { role: string; content: string }) => ({
-      role: msg.role === 'user' ? 'user' : 'model',
-      parts: [{ text: msg.content || ' ' }],
-    }));
-
-    // Build parts for the latest message (including files: PDF, images, Office text)
+    // Interactions API accepts multimodal content directly and is the supported
+    // API for current Gemini models.
     const lastMessage = messages[messages.length - 1];
     const incomingFiles: { name: string; type: string; base64: string }[] =
       files || lastMessage.files || [];
 
-    const messageParts: Part[] = [];
+    const input: Array<Record<string, string>> = [];
 
     for (const file of incomingFiles) {
       try {
         const processed = await processUploadedFile(file);
         if (processed.type === 'inlineData' && processed.inlineData) {
-          messageParts.push({
-            inlineData: processed.inlineData,
+          const mimeType = processed.inlineData.mimeType;
+          input.push({
+            type: mimeType === 'application/pdf' ? 'document' : 'image',
+            data: processed.inlineData.data,
+            mime_type: mimeType,
           });
         } else if (processed.text) {
-          messageParts.push({
-            text: processed.text,
-          });
+          input.push({ type: 'text', text: `Isi lampiran ${file.name}:\n${processed.text}` });
         }
       } catch (fErr) {
         console.warn(`Error processing file ${file.name}:`, fErr);
       }
     }
 
-    const userPrompt = lastMessage.content?.trim()
-      ? lastMessage.content
-      : incomingFiles.length > 0
+    const userPrompt = lastMessage.content?.trim() || (incomingFiles.length > 0
       ? 'Tolong telaah dan analisis dokumen/gambar yang dilampirkan untuk kasus perhitungan SAR.'
-      : 'Halo';
+      : 'Halo');
+    const conversation = messages.slice(0, -1)
+      .map((msg: { role: string; content: string }) => `${msg.role === 'user' ? 'Pengguna' : 'Asisten'}: ${msg.content || ''}`)
+      .join('\n');
+    input.unshift({
+      type: 'text',
+      text: `${conversation ? `Riwayat percakapan:\n${conversation}\n\n` : ''}${userPrompt}`,
+    });
 
-    messageParts.push({ text: userPrompt });
-
-    // Try candidate models with automatic fallback
-    let lastError: Error | null = null;
-    let response: EnhancedGenerateContentResponse | null = null;
-
-    for (const modelName of CANDIDATE_MODELS) {
-      try {
-        const model = genAI.getGenerativeModel({
-          model: modelName,
-          systemInstruction: SYSTEM_PROMPT,
-          tools: [{ functionDeclarations: tools }],
-        });
-
-        const chat = model.startChat({ history });
-        const result = await chat.sendMessage(messageParts);
-        response = result.response;
-        if (response) break;
-      } catch (err: unknown) {
-        const errObj = err instanceof Error ? err : new Error(String(err));
-        lastError = errObj;
-        console.warn(`Model ${modelName} gagal: ${errObj.message}. Mencoba model berikutnya...`);
-        // If temporary 503 spike, wait 1.5s and retry
-        if (errObj.message.includes('503')) {
-          await new Promise((r) => setTimeout(r, 1500));
-          try {
-            const retryChat = genAI.getGenerativeModel({
-              model: modelName,
-              systemInstruction: SYSTEM_PROMPT,
-              tools: [{ functionDeclarations: tools }],
-            }).startChat({ history });
-            const retryResult = await retryChat.sendMessage(messageParts);
-            response = retryResult.response;
-            if (response) break;
-          } catch {
-            // continue
-          }
-        }
-        // If invalid key or other fatal client error, throw directly
-        if (errObj.message.includes('API_KEY_INVALID') || errObj.message.includes('401')) {
-          throw errObj;
-        }
-      }
+    // Interactions API uses lowercase JSON Schema types for function tools.
+    const normalizeSchema = (value: unknown): unknown => {
+      if (Array.isArray(value)) return value.map(normalizeSchema);
+      if (!value || typeof value !== 'object') return value;
+      return Object.fromEntries(Object.entries(value).map(([key, child]) => [
+        key,
+        key === 'type' && typeof child === 'string' ? child.toLowerCase() : normalizeSchema(child),
+      ]));
+    };
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+      body: JSON.stringify({
+        model: GEMINI_MODEL,
+        input,
+        system_instruction: SYSTEM_PROMPT,
+        tools: tools.map((tool) => ({
+          type: 'function',
+          name: tool.name,
+          description: tool.description,
+          parameters: normalizeSchema(tool.parameters),
+        })),
+        store: false,
+      }),
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      const detail = result?.error?.message || `Gemini API returned HTTP ${response.status}`;
+      throw new Error(`${detail} (model: ${GEMINI_MODEL}, Interactions API)`);
     }
 
-    if (!response) {
-      throw lastError || new Error('Gagal menghubungi model Gemini.');
-    }
-
-    // Check for function calls
-    const functionCalls = response.functionCalls();
-    if (functionCalls && functionCalls.length > 0) {
-      const calls = functionCalls.map((fc) => ({
+    const steps = Array.isArray(result.steps) ? result.steps : [];
+    const functionCalls = steps.filter((step: { type?: string }) => step.type === 'function_call');
+    if (functionCalls.length > 0) {
+      const calls = functionCalls.map((fc: { name: string; arguments?: unknown }) => ({
         name: fc.name,
-        args: fc.args,
+        args: fc.arguments || {},
       }));
-
-      // Get text response too if available
-      const textParts = response.candidates?.[0]?.content?.parts?.filter((p) => 'text' in p) || [];
-      const text = textParts.map((p) => ('text' in p ? p.text : '')).join('');
+      const text = steps
+        .filter((step: { type?: string }) => step.type === 'model_output')
+        .flatMap((step: { content?: Array<{ type?: string; text?: string }> }) => step.content || [])
+        .filter((part: { type?: string }) => part.type === 'text')
+        .map((part: { text?: string }) => part.text || '')
+        .join('');
 
       return NextResponse.json({
         text: text || 'Data telah disiapkan. Klik "Terapkan" untuk mengisi worksheet.',
@@ -270,8 +244,14 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    const responseText = steps
+      .filter((step: { type?: string }) => step.type === 'model_output')
+      .flatMap((step: { content?: Array<{ type?: string; text?: string }> }) => step.content || [])
+      .filter((part: { type?: string }) => part.type === 'text')
+      .map((part: { text?: string }) => part.text || '')
+      .join('');
     return NextResponse.json({
-      text: response.text(),
+      text: responseText || 'Model Gemini tidak mengembalikan teks jawaban.',
       functionCalls: null,
     });
   } catch (error: unknown) {
@@ -280,3 +260,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Gagal menghubungi Gemini: ${message}` }, { status: 500 });
   }
 }
+
