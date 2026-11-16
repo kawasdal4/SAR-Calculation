@@ -1,6 +1,5 @@
 'use client';
 
-import React, { useState } from 'react';
 import { type SruAssetInput } from '@/lib/sar/assetAllocation';
 import { type LatLng, distanceNm } from '@/lib/sar/sarCalculations';
 
@@ -19,14 +18,13 @@ export default function AuthenticESTAirWorksheet({
   onUpdateAsset,
   readOnly = false,
 }: AuthenticESTAirWorksheetProps) {
-  // Engine type state (piston vs turbin vs helicopter)
-  const [engineType, setEngineType] = useState<'piston' | 'turbine' | 'helicopter'>('piston');
-  // TAF Weather state (cerah 0' vs inter 30' vs tempo 60')
-  const [tafCondition, setTafCondition] = useState<'cerah' | 'inter' | 'tempo'>('cerah');
+  const isHelicopter = asset.type === 'helicopter';
+  const engineType = isHelicopter ? 'helicopter' : asset.airEngineType ?? '';
+  const tafCondition = asset.tafCondition ?? '';
 
   // Transit distances
-  const sGoNm = Number(distanceNm(asset.homeBasePos, csp).toFixed(1));
-  const sBackNm = Number(distanceNm(exitPoint, asset.homeBasePos).toFixed(1));
+  const sGoNm = distanceNm(asset.homeBasePos, csp);
+  const sBackNm = distanceNm(exitPoint, asset.homeBasePos);
 
   const enduranceMins = asset.enduranceHours * 60;
   const vTas = asset.transitSpeedKts;
@@ -34,35 +32,36 @@ export default function AuthenticESTAirWorksheet({
   const spacingS = asset.sweepWidthNm;
 
   // Transit calculations
-  const trGoMins = Number(((sGoNm / vTas) * 60).toFixed(2));
-  const trBackMins = Number(((sBackNm / vTas) * 60).toFixed(2));
-  const totalTrMins = Number((trGoMins + trBackMins).toFixed(2));
+  const trGoMins = vTas > 0 ? (sGoNm / vTas) * 60 : 0;
+  const trBackMins = vTas > 0 ? (sBackNm / vTas) * 60 : 0;
+  const totalTrMins = trGoMins + trBackMins;
 
   // Variable Transit: Piston = 15%, Turbine/Helicopter = 10%
   const varRate = engineType === 'piston' ? 0.15 : 0.10;
-  const varTransitMins = Number((varRate * totalTrMins).toFixed(2));
+  const varTransitMins = engineType ? varRate * totalTrMins : null;
 
   // Reserve: Piston = 45 mins, Turbine = 30 mins, Helicopter = 30 mins
-  const reserveMins = engineType === 'piston' ? 45 : 30;
+  const reserveMins = engineType === 'piston' ? 45 : engineType ? 30 : null;
 
   // TAF: Cerah = 0 mins, Inter = 30 mins, Tempo = 60 mins
-  const tafMins = tafCondition === 'cerah' ? 0 : tafCondition === 'inter' ? 30 : 60;
-
-  // Extra fuel
-  const extraFuelMins = 0;
+  const tafMins = tafCondition === 'cerah' ? 0 : tafCondition === 'inter' ? 30 : tafCondition === 'tempo' ? 60 : null;
 
   // Total Safety Fuel (TSF)
-  const tsfMins = Number((totalTrMins + varTransitMins + reserveMins + tafMins + extraFuelMins).toFixed(2));
+  const tsfMins = varTransitMins !== null && reserveMins !== null && tafMins !== null && vTas > 0
+    ? totalTrMins + varTransitMins + reserveMins + tafMins
+    : null;
 
   // On Scene Endurance (OSE)
-  const oseMins = Math.max(0, Number((enduranceMins - tsfMins).toFixed(2)));
-  const oseHrs = Number((oseMins / 60).toFixed(4));
+  const oseMins = tsfMins === null ? null : enduranceMins - tsfMins;
+  const oseHrs = oseMins !== null && oseMins > 0 ? oseMins / 60 : null;
 
   // Effective Search Time (EST) = 0.85 x OSE
-  const estHrs = Number((0.85 * oseHrs).toFixed(4));
+  const estHrs = oseHrs !== null ? 0.85 * oseHrs : null;
 
   // Sweep Width Area (A) = EST x V search x S
-  const areaA = Number((estHrs * vSearch * spacingS).toFixed(2));
+  const inputsReady = enduranceMins > 0 && vTas > 0 && vSearch > 0 && spacingS > 0 && tsfMins !== null;
+  const validCalculation = inputsReady && estHrs !== null;
+  const areaA = validCalculation && estHrs !== null ? estHrs * vSearch * spacingS : null;
 
   return (
     <div className="border-2 border-slate-800 rounded bg-white shadow-2xs font-sans text-xs overflow-x-auto ">
@@ -97,13 +96,14 @@ export default function AuthenticESTAirWorksheet({
           <span className="text-slate-600 font-sans font-semibold block">TIPE MESIN PESAWAT:</span>
           <select
             value={engineType}
-            disabled={readOnly}
-            onChange={(e) => setEngineType(e.target.value as any)}
+            disabled={readOnly || isHelicopter}
+            onChange={(e) => onUpdateAsset?.('airEngineType', e.target.value === 'piston' || e.target.value === 'turbine' ? e.target.value : undefined)}
             className="w-full font-bold text-blue-900 bg-white border border-slate-300 rounded px-2 py-0.5 mt-0.5 text-xs"
           >
-            <option value="piston">Piston (Var 15%, Res 45&apos;)</option>
-            <option value="turbine">Turbin (Var 10%, Res 30&apos;)</option>
-            <option value="helicopter">Helikopter (Var 10%, Res 30&apos;)</option>
+            {!isHelicopter && <option value="">Pilih tipe mesin</option>}
+            {!isHelicopter && <option value="piston">Piston (Var 15%, Res 45&apos;)</option>}
+            {!isHelicopter && <option value="turbine">Turbin (Var 10%, Res 30&apos;)</option>}
+            {isHelicopter && <option value="helicopter">Helikopter (Var 10%, Res 30&apos;)</option>}
           </select>
         </div>
         <div>
@@ -111,15 +111,18 @@ export default function AuthenticESTAirWorksheet({
           <select
             value={tafCondition}
             disabled={readOnly}
-            onChange={(e) => setTafCondition(e.target.value as any)}
+            onChange={(e) => onUpdateAsset?.('tafCondition', e.target.value === 'cerah' || e.target.value === 'inter' || e.target.value === 'tempo' ? e.target.value : undefined)}
             className="w-full font-bold text-blue-900 bg-white border border-slate-300 rounded px-2 py-0.5 mt-0.5 text-xs"
           >
+            <option value="">Pilih kondisi TAF</option>
             <option value="cerah">Cerah (0&apos;)</option>
             <option value="inter">INTER / Intermittent (30&apos;)</option>
             <option value="tempo">TEMPO / Temporary (60&apos;)</option>
           </select>
         </div>
       </div>
+      {!inputsReady && <div className="mx-3 mt-3 rounded border border-amber-300 bg-amber-50 p-2 text-[11px] text-amber-900">Lengkapi Endurance (E), V_TAS, V_search, Spacing (S), dan TAF; Fixed Wing juga memerlukan pilihan tipe mesin. Perhitungan kapasitas belum tersedia hingga data wajib terisi.</div>}
+      {inputsReady && oseMins !== null && oseMins <= 0 && <div className="mx-3 mt-3 rounded border border-rose-300 bg-rose-50 p-2 text-[11px] font-semibold text-rose-900">OSE = {oseMins.toFixed(2)} menit. OSE harus positif; Sweep Width Area tidak dihitung.</div>}
 
       {/* Base Parameters */}
       <table className="w-full border-collapse">
@@ -182,7 +185,7 @@ export default function AuthenticESTAirWorksheet({
               <span className="font-bold text-slate-900">{sGoNm} Nm</span>{' '}
               <span className="text-slate-600 font-sans">/ {vTas} kts × 60 =</span>{' '}
               <span className="font-bold text-blue-900 bg-blue-50/80 px-2 py-0.5 rounded border border-blue-200 ml-1">
-                {trGoMins.toFixed(1)}
+                {trGoMins.toFixed(2)}
               </span>{' '}
               <span className="text-slate-600 font-sans font-medium">Mins</span>
             </td>
@@ -196,7 +199,7 @@ export default function AuthenticESTAirWorksheet({
               <span className="font-bold text-slate-900">{sBackNm} Nm</span>{' '}
               <span className="text-slate-600 font-sans">/ {vTas} kts × 60 =</span>{' '}
               <span className="font-bold text-blue-900 bg-blue-50/80 px-2 py-0.5 rounded border border-blue-200 ml-1">
-                {trBackMins.toFixed(1)}
+                {trBackMins.toFixed(2)}
               </span>{' '}
               <span className="text-slate-600 font-sans font-medium">Mins</span>
             </td>
@@ -206,32 +209,32 @@ export default function AuthenticESTAirWorksheet({
               1. Total Transit (Total Tr)
             </td>
             <td className="py-2 px-3" colSpan={3}>
-              <span className="text-slate-600 font-sans">Tr Go + Tr Back = {trGoMins.toFixed(1)} + {trBackMins.toFixed(1)} =</span>{' '}
+              <span className="text-slate-600 font-sans">Tr Go + Tr Back = {trGoMins.toFixed(2)} + {trBackMins.toFixed(2)} =</span>{' '}
               <span className="font-bold text-blue-900 bg-blue-50/80 px-2 py-0.5 rounded border border-blue-200 ml-1">
-                {totalTrMins.toFixed(1)}
+                {totalTrMins.toFixed(2)}
               </span>{' '}
               <span className="text-slate-600 font-sans font-medium">Mins</span>
             </td>
           </tr>
           <tr className="border-b border-slate-300 font-mono">
             <td className="py-2 px-3 font-sans font-medium text-slate-700 border-r border-slate-300">
-              2. Variable Transit ({engineType === 'piston' ? 'Piston 15%' : 'Turbin/Heli 10%'})
+              2. Variable Transit ({engineType === 'piston' ? 'Piston 15%' : engineType ? 'Turbin/Heli 10%' : 'Pilih engine type'})
             </td>
             <td className="py-2 px-3" colSpan={3}>
-              <span className="text-slate-600 font-sans">{varRate} × {totalTrMins.toFixed(1)} =</span>{' '}
+                <span className="text-slate-600 font-sans">{engineType ? `${varRate} × ${totalTrMins.toFixed(2)} =` : '—'}</span>{' '}
               <span className="font-bold text-blue-900 bg-blue-50/80 px-2 py-0.5 rounded border border-blue-200 ml-1">
-                {varTransitMins.toFixed(1)}
+                {varTransitMins?.toFixed(2) ?? '—'}
               </span>{' '}
               <span className="text-slate-600 font-sans font-medium">Mins</span>
             </td>
           </tr>
           <tr className="border-b border-slate-300 font-mono">
             <td className="py-2 px-3 font-sans font-medium text-slate-700 border-r border-slate-300">
-              3. Reserve ({engineType === 'piston' ? "Piston 45'" : "Turbin/Heli 30'"})
+              3. Reserve ({engineType === 'piston' ? "Piston 45'" : engineType ? "Turbin/Heli 30'" : 'Pilih engine type'})
             </td>
             <td className="py-2 px-3" colSpan={3}>
               <span className="font-bold text-blue-900 bg-blue-50/80 px-2 py-0.5 rounded border border-blue-200">
-                {reserveMins}
+                {reserveMins ?? '—'}
               </span>{' '}
               <span className="text-slate-600 font-sans font-medium">Mins</span>
             </td>
@@ -241,35 +244,26 @@ export default function AuthenticESTAirWorksheet({
               4. Terminal Aerodrome Forecast (TAF)
             </td>
             <td className="py-2 px-3" colSpan={3}>
-              <span className="text-slate-600 font-sans font-medium capitalize">{tafCondition} =</span>{' '}
+              <span className="text-slate-600 font-sans font-medium capitalize">{tafCondition || 'Pilih TAF'} =</span>{' '}
               <span className="font-bold text-blue-900 bg-blue-50/80 px-2 py-0.5 rounded border border-blue-200 ml-1">
-                {tafMins}
+                {tafMins ?? '—'}
               </span>{' '}
-              <span className="text-slate-600 font-sans font-medium">Mins</span>
-            </td>
-          </tr>
-          <tr className="border-b border-slate-300 font-mono">
-            <td className="py-2 px-3 font-sans font-medium text-slate-700 border-r border-slate-300">
-              5. Extra Fuel (On Scene Weather)
-            </td>
-            <td className="py-2 px-3" colSpan={3}>
-              <span className="font-bold text-slate-900">{extraFuelMins}</span>{' '}
               <span className="text-slate-600 font-sans font-medium">Mins</span>
             </td>
           </tr>
           <tr className="border-b-2 border-slate-700 bg-slate-50 font-mono">
             <td className="py-2 px-3 font-sans font-bold text-slate-800 border-r border-slate-300">
-              TOTAL SAFETY FUEL (TSF) [1 + 2 + 3 + 4 + 5]
+              TOTAL SAFETY FUEL (TSF) [1 + 2 + 3 + 4]
             </td>
             <td className="py-2 px-3" colSpan={3}>
               <span className="text-slate-600 font-sans text-xs">
-                {totalTrMins.toFixed(1)} + {varTransitMins.toFixed(1)} + {reserveMins} + {tafMins} =
+                {tsfMins === null ? 'Lengkapi V_TAS, engine type, dan TAF' : `${totalTrMins.toFixed(2)} + ${varTransitMins?.toFixed(2)} + ${reserveMins} + ${tafMins} =`}
               </span>{' '}
               <span className="font-bold text-indigo-950 bg-indigo-50 px-2.5 py-0.5 rounded border border-indigo-200 ml-1">
-                {tsfMins.toFixed(1)} Mins
+                {tsfMins?.toFixed(2) ?? '—'} Mins
               </span>{' '}
               <span className="text-slate-500 font-sans text-[11px] ml-2">
-                ({(tsfMins / 60).toFixed(2)} jam)
+                ({tsfMins !== null ? (tsfMins / 60).toFixed(4) : '—'} jam)
               </span>
             </td>
           </tr>
@@ -294,13 +288,13 @@ export default function AuthenticESTAirWorksheet({
               On Scene Endurance (OSE) = E - TSF
             </td>
             <td className="py-2.5 px-3" colSpan={3}>
-              <span className="text-slate-600 font-sans font-mono">{enduranceMins} - {tsfMins.toFixed(1)} =</span>{' '}
+              <span className="text-slate-600 font-sans font-mono">{enduranceMins} - {tsfMins?.toFixed(2) ?? '—'} =</span>{' '}
               <span className="font-bold text-blue-950 bg-blue-100 px-2.5 py-0.5 rounded border border-blue-300 ml-1">
-                {oseMins.toFixed(1)} Mins
+                {oseMins?.toFixed(2) ?? '—'} Mins
               </span>{' '}
               <span className="text-slate-600 font-sans font-bold ml-3">=</span>{' '}
               <span className="font-black text-blue-900 bg-blue-100 px-2.5 py-0.5 rounded border border-blue-300 ml-1">
-                {oseHrs.toFixed(2)} Jam (Hrs)
+                {oseHrs?.toFixed(4) ?? '—'} Jam (Hrs)
               </span>
             </td>
           </tr>
@@ -316,9 +310,9 @@ export default function AuthenticESTAirWorksheet({
               EFFECTIVE SEARCH TIME (EST) = 0.85 × OSE
             </td>
             <td className="py-2.5 px-3" colSpan={3}>
-              <span className="text-slate-600 font-sans font-mono">0.85 × {oseHrs.toFixed(2)} Jam =</span>{' '}
+              <span className="text-slate-600 font-sans font-mono">0.85 × {oseHrs?.toFixed(4) ?? '—'} Jam =</span>{' '}
               <span className="font-black text-amber-950 bg-amber-100 text-sm px-3 py-1 rounded border-2 border-amber-400 ml-2">
-                {estHrs.toFixed(2)} Jam (Hours)
+                {estHrs?.toFixed(4) ?? '—'} Jam (Hours)
               </span>
               <span className="text-slate-500 font-sans text-[11px] ml-3 italic">
                 (85% waktu produktif pencarian, 15% manuver & pencarian tanda korban)
@@ -355,9 +349,9 @@ export default function AuthenticESTAirWorksheet({
               Sweep Width Area (A) = EST × V search × S
             </td>
             <td className="py-3 px-3" colSpan={3}>
-              <span className="text-slate-700 font-sans">{estHrs.toFixed(2)} × {vSearch} × {spacingS} =</span>{' '}
+              <span className="text-slate-700 font-sans">{estHrs?.toFixed(4) ?? '—'} × {vSearch} × {spacingS} =</span>{' '}
               <span className="font-black text-emerald-950 bg-emerald-100 text-base px-3.5 py-1 rounded border-2 border-emerald-500 shadow-2xs ml-2">
-                {areaA.toFixed(2)} Nm²
+                {areaA?.toFixed(2) ?? '—'} Nm²
               </span>
               <span className="text-slate-600 font-sans text-[11px] ml-3 italic">
                 (Kapasitas cakupan sapuan unit {asset.name})

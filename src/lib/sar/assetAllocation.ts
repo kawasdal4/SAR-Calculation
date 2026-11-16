@@ -9,6 +9,7 @@ export type SruType =
   | 'rescue-vessel'       // Kapal SAR (misal KN SAR)
   | 'patrol-boat'         // Kapal Patroli / RB
   | 'rib'                 // Rigid Inflatable Boat (RIB)
+  | 'sea-rider'           // Sea Rider
   | 'helicopter'          // Helikopter SAR
   | 'fixed-wing-aircraft';// Pesawat Patroli Maritim
 
@@ -21,11 +22,11 @@ export interface SruAssetInput {
   transitSpeedKts: number;  // Kecepatan jelajah (V transit)
   searchSpeedKts: number;   // Kecepatan pencarian (V search)
   enduranceHours: number;   // Ketahanan bahan bakar (Te)
-  daylightHours: number;    // Batas waktu operasi siang / sortie limit
-  fuelReservePct: number;   // Cadangan bahan bakar cadangan (default 15%)
-  sweepWidthNm: number;     // Lebar sapuan sensor / visual (W)
-  targetCoverage: number;   // Target faktor cakupan C (default 1.0)
+  sweepWidthNm: number;     // Track spacing S (NM) pada rencana pencarian
   assignedSubArea?: string; // Sub-area yang ditugaskan (misal 'Datum Kiri', 'Datum Kanan', 'Sub-Area 1')
+  airEngineType?: 'piston' | 'turbine';
+  tafCondition?: 'cerah' | 'inter' | 'tempo';
+  maritimeTsfMins?: number;
 }
 
 export interface SruAssetCalculation {
@@ -35,28 +36,37 @@ export interface SruAssetCalculation {
   transitBackDistanceNm: number;
   transitBackHours: number;
   totalTransitHours: number;
-  fuelReserveHours: number;
-  onSceneSearchHours: number; // Tos
-  searchTrackLengthNm: number; // Ltrack
-  searchEffortZiNm2: number;  // Zi = Vsearch * Tos * W
-  recommendedTrackSpacingNm: number; // S = W / C
-  allocatedAreaNm2: number;   // Ai = Zi / C
-  pod: number;                // POD = 1 - exp(-C)
+  totalSafetyFuelMinutes: number | null;
+  variableTransitMinutes: number | null;
+  reserveMinutes: number | null;
+  tafMinutes: number | null;
+  onSceneEnduranceMinutes: number | null;
+  effectiveSearchHours: number;
+  sweepAreaNm2: number;
+  isValid: boolean;
   isEnduranceDeficit: boolean;
   statusMessage: string;
 }
 
 export interface AssetAllocationSummary {
   perAsset: SruAssetCalculation[];
-  totalZtaNm2: number;
-  totalAllocatedAreaNm2: number;
+  totalSweepAreaNm2: number;
   requiredAreaAoNm2: number;
   coverageRatio: number;     // totalAllocatedArea / requiredAreaAo
-  compositeCoverageC: number;// totalZta / requiredAreaAo
-  compositePOD: number;      // 1 - exp(-compositeCoverageC)
+  surplusAreaNm2: number;
   isSufficient: boolean;
   deficitAreaNm2: number;
   recommendation: string;
+  combinations: AllocationCombination[];
+}
+
+export interface AllocationCombination {
+  assetIds: string[];
+  assetNames: string[];
+  totalSweepAreaNm2: number;
+  coveragePercent: number;
+  surplusNm2: number;
+  meetsTarget: boolean;
 }
 
 /**
@@ -67,48 +77,49 @@ export function calculateSruAsset(
   csp: LatLng,
   exitPoint: LatLng
 ): SruAssetCalculation {
-  const vTransit = Math.max(1, input.transitSpeedKts);
-  const vSearch = Math.max(1, input.searchSpeedKts);
-  const Te = Math.max(0.5, input.enduranceHours);
-  const daylight = Math.max(0.5, input.daylightHours);
-  const reserveFrac = Math.max(0, Math.min(0.5, input.fuelReservePct / 100));
-  const W = Math.max(0.1, input.sweepWidthNm);
-  const C = Math.max(0.1, input.targetCoverage);
-
-  // 1. Transit Go: Home Base -> CSP
+  const validTransitSpeed = input.transitSpeedKts > 0;
   const transitGoDist = distanceNm(input.homeBasePos, csp);
-  const transitGoHours = transitGoDist / vTransit;
-
-  // 2. Transit Back: Exit Point -> Home Base
   const transitBackDist = distanceNm(exitPoint, input.homeBasePos);
-  const transitBackHours = transitBackDist / vTransit;
-
+  const transitGoHours = validTransitSpeed ? transitGoDist / input.transitSpeedKts : 0;
+  const transitBackHours = validTransitSpeed ? transitBackDist / input.transitSpeedKts : 0;
   const totalTransitHours = transitGoHours + transitBackHours;
-  const fuelReserveHours = Te * reserveFrac;
+  const totalTransitMinutes = totalTransitHours * 60;
 
-  // 3. Waktu Pencarian di Lokasi (On-Scene Time Tos)
-  // Tos = Te - fuelReserve - totalTransit
-  const rawOnScene = Te - fuelReserveHours - totalTransitHours;
-  const isEnduranceDeficit = rawOnScene <= 0;
-  const onSceneSearchHours = Math.max(0, Math.min(rawOnScene, daylight));
+  const isAir = input.type === 'fixed-wing-aircraft' || input.type === 'helicopter';
+  const engine = input.type === 'helicopter' ? 'helicopter' : input.airEngineType;
+  const variableTransitMinutes = isAir && engine
+    ? totalTransitMinutes * (engine === 'piston' ? 0.15 : 0.10)
+    : null;
+  const reserveMinutes = isAir && engine ? engine === 'piston' ? 45 : 30 : null;
+  const tafMinutes = isAir && input.tafCondition
+    ? input.tafCondition === 'cerah' ? 0 : input.tafCondition === 'inter' ? 30 : 60
+    : null;
+  const tsf = isAir
+    ? variableTransitMinutes !== null && reserveMinutes !== null && tafMinutes !== null
+      ? totalTransitMinutes + variableTransitMinutes + reserveMinutes + tafMinutes
+      : null
+    : Number.isFinite(input.maritimeTsfMins) && (input.maritimeTsfMins ?? -1) >= 0
+      ? input.maritimeTsfMins!
+      : null;
 
-  // 4. Panjang Lintasan & Kapabilitas Upaya Pencarian (Zi)
-  const searchTrackLengthNm = vSearch * onSceneSearchHours;
-  const searchEffortZiNm2 = vSearch * onSceneSearchHours * W;
-
-  // 5. Track Spacing & Luas Area yang Mampu Dicari
-  const recommendedTrackSpacingNm = W / C;
-  const allocatedAreaNm2 = searchEffortZiNm2 / C;
-
-  // 6. POD
-  const pod = 1 - Math.exp(-C);
-
-  let statusMessage = 'Siap Operasi';
-  if (isEnduranceDeficit) {
-    statusMessage = `Bahan bakar tidak cukup untuk pulang-pergi (Butuh transit ${(totalTransitHours + fuelReserveHours).toFixed(1)}j, kapasitas Te ${Te}j)`;
-  } else if (onSceneSearchHours < 1.0) {
-    statusMessage = `Waktu di lokasi sangat singkat (${(onSceneSearchHours * 60).toFixed(0)} menit)`;
-  }
+  const enduranceMinutes = input.enduranceHours * 60;
+  const ose = tsf === null || !(input.enduranceHours > 0) ? null : enduranceMinutes - tsf;
+  const isEnduranceDeficit = ose !== null && ose <= 0;
+  const validInputs = validTransitSpeed
+    && input.name.trim() !== '' && input.name !== '-'
+    && input.homeBaseName.trim() !== '' && input.homeBaseName !== '-'
+    && input.searchSpeedKts > 0 && input.sweepWidthNm > 0
+    && input.enduranceHours > 0 && tsf !== null;
+  const effectiveSearchHours = validInputs && ose !== null && ose > 0 ? 0.85 * ose / 60 : 0;
+  const sweepAreaNm2 = effectiveSearchHours * input.searchSpeedKts * input.sweepWidthNm;
+  const isValid = validInputs && ose !== null && ose > 0;
+  const statusMessage = !validInputs
+    ? isAir
+      ? 'Lengkapi endurance, V_TAS, V_search, S, engine type, dan TAF.'
+      : 'Lengkapi endurance, Speed (V), V_search, S, dan TSF maritime dari instruksi.'
+    : isEnduranceDeficit
+      ? `OSE tidak positif (${ose?.toFixed(2)} menit); kapasitas sapuan tidak tersedia.`
+      : 'Perhitungan OSE, EST, dan Sweep Width Area valid.';
 
   return {
     asset: input,
@@ -117,13 +128,14 @@ export function calculateSruAsset(
     transitBackDistanceNm: transitBackDist,
     transitBackHours,
     totalTransitHours,
-    fuelReserveHours,
-    onSceneSearchHours,
-    searchTrackLengthNm,
-    searchEffortZiNm2,
-    recommendedTrackSpacingNm,
-    allocatedAreaNm2,
-    pod,
+    totalSafetyFuelMinutes: tsf,
+    variableTransitMinutes,
+    reserveMinutes,
+    tafMinutes,
+    onSceneEnduranceMinutes: ose,
+    effectiveSearchHours,
+    sweepAreaNm2,
+    isValid,
     isEnduranceDeficit,
     statusMessage,
   };
@@ -139,34 +151,59 @@ export function calculateAssetAllocationSummary(
   requiredAreaAoNm2: number
 ): AssetAllocationSummary {
   const perAsset = assets.map((a) => calculateSruAsset(a, csp, exitPoint));
-  const totalZtaNm2 = perAsset.reduce((sum, r) => sum + r.searchEffortZiNm2, 0);
-  const totalAllocatedAreaNm2 = perAsset.reduce((sum, r) => sum + r.allocatedAreaNm2, 0);
-  const Ao = Math.max(1, requiredAreaAoNm2);
+  const totalSweepAreaNm2 = perAsset.filter((r) => r.isValid).reduce((sum, r) => sum + r.sweepAreaNm2, 0);
+  const Ao = requiredAreaAoNm2;
+  const coverageRatio = Ao > 0 ? totalSweepAreaNm2 / Ao : 0;
+  const surplusAreaNm2 = totalSweepAreaNm2 - Ao;
+  const isSufficient = Ao > 0 && surplusAreaNm2 >= 0;
+  const deficitAreaNm2 = Ao > 0 ? Math.max(0, -surplusAreaNm2) : 0;
 
-  const coverageRatio = totalAllocatedAreaNm2 / Ao;
-  const compositeCoverageC = totalZtaNm2 / Ao;
-  const compositePOD = 1 - Math.exp(-compositeCoverageC);
-  const isSufficient = totalAllocatedAreaNm2 >= Ao * 0.95;
-  const deficitAreaNm2 = Math.max(0, Ao - totalAllocatedAreaNm2);
+  const validAssets = perAsset.filter((r) => r.isValid);
+  const combinations: AllocationCombination[] = [];
+  const addCombination = (group: SruAssetCalculation[]) => {
+    const total = group.reduce((sum, asset) => sum + asset.sweepAreaNm2, 0);
+    combinations.push({
+      assetIds: group.map((asset) => asset.asset.id),
+      assetNames: group.map((asset) => asset.asset.name),
+      totalSweepAreaNm2: total,
+      coveragePercent: Ao > 0 ? total / Ao * 100 : 0,
+      surplusNm2: total - Ao,
+      meetsTarget: Ao > 0 && total >= Ao,
+    });
+  };
+  if (validAssets.length <= 12) {
+    for (let mask = 1; mask < 2 ** validAssets.length; mask += 1) {
+      addCombination(validAssets.filter((_, index) => mask & (1 << index)));
+    }
+  } else {
+    validAssets.forEach((asset) => addCombination([asset]));
+    addCombination(validAssets);
+  }
+  combinations.sort((a, b) => a.assetIds.length - b.assetIds.length || Math.abs(a.surplusNm2) - Math.abs(b.surplusNm2));
 
   let recommendation = '';
-  if (isSufficient) {
-    recommendation = `Kapasitas aset SAR memadai (${(coverageRatio * 100).toFixed(0)}% dari luas sasaran ${Ao.toFixed(0)} NM² terpenuhi). Rencana pencarian dapat dilaksanakan sesuai jadwal.`;
+  if (Ao <= 0) {
+    recommendation = 'Search Area belum tersedia; kombinasi aset belum dapat dibandingkan.';
+  } else if (isSufficient) {
+    const best = combinations.find((combo) => combo.meetsTarget);
+    recommendation = best
+      ? `Kombinasi yang memenuhi dengan unit paling sedikit: ${best.assetNames.join(', ')} (${best.totalSweepAreaNm2.toFixed(2)} NM²; surplus ${best.surplusNm2.toFixed(2)} NM²). Validasi koordinasi dan keputusan operasional tetap diperlukan.`
+      : `Kapasitas armada valid ${totalSweepAreaNm2.toFixed(2)} NM² (${(coverageRatio * 100).toFixed(2)}% dari target ${Ao.toFixed(2)} NM²).`;
   } else {
-    const deficitPct = ((deficitAreaNm2 / Ao) * 100).toFixed(0);
-    recommendation = `Defisit Alokasi Aset: Hanya mampu mencakup ${(coverageRatio * 100).toFixed(0)}% dari area target. Kurang ${deficitAreaNm2.toFixed(0)} NM² (${deficitPct}%). Disarankan: (1) Menambah unit SRU bantuan, (2) Memperlebar Track Spacing S, atau (3) Memprioritaskan pencarian pada Sub-Area POD tertinggi terlebih dahulu.`;
+    recommendation = validAssets.length
+      ? `Kapasitas sapuan gabungan ${totalSweepAreaNm2.toFixed(2)} NM² (${(coverageRatio * 100).toFixed(2)}%); defisit ${deficitAreaNm2.toFixed(2)} NM².`
+      : 'Belum ada SRU dengan parameter OSE/EST dan kapasitas sapuan yang lengkap.';
   }
 
   return {
     perAsset,
-    totalZtaNm2,
-    totalAllocatedAreaNm2,
+    totalSweepAreaNm2,
     requiredAreaAoNm2: Ao,
     coverageRatio,
-    compositeCoverageC,
-    compositePOD,
+    surplusAreaNm2,
     isSufficient,
     deficitAreaNm2,
     recommendation,
+    combinations,
   };
 }

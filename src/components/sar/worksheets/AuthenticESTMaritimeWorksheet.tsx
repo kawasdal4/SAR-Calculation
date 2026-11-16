@@ -20,8 +20,8 @@ export default function AuthenticESTMaritimeWorksheet({
   readOnly = false,
 }: AuthenticESTMaritimeWorksheetProps) {
   // Transit distances
-  const sGoNm = Number(distanceNm(asset.homeBasePos, csp).toFixed(1));
-  const sBackNm = Number(distanceNm(exitPoint, asset.homeBasePos).toFixed(1));
+  const sGoNm = distanceNm(asset.homeBasePos, csp);
+  const sBackNm = distanceNm(exitPoint, asset.homeBasePos);
 
   const enduranceMins = asset.enduranceHours * 60;
   const transitSpeed = asset.transitSpeedKts;
@@ -29,21 +29,24 @@ export default function AuthenticESTMaritimeWorksheet({
   const spacingS = asset.sweepWidthNm; // Spacing S (Nm)
 
   // Calculations matching EST Mar in EST Formula_s.xlsx
-  const trGoMins = Number(((sGoNm / transitSpeed) * 60).toFixed(2));
-  const trBackMins = Number(((sBackNm / transitSpeed) * 60).toFixed(2));
-  const totalTrMins = Number((trGoMins + trBackMins).toFixed(2));
-  const extraFuelMins = 0; // Default weather buffer
-  const tsfMins = Number((totalTrMins + extraFuelMins).toFixed(2));
+  const trGoMins = transitSpeed > 0 ? (sGoNm / transitSpeed) * 60 : 0;
+  const trBackMins = transitSpeed > 0 ? (sBackNm / transitSpeed) * 60 : 0;
+  const totalTrMins = trGoMins + trBackMins;
+  const tsfMins = Number.isFinite(asset.maritimeTsfMins) && (asset.maritimeTsfMins ?? -1) >= 0
+    ? asset.maritimeTsfMins!
+    : null;
 
   // On Scene Endurance
-  const oseMins = Math.max(0, Number((enduranceMins - tsfMins).toFixed(2)));
-  const oseHrs = Number((oseMins / 60).toFixed(4));
+  const oseMins = tsfMins === null ? null : enduranceMins - tsfMins;
+  const oseHrs = oseMins !== null && oseMins > 0 ? oseMins / 60 : null;
 
   // Effective Search Time (EST) = 0.85 x OSE
-  const estHrs = Number((0.85 * oseHrs).toFixed(4));
+  const estHrs = oseHrs !== null ? 0.85 * oseHrs : null;
 
   // Sweep Width Area (A) = EST x V search x S
-  const areaA = Number((estHrs * searchSpeed * spacingS).toFixed(2));
+  const validInputs = enduranceMins > 0 && transitSpeed > 0 && searchSpeed > 0 && spacingS > 0 && tsfMins !== null;
+  const validCalculation = validInputs && estHrs !== null;
+  const areaA = validCalculation && estHrs !== null ? estHrs * searchSpeed * spacingS : null;
 
   return (
     <div className="border-2 border-slate-800 rounded bg-white shadow-2xs font-sans text-xs overflow-x-auto ">
@@ -53,7 +56,7 @@ export default function AuthenticESTMaritimeWorksheet({
           ON SCENE ENDURANCE (OSE) & EFFECTIVE SEARCH TIME (EST)
         </div>
         <div className="text-xs font-bold text-sky-200 uppercase mt-0.5">
-          WORKSHEET FOR MARITIME ASSET (KAPAL SAR / RESCUE VESSEL)
+          WORKSHEET FOR MARITIME ASSET (KAPAL / RIB / SEA RIDER)
         </div>
         <div className="text-[11px] text-slate-300 font-mono mt-1">
           Berdasarkan Kurikulum Diklat SAR Spesialis SAR Planning Basarnas (EST Formula_s.xlsx)
@@ -87,6 +90,8 @@ export default function AuthenticESTMaritimeWorksheet({
           </span>
         </div>
       </div>
+      {!validInputs && <div className="mx-3 mt-3 rounded border border-amber-300 bg-amber-50 p-2 text-[11px] text-amber-900">{tsfMins === null ? 'Masukkan TSF dari instruksi atau skenario Maritime; TSF tidak diisi otomatis.' : 'Lengkapi Endurance (E), Speed (V), Search Speed, dan Spacing (S).'} Perhitungan kapasitas belum tersedia hingga data wajib terisi.</div>}
+      {validInputs && oseMins !== null && oseMins <= 0 && <div className="mx-3 mt-3 rounded border border-rose-300 bg-rose-50 p-2 text-[11px] font-semibold text-rose-900">OSE = {oseMins.toFixed(2)} menit. OSE harus positif; Sweep Width Area tidak dihitung.</div>}
 
       {/* Base Parameters (Endurance, Speeds) */}
       <table className="w-full border-collapse">
@@ -149,7 +154,7 @@ export default function AuthenticESTMaritimeWorksheet({
               <span className="font-bold text-slate-900">{sGoNm} Nm</span>{' '}
               <span className="text-slate-600 font-sans">/ {transitSpeed} kts × 60 =</span>{' '}
               <span className="font-bold text-blue-900 bg-blue-50/80 px-2 py-0.5 rounded border border-blue-200 ml-1">
-                {trGoMins.toFixed(1)}
+                {trGoMins.toFixed(2)}
               </span>{' '}
               <span className="text-slate-600 font-sans font-medium">Mins</span>{' '}
               <span className="text-slate-500 font-sans text-[11px] ml-2">
@@ -166,7 +171,7 @@ export default function AuthenticESTMaritimeWorksheet({
               <span className="font-bold text-slate-900">{sBackNm} Nm</span>{' '}
               <span className="text-slate-600 font-sans">/ {transitSpeed} kts × 60 =</span>{' '}
               <span className="font-bold text-blue-900 bg-blue-50/80 px-2 py-0.5 rounded border border-blue-200 ml-1">
-                {trBackMins.toFixed(1)}
+                {trBackMins.toFixed(2)}
               </span>{' '}
               <span className="text-slate-600 font-sans font-medium">Mins</span>{' '}
               <span className="text-slate-500 font-sans text-[11px] ml-2">
@@ -179,20 +184,30 @@ export default function AuthenticESTMaritimeWorksheet({
               1. Total Transit (Total Tr)
             </td>
             <td className="py-2 px-3" colSpan={3}>
-              <span className="text-slate-600 font-sans">Tr Go + Tr Back = {trGoMins.toFixed(1)} + {trBackMins.toFixed(1)} =</span>{' '}
+              <span className="text-slate-600 font-sans">Tr Go + Tr Back = {trGoMins.toFixed(2)} + {trBackMins.toFixed(2)} =</span>{' '}
               <span className="font-bold text-blue-900 bg-blue-50/80 px-2 py-0.5 rounded border border-blue-200 ml-1">
-                {totalTrMins.toFixed(1)}
+                {totalTrMins.toFixed(2)}
               </span>{' '}
               <span className="text-slate-600 font-sans font-medium">Mins</span>
             </td>
           </tr>
-          <tr className="border-b border-slate-300 font-mono">
+          <tr className="border-b border-slate-300 font-mono bg-amber-50/50">
             <td className="py-2 px-3 font-sans font-medium text-slate-700 border-r border-slate-300">
-              2. Extra Fuel (Weather) if necessary
+              2. Total Safety Fuel (TSF) sesuai instruksi Maritime
             </td>
             <td className="py-2 px-3" colSpan={3}>
-              <span className="font-bold text-slate-900">{extraFuelMins}</span>{' '}
+              <label className="mr-2 text-slate-600 font-sans">Input TSF (menit):</label>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={asset.maritimeTsfMins ?? ''}
+                disabled={readOnly}
+                onChange={(event) => onUpdateAsset?.('maritimeTsfMins', event.target.value === '' ? undefined : Math.max(0, Number(event.target.value)))}
+                className="w-24 rounded border border-slate-300 bg-white px-2 py-1 text-right font-bold text-blue-900"
+              />{' '}
               <span className="text-slate-600 font-sans font-medium">Mins</span>
+              <span className="block mt-1 text-[10px] text-amber-800 font-sans">Diisi dari skenario/perintah maritime. Komponen TSF tidak diasumsikan atau disalin dari Air Worksheet.</span>
             </td>
           </tr>
           <tr className="border-b-2 border-slate-700 bg-slate-50 font-mono">
@@ -201,10 +216,10 @@ export default function AuthenticESTMaritimeWorksheet({
             </td>
             <td className="py-2 px-3" colSpan={3}>
               <span className="font-bold text-indigo-900 bg-indigo-50 px-2.5 py-0.5 rounded border border-indigo-200">
-                {tsfMins.toFixed(1)} Mins
+                {tsfMins?.toFixed(2) ?? 'Belum diisi'} Mins
               </span>{' '}
               <span className="text-slate-500 font-sans text-[11px] ml-2">
-                ({(tsfMins / 60).toFixed(2)} jam)
+                ({tsfMins !== null ? (tsfMins / 60).toFixed(4) : '—'} jam)
               </span>
             </td>
           </tr>
@@ -229,13 +244,13 @@ export default function AuthenticESTMaritimeWorksheet({
               On Scene Endurance (OSE) = E - TSF
             </td>
             <td className="py-2.5 px-3" colSpan={3}>
-              <span className="text-slate-600 font-sans font-mono">{enduranceMins} - {tsfMins.toFixed(1)} =</span>{' '}
+              <span className="text-slate-600 font-sans font-mono">{enduranceMins} - {tsfMins?.toFixed(2) ?? '—'} =</span>{' '}
               <span className="font-bold text-blue-950 bg-blue-100 px-2.5 py-0.5 rounded border border-blue-300 ml-1">
-                {oseMins.toFixed(1)} Mins
+                {oseMins?.toFixed(2) ?? '—'} Mins
               </span>{' '}
               <span className="text-slate-600 font-sans font-bold ml-3">=</span>{' '}
               <span className="font-black text-blue-900 bg-blue-100 px-2.5 py-0.5 rounded border border-blue-300 ml-1">
-                {oseHrs.toFixed(2)} Jam (Hrs)
+                {oseHrs?.toFixed(4) ?? '—'} Jam (Hrs)
               </span>
             </td>
           </tr>
@@ -251,9 +266,9 @@ export default function AuthenticESTMaritimeWorksheet({
               EFFECTIVE SEARCH TIME (EST) = 0.85 × OSE
             </td>
             <td className="py-2.5 px-3" colSpan={3}>
-              <span className="text-slate-600 font-sans font-mono">0.85 × {oseHrs.toFixed(2)} Jam =</span>{' '}
+              <span className="text-slate-600 font-sans font-mono">0.85 × {oseHrs?.toFixed(4) ?? '—'} Jam =</span>{' '}
               <span className="font-black text-amber-950 bg-amber-100 text-sm px-3 py-1 rounded border-2 border-amber-400 ml-2">
-                {estHrs.toFixed(2)} Jam (Hours)
+                {estHrs?.toFixed(4) ?? '—'} Jam (Hours)
               </span>
               <span className="text-slate-500 font-sans text-[11px] ml-3 italic">
                 (85% waktu efektif pencarian di lokasi, 15% manuver & navigasi)
@@ -290,9 +305,9 @@ export default function AuthenticESTMaritimeWorksheet({
               Sweep Width Area (A) = EST × V search × S
             </td>
             <td className="py-3 px-3" colSpan={3}>
-              <span className="text-slate-700 font-sans">{estHrs.toFixed(2)} × {searchSpeed} × {spacingS} =</span>{' '}
+              <span className="text-slate-700 font-sans">{estHrs?.toFixed(4) ?? '—'} × {searchSpeed} × {spacingS} =</span>{' '}
               <span className="font-black text-emerald-950 bg-emerald-100 text-base px-3.5 py-1 rounded border-2 border-emerald-500 shadow-2xs ml-2">
-                {areaA.toFixed(2)} Nm²
+                {areaA?.toFixed(2) ?? '—'} Nm²
               </span>
               <span className="text-slate-600 font-sans text-[11px] ml-3 italic">
                 (Kapasitas cakupan sapuan unit {asset.name})

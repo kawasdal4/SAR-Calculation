@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { type LatLng, distanceNm } from '@/lib/sar/sarCalculations';
@@ -34,6 +34,8 @@ export interface MapMarker {
   color?: string;
   isStart?: boolean;
   isDatum?: boolean;
+  sequence?: number;
+  onClick?: () => void;
 }
 
 export interface MapLine {
@@ -42,6 +44,7 @@ export interface MapLine {
   color: string;
   label?: string;
   dashed?: boolean;
+  arrow?: boolean;
 }
 
 export interface MapPolygon {
@@ -74,6 +77,8 @@ export interface SeaMapProps {
   pickMode?: boolean;
   /** When true, the cursor shows a crosshair and clicks measure distance instead. */
   measureMode?: boolean;
+  /** Isolates map controls and persisted view preferences for this map instance. */
+  preferenceKey?: string;
 }
 
 // ============================================================================
@@ -92,8 +97,8 @@ const DefaultIcon = L.icon({
 
 L.Marker.prototype.options.icon = DefaultIcon;
 
-function makeColoredIcon(color: string, isStart?: boolean, isDatum?: boolean) {
-  const shape = isStart ? '◆' : isDatum ? '◉' : '●';
+function makeColoredIcon(color: string, isStart?: boolean, isDatum?: boolean, sequence?: number) {
+  const shape = sequence !== undefined ? String(sequence) : isStart ? '◆' : isDatum ? '◉' : '●';
   return L.divIcon({
     className: 'sar-marker',
     html: `<div style="
@@ -104,7 +109,7 @@ function makeColoredIcon(color: string, isStart?: boolean, isDatum?: boolean) {
       border: 2px solid #fff;
       box-shadow: 0 0 4px rgba(0,0,0,.6);
       display:flex;align-items:center;justify-content:center;
-      color:#fff;font-size:11px;font-weight:bold;
+      color:#fff;font-size:${sequence !== undefined ? 9 : 11}px;font-weight:bold;
     ">${shape}</div>`,
     iconSize: [isStart ? 22 : 18, isStart ? 22 : 18],
     iconAnchor: [isStart ? 11 : 9, isStart ? 11 : 9],
@@ -140,6 +145,10 @@ const SEAMARK_URL = 'https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png';
 const SEAMARK_ATTR = '© OpenSeaMap';
 const SEAMARK_MAX_ZOOM = 18;
 
+function mapControlId(scope: string, control: string): string {
+  return `seamap-${scope}-${control}`;
+}
+
 // ============================================================================
 // Tampilan (view) preferences — persisted in localStorage as one object.
 // ============================================================================
@@ -168,10 +177,10 @@ const DEFAULT_VIEW_PREFS: ViewPrefs = {
 const VIEW_PREFS_KEY = 'seamap:viewPrefs:v2';
 const DEPTH_DENSITY_KEY = 'seamap:depthDensity';
 
-function loadViewPrefs(): ViewPrefs {
+function loadViewPrefs(storageKey = VIEW_PREFS_KEY): ViewPrefs {
   try {
     if (typeof window === 'undefined') return { ...DEFAULT_VIEW_PREFS };
-    const raw = window.localStorage.getItem(VIEW_PREFS_KEY);
+    const raw = window.localStorage.getItem(storageKey);
     if (!raw) return { ...DEFAULT_VIEW_PREFS };
     const parsed = JSON.parse(raw) as Partial<ViewPrefs>;
     const restored: ViewPrefs = {
@@ -191,10 +200,10 @@ function loadViewPrefs(): ViewPrefs {
   }
 }
 
-function saveViewPrefs(prefs: ViewPrefs): void {
+function saveViewPrefs(prefs: ViewPrefs, storageKey = VIEW_PREFS_KEY): void {
   try {
     if (typeof window === 'undefined') return;
-    window.localStorage.setItem(VIEW_PREFS_KEY, JSON.stringify(prefs));
+    window.localStorage.setItem(storageKey, JSON.stringify(prefs));
   } catch {
     // ignore write failures (private mode, sandbox, etc.)
   }
@@ -207,10 +216,10 @@ function allHidden(p: ViewPrefs): boolean {
   return !p.layers && !p.coord && !p.zoom && !p.disclaimer;
 }
 
-function loadDepthDensity(): Density {
+function loadDepthDensity(storageKey = DEPTH_DENSITY_KEY): Density {
   try {
     if (typeof window === 'undefined') return 'sedang';
-    const raw = window.localStorage.getItem(DEPTH_DENSITY_KEY);
+    const raw = window.localStorage.getItem(storageKey);
     if (raw === 'rapat' || raw === 'sedang' || raw === 'jarang') return raw;
   } catch {
     // ignore
@@ -218,10 +227,10 @@ function loadDepthDensity(): Density {
   return 'sedang';
 }
 
-function saveDepthDensity(d: Density): void {
+function saveDepthDensity(d: Density, storageKey = DEPTH_DENSITY_KEY): void {
   try {
     if (typeof window === 'undefined') return;
-    window.localStorage.setItem(DEPTH_DENSITY_KEY, d);
+    window.localStorage.setItem(storageKey, d);
   } catch {
     // ignore
   }
@@ -242,7 +251,14 @@ export default function SeaMap({
   onMapClick,
   pickMode = false,
   measureMode = false,
+  preferenceKey,
 }: SeaMapProps) {
+  const reactMapId = useId();
+  const mapScope = (preferenceKey ?? reactMapId).replace(/[^a-zA-Z0-9_-]/g, '_');
+  const viewPrefsStorageKey = preferenceKey ? `${VIEW_PREFS_KEY}:${mapScope}` : VIEW_PREFS_KEY;
+  const depthDensityStorageKey = preferenceKey ? `${DEPTH_DENSITY_KEY}:${mapScope}` : DEPTH_DENSITY_KEY;
+  const depthToggleEvent = `seamap:depth-toggle:${mapScope}`;
+  const depthPanelSyncEvent = `seamap:depth-panel-sync:${mapScope}`;
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   // Refs to read latest prop values inside the map's once-bound click handler
@@ -283,7 +299,7 @@ export default function SeaMap({
   // Default: everything visible. Persisted in localStorage as one object.
   // SeaMap is loaded via next/dynamic with ssr:false, so the lazy initialiser
   // only runs in the browser.
-  const [viewPrefs, setViewPrefs] = useState<ViewPrefs>(() => loadViewPrefs());
+  const [viewPrefs, setViewPrefs] = useState<ViewPrefs>(() => loadViewPrefs(viewPrefsStorageKey));
   const [menuOpen, setMenuOpen] = useState(false);
   const [hideToast, setHideToast] = useState(false);
   // Mirror of viewPrefs so the once-bound keyboard handler can read the
@@ -320,8 +336,8 @@ export default function SeaMap({
 
   // Persist on change.
   useEffect(() => {
-    saveViewPrefs(viewPrefs);
-  }, [viewPrefs]);
+    saveViewPrefs(viewPrefs, viewPrefsStorageKey);
+  }, [viewPrefs, viewPrefsStorageKey]);
 
   // Keyboard shortcut: H toggles ALL elements (hide-all ↔ show-all).
   // Ignores modifier keys (Ctrl/Meta/Alt) and any editable focus target.
@@ -378,7 +394,7 @@ export default function SeaMap({
   // once-bound moveend handler.
   const depthEnabledRef = useRef<boolean>(viewPrefs.depth);
   const depthDensityRef = useRef<Density>('sedang');
-  const [depthDensity, setDepthDensityState] = useState<Density>(() => loadDepthDensity());
+  const [depthDensity, setDepthDensityState] = useState<Density>(() => loadDepthDensity(depthDensityStorageKey));
   const [depthStatus, setDepthStatus] = useState<DepthStatus>('idle');
   const [depthHint, setDepthHint] = useState<string | null>(null);
 
@@ -388,16 +404,16 @@ export default function SeaMap({
     if (mapRef.current) {
       // The map's moveend handler will run scheduleDepthRedraw; but the user
       // just toggled the checkbox, so fire it manually.
-      window.dispatchEvent(new Event('seamap:depth-toggle'));
+      window.dispatchEvent(new Event(depthToggleEvent));
     }
-  }, [viewPrefs.depth]);
+  }, [viewPrefs.depth, depthToggleEvent]);
 
   useEffect(() => {
     depthDensityRef.current = depthDensity;
-    saveDepthDensity(depthDensity);
+    saveDepthDensity(depthDensity, depthDensityStorageKey);
     // Trigger redraw on density change.
-    window.dispatchEvent(new Event('seamap:depth-toggle'));
-  }, [depthDensity]);
+    window.dispatchEvent(new Event(depthToggleEvent));
+  }, [depthDensity, depthDensityStorageKey, depthToggleEvent]);
 
   const setDepthDensity = (d: Density) => setDepthDensityState(d);
   const activeDepthSource: DepthSource = getActiveDepthSource();
@@ -412,6 +428,11 @@ export default function SeaMap({
       scrollWheelZoom: true,
       attributionControl: true,
     });
+    let disposed = false;
+    const isMapActive = () => {
+      const mapPane = (map as L.Map & { _mapPane?: HTMLElement | null })._mapPane;
+      return !disposed && mapRef.current === map && Boolean(containerRef.current?.isConnected && mapPane?.isConnected);
+    };
 
     // Base OSM layer
     L.tileLayer(OSM_URL, {
@@ -624,7 +645,7 @@ export default function SeaMap({
     }
 
     function drawScaleBorder() {
-      if (!scaleBorderCanvas) return;
+      if (!scaleBorderCanvas || !isMapActive()) return;
       const mapEl = map.getContainer();
       const w = mapEl.clientWidth;
       const h = mapEl.clientHeight;
@@ -827,10 +848,11 @@ export default function SeaMap({
     }
 
     function scheduleScaleBorderRedraw() {
+      if (!isMapActive()) return;
       if (scaleBorderRAF !== null) return;
       scaleBorderRAF = requestAnimationFrame(() => {
         scaleBorderRAF = null;
-        drawScaleBorder();
+        if (isMapActive()) drawScaleBorder();
       });
     }
 
@@ -847,7 +869,9 @@ export default function SeaMap({
     map.getContainer().appendChild(scaleBorderCanvas);
 
     map.on('move zoom moveend zoomend resize viewreset', scheduleScaleBorderRedraw);
-    setTimeout(() => drawScaleBorder(), 100);
+    setTimeout(() => {
+      if (isMapActive()) drawScaleBorder();
+    }, 100);
 
     // ---- Depth numbers overlay ("Angka kedalaman") ----
     // A separate canvas that sits ABOVE the tile panes but BELOW the
@@ -870,7 +894,7 @@ export default function SeaMap({
     let depthFetchAbort: AbortController | null = null;
 
     function drawDepthOverlay() {
-      if (!depthCanvas) return;
+      if (!depthCanvas || !isMapActive()) return;
       // The depth canvas is hidden by CSS when the layer is disabled
       // (`.seamap-hide-depth`), but we also bail here so we don't waste CPU
       // drawing on a hidden canvas.
@@ -963,15 +987,18 @@ export default function SeaMap({
     }
 
     function scheduleDepthRedraw() {
+      if (!isMapActive()) return;
       if (depthDebounce !== null) {
         clearTimeout(depthDebounce);
       }
       // Debounce 400 ms after the map stops moving, then redraw via RAF.
       depthDebounce = setTimeout(() => {
         depthDebounce = null;
+        if (!isMapActive()) return;
         if (depthRAF !== null) return;
         depthRAF = requestAnimationFrame(() => {
           depthRAF = null;
+          if (!isMapActive()) return;
           drawDepthOverlay();
           // Kick off a fetch for any uncached points in the current viewport.
           // The fetch resolves asynchronously; when it does, we redraw again
@@ -988,7 +1015,7 @@ export default function SeaMap({
      * can show a non-blocking notice and continues using cached values.
      */
     async function maybeFetchDepths(): Promise<void> {
-      if (!depthEnabledRef.current) return;
+      if (!isMapActive() || !depthEnabledRef.current) return;
       if (activeDepthSource === 'NONE') return;
       // Abort the previous in-flight fetch.
       if (depthFetchAbort) {
@@ -1025,16 +1052,16 @@ export default function SeaMap({
       setDepthStatus('loading');
       try {
         const result = await fetchDepths(points, ctrl.signal);
-        if (ctrl.signal.aborted) return;
+        if (ctrl.signal.aborted || !isMapActive()) return;
         setDepthStatus(result.status);
         // Force a redraw so the new values appear.
         if (depthRAF !== null) return;
         depthRAF = requestAnimationFrame(() => {
           depthRAF = null;
-          drawDepthOverlay();
+          if (isMapActive()) drawDepthOverlay();
         });
       } catch {
-        if (!ctrl.signal.aborted) {
+        if (!ctrl.signal.aborted && isMapActive()) {
           setDepthStatus('error');
         }
       }
@@ -1059,6 +1086,7 @@ export default function SeaMap({
 
     // Also redraw when the user toggles the layer or changes density.
     const onDepthToggle = () => {
+      if (!isMapActive()) return;
       if (depthEnabledRef.current) {
         scheduleDepthRedraw();
       } else {
@@ -1072,13 +1100,14 @@ export default function SeaMap({
         if (depthFetchAbort) depthFetchAbort.abort();
       }
     };
-    window.addEventListener('seamap:depth-toggle', onDepthToggle);
+    window.addEventListener(depthToggleEvent, onDepthToggle);
 
     // Initial draw (after a tick so the canvas has a real size), then kick
     // off the first fetch — without this the depth layer stays empty until
     // the user pans/zooms, because maybeFetchDepths was previously only
     // wired to moveend/zoomend.
     setTimeout(() => {
+      if (!isMapActive()) return;
       drawDepthOverlay();
       void maybeFetchDepths();
     }, 200);
@@ -1132,28 +1161,28 @@ export default function SeaMap({
         div.innerHTML = `
           <h4>Map Layers</h4>
           <div class="layer-row">
-            <label><input type="checkbox" id="lyr-osm" checked suppressHydrationWarning /> OpenStreetMap (base)</label>
+            <label><input type="checkbox" id="${mapControlId(mapScope, 'osm')}" checked suppressHydrationWarning /> OpenStreetMap (base)</label>
           </div>
           <div class="layer-row">
-            <label><input type="checkbox" id="lyr-seamark" checked suppressHydrationWarning /> OpenSeaMap (seamark)</label>
+            <label><input type="checkbox" id="${mapControlId(mapScope, 'seamark')}" checked suppressHydrationWarning /> OpenSeaMap (seamark)</label>
           </div>
           <div class="layer-row">
-            <label><input type="checkbox" id="lyr-grid" checked suppressHydrationWarning /> Bingkai skala</label>
+            <label><input type="checkbox" id="${mapControlId(mapScope, 'grid')}" checked suppressHydrationWarning /> Bingkai skala</label>
           </div>
           <div class="layer-row">
-            <label><input type="checkbox" id="lyr-depth" suppressHydrationWarning /> Angka kedalaman</label>
-            <div class="layer-density" id="lyr-density-wrap" style="display:none; margin-top:4px;">
+            <label><input type="checkbox" id="${mapControlId(mapScope, 'depth')}" suppressHydrationWarning /> Angka kedalaman</label>
+            <div class="layer-density" id="${mapControlId(mapScope, 'density-wrap')}" style="display:none; margin-top:4px;">
               <label class="layer-density-label">Kepadatan:
-                <select id="lyr-density" style="font-size:10px; margin-left:4px;">
+                <select id="${mapControlId(mapScope, 'density')}" style="font-size:10px; margin-left:4px;">
                   <option value="rapat">Rapat</option>
                   <option value="sedang" selected>Sedang</option>
                   <option value="jarang">Jarang</option>
                 </select>
               </label>
-              <div class="layer-source" id="lyr-depth-source">${depthSourceLabel}</div>
+              <div class="layer-source" id="${mapControlId(mapScope, 'depth-source')}">${depthSourceLabel}</div>
               <div class="layer-source-hint">Interpolasi grid; bukan hasil survei. Tidak untuk navigasi.</div>
-              <div class="layer-status" id="lyr-depth-status"></div>
-              <div class="layer-hint" id="lyr-depth-hint" style="display:none;"></div>
+              <div class="layer-status" id="${mapControlId(mapScope, 'depth-status')}"></div>
+              <div class="layer-hint" id="${mapControlId(mapScope, 'depth-hint')}" style="display:none;"></div>
             </div>
           </div>
         `;
@@ -1165,7 +1194,8 @@ export default function SeaMap({
     // Wire up the layer-control panel after it's added to DOM
     const osmTile = (map as unknown as { _layers: Record<string, { _url?: string }> })._layers;
     setTimeout(() => {
-      const gridCb = document.getElementById('lyr-grid') as HTMLInputElement | null;
+      if (!isMapActive()) return;
+      const gridCb = document.getElementById(mapControlId(mapScope, 'grid')) as HTMLInputElement | null;
       if (gridCb && scaleBorderCanvas) {
         gridCb.addEventListener('change', () => {
           scaleBorderCanvas!.style.display = gridCb.checked ? 'block' : 'none';
@@ -1173,9 +1203,9 @@ export default function SeaMap({
         });
       }
       // Depth checkbox + density dropdown.
-      const depthCb = document.getElementById('lyr-depth') as HTMLInputElement | null;
-      const densityWrap = document.getElementById('lyr-density-wrap');
-      const densitySel = document.getElementById('lyr-density') as HTMLSelectElement | null;
+      const depthCb = document.getElementById(mapControlId(mapScope, 'depth')) as HTMLInputElement | null;
+      const densityWrap = document.getElementById(mapControlId(mapScope, 'density-wrap'));
+      const densitySel = document.getElementById(mapControlId(mapScope, 'density')) as HTMLSelectElement | null;
       if (depthCb) {
         // Reflect initial viewPrefs state.
         depthCb.checked = depthEnabledRef.current;
@@ -1198,8 +1228,8 @@ export default function SeaMap({
         });
       }
       // osm/seamark toggles: locate the tile layers by URL
-      const osmCb = document.getElementById('lyr-osm') as HTMLInputElement | null;
-      const seamarkCb = document.getElementById('lyr-seamark') as HTMLInputElement | null;
+      const osmCb = document.getElementById(mapControlId(mapScope, 'osm')) as HTMLInputElement | null;
+      const seamarkCb = document.getElementById(mapControlId(mapScope, 'seamark')) as HTMLInputElement | null;
       if (osmTile) {
         for (const key of Object.keys(osmTile)) {
           const layer = osmTile[key];
@@ -1223,13 +1253,13 @@ export default function SeaMap({
     // effect, so closure-over state would be permanently stale.
     const syncDepthPanel = (e: Event) => {
       const detail = (e as CustomEvent<{ status?: DepthStatus; hint?: string | null }>).detail;
-      const cb = document.getElementById('lyr-depth') as HTMLInputElement | null;
+      const cb = document.getElementById(mapControlId(mapScope, 'depth')) as HTMLInputElement | null;
       if (cb && cb.checked !== depthEnabledRef.current) cb.checked = depthEnabledRef.current;
-      const wrap = document.getElementById('lyr-density-wrap');
+      const wrap = document.getElementById(mapControlId(mapScope, 'density-wrap'));
       if (wrap) wrap.style.display = depthEnabledRef.current ? 'block' : 'none';
-      const sel = document.getElementById('lyr-density') as HTMLSelectElement | null;
+      const sel = document.getElementById(mapControlId(mapScope, 'density')) as HTMLSelectElement | null;
       if (sel && sel.value !== depthDensityRef.current) sel.value = depthDensityRef.current;
-      const statusEl = document.getElementById('lyr-depth-status');
+      const statusEl = document.getElementById(mapControlId(mapScope, 'depth-status'));
       if (statusEl) {
         const s = detail?.status ?? 'idle';
         const statusText =
@@ -1240,7 +1270,7 @@ export default function SeaMap({
         statusEl.textContent = statusText;
         statusEl.style.display = statusText ? 'block' : 'none';
       }
-      const hintEl = document.getElementById('lyr-depth-hint');
+      const hintEl = document.getElementById(mapControlId(mapScope, 'depth-hint'));
       if (hintEl) {
         const hint = detail?.hint ?? null;
         hintEl.textContent = hint ?? '';
@@ -1250,7 +1280,7 @@ export default function SeaMap({
     // Subscribe to React state changes — but the panel DOM is owned by Leaflet,
     // so we just re-sync on every render. We do this via a window event the
     // SeaMap component dispatches from a useEffect below.
-    window.addEventListener('seamap:depth-panel-sync', syncDepthPanel);
+    window.addEventListener(depthPanelSyncEvent, syncDepthPanel);
 
     // ---- Map click handler ----
     const measureMarkers: L.Marker[] = [];
@@ -1332,9 +1362,12 @@ export default function SeaMap({
 
     mapRef.current = map;
 
-    setTimeout(() => map.invalidateSize(), 200);
+    setTimeout(() => {
+      if (isMapActive()) map.invalidateSize();
+    }, 200);
 
     return () => {
+      disposed = true;
       if (scaleBorderRAF !== null) {
         cancelAnimationFrame(scaleBorderRAF);
         scaleBorderRAF = null;
@@ -1356,8 +1389,8 @@ export default function SeaMap({
         cancelAnimationFrame(depthRAF);
         depthRAF = null;
       }
-      window.removeEventListener('seamap:depth-toggle', onDepthToggle);
-      window.removeEventListener('seamap:depth-panel-sync', syncDepthPanel);
+      window.removeEventListener(depthToggleEvent, onDepthToggle);
+      window.removeEventListener(depthPanelSyncEvent, syncDepthPanel);
       if (depthCanvas && depthCanvas.parentNode) {
         depthCanvas.parentNode.removeChild(depthCanvas);
       }
@@ -1365,7 +1398,7 @@ export default function SeaMap({
       mapRef.current = null;
       layersRef.current = {};
     };
-  }, []);
+  }, [mapScope, depthToggleEvent, depthPanelSyncEvent]);
 
   // ---- Update center/zoom when props change ----
   useEffect(() => {
@@ -1395,12 +1428,17 @@ export default function SeaMap({
     markers.forEach((m) => {
       const color = m.color ?? '#ef4444';
       const marker = L.marker([m.position.lat, m.position.lng], {
-        icon: makeColoredIcon(color, m.isStart, m.isDatum),
+        icon: makeColoredIcon(color, m.isStart, m.isDatum, m.sequence),
       }).addTo(layer);
       marker.bindPopup(
         `<b>${m.label}</b><br/>${formatDMS(m.position.lat, true)}, ${formatDMS(m.position.lng, false)}`,
       );
       marker.on('click', (e) => {
+        if (m.onClick) {
+          L.DomEvent.stopPropagation(e);
+          m.onClick();
+          return;
+        }
         if (pickModeRef.current && onMapClickRef.current) {
           L.DomEvent.stopPropagation(e);
           onMapClickRef.current(m.position);
@@ -1427,6 +1465,26 @@ export default function SeaMap({
           dashArray: l.dashed ? '6 6' : undefined,
         },
       ).addTo(layer);
+      if (l.arrow) {
+        const startPx = mapRef.current!.latLngToLayerPoint([l.from.lat, l.from.lng]);
+        const endPx = mapRef.current!.latLngToLayerPoint([l.to.lat, l.to.lng]);
+        const dx = endPx.x - startPx.x;
+        const dy = endPx.y - startPx.y;
+        const screenBearing = (Math.atan2(dx, -dy) * 180) / Math.PI;
+        const arrowPoint = mapRef.current!.layerPointToLatLng([
+          startPx.x + dx * 0.68,
+          startPx.y + dy * 0.68,
+        ]);
+        L.marker(arrowPoint, {
+          interactive: false,
+          icon: L.divIcon({
+            className: 'sar-line-arrow',
+            html: `<span style="display:block;color:${l.color};font-size:18px;font-weight:800;line-height:1;text-shadow:0 0 2px #fff;transform:rotate(${screenBearing}deg)">▲</span>`,
+            iconSize: [18, 18],
+            iconAnchor: [9, 9],
+          }),
+        }).addTo(layer);
+      }
       if (l.label) {
         const mid = {
           lat: (l.from.lat + l.to.lat) / 2,
@@ -1515,11 +1573,11 @@ export default function SeaMap({
   // Values travel in the event detail — see syncDepthPanel above.
   useEffect(() => {
     window.dispatchEvent(
-      new CustomEvent('seamap:depth-panel-sync', {
+      new CustomEvent(depthPanelSyncEvent, {
         detail: { status: depthStatus, hint: depthHint },
       }),
     );
-  }, [depthStatus, depthHint, viewPrefs.depth, depthDensity]);
+  }, [depthStatus, depthHint, viewPrefs.depth, depthDensity, depthPanelSyncEvent]);
 
   const everythingHidden = allHidden(viewPrefs);
 

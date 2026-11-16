@@ -17,6 +17,8 @@ export type InterceptType = 'head-on' | 'overtaking' | 'beam-on';
 
 export interface InterceptInput {
   type: InterceptType;
+  /** Shared observation/reference timestamp for Target A and SRU B. */
+  referenceTime?: string;
   target: {
     name: string;
     pos: LatLng;
@@ -84,11 +86,13 @@ export function calculateHeadOnIntercept(input: InterceptInput): InterceptResult
   const brgSruToTarget = bearingDeg(input.sru.pos, input.target.pos);
 
   const relativeSpeed = input.target.speedKts + input.sru.speedKts;
-  if (relativeSpeed <= 0) {
+  if (input.target.speedKts <= 0 || input.sru.speedKts <= 0 || dist <= 1e-9 || relativeSpeed <= 0) {
     return {
       type: 'head-on',
       feasible: false,
-      message: 'Kecepatan total harus lebih dari 0 knot.',
+      message: dist <= 1e-9
+        ? 'Posisi Target dan SRU tidak boleh sama.'
+        : 'Kecepatan Target dan SRU harus lebih dari 0 knot.',
       initialDistanceNm: dist,
       bearingTargetToSru: brgTargetToSru,
       bearingSruToTarget: brgSruToTarget,
@@ -138,11 +142,15 @@ export function calculateOvertakingIntercept(input: InterceptInput): InterceptRe
   const brgSruToTarget = bearingDeg(input.sru.pos, input.target.pos);
   const brgTargetToSru = bearingDeg(input.target.pos, input.sru.pos);
 
-  if (input.sru.speedKts <= input.target.speedKts) {
+  if (dist <= 1e-9 || input.target.speedKts <= 0 || input.sru.speedKts <= input.target.speedKts) {
     return {
       type: 'overtaking',
       feasible: false,
-      message: 'Kecepatan SRU harus lebih besar daripada kecepatan target untuk mengejar.',
+      message: dist <= 1e-9
+        ? 'Posisi Target dan SRU tidak boleh sama.'
+        : input.target.speedKts <= 0
+          ? 'Kecepatan Target harus lebih dari 0 knot.'
+          : 'Kecepatan SRU harus lebih besar daripada kecepatan Target untuk mengejar.',
       initialDistanceNm: dist,
       bearingTargetToSru: brgTargetToSru,
       bearingSruToTarget: brgSruToTarget,
@@ -233,11 +241,15 @@ export function calculateBeamOnIntercept(input: InterceptInput): InterceptResult
     }
   }
 
-  if (timeHours === null || timeHours <= 0) {
+  if (distAB <= 1e-9 || vA <= 0 || vB <= 0 || timeHours === null || timeHours <= 0) {
     return {
       type: 'beam-on',
       feasible: false,
-      message: 'Intercept tidak memungkinkan dengan kecepatan dan arah saat ini.',
+      message: distAB <= 1e-9
+        ? 'Posisi Target dan SRU tidak boleh sama.'
+        : vA <= 0 || vB <= 0
+          ? 'Kecepatan Target dan SRU harus lebih dari 0 knot.'
+          : 'Intercept tidak memungkinkan dengan kecepatan dan arah saat ini.',
       initialDistanceNm: distAB,
       bearingTargetToSru: brgAB,
       bearingSruToTarget: brgBA,

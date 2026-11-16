@@ -25,6 +25,10 @@ import {
   Clock,
   Sparkles,
   Trash2,
+  MapPinPlus,
+  MousePointer2,
+  Ruler,
+  Undo2,
 } from 'lucide-react';
 import AWAWorksheet, {
   type AWAData,
@@ -95,6 +99,14 @@ import {
 } from '@/lib/sar/assetAllocation';
 
 const DEFAULT_CENTER: LatLng = { lat: 0, lng: 0 };
+const SEARCH_PATTERN_COLORS: Record<SearchPatternType, string> = {
+  PS: '#2563eb',
+  CS: '#7c3aed',
+  SS: '#0891b2',
+  VS: '#db2777',
+  TS: '#16a34a',
+};
+const SEARCH_CONNECTOR_COLOR = '#f59e0b';
 
 export default function Home() {
   // AWA & ASW states
@@ -118,6 +130,9 @@ export default function Home() {
   const [isLkpSet, setIsLkpSet] = useState(false);
   const [pickMode, setPickMode] = useState<boolean>(false);
   const [pickSruMode, setPickSruMode] = useState<boolean>(false);
+  const [mainMapToolMode, setMainMapToolMode] = useState<'pan' | 'drop' | 'measure'>('pan');
+  const [mainMapDroppedPoints, setMainMapDroppedPoints] = useState<Array<{ id: string; position: LatLng }>>([]);
+  const [selectedMainMapPointId, setSelectedMainMapPointId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>('all-worksheets');
   const [isPrintA3Open, setIsPrintA3Open] = useState<boolean>(false);
   const [isAiChatOpen, setIsAiChatOpen] = useState<boolean>(false);
@@ -442,6 +457,16 @@ export default function Home() {
     [pickMode, pickSruMode]
   );
 
+  const handleInteractiveMapClick = useCallback((latlng: LatLng) => {
+    if (mainMapToolMode === 'drop') {
+      const id = `worksheet-map-point-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      setMainMapDroppedPoints((points) => [...points, { id, position: latlng }]);
+      setSelectedMainMapPointId(id);
+      return;
+    }
+    handleMapClick(latlng);
+  }, [mainMapToolMode, handleMapClick]);
+
   // Map markers: LKP, Datums, CSP, Exit Point, and SRU Home Bases
   const markers: MapMarker[] = useMemo(() => {
     const list: MapMarker[] = [
@@ -491,8 +516,28 @@ export default function Home() {
       color: '#f97316',
     });
 
+    searchPatternResult.waypoints.forEach((position, index) => {
+      list.push({
+        position,
+        label: `Waypoint ${index + 1}: ${formatDMS(position.lat, true)}, ${formatDMS(position.lng, false)}`,
+        color: SEARCH_PATTERN_COLORS[patternType],
+        sequence: index + 1,
+      });
+    });
+
     return list;
-  }, [lkp, datumResults, assets, csp, exitPoint]);
+  }, [lkp, datumResults, assets, csp, exitPoint, searchPatternResult.waypoints, patternType]);
+
+  const interactiveMapMarkers: MapMarker[] = useMemo(() => [
+    ...markers,
+    ...mainMapDroppedPoints.map((point, index): MapMarker => ({
+      position: point.position,
+      label: `Titik tambahan ${index + 1}: ${formatDMS(point.position.lat, false)}, ${formatDMS(point.position.lng, true)}`,
+      color: point.id === selectedMainMapPointId ? '#e11d48' : '#7c3aed',
+      sequence: index + 1,
+      onClick: () => setSelectedMainMapPointId(point.id),
+    })),
+  ], [markers, mainMapDroppedPoints, selectedMainMapPointId]);
 
   // Asset Transit Lines
   const assetTransitLines: MapLine[] = useMemo(() => {
@@ -524,19 +569,83 @@ export default function Home() {
   const lines: MapLine[] = useMemo(() => {
     const list: MapLine[] = [];
 
-    // Drift vectors from LKP to Datum Left & Right
+    // Worksheet 1 vector components, each plotted in a distinct color.
     if (datumData && datumResults) {
+      const lkpPoint = datumData.start;
+      const driftHours = Math.max(0, datumData.driftInterval);
+      const seaCurrentEnd = project(
+        lkpPoint,
+        datumData.seaCurrent.dir,
+        datumData.seaCurrent.mag * driftHours,
+      );
+      const downwindDir = (datumData.aswDirFrom + 180) % 360;
+      const surfaceWindEnd = project(
+        lkpPoint,
+        downwindDir,
+        datumData.aswSpeed * driftHours,
+      );
+      const windCurrentEnd = project(
+        lkpPoint,
+        datumResults.wc.wcSet,
+        datumResults.wc.wcDrift * driftHours,
+      );
+      const twcEnd = project(
+        lkpPoint,
+        datumData.twc.dir,
+        datumData.twc.mag * driftHours,
+      );
+
       list.push({
-        from: datumData.start,
-        to: datumResults.datumLeft,
-        color: '#f59e0b',
-        label: `Drift L: ${datumResults.driftDistance.toFixed(1)} NM`,
+        from: lkpPoint,
+        to: seaCurrentEnd,
+        color: '#2563eb',
+        label: `Worksheet 1 · Sea Current: ${datumData.seaCurrent.dir.toFixed(0)}°T / ${(datumData.seaCurrent.mag * driftHours).toFixed(2)} NM`,
       });
       list.push({
-        from: datumData.start,
+        from: lkpPoint,
+        to: surfaceWindEnd,
+        color: '#0ea5e9',
+        dashed: true,
+        label: `Worksheet 1 · Surface Wind reciprocal: ${downwindDir.toFixed(0)}°T / ${(datumData.aswSpeed * driftHours).toFixed(2)} NM`,
+      });
+      list.push({
+        from: lkpPoint,
+        to: windCurrentEnd,
+        color: '#f97316',
+        label: `Worksheet 1 · Wind Current: ${datumResults.wc.wcSet.toFixed(0)}°T / ${(datumResults.wc.wcDrift * driftHours).toFixed(2)} NM`,
+      });
+      list.push({
+        from: lkpPoint,
+        to: twcEnd,
+        color: '#7c3aed',
+        dashed: true,
+        label: `Worksheet 1 · TWC resultant: ${datumData.twc.dir.toFixed(0)}°T / ${(datumData.twc.mag * driftHours).toFixed(2)} NM`,
+      });
+      list.push({
+        from: twcEnd,
+        to: datumResults.datumLeft,
+        color: '#16a34a',
+        label: `Worksheet 1 · Leeway Left: ${datumData.lwLeftDir.toFixed(0)}°T / ${(datumData.lwSpeed * driftHours).toFixed(2)} NM`,
+      });
+      list.push({
+        from: twcEnd,
         to: datumResults.datumRight,
-        color: '#f59e0b',
-        label: `Drift R: ${datumResults.driftDistance.toFixed(1)} NM`,
+        color: '#db2777',
+        label: `Worksheet 1 · Leeway Right: ${datumData.lwRightDir.toFixed(0)}°T / ${(datumData.lwSpeed * driftHours).toFixed(2)} NM`,
+      });
+      list.push({
+        from: lkpPoint,
+        to: datumResults.datumLeft,
+        color: '#111827',
+        dashed: true,
+        label: `Worksheet 1 · Total Drift Left: ${datumResults.driftDistance.toFixed(2)} NM`,
+      });
+      list.push({
+        from: lkpPoint,
+        to: datumResults.datumRight,
+        color: '#64748b',
+        dashed: true,
+        label: `Worksheet 1 · Total Drift Right: ${datumResults.driftDistance.toFixed(2)} NM`,
       });
     }
 
@@ -552,13 +661,26 @@ export default function Home() {
       });
     }
 
-    // Search Pattern Track Segments
+    // Search pattern legs and their connecting turns are styled separately.
     searchPatternResult.segments.forEach((seg) => {
+      const segmentIndex = seg.legIndex - 1;
+      const isConnector = patternType === 'PS' || patternType === 'CS'
+        ? segmentIndex % 2 === 1
+        : patternType === 'TS' && segmentIndex === 1;
+      const color = isConnector ? SEARCH_CONNECTOR_COLOR : SEARCH_PATTERN_COLORS[patternType];
+      const bearing = bearingDeg(seg.from, seg.to);
+      const spacingLabel = !isConnector && trackSpacing > 0 && (patternType === 'PS' || patternType === 'CS')
+        ? ` · S ${trackSpacing.toFixed(2)} NM`
+        : patternType === 'SS' && trackSpacing > 0
+          ? ` · ${(seg.distanceNm / trackSpacing).toFixed(0)}S`
+          : '';
       list.push({
         from: seg.from,
         to: seg.to,
-        color: '#10b981', // emerald track
-        label: `Leg ${seg.legIndex}: ${seg.distanceNm.toFixed(1)} NM`,
+        color,
+        arrow: true,
+        dashed: isConnector,
+        label: `${isConnector ? 'Turn/connector' : `Leg ${seg.legIndex}`} · ${bearing.toFixed(0)}°T · ${seg.distanceNm.toFixed(1)} NM${spacingLabel}`,
       });
     });
 
@@ -570,6 +692,8 @@ export default function Home() {
     datumData,
     datumResults,
     searchPatternResult.segments,
+    patternType,
+    trackSpacing,
     assetTransitLines,
   ]);
 
@@ -586,6 +710,34 @@ export default function Home() {
         label: `E = ${datumResults.E.toFixed(1)} NM`,
       },
     ];
+    if (datumResults.De > 0) {
+      list.push({
+        center: datumResults.datumLeft,
+        radiusNm: datumResults.De,
+        color: '#d97706',
+        fillColor: '#d97706',
+        fillOpacity: 0.015,
+        label: `Worksheet 1 Drift Error De = ${datumResults.De.toFixed(2)} NM`,
+      });
+      list.push({
+        center: datumResults.datumRight,
+        radiusNm: datumResults.De,
+        color: '#d97706',
+        fillColor: '#d97706',
+        fillOpacity: 0.015,
+      });
+    }
+    const fixErrorRadius = Math.hypot(datumResults.X, datumResults.Y);
+    if (fixErrorRadius > 0) {
+      list.push({
+        center: datumCenterPoint,
+        radiusNm: fixErrorRadius,
+        color: '#7c3aed',
+        fillColor: '#7c3aed',
+        fillOpacity: 0.015,
+        label: `Worksheet 1 Fix Error √(X² + Y²) = ${fixErrorRadius.toFixed(2)} NM`,
+      });
+    }
     if (distanceNm(datumResults.datumLeft, datumResults.datumRight) > 0.001) {
       list.push({
         center: datumResults.datumRight,
@@ -596,36 +748,41 @@ export default function Home() {
       });
     }
     return list;
-  }, [datumResults]);
+  }, [datumResults, datumCenterPoint]);
 
-  // Search area polygon (Persegi dengan orientasi searah drift dari LKP ke Datum)
+  // Worksheet 1 area and the separate Worksheet 3 planning area are both squares,
+  // oriented along the bearing from LKP to the datum midpoint.
   const polygons: MapPolygon[] = useMemo(() => {
-    if (!datumResults && (!searchResults || !searchResults.searchAreaLength)) return [];
-    const corners = rectangleCorners(
-      searchAreaCenter,
-      searchAreaLength,
-      searchAreaWidth,
-      searchAreaOrientation
-    );
-    const aoDisplay = searchResults?.Ao ?? ws1Ao;
-    const podDisplay = searchResults ? (searchResults.POD * 100).toFixed(0) : '78';
-
-    return [
-      {
-        points: corners,
+    const list: MapPolygon[] = [];
+    if (datumResults && ws1Ao > 0) {
+      const side = Math.sqrt(ws1Ao);
+      list.push({
+        points: rectangleCorners(datumCenterPoint, side, side, driftOrientationDeg),
         color: '#16a34a',
         fillColor: '#16a34a',
         fillOpacity: 0.12,
-        label: `Search Area (Persegi ${searchAreaLength.toFixed(1)}×${searchAreaWidth.toFixed(1)} NM)\nAo = ${aoDisplay.toFixed(0)} NM² | Arah Drift = ${searchAreaOrientation.toFixed(0)}°T\nPOD = ${podDisplay}%`,
-      },
-    ];
+        label: `Worksheet 1 Search Area · persegi ${side.toFixed(2)} × ${side.toFixed(2)} NM\nAo = ${ws1Ao.toFixed(2)} NM² | Arah LKP → Datum = ${driftOrientationDeg.toFixed(1)}°T`,
+      });
+    }
+    if (searchResults?.Ao && searchResults.Ao > 0) {
+      const side = Math.sqrt(searchResults.Ao);
+      const sameAsWorksheet1 = ws1Ao > 0 && Math.abs(searchResults.Ao - ws1Ao) < 0.01;
+      if (!sameAsWorksheet1) {
+        list.push({
+          points: rectangleCorners(searchResults.searchAreaCenter ?? datumCenterPoint, side, side, driftOrientationDeg),
+          color: '#0891b2',
+          fillColor: '#0891b2',
+          fillOpacity: 0.08,
+          label: `Worksheet 3 Search Area · persegi ${side.toFixed(2)} × ${side.toFixed(2)} NM\nAo = ${searchResults.Ao.toFixed(2)} NM² | Arah LKP → Datum = ${driftOrientationDeg.toFixed(1)}°T\nPOD = ${(searchResults.POD * 100).toFixed(0)}%`,
+        });
+      }
+    }
+    return list;
   }, [
     datumResults,
     searchResults,
-    searchAreaCenter,
-    searchAreaLength,
-    searchAreaWidth,
-    searchAreaOrientation,
+    datumCenterPoint,
+    driftOrientationDeg,
     ws1Ao,
   ]);
 
@@ -701,11 +858,11 @@ export default function Home() {
       driftDistanceNm: datumResults.driftDistance,
       divergenceDistanceNm: datumResults.divergenceDistance,
       E_nm: datumResults.E,
-      Zta_nm2: assetSummary.totalZtaNm2 || searchResults.Zta,
+      Zta_nm2: searchResults.Zta,
       Ro_nm: searchResults.Ro,
       Ao_nm2: searchResults.Ao,
-      coverageFactor: assetSummary.compositeCoverageC || searchResults.C,
-      POD_pct: (assetSummary.compositePOD || searchResults.POD) * 100,
+      coverageFactor: searchResults.C,
+      POD_pct: searchResults.POD * 100,
       trackSpacing_nm: searchResults.trackSpacing,
       searchAreaLength_nm: searchResults.searchAreaLength,
       searchAreaWidth_nm: searchResults.searchAreaWidth,
@@ -1075,8 +1232,8 @@ export default function Home() {
                 key={`ws8-${caseVersion}`}
                 ws1Ao={ws1Ao}
                 windKts={datumData?.aswSpeed ?? 0}
-                initialC={assetSummary.compositeCoverageC || searchResults?.C || 1.0}
-                initialPod={assetSummary.compositePOD || searchResults?.POD || 0.63}
+                initialC={searchResults?.C ?? 0}
+                initialPod={searchResults?.POD ?? 0}
               />
             </TabsContent>
 
@@ -1209,7 +1366,11 @@ export default function Home() {
                         </h3>
                         <button
                           type="button"
-                          onClick={() => setPickSruMode(!pickSruMode)}
+                          onClick={() => {
+                            setMainMapToolMode('pan');
+                            setPickSruMode(!pickSruMode);
+                            setPickMode(false);
+                          }}
                           className={`text-[10px] px-2 py-0.5 rounded font-bold transition ${
                             pickSruMode
                               ? 'bg-purple-600 text-white'
@@ -1234,8 +1395,7 @@ export default function Home() {
                       </div>
 
                       <div className="bg-purple-50 p-2 rounded border border-purple-200 text-[11px] text-purple-900">
-                        Kapasitas Upaya SRU Utama: <strong>{assetSummary.perAsset[0]?.searchEffortZiNm2.toFixed(1) || 0} NM²</strong> |{' '}
-                        Luas Alokasi: <strong>{assetSummary.perAsset[0]?.allocatedAreaNm2.toFixed(1) || 0} NM²</strong>
+                        Sweep Width Area SRU Utama: <strong>{assetSummary.perAsset[0]?.sweepAreaNm2.toFixed(2) || 0} NM²</strong>
                       </div>
                     </div>
                   </div>
@@ -1382,6 +1542,7 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={() => {
+                      setMainMapToolMode('pan');
                       setPickMode((p) => !p);
                       setPickSruMode(false);
                     }}
@@ -1405,12 +1566,49 @@ export default function Home() {
               </div>
             </CardHeader>
             <CardContent className="p-0">
+              <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-white p-2.5" aria-label="Alat peta Worksheet 1">
+                <span className="mr-1 text-[11px] font-bold text-slate-700">Alat Peta Worksheet 1</span>
+                <button type="button" disabled={pickMode || pickSruMode} onClick={() => setMainMapToolMode('pan')} aria-pressed={mainMapToolMode === 'pan'} className={`inline-flex items-center gap-1 rounded border px-2.5 py-1.5 text-xs disabled:opacity-40 ${mainMapToolMode === 'pan' ? 'border-slate-700 bg-slate-700 text-white' : 'border-slate-300 bg-white text-slate-700'}`}>
+                  <MousePointer2 className="h-3.5 w-3.5" /> Geser / pilih
+                </button>
+                <button type="button" disabled={pickMode || pickSruMode} onClick={() => setMainMapToolMode((mode) => mode === 'drop' ? 'pan' : 'drop')} aria-pressed={mainMapToolMode === 'drop'} className={`inline-flex items-center gap-1 rounded border px-2.5 py-1.5 text-xs disabled:opacity-40 ${mainMapToolMode === 'drop' ? 'border-rose-600 bg-rose-600 text-white' : 'border-slate-300 bg-white text-slate-700'}`}>
+                  <MapPinPlus className="h-3.5 w-3.5" /> {mainMapToolMode === 'drop' ? 'Klik peta untuk titik' : 'Taruh titik'}
+                </button>
+                <button type="button" disabled={pickMode || pickSruMode} onClick={() => setMainMapToolMode((mode) => mode === 'measure' ? 'pan' : 'measure')} aria-pressed={mainMapToolMode === 'measure'} className={`inline-flex items-center gap-1 rounded border px-2.5 py-1.5 text-xs disabled:opacity-40 ${mainMapToolMode === 'measure' ? 'border-red-600 bg-red-600 text-white' : 'border-slate-300 bg-white text-slate-700'}`}>
+                  <Ruler className="h-3.5 w-3.5" /> Ukur jarak
+                </button>
+                <button type="button" disabled={!selectedMainMapPointId} onClick={() => {
+                  setMainMapDroppedPoints((points) => points.filter((point) => point.id !== selectedMainMapPointId));
+                  setSelectedMainMapPointId(null);
+                }} className="inline-flex items-center gap-1 rounded border border-rose-300 bg-white px-2.5 py-1.5 text-xs text-rose-700 disabled:opacity-40">
+                  <Trash2 className="h-3.5 w-3.5" /> Hapus titik terpilih
+                </button>
+                <button type="button" disabled={mainMapDroppedPoints.length === 0} onClick={() => {
+                  const lastPoint = mainMapDroppedPoints[mainMapDroppedPoints.length - 1];
+                  setMainMapDroppedPoints((points) => points.slice(0, -1));
+                  if (selectedMainMapPointId === lastPoint?.id) setSelectedMainMapPointId(null);
+                }} className="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-700 disabled:opacity-40">
+                  <Undo2 className="h-3.5 w-3.5" /> Urungkan titik terakhir
+                </button>
+                <button type="button" disabled={mainMapDroppedPoints.length === 0} onClick={() => {
+                  setMainMapDroppedPoints([]);
+                  setSelectedMainMapPointId(null);
+                }} className="rounded border border-rose-300 bg-white px-2.5 py-1.5 text-xs text-rose-700 disabled:opacity-40">Bersihkan titik tambahan</button>
+                <span className="ml-auto text-[10px] text-slate-500">{mainMapDroppedPoints.length} titik tambahan · {pickMode ? 'pilih LKP' : pickSruMode ? 'pilih pangkalan SRU' : mainMapToolMode === 'drop' ? 'klik peta untuk menaruh titik' : mainMapToolMode === 'measure' ? 'klik titik; klik ganda untuk hapus pengukuran' : 'mode geser aktif'}</span>
+              </div>
+              {mainMapDroppedPoints.length > 0 && <div className="flex flex-wrap gap-1.5 border-b border-slate-200 bg-white px-2.5 py-2">
+                {mainMapDroppedPoints.map((point, index) => (
+                  <button key={point.id} type="button" onClick={() => setSelectedMainMapPointId(point.id)} aria-pressed={selectedMainMapPointId === point.id} className={`rounded border px-2 py-1 text-[10px] ${selectedMainMapPointId === point.id ? 'border-rose-500 bg-rose-50 text-rose-800' : 'border-slate-200 bg-white text-slate-600'}`}>
+                    Titik {index + 1}: {formatDMS(point.position.lat, false)} · {formatDMS(point.position.lng, true)}
+                  </button>
+                ))}
+              </div>}
               {pickMode && (
                 <div className="px-3 py-2 bg-emerald-600 text-white text-xs font-medium flex items-center justify-between">
                   <span>◉ Mode pilih LKP aktif — klik pada peta laut untuk menetapkan titik LKP</span>
                   <button
                     type="button"
-                    onClick={() => setPickMode(false)}
+                    onClick={() => { setPickMode(false); setMainMapToolMode('pan'); }}
                     className="text-emerald-100 hover:text-white underline"
                   >
                     Batal
@@ -1422,7 +1620,7 @@ export default function Home() {
                   <span>◉ Mode pilih Pangkalan SRU — klik pada peta untuk menetapkan posisi pangkalan</span>
                   <button
                     type="button"
-                    onClick={() => setPickSruMode(false)}
+                    onClick={() => { setPickSruMode(false); setMainMapToolMode('pan'); }}
                     className="text-purple-100 hover:text-white underline"
                   >
                     Batal
@@ -1434,13 +1632,15 @@ export default function Home() {
                 <SeaMapMount
                   center={mapCenter}
                   zoom={8}
-                  markers={markers}
+                  markers={interactiveMapMarkers}
                   lines={lines}
                   polygons={polygons}
                   circles={circles}
                   height="460px"
-                  pickMode={pickMode || pickSruMode}
-                  onMapClick={handleMapClick}
+                  pickMode={pickMode || pickSruMode || mainMapToolMode === 'drop'}
+                  measureMode={mainMapToolMode === 'measure'}
+                  preferenceKey="worksheet-main"
+                  onMapClick={handleInteractiveMapClick}
                 />
               </div>
 
@@ -1510,17 +1710,17 @@ export default function Home() {
               />
               <SummaryItem
                 label="Kapasitas Aset (Σ Ai)"
-                value={`${assetSummary.totalAllocatedAreaNm2.toFixed(0)} NM²`}
+                value={`${assetSummary.totalSweepAreaNm2.toFixed(2)} NM²`}
                 accent
               />
               <SummaryItem
-                label="Status Kesiapan Aset"
-                value={assets.length === 0 ? '-' : assetSummary.isSufficient ? 'MEMADAI (CUKUP)' : `DEFISIT (-${assetSummary.deficitAreaNm2.toFixed(0)} NM²)`}
+                label="Status Kapasitas Sapuan"
+                value={assets.length === 0 || !assetSummary.perAsset.some((result) => result.isValid) || ws1Ao <= 0 ? 'INPUT BELUM LENGKAP' : assetSummary.isSufficient ? 'MEMENUHI' : `DEFISIT (-${assetSummary.deficitAreaNm2.toFixed(2)} NM²)`}
                 accent
               />
               <SummaryItem
-                label="Coverage Gabungan"
-                value={assets.length === 0 ? '-' : `C = ${assetSummary.compositeCoverageC.toFixed(2)} (POD ${(assetSummary.compositePOD * 100).toFixed(0)}%)`}
+                label="Coverage Kapasitas (Σ A / Ao)"
+                value={assets.length === 0 || ws1Ao <= 0 ? '-' : `${(assetSummary.coverageRatio * 100).toFixed(2)}%`}
               />
             </CardContent>
           </Card>
