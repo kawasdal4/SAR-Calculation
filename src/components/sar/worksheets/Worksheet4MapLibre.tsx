@@ -315,7 +315,7 @@ export default function Worksheet4MapLibre({
 
   return (
     <div className="relative overflow-hidden rounded-md border border-slate-300" style={{ height, width: '100%' }}>
-      <div ref={containerRef} className="absolute inset-0" role="application" aria-label="Peta Worksheet 4 dengan layer bandara OpenAIP" />
+      <div ref={containerRef} className="h-full w-full" style={{ height: '100%', width: '100%' }} role="application" aria-label="Peta Worksheet 4 dengan layer bandara OpenAIP" />
       <div className="absolute left-2 top-2 z-10 flex flex-wrap gap-1 rounded bg-white/95 p-1.5 shadow">
         <label className="sr-only" htmlFor="worksheet4-basemap">Basemap</label>
         <select id="worksheet4-basemap" value={basemap} onChange={(event) => setBasemap(event.target.value as BasemapChoice)} className="rounded border border-slate-300 bg-white px-2 py-1 text-xs">
