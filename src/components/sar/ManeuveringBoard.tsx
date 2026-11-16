@@ -29,6 +29,7 @@ export interface ManeuveringBoardProps {
   defaultScale?: number; // kts/units per ring
   unitLabel?: string; // 'kts', 'NM', etc.
   chainVectors?: boolean; // If true, observations are drawn head-to-tail (saling nyambung)
+  autoFitOrigin?: boolean; // Translate titik O to keep a long vector chain inside the plotting circle.
   width?: number;
   height?: number;
   className?: string;
@@ -41,6 +42,7 @@ export default function ManeuveringBoard({
   defaultScale,
   unitLabel = 'kts',
   chainVectors = true,
+  autoFitOrigin = false,
   className = '',
 }: ManeuveringBoardProps) {
   // Dimensions of template image (maneuvering_board_web.jpg is 2400 x 2618)
@@ -50,21 +52,55 @@ export default function ManeuveringBoard({
   const cy = 1309;
   const ring10Radius = 960.5; // Radius of Ring 10 on template
   const ringSpacing = ring10Radius / 10; // 96.05 px per ring
+  const [isChainedMode, setIsChainedMode] = useState(chainVectors);
 
-  const calculatedAutoScale = useMemo(() => {
-    // If chained, cumulative distance can be larger
-    const totalMag = vectors.reduce((sum, v) => sum + (v.id.includes('result') ? 0 : v.mag), 0);
-    const maxMag = Math.max(...vectors.map((v) => v.mag), totalMag * 0.7);
-    return autoScaleBoard([maxMag]);
-  }, [vectors]);
+  const chainGeometry = useMemo(() => {
+    const pathVectors = vectors.filter((vector) => !vector.id.includes('result') && !vector.id.includes('twc'));
+    let x = 0;
+    let y = 0;
+    const points = [{ x, y }];
+    for (const vector of pathVectors) {
+      const radians = (vector.dirDeg * Math.PI) / 180;
+      const dx = vector.mag * Math.sin(radians);
+      const dy = -vector.mag * Math.cos(radians);
+      if (isChainedMode) { x += dx; y += dy; }
+      else { x = dx; y = dy; }
+      points.push({ x, y });
+    }
+    for (const vector of vectors.filter((item) => item.id.includes('twc') || (!isChainedMode && item.id.includes('result')))) {
+      const radians = (vector.dirDeg * Math.PI) / 180;
+      points.push({ x: vector.mag * Math.sin(radians), y: -vector.mag * Math.cos(radians) });
+    }
+    const minX = Math.min(...points.map((point) => point.x));
+    const maxX = Math.max(...points.map((point) => point.x));
+    const minY = Math.min(...points.map((point) => point.y));
+    const maxY = Math.max(...points.map((point) => point.y));
+    const center = { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
+    const autoOrigin = autoFitOrigin && isChainedMode;
+    const fitCenter = autoOrigin ? center : { x: 0, y: 0 };
+    const extent = Math.max(...points.map((point) => Math.hypot(point.x - fitCenter.x, point.y - fitCenter.y)), 1);
+    const originOffset = autoOrigin ? { x: -center.x, y: -center.y } : { x: 0, y: 0 };
+    return { extent, originOffset, autoOrigin };
+  }, [vectors, autoFitOrigin, isChainedMode]);
+
+  const calculatedAutoScale = useMemo(() => autoScaleBoard([chainGeometry.extent]), [chainGeometry.extent]);
+  const scaleChoices = useMemo(() => {
+    const presets = [1, 2, 3, 4, 5, 10, 20, 30, 40, 50, 60, 80, 100, 150, 200, 300, 400, 500, 1000];
+    const available = autoFitOrigin ? presets.filter((value) => value >= calculatedAutoScale) : presets;
+    return [...new Set([...(available.length ? available : [calculatedAutoScale]), calculatedAutoScale])].sort((a, b) => a - b);
+  }, [autoFitOrigin, calculatedAutoScale]);
 
   const [scale, setScale] = useState<number>(defaultScale ?? calculatedAutoScale);
+  const plotOrigin = {
+    x: cx + (chainGeometry.originOffset.x / scale) * ringSpacing,
+    y: cy + (chainGeometry.originOffset.y / scale) * ringSpacing,
+  };
   const [zoom, setZoom] = useState<number>(1);
   const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const [showRingsGuide, setShowRingsGuide] = useState(false);
-  const [isChainedMode, setIsChainedMode] = useState(chainVectors);
+  // When O moves, show a fresh set of scale rings around the actual origin.
+  const [showRingsGuide, setShowRingsGuide] = useState(autoFitOrigin);
 
   // Animation states (like in presentation PPT)
   const [isPlaying, setIsPlaying] = useState(false);
@@ -107,8 +143,8 @@ export default function ManeuveringBoard({
     const regularVecs = vectors.filter((v) => !v.id.includes('result') && !v.id.includes('twc'));
     const specialVecs = vectors.filter((v) => v.id.includes('result') || v.id.includes('twc'));
 
-    let currentX = cx;
-    let currentY = cy;
+    let currentX = plotOrigin.x;
+    let currentY = plotOrigin.y;
 
     const resultList: Array<
       BoardVector & {
@@ -125,8 +161,8 @@ export default function ManeuveringBoard({
     regularVecs.forEach((vec, idx) => {
       const { x: dx, y: dy } = polarToCartesian(vec.dirDeg, vec.mag, scale, ringSpacing);
 
-      let startX = cx;
-      let startY = cy;
+      let startX = plotOrigin.x;
+      let startY = plotOrigin.y;
       let pointLabelStart = 'O';
 
       if (isChainedMode) {
@@ -134,8 +170,8 @@ export default function ManeuveringBoard({
         startY = currentY;
         pointLabelStart = idx === 0 ? 'O' : `P${idx}`;
       } else if (vec.origin) {
-        startX = cx + (vec.origin.x / scale) * ringSpacing;
-        startY = cy + (vec.origin.y / scale) * ringSpacing;
+        startX = plotOrigin.x + (vec.origin.x / scale) * ringSpacing;
+        startY = plotOrigin.y + (vec.origin.y / scale) * ringSpacing;
       }
 
       const endX = startX + dx;
@@ -159,14 +195,14 @@ export default function ManeuveringBoard({
       }
     });
 
-    // Final closing Resultant vector: connects Origin (cx, cy) to final chained tip (currentX, currentY)
+    // Final closing Resultant vector connects the translated O to the chain tip.
     specialVecs.forEach((vec) => {
       if (vec.id.includes('result') && isChainedMode && regularVecs.length > 0) {
-        // Resultant vector closes the chain directly from O (cx, cy) to final tip!
+        // Resultant vector closes the chain directly from O to the final tip.
         resultList.push({
           ...vec,
-          startX: cx,
-          startY: cy,
+          startX: plotOrigin.x,
+          startY: plotOrigin.y,
           endX: currentX,
           endY: currentY,
           stepIndex: regularVecs.length + 1,
@@ -177,10 +213,10 @@ export default function ManeuveringBoard({
         const { x: dx, y: dy } = polarToCartesian(vec.dirDeg, vec.mag, scale, ringSpacing);
         resultList.push({
           ...vec,
-          startX: cx,
-          startY: cy,
-          endX: cx + dx,
-          endY: cy + dy,
+          startX: plotOrigin.x,
+          startY: plotOrigin.y,
+          endX: plotOrigin.x + dx,
+          endY: plotOrigin.y + dy,
           stepIndex: regularVecs.length + 1,
           pointLabelStart: 'O',
           pointLabelEnd: 'R',
@@ -189,7 +225,7 @@ export default function ManeuveringBoard({
     });
 
     return resultList;
-  }, [vectors, scale, ringSpacing, cx, cy, isChainedMode]);
+  }, [vectors, scale, ringSpacing, cx, cy, isChainedMode, plotOrigin.x, plotOrigin.y]);
 
   // Mouse pan handlers
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -281,15 +317,28 @@ export default function ManeuveringBoard({
                 onChange={(e) => setScale(Number(e.target.value))}
                 className="font-bold text-slate-900 bg-transparent focus:outline-none cursor-pointer"
               >
-                <option value={1}>1 {unitLabel} (1:1)</option>
-                <option value={2}>2 {unitLabel} (2:1)</option>
-                <option value={3}>3 {unitLabel} (3:1)</option>
-                <option value={4}>4 {unitLabel} (4:1)</option>
-                <option value={5}>5 {unitLabel} (5:1)</option>
-                <option value={10}>10 {unitLabel} (10:1)</option>
-                <option value={20}>20 {unitLabel} (20:1)</option>
+                {scaleChoices.map((choice) => (
+                  <option key={choice} value={choice}>{choice} {unitLabel} per ring</option>
+                ))}
               </select>
             </div>
+
+            {autoFitOrigin && (
+              <button
+                type="button"
+                onClick={() => setShowRingsGuide((visible) => !visible)}
+                aria-pressed={showRingsGuide}
+                className={`flex items-center gap-1.5 px-2 py-1 rounded border text-xs font-semibold shadow-2xs ${
+                  showRingsGuide
+                    ? 'bg-blue-50 border-blue-300 text-blue-800'
+                    : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-100'
+                }`}
+                title="Tampilkan atau sembunyikan lingkaran skala yang berpusat pada O"
+              >
+                <Layers className="h-3.5 w-3.5" />
+                Ring skala
+              </button>
+            )}
 
             {/* Zoom Controls */}
             <div className="flex items-center border border-slate-300 rounded bg-white shadow-2xs overflow-hidden">
@@ -402,8 +451,8 @@ export default function ManeuveringBoard({
                   return (
                     <g key={`ring-guide-${i}`}>
                       <circle
-                        cx={cx}
-                        cy={cy}
+                        cx={plotOrigin.x}
+                        cy={plotOrigin.y}
                         r={r}
                         fill="none"
                         stroke="#2563eb"
@@ -412,8 +461,8 @@ export default function ManeuveringBoard({
                         opacity={0.4}
                       />
                       <rect
-                        x={cx + r - 16}
-                        y={cy - 14}
+                        x={plotOrigin.x + r - 16}
+                        y={plotOrigin.y - 14}
                         width="32"
                         height="18"
                         rx="3"
@@ -421,8 +470,8 @@ export default function ManeuveringBoard({
                         fillOpacity="0.85"
                       />
                       <text
-                        x={cx + r}
-                        y={cy - 1}
+                        x={plotOrigin.x + r}
+                        y={plotOrigin.y - 1}
                         fill="#38bdf8"
                         fontSize="14"
                         fontWeight="bold"
@@ -434,11 +483,11 @@ export default function ManeuveringBoard({
                   );
                 })}
 
-              {/* Center Origin Crosshair on Authentic Template */}
-              <circle cx={cx} cy={cy} r={8} fill="#ef4444" stroke="#ffffff" strokeWidth="2.5" />
-              <circle cx={cx} cy={cy} r={2.5} fill="#ffffff" />
-              <text x={cx - 24} y={cy - 12} fill="#ef4444" fontSize="18" fontWeight="black">
-                O (Origin)
+              {/* Plot origin may move to make a long head-to-tail plot fit. */}
+              <circle cx={plotOrigin.x} cy={plotOrigin.y} r={9} fill="#ef4444" stroke="#ffffff" strokeWidth="3" />
+              <circle cx={plotOrigin.x} cy={plotOrigin.y} r={3} fill="#ffffff" />
+              <text x={plotOrigin.x - 30} y={plotOrigin.y - 14} fill="#ef4444" fontSize="18" fontWeight="black">
+                O (0)
               </text>
 
               {/* Plotted Vectors (Chained or Radial, filtered by active animation step) */}
@@ -541,11 +590,14 @@ export default function ManeuveringBoard({
           </div>
 
           {/* Bottom Overlay Badge on Map */}
-          <div className="absolute bottom-2 left-2 bg-slate-900/85 backdrop-blur-xs text-white text-[11px] px-2.5 py-1 rounded border border-slate-700 shadow-sm flex items-center gap-2">
+          <div className="absolute bottom-2 left-2 max-w-[calc(100%-1rem)] bg-slate-900/90 backdrop-blur-xs text-white text-[11px] px-2.5 py-1.5 rounded border border-slate-700 shadow-sm flex flex-wrap items-center gap-x-2 gap-y-0.5">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <span className="font-semibold">DMAHTC 5090 Original Sheet</span>
+            <span className="text-slate-200 font-mono font-bold">
+              Skala: 1 : {scale} {unitLabel}
+            </span>
             <span className="text-slate-400 font-mono">
-              {isChainedMode ? 'Mode: Head-to-Tail (Tersambung)' : 'Mode: Radial'} | 1 Ring = {scale} {unitLabel}
+              {isChainedMode ? 'Mode: Head-to-Tail' : 'Mode: Radial'}{chainGeometry.autoOrigin ? ' · O otomatis digeser agar seluruh plot muat' : ''}
             </span>
           </div>
 

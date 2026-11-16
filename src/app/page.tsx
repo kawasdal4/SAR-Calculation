@@ -1110,6 +1110,7 @@ export default function Home() {
                   subtitle="Plotting Vektor Angin pada Berbagai Ketinggian & Hasil Resultan AWA (Appendix K-10)"
                   vectors={awaBoardVectors}
                   unitLabel="kts"
+                  autoFitOrigin
                 />
               </div>
             </TabsContent>
@@ -1211,6 +1212,7 @@ export default function Home() {
                   subtitle="Plotting Vektor Angin Permukaan (ASW), Arus Laut (SC), dan Vektor Arus Total (TWC)"
                   vectors={aswBoardVectors}
                   unitLabel="NM"
+                  autoFitOrigin
                 />
               </div>
             </TabsContent>

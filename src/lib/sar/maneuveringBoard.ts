@@ -45,13 +45,9 @@ export function polarToCartesian(
  */
 export function autoScaleBoard(magnitudes: number[]): number {
   const maxMag = Math.max(1, ...magnitudes);
-  // Target: maxMag harus muat dalam ~8 dari 10 ring
+  // Keep the plotted extent inside roughly 8 of the board's 10 rings.
   const idealPerRing = maxMag / 8;
-  if (idealPerRing <= 1) return 1;
-  if (idealPerRing <= 2) return 2;
-  if (idealPerRing <= 3) return 3;
-  if (idealPerRing <= 5) return 5;
-  if (idealPerRing <= 10) return 10;
-  if (idealPerRing <= 20) return 20;
-  return Math.ceil(idealPerRing / 10) * 10;
+  const preferredScales = [1, 2, 3, 4, 5, 10, 20, 30, 40, 50, 60, 80, 100, 150, 200, 300, 400, 500, 1000];
+  const fitScale = preferredScales.find((scale) => scale >= idealPerRing);
+  return fitScale ?? Math.ceil(idealPerRing / 100) * 100;
 }
