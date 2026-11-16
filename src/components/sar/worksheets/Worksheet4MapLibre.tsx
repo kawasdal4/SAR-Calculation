@@ -48,11 +48,7 @@ function rasterStyle(choice: BasemapChoice): maplibregl.StyleSpecification {
               'https://b.tile.opentopomap.org/{z}/{x}/{y}.png',
               'https://c.tile.opentopomap.org/{z}/{x}/{y}.png',
             ]
-          : [
-              'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
-              'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
-              'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png',
-            ],
+          : ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
         tileSize: 256,
         attribution: isTopo
           ? 'Map data © OpenStreetMap contributors, SRTM | Map style © OpenTopoMap (CC-BY-SA)'
