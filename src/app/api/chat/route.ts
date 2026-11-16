@@ -143,7 +143,7 @@ const tools: FunctionDeclaration[] = [
   },
 ];
 
-const GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-3.7-flash'] as const;
+const GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.5-flash-lite'] as const;
 const MAX_RETRIES_PER_MODEL = 1;
 const GEMINI_REQUEST_TIMEOUT_MS = 45_000;
 
@@ -231,7 +231,10 @@ export async function POST(req: NextRequest) {
               model,
               input,
               system_instruction: SYSTEM_PROMPT,
-              generation_config: { max_output_tokens: 8192 },
+              generation_config: {
+                max_output_tokens: 8192,
+                thinking_level: model === 'gemini-3.5-flash-lite' ? 'minimal' : 'low',
+              },
               tools: tools.map((tool) => ({
                 type: 'function',
                 name: tool.name,
