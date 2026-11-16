@@ -41,7 +41,7 @@ export default function Worksheet8({
   const [searchObject, setSearchObject] = useState<W8Target|''>(initialState?.searchObject ?? '');
   const [visibilityKm, setVisibilityKm] = useState(initialState?.visibilityKm ?? '');
   const [isFatigue, setIsFatigue] = useState<''|'Yes'|'No'>(initialState?.isFatigue ?? '');
-  const [searchNumber, setSearchNumber] = useState<SearchNumber>(initialState?.searchNumber ?? 1);
+  const [searchNumber, setSearchNumber] = useState<SearchNumber | 0>(initialState?.searchNumber ?? 0);
   const [vesselSpeedKts, setVesselSpeedKts] = useState(initialState?.vesselSpeedKts ?? 0); // Vessel search speed (kts)
 
   // Vessel eye heights: Eye height 8 ft (Small craft), Eye height 14 ft (Patrol boat), MERSHIP (Large ship bridge)
@@ -57,7 +57,7 @@ export default function Worksheet8({
   const wuList = heights.map((eye) => searchObject && visibilityKm ? lookupW8Wu(searchObject, eye, visibilityKm) ?? 0 : 0);
 
   // Calculated sweep width factors: W = Wu * Fw * Ff
-  const ready = Boolean(searchObject && visibilityKm && windKts > 0 && isFatigue);
+  const ready = Boolean(searchObject && visibilityKm && windKts > 0 && isFatigue && searchNumber > 0);
   const wFactors = wuList.map((wu) => ready && wu > 0 ? Number((wu * fw * ff).toFixed(2)) : 0);
 
   // Practical track spacing S (NM)
@@ -67,7 +67,7 @@ export default function Worksheet8({
   const coverages = wFactors.map((w, idx) => Number((w / trackSpacings[idx]).toFixed(2)));
 
   // POD
-  const pods = coverages.map((c) => ready ? readFigureI12(c, searchNumber) : 0);
+  const pods = coverages.map((c) => ready ? readFigureI12(c, searchNumber || 1) : 0);
 
   // Search Area A from Worksheet 1 Ao
   const searchAreaA = ws1Ao;
@@ -102,7 +102,7 @@ export default function Worksheet8({
   // Option C
   const optC_S = vesselSpeedKts > 0 && hoursAvailable > 0 ? Number((searchAreaA / (vesselSpeedKts * hoursAvailable)).toFixed(2)) : 0;
   const optC_C = optC_S > 0 ? Number((selW / optC_S).toFixed(2)) : 0;
-  const optC_P = ready ? readFigureI12(optC_C, searchNumber) : 0;
+  const optC_P = ready ? readFigureI12(optC_C, searchNumber || 1) : 0;
 
   // Option D compromises
   const optD_variations = [
@@ -114,7 +114,7 @@ export default function Worksheet8({
     const s = Number(item.sMod.toFixed(1));
     const a = Math.round(hoursAvailable * vesselSpeedKts * s);
     const c = s > 0 ? Number((selW / s).toFixed(2)) : 0;
-    const p = ready ? readFigureI12(c, searchNumber) : 0;
+    const p = ready ? readFigureI12(c, searchNumber || 1) : 0;
     return { name: item.name, a, s, c, p };
   });
 
@@ -240,7 +240,7 @@ export default function Worksheet8({
           </div>
           <div className="px-3 py-2 bg-white border-b border-slate-300 flex flex-wrap gap-4 items-center text-[11px]">
             <label>Eye height for Area A: <select value={eyeHeight} disabled={readOnly} onChange={(e) => setEyeHeight(e.target.value as ''|'8'|'14'|'MERSHIP')} className="border rounded px-1"><option value="">Pilih</option><option value="8">8 ft</option><option value="14">14 ft</option><option value="MERSHIP">MERSHIP</option></select></label>
-            <label>Urutan pencarian (Figure I-12): <select value={searchNumber} disabled={readOnly} onChange={(e) => setSearchNumber(Number(e.target.value) as SearchNumber)} className="border rounded px-1">{[1,2,3,4,5].map((n) => <option key={n} value={n}>{['First','Second','Third','Fourth','Fifth'][n-1]}</option>)}</select></label>
+            <label>Urutan pencarian (Figure I-12): <select value={searchNumber} disabled={readOnly} onChange={(e) => setSearchNumber(Number(e.target.value) as SearchNumber | 0)} className="border rounded px-1"><option value={0}>-</option>{[1,2,3,4,5].map((n) => <option key={n} value={n}>{['First','Second','Third','Fourth','Fifth'][n-1]}</option>)}</select></label>
             <span className="text-slate-500">Wu: Table {eyeHeight === 'MERSHIP' ? 'I-4' : 'I-3'} · POD: Figure I-12 (estimasi pembacaan kurva digital)</span>
           </div>
 

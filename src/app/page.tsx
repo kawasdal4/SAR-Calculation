@@ -135,6 +135,7 @@ export default function Home() {
   const [mainMapDroppedPoints, setMainMapDroppedPoints] = useState<Array<{ id: string; position: LatLng }>>([]);
   const [selectedMainMapPointId, setSelectedMainMapPointId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>('all-worksheets');
+  const [tabClearVersions, setTabClearVersions] = useState<Record<string, number>>({});
   const [isPrintA3Open, setIsPrintA3Open] = useState<boolean>(false);
   const [isAiChatOpen, setIsAiChatOpen] = useState<boolean>(false);
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState<boolean>(false);
@@ -254,7 +255,7 @@ export default function Home() {
     setDatumResults(null);
     setSearchResults(null);
     setWorksheet1Ao(0);
-    setWorksheet1Fs(1.1);
+    setWorksheet1Fs(0);
     setDatumState(null);
     setSearchState(null);
 
@@ -262,11 +263,18 @@ export default function Home() {
     setLkp(DEFAULT_CENTER);
     setIsLkpSet(false);
     setAeroResults(null);
+    setAdwSyncLkp(true);
+    setPickMode(false);
+    setPickSruMode(false);
+    setMainMapToolMode('pan');
+    setMainMapDroppedPoints([]);
+    setSelectedMainMapPointId(null);
 
     // Reset overrides
     setWindOverride(null);
     setSeaCurrentOverride(null);
     setVisibilityOverride(null);
+    setDriftIntervalForWeather(0);
 
     // Explicitly set clean empty initialState so worksheets won't fall back to example datasets!
     setLoadedInitialState({
@@ -274,11 +282,14 @@ export default function Home() {
       asw: { observations: [], distressTime: '', datumTime: '', caseTitle: '-', aswErr: 0 },
       datum: {},
       search: {},
+      ws3: { caseTitle: '-', searchObject: '-', visibilityKm: 0, vegetationType: '-', isFatigue: null, searchTas: 0, hoursAvailable: 0, searchAreaNm2: 0 },
       lkp: DEFAULT_CENTER,
     });
 
     // Reset Pattern & Assets
     setPatternType('PS');
+    setPatternTurn('right');
+    setTsReturn(false);
     setAssets([]);
     setAiInterceptInput(null);
 
@@ -287,6 +298,86 @@ export default function Home() {
     setIsClearConfirmOpen(false);
     toast.success('Seluruh lembar kerja berhasil dikosongkan!');
   }, []);
+
+  const handleClearActiveTab = useCallback(() => {
+    if (activeTab === 'all-worksheets') {
+      setIsClearConfirmOpen(true);
+      return;
+    }
+
+    switch (activeTab) {
+      case 'awa':
+        setAwa({ aswDirFrom: 0, aswSpeed: 0, isValid: false });
+        setAwaObservations([]);
+        setAwaContext({ distressAltFt: 0 });
+        setLoadedInitialState((prev) => ({ ...(prev ?? {}), awa: { observations: [], distressAltFt: 0, caseTitle: '-' } }));
+        break;
+      case 'aero':
+        setAeroResults(null);
+        setLkp({ lat: 0, lng: 0 });
+        setIsLkpSet(false);
+        break;
+      case 'ups':
+        setLkp({ lat: 0, lng: 0 });
+        setIsLkpSet(false);
+        break;
+      case 'asw':
+        setAsw({ aswDirFrom: 0, aswSpeed: 0, aswErr: 0, aswdve: 0 });
+        setAswState({ observations: [], aswErr: 0 });
+        setLoadedInitialState((prev) => ({ ...(prev ?? {}), asw: { observations: [], distressTime: '', datumTime: '', caseTitle: '-', aswErr: 0 } }));
+        break;
+      case 'ws1':
+        setDatumData(null);
+        setDatumResults(null);
+        setSearchResults(null);
+        setWorksheet1Ao(0);
+        setWorksheet1Fs(0);
+        setDatumState(null);
+        setSearchState(null);
+        setLkp({ lat: 0, lng: 0 });
+        setIsLkpSet(false);
+        setLoadedInitialState((prev) => ({ ...(prev ?? {}), datum: {}, search: {}, lkp: { lat: 0, lng: 0 } }));
+        break;
+      case 'ws2':
+        setLoadedInitialState((prev) => ({ ...(prev ?? {}), ws2: { caseTitle: '-', searchTas: 0, visibilityIndex: -1 } }));
+        break;
+      case 'ws8':
+        setLoadedInitialState((prev) => ({ ...(prev ?? {}), ws8: { caseTitle: '-', visibilityKm: '', vesselSpeedKts: 0 } }));
+        break;
+      case 'asset-allocation':
+        setAssets([]);
+        break;
+      case 'search-pattern':
+        setPatternType('PS');
+        setPatternTurn('right');
+        setTsReturn(false);
+        break;
+      case 'ws3':
+        setLoadedInitialState((prev) => ({
+          ...(prev ?? {}),
+          ws3: { caseTitle: '-', searchObject: '-', visibilityKm: 0, vegetationType: '-', isFatigue: null, searchTas: 0, hoursAvailable: 0, searchAreaNm2: 0 },
+        }));
+        break;
+      case 'ws4':
+        setLoadedInitialState((prev) => ({
+          ...(prev ?? {}),
+          ws4: { caseTitle: '-', searchDate: '-', callsign: '-', searchNo: '0', commenceUtc: '-', latitude: 0, longitude: 0, distressTimeUtc: '-', trList: [0, 0, 0, 0], fixErrors: [0, 0, 0, 0], yNavError: 0 },
+        }));
+        break;
+      case 'intercept':
+        setAiInterceptInput(null);
+        setInterceptCaseVersion((version) => version + 1);
+        break;
+      case 'briefing-renops':
+      case 'basic-calc':
+        break;
+      default:
+        break;
+    }
+
+    setTabClearVersions((versions) => ({ ...versions, [activeTab]: (versions[activeTab] ?? 0) + 1 }));
+    toast.success('Input pada tab aktif berhasil dibersihkan.');
+  }, [activeTab]);
 
   // AI Assistant Callbacks
   const handleApplyASW = useCallback((data: {
@@ -1000,6 +1091,14 @@ export default function Home() {
               >
                 <Trash2 className="h-3.5 w-3.5" /> Bersihkan Semua
               </button>
+              <button
+                type="button"
+                onClick={handleClearActiveTab}
+                className="flex items-center gap-1.5 text-xs bg-amber-600 hover:bg-amber-500 text-white font-bold px-3 py-1.5 rounded-lg shadow transition-colors border border-amber-400/40"
+                title="Bersihkan input pada tab yang sedang dibuka"
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Bersihkan Tab Ini
+              </button>
               <CaseManager buildState={buildState} applyState={applyState} />
               <ExportButtons data={searchActionPlanData} caseTitle="SAR_Search_Action_Plan" />
               <Badge variant="secondary" className="bg-slate-800 text-slate-200 border-slate-700">
@@ -1073,7 +1172,7 @@ export default function Home() {
             </div>
 
             {/* TAB: SEMUA WORKSHEET (SUMMARY VIEW) */}
-            <TabsContent value="all-worksheets" className="mt-0">
+            <TabsContent value="all-worksheets" key={`all-tab-${caseVersion}-${tabClearVersions['all-worksheets'] ?? 0}`} className="mt-0">
               <AllWorksheetsView
                 key={`all-${caseVersion}`}
                 lkp={lkp}
@@ -1095,7 +1194,7 @@ export default function Home() {
             </TabsContent>
 
             {/* TAB 1: AWA + MANEUVERING BOARD */}
-            <TabsContent value="awa" className="mt-0 space-y-4">
+            <TabsContent value="awa" key={`awa-tab-${caseVersion}-${tabClearVersions.awa ?? 0}`} className="mt-0 space-y-4">
               <AWAWorksheet
                 key={`awa-${caseVersion}`}
                 onDataChange={setAwa}
@@ -1116,7 +1215,7 @@ export default function Home() {
             </TabsContent>
 
             {/* TAB 2: AERONAUTICAL DRIFT WORKSHEET (ADW) -> PRODUCES LKP */}
-            <TabsContent value="aero" className="mt-0 space-y-4">
+            <TabsContent value="aero" key={`aero-tab-${caseVersion}-${tabClearVersions.aero ?? 0}`} className="mt-0 space-y-4">
               <div className="bg-sky-50 border border-sky-200 rounded-lg p-3 text-xs flex flex-wrap items-center justify-between gap-2 print:hidden">
                 <div className="flex items-center gap-2">
                   <Plane className="h-5 w-5 text-sky-700" />
@@ -1175,7 +1274,7 @@ export default function Home() {
             </TabsContent>
 
             {/* TAB: UNIVERSAL PLOTTING SHEET (UPS) */}
-            <TabsContent value="ups" className="mt-0">
+            <TabsContent value="ups" key={`ups-tab-${caseVersion}-${tabClearVersions.ups ?? 0}`} className="mt-0">
               <UPSPlotter
                 key={`ups-${caseVersion}`}
                 lkp={lkp}
@@ -1197,7 +1296,7 @@ export default function Home() {
             </TabsContent>
 
             {/* TAB 3: ASW + VECTOR MANEUVERING BOARD */}
-            <TabsContent value="asw" className="mt-0 space-y-4">
+            <TabsContent value="asw" key={`asw-tab-${caseVersion}-${tabClearVersions.asw ?? 0}`} className="mt-0 space-y-4">
               <ASWWorksheet
                 key={`asw-${caseVersion}`}
                 onDataChange={setAsw}
@@ -1218,7 +1317,7 @@ export default function Home() {
             </TabsContent>
 
             {/* TAB 4: WORKSHEET 1 (MARINE DATUM & SEARCH AREA AO) */}
-            <TabsContent value="ws1" className="mt-0 space-y-4">
+            <TabsContent value="ws1" key={`ws1-tab-${caseVersion}-${tabClearVersions.ws1 ?? 0}`} className="mt-0 space-y-4">
               <Worksheet1
                 key={`ws1-${caseVersion}`}
                 lkp={lkp}
@@ -1272,7 +1371,7 @@ export default function Home() {
             </TabsContent>
 
             {/* TAB 5: WORKSHEET 2 (LEEWAY DIVERGENCE & SUB-AREA DECISION USING AO) */}
-            <TabsContent value="ws2" className="mt-0 space-y-4">
+            <TabsContent value="ws2" key={`ws2-tab-${caseVersion}-${tabClearVersions.ws2 ?? 0}`} className="mt-0 space-y-4">
               <Worksheet2
                 key={`ws2-${caseVersion}`}
                 lkp={lkp}
@@ -1301,7 +1400,7 @@ export default function Home() {
             </TabsContent>
 
             {/* TAB 6: WORKSHEET 8 (CUMULATIVE POSC USING AO) */}
-            <TabsContent value="ws8" className="mt-0">
+            <TabsContent value="ws8" key={`ws8-tab-${caseVersion}-${tabClearVersions.ws8 ?? 0}`} className="mt-0">
               <Worksheet8
                 key={`ws8-${caseVersion}`}
                 ws1Ao={ws1Ao}
@@ -1313,7 +1412,7 @@ export default function Home() {
             </TabsContent>
 
             {/* TAB 7: PENGHITUNGAN ALOKASI ASET SRU */}
-            <TabsContent value="asset-allocation" className="mt-0 space-y-4">
+            <TabsContent value="asset-allocation" key={`assets-tab-${caseVersion}-${tabClearVersions['asset-allocation'] ?? 0}`} className="mt-0 space-y-4">
               <AssetAllocationWorksheet
                 key={`assets-${caseVersion}`}
                 csp={csp}
@@ -1341,7 +1440,7 @@ export default function Home() {
             </TabsContent>
 
             {/* TAB 8: POLA PENCARIAN & TRANSIT ASET SRU */}
-            <TabsContent value="search-pattern" className="mt-0 space-y-4">
+            <TabsContent value="search-pattern" key={`search-pattern-tab-${caseVersion}-${tabClearVersions['search-pattern'] ?? 0}`} className="mt-0 space-y-4">
               <Card className="border-slate-300 shadow-sm bg-white overflow-hidden">
                 <CardHeader className="bg-slate-100 border-b border-slate-300 py-3 px-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1511,7 +1610,7 @@ export default function Home() {
             </TabsContent>
 
             {/* TAB: WORKSHEET 3 (POINT DATUM EFFORT ALLOCATION - STANDALONE) */}
-            <TabsContent value="ws3" className="mt-0 space-y-4">
+            <TabsContent value="ws3" key={`ws3-tab-${caseVersion}-${tabClearVersions.ws3 ?? 0}`} className="mt-0 space-y-4">
               <Worksheet3
                 key={`ws3-${caseVersion}`}
                 searchResults={searchResults}
@@ -1536,7 +1635,7 @@ export default function Home() {
             </TabsContent>
 
             {/* TAB: WORKSHEET 4 (LEEWAY DIVERGENCE EFFORT ALLOCATION - STANDALONE) */}
-            <TabsContent value="ws4" className="mt-0">
+            <TabsContent value="ws4" key={`ws4-tab-${caseVersion}-${tabClearVersions.ws4 ?? 0}`} className="mt-0">
               <Worksheet4
                 key={`ws4-${caseVersion}`}
                 searchResults={searchResults}
@@ -1547,7 +1646,7 @@ export default function Home() {
             </TabsContent>
 
             {/* TAB: INTERCEPT CALCULATOR */}
-            <TabsContent value="intercept" className="mt-0">
+            <TabsContent value="intercept" key={`intercept-tab-${caseVersion}-${tabClearVersions.intercept ?? 0}`} className="mt-0">
               <InterceptWorksheet
                 key={`intercept-${caseVersion}-${interceptCaseVersion}`}
                 initialInput={aiInterceptInput}
@@ -1555,7 +1654,7 @@ export default function Home() {
             </TabsContent>
 
             {/* TAB: BRIEFING & RENOPS (PERBAN 3/2020) */}
-            <TabsContent value="briefing-renops" className="mt-0 space-y-6">
+            <TabsContent value="briefing-renops" key={`briefing-tab-${caseVersion}-${tabClearVersions['briefing-renops'] ?? 0}`} className="mt-0 space-y-6">
               <BriefingForm
                 key={`briefing-${caseVersion}`}
                 lkp={lkp}
@@ -1591,7 +1690,7 @@ export default function Home() {
             </TabsContent>
 
             {/* TAB: HITUNG DASAR */}
-            <TabsContent value="basic-calc" className="mt-0">
+            <TabsContent value="basic-calc" key={`basic-tab-${caseVersion}-${tabClearVersions['basic-calc'] ?? 0}`} className="mt-0">
               <BasicCalculation key={`calc-${caseVersion}`} />
             </TabsContent>
           </Tabs>

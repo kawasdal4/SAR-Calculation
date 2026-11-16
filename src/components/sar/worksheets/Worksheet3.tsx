@@ -9,8 +9,8 @@ export interface Worksheet3InitialState {
   caseTitle?: string;
   searchObject?: string;
   visibilityKm?: number;
-  vegetationType?: '15-60' | '60-85' | '+85';
-  isFatigue?: boolean;
+  vegetationType?: '15-60' | '60-85' | '+85' | '-';
+  isFatigue?: boolean | null;
   searchTas?: number;
   hoursAvailable?: number;
   searchAreaNm2?: number;
@@ -35,13 +35,13 @@ export default function Worksheet3({
   const [searchDate, setSearchDate] = useState('-');
   const [searchObject, setSearchObject] = useState(initialState?.searchObject ?? '-');
   const [visibilityKm, setVisibilityKm] = useState(initialState?.visibilityKm ?? 0);
-  const [vegetationType, setVegetationType] = useState<'15-60' | '60-85' | '+85'>(initialState?.vegetationType ?? '15-60');
-  const [isFatigue, setIsFatigue] = useState(initialState?.isFatigue ?? false);
+  const [vegetationType, setVegetationType] = useState<'15-60' | '60-85' | '+85' | '-'>(initialState?.vegetationType ?? '-');
+  const [isFatigue, setIsFatigue] = useState<boolean | null>(initialState?.isFatigue ?? null);
   const [searchTas, setSearchTas] = useState(initialState?.searchTas ?? 0);
 
   // Correction factors for land search (Table I-10)
-  const fv = vegetationType === '15-60' ? 0.8 : vegetationType === '60-85' ? 0.6 : 0.4;
-  const ff = isFatigue ? 0.9 : 1.0;
+  const fv = vegetationType === '15-60' ? 0.8 : vegetationType === '60-85' ? 0.6 : vegetationType === '+85' ? 0.4 : 0;
+  const ff = isFatigue === true ? 0.9 : isFatigue === false ? 1.0 : 0;
 
   // Uncorrected sweep widths (Wu) for Land (Table I-9)
   const wuList = [1.8, 2.4, 2.8, 3.0];
@@ -199,12 +199,13 @@ export default function Worksheet3({
             <div>
               <span className="text-slate-600">Fatigue Factor: </span>
               <select
-                value={isFatigue ? 'Yes' : 'No'}
+                value={isFatigue === null ? '' : isFatigue ? 'Yes' : 'No'}
                 disabled={readOnly}
                 suppressHydrationWarning
-                onChange={(e) => setIsFatigue(e.target.value === 'Yes')}
+                onChange={(e) => setIsFatigue(e.target.value === 'Yes' ? true : e.target.value === 'No' ? false : null)}
                 className="font-bold text-blue-900 bg-white border border-slate-300 rounded px-1.5 py-0.5 text-xs"
               >
+                <option value="">-</option>
                 <option value="No">No (1.0)</option>
                 <option value="Yes">Yes (0.9)</option>
               </select>
@@ -216,7 +217,7 @@ export default function Worksheet3({
                 value={visibilityKm}
                 disabled={readOnly}
                 suppressHydrationWarning
-                onChange={(e) => setVisibilityKm(Number(e.target.value) || 10)}
+                onChange={(e) => setVisibilityKm(Number(e.target.value) || 0)}
                 className="font-bold text-blue-900 bg-white border-b border-dotted border-slate-600 px-1 w-16 text-right font-mono"
               />{' '}
               <span className="font-semibold text-slate-700">KM</span>
@@ -232,9 +233,10 @@ export default function Worksheet3({
                 value={vegetationType}
                 disabled={readOnly}
                 suppressHydrationWarning
-                onChange={(e) => setVegetationType(e.target.value as any)}
+                onChange={(e) => setVegetationType(e.target.value as Worksheet3InitialState['vegetationType'] ?? '-')}
                 className="font-bold text-blue-900 bg-white border border-slate-300 rounded px-1.5 py-0.5 text-xs"
               >
+                <option value="-">-</option>
                 <option value="15-60">15-60% (Fv 0.8)</option>
                 <option value="60-85">60-85% (Fv 0.6)</option>
                 <option value="+85">+85% Rapat (Fv 0.4)</option>

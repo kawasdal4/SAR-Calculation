@@ -30,9 +30,9 @@ export default function Worksheet1({
   selectedFs,
   onFsChange,
 }: Worksheet1Props) {
-  const [localFs, setLocalFs] = useState(1.1);
+  const [localFs, setLocalFs] = useState(0);
   const fsSelected = selectedFs ?? localFs;
-  const [driftErrorPercent, setDriftErrorPercent] = useState(12.5);
+  const [driftErrorPercent, setDriftErrorPercent] = useState(0);
   const [measuredDistances, setMeasuredDistances] = useState({ left: '', right: '', leftRight: '' });
   // Calculations & parameters with safe defaults
   const hours = datumData?.driftInterval ?? 0;
@@ -405,7 +405,7 @@ export default function Worksheet1({
               <tr className="border-b border-slate-300">
                 <td className="py-2 px-3 font-medium text-slate-700 border-r border-slate-300">Persentase drift error (de)</td>
                 <td colSpan={3} className="py-2 px-3 font-mono">
-                  <input aria-label="Persentase drift error" type="number" min="12.5" max="33" step="0.5" value={driftErrorPercent} onChange={(event) => setDriftErrorPercent(Math.min(33, Math.max(12.5, Number(event.target.value) || 12.5)))} disabled={readOnly} className="w-24 rounded border border-slate-300 bg-white px-2 py-1 text-xs" />{' '}
+                  <input aria-label="Persentase drift error" type="number" min="0" max="33" step="0.5" value={driftErrorPercent} onChange={(event) => { const value = Number(event.target.value) || 0; setDriftErrorPercent(value === 0 ? 0 : Math.min(33, Math.max(12.5, value))); }} disabled={readOnly} className="w-24 rounded border border-slate-300 bg-white px-2 py-1 text-xs" />{' '}
                   <span className="text-[10px] text-slate-500">% (12.5–33, ikuti instruksi kasus; contoh panduan: 12.5%)</span>
                 </td>
               </tr>

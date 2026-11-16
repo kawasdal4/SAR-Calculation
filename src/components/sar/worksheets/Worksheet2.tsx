@@ -49,7 +49,7 @@ export default function Worksheet2({
   const [visibilityIndex, setVisibilityIndex] = useState(initialState?.visibilityIndex ?? -1);
   const [isFatigue, setIsFatigue] = useState<'' | 'Yes' | 'No'>(initialState?.isFatigue ?? '');
   const [piwFlotationKnown, setPiwFlotationKnown] = useState(initialState?.piwFlotationKnown ?? false);
-  const [searchNumber, setSearchNumber] = useState<SearchNumber>(initialState?.searchNumber ?? 1);
+  const [searchNumber, setSearchNumber] = useState<SearchNumber | 0>(initialState?.searchNumber ?? 0);
   const [selectedHeight, setSelectedHeight] = useState<500 | 1000 | 1500 | 2000 | 0>(initialState?.selectedHeight ?? 0);
   const windKts = datumData?.aswSpeed ?? 0;
   const heights = [500, 1000, 1500, 2000];
@@ -62,12 +62,12 @@ export default function Worksheet2({
     const value = lookupW2Wu(searchPlatform, searchObject, height as 500 | 1000 | 1500 | 2000, visibilityIndex);
     return value === null ? 0 : value * (targetMeta?.isPiw && piwFlotationKnown && height === 500 ? 4 : 1);
   });
-  const factorsReady = Boolean(searchPlatform && searchObject && visibilityIndex >= 0 && windKts > 0 && fs > 0 && isFatigue);
+  const factorsReady = Boolean(searchPlatform && searchObject && visibilityIndex >= 0 && windKts > 0 && fs > 0 && isFatigue && searchNumber > 0);
   const wFactors = wuList.map((wu) => factorsReady ? wu * fw * fs * ff : 0);
   const spacingStep = searchPlatform === 'fixed-wing' ? 0.5 : searchPlatform === 'helicopter' ? 0.25 : 0;
   const trackSpacings = wFactors.map((w) => spacingStep && w > 0 ? Math.max(spacingStep, Math.round(w / spacingStep) * spacingStep) : 0);
   const coverages = wFactors.map((w, idx) => trackSpacings[idx] > 0 ? w / trackSpacings[idx] : 0);
-  const pods = coverages.map((c) => factorsReady ? readFigureI12(c, searchNumber) : 0);
+  const pods = coverages.map((c) => factorsReady ? readFigureI12(c, searchNumber || 1) : 0);
 
   // Search Area A from Worksheet 1 Ao
   const searchAreaAo = ws1Ao;
@@ -102,7 +102,7 @@ export default function Worksheet2({
   // Option C: Whole Area at Modified Track Spacing in Available Hours (S = A / (V * T))
   const optC_S = searchTas > 0 && hoursAvailable > 0 ? searchAreaAo / (searchTas * hoursAvailable) : 0;
   const optC_C = optC_S > 0 ? selW / optC_S : 0;
-  const optC_P = factorsReady ? readFigureI12(optC_C, searchNumber) : 0;
+  const optC_P = factorsReady ? readFigureI12(optC_C, searchNumber || 1) : 0;
 
   // Option D compromises
   const optD_variations = [
@@ -114,7 +114,7 @@ export default function Worksheet2({
     const s = Number(item.sMod.toFixed(1));
     const a = hoursAvailable * searchTas * s;
     const c = s > 0 ? selW / s : 0;
-    const p = factorsReady ? readFigureI12(c, searchNumber) : 0;
+    const p = factorsReady ? readFigureI12(c, searchNumber || 1) : 0;
     return { name: item.name, a, s, c, p };
   });
 
@@ -256,7 +256,7 @@ export default function Worksheet2({
                 <option value="Yes">Yes (0.9)</option>
               </select>
             </div>
-            <div><span className="text-slate-600">Figure I-12 Search: </span><select value={searchNumber} disabled={readOnly} onChange={(e) => setSearchNumber(Number(e.target.value) as SearchNumber)} className="font-bold text-blue-900 bg-white border border-slate-300 rounded px-1.5 py-0.5"><option value={1}>First</option><option value={2}>Second</option><option value={3}>Third</option><option value={4}>Fourth</option><option value={5}>Fifth</option></select></div>
+              <div><span className="text-slate-600">Figure I-12 Search: </span><select value={searchNumber} disabled={readOnly} onChange={(e) => setSearchNumber(Number(e.target.value) as SearchNumber | 0)} className="font-bold text-blue-900 bg-white border border-slate-300 rounded px-1.5 py-0.5"><option value={0}>-</option><option value={1}>First</option><option value={2}>Second</option><option value={3}>Third</option><option value={4}>Fourth</option><option value={5}>Fifth</option></select></div>
             <div><span className="text-slate-600">Height for Area A: </span><select value={selectedHeight} disabled={readOnly} onChange={(e) => setSelectedHeight(Number(e.target.value) as 0 | 500 | 1000 | 1500 | 2000)} className="font-bold text-blue-900 bg-white border border-slate-300 rounded px-1.5 py-0.5"><option value={0}>Pilih ft</option>{heights.map((height) => <option key={height} value={height}>{height} ft</option>)}</select></div>
             {targetMeta?.isPiw && <label className="flex items-center gap-1 text-slate-700"><input type="checkbox" checked={piwFlotationKnown} disabled={readOnly} onChange={(e) => setPiwFlotationKnown(e.target.checked)} /> PIW menggunakan flotation device (Table I-5/I-6 note; hanya 500 ft)</label>}
             {searchPlatform && searchTas > 0 && fs === 0 && <p className="text-[10px] text-amber-800">TAS tidak cocok dengan kolom Table I-8 untuk platform ini; perlukan keputusan planner, tidak dilakukan interpolasi.</p>}
