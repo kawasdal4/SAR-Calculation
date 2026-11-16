@@ -33,7 +33,7 @@ interface AWAWorksheetProps {
   className?: string;
 }
 
-const AWA_OBSERVATION_LEVELS_FT = [0, 3000, 6000, 9000, 12000, 18000, 24000] as const;
+const AWA_OBSERVATION_LEVELS_FT = [0, 3000, 6000, 9000, 12000, 18000, 24000, 30000] as const;
 
 function getObservationAltitude(observation: AWAObservation): number {
   return typeof observation.altObs === 'string'
@@ -413,7 +413,7 @@ export default function AWAWorksheet({
                 type="button"
                 onClick={addRow}
                 disabled={!hasAvailableObservationLevel}
-                title={hasAvailableObservationLevel ? 'Tambah level berikutnya: Surface, 3000, 6000, 9000, 12000, 18000, 24000 ft' : 'Semua level ketinggian pengamatan yang tersedia sudah ditambahkan'}
+                title={hasAvailableObservationLevel ? 'Tambah level berikutnya: Surface, 3000, 6000, 9000, 12000, 18000, 24000, 30000 ft' : 'Semua level ketinggian pengamatan yang tersedia sudah ditambahkan'}
                 className="text-[11px] bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold px-2.5 py-1 rounded border border-slate-400 flex items-center gap-1 shadow-2xs transition-colors disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Plus className="h-3 w-3 text-emerald-600" /> {hasAvailableObservationLevel ? 'Tambah Ketinggian Pengamatan' : 'Semua Ketinggian Ditambahkan'}
