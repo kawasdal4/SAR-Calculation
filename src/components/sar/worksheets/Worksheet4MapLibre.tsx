@@ -198,7 +198,10 @@ export default function Worksheet4MapLibre({
 }: Worksheet4MapLibreProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
+  const appliedBasemapRef = useRef<BasemapChoice>('osm');
   const [basemap, setBasemap] = useState<BasemapChoice>('osm');
+  const desiredBasemapRef = useRef<BasemapChoice>(basemap);
+  desiredBasemapRef.current = basemap;
   const [airportsVisible, setAirportsVisible] = useState(true);
   const [styleReady, setStyleReady] = useState(0);
   const [cursor, setCursor] = useState('');
@@ -263,8 +266,19 @@ export default function Worksheet4MapLibre({
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
-    map.setStyle(rasterStyle(basemap));
+    // The initial map already uses OSM. Calling setStyle on the first render
+    // races the initial style load and makes MapLibre rebuild the style.
+    if (!map || appliedBasemapRef.current === basemap) return;
+
+    const applyBasemap = () => {
+      const desiredBasemap = desiredBasemapRef.current;
+      if (appliedBasemapRef.current === desiredBasemap) return;
+      appliedBasemapRef.current = desiredBasemap;
+      map.setStyle(rasterStyle(desiredBasemap));
+    };
+
+    if (map.isStyleLoaded()) applyBasemap();
+    else map.once('load', applyBasemap);
   }, [basemap]);
 
   useEffect(() => {
