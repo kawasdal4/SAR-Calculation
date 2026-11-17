@@ -14,11 +14,15 @@ KEMAMPUANMU:
 5. Menjelaskan langkah-langkah perhitungan matematis dan vektor secara jelas.
 
 ALUR ANALISIS KASUS:
+- TUGAS PERTAMA untuk setiap soal kasus/lampiran: tentukan WORKSHEET MANA SAJA yang harus dipakai untuk penghitungan sesuai permintaan soal — bukan sekadar mengekstrak fakta.
 - Untuk setiap soal kasus/lampiran, pecah data menjadi fakta terstruktur (waktu, koordinat, objek, angin, arus, ketinggian, kecepatan, haluan, visibilitas, sarana pencari) dan tentukan worksheet yang benar-benar dibutuhkan.
 - Panggil SEMUA tool worksheet yang relevan dalam satu respons. Satu kasus boleh mengisi beberapa worksheet yang saling terkait, misalnya ASW + LKP + Datum untuk menghitung datum dan Worksheet 1; atau Intercept jika kasusnya meminta pintasan.
 - Jangan isi data yang tidak tercantum atau tidak bisa disimpulkan secara aman. Untuk masukan wajib yang hilang, jangan panggil tool worksheet itu; sebutkan data yang masih perlu diminta.
 - Setelah ekstraksi, jelaskan ringkas worksheet yang dipilih dan data utama yang ditemukan. Aplikasi yang menghitung; jangan menulis hasil kalkulasi yang belum berasal dari hasil aplikasi.
 - Jangan memanggil worksheet yang tidak relevan hanya untuk melengkapi semua tab.
+
+FORMAT WAJIB JAWABAN UNTUK SETIAP SOAL KASUS/LAMPIRAN:
+Mulai dengan bagian "WORKSHEET YANG HARUS DIPAKAI" berisi daftar bernomor sesuai urutan pengerjaan (hulu → hilir). Untuk tiap worksheet sebutkan: (1) nama worksheet/tab aplikasi, (2) untuk apa dipakai pada kasus ini, (3) data soal yang tersedia untuk mengisinya, (4) data wajib yang masih kurang (bila ada). Setelah itu baru ringkasan data yang diekstrak dan pertanyaan data yang kurang. Bila soal menyediakan data tertentu tetapi TIDAK meminta penghitungannya, sebutkan singkat bahwa worksheet tersebut tidak diperlukan.
 
 PEMILIHAN WORKSHEET DAN KETERGANTUNGAN:
 - Mandiri (tidak memerlukan hasil worksheet lain): Worksheet 4, Intercept, dan Penghitungan Dasar. Pilih sesuai permintaan/data soal; jangan menunggu Worksheet 1/2/8.
@@ -40,6 +44,7 @@ ATURAN KASUS INTERCEPT:
 
 JIKA PENGGUNA MELAMPIRKAN FILE/GAMBAR:
 - Bacalah isi dokumen atau amati gambar dengan teliti.
+- Langkah pertama: simpulkan worksheet mana saja yang harus dipakai untuk penghitungan yang diminta soal, lalu sajikan sesuai FORMAT WAJIB di atas.
 - Ekstrak data operasional: Distress Time, Datum Time, Data Angin BMKG (waktu, arah °T, kecepatan kts), ketinggian, LKP, jenis musibah.
 - Pilih setiap worksheet berdasarkan data dan tujuan kasus, bukan berdasarkan ada/tidaknya lampiran saja.
 - Gunakan set_asw_case bila ada observasi angin permukaan dengan rentang waktu; set_awa_case untuk angin berdasarkan ketinggian pada kasus penerbangan; set_lkp untuk koordinat LKP; set_datum_case untuk lama drift dan data arus/jenis objek yang tersedia; set_intercept_case untuk kasus pintasan lengkap.
@@ -72,7 +77,9 @@ Per 3 Jam: 00.00 (22.30–01.30), 03.00 (01.30–04.30), 06.00 (04.30–07.30), 
 Distress Time = awal interval pertama, Datum Time = akhir interval terakhir.
 
 BANK DATA KASUS (Panduan Agent RENOPS/Briefing/De-Briefing — Perban 3/2020):
-- Untuk SETIAP soal kasus/lampiran yang dianalisis, panggil tool save_case_data_bank untuk menyimpan fakta kasus terstruktur (Bank Data) beserta daftar pertanyaan untuk data yang belum ada.
+- Bank Data HANYA untuk penyusunan dokumen: panggil save_case_data_bank hanya bila soal kasus/lampiran EKSPLISIT meminta pembuatan RENOPS (Rencana Operasi SAR) dan/atau Briefing/De-Briefing, atau pengguna eksplisit meminta menyimpan ke Bank Data.
+- Untuk soal perhitungan biasa (datum, search area, track spacing, intercept, dll.) JANGAN memanggil save_case_data_bank — cukup analisis worksheet yang harus dipakai lalu isi tool worksheet yang relevan.
+- Bila ragu apakah soal meminta dokumen, jangan menyimpan; tanyakan dulu kepada pengguna.
 - JANGAN mengarang angka, koordinat, waktu, nama personel, frekuensi, atau cuaca: setiap nilai wajib ada di soal; salin persis, pertahankan satuan, format TW G/H/I, ejaan lokasi, dan kata \"diduga/diperkirakan\".
 - Fakta yang tidak ada TIDAK boleh diisi; masukkan ke questions agar diminta kepada pengguna.
 - Bank Data dipakai untuk melengkapi dokumen RENOPS/Briefing/De-Briefing bila hasil worksheet dan peta tidak menyediakan datanya; angka perhitungan tetap HANYA dari worksheet aplikasi (WS1 datum/area, WS2/WS3/WS8 track spacing).
@@ -257,7 +264,7 @@ const tools: FunctionDeclaration[] = [
   },
   {
     name: 'save_case_data_bank',
-    description: 'Menyimpan hasil analisis Soal Kasus ke Bank Data kasus (fakta terstruktur + pertanyaan data yang belum ada). WAJIB dipanggil setiap kali selesai menganalisis soal kasus/lampiran. Salin nilai PERSIS dari soal; jangan mengarang; fakta yang hilang masukkan ke questions.',
+    description: 'Menyimpan hasil analisis Soal Kasus ke Bank Data kasus (fakta terstruktur + pertanyaan data yang belum ada) untuk penyusunan dokumen. Panggil HANYA bila soal kasus/lampiran meminta pembuatan RENOPS (Rencana Operasi SAR), Briefing, atau De-Briefing, atau pengguna eksplisit meminta menyimpan ke Bank Data. JANGAN dipanggil untuk soal perhitungan biasa (datum/search area/track spacing/intercept). Salin nilai PERSIS dari soal; jangan mengarang; fakta yang hilang masukkan ke questions.',
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
@@ -592,9 +599,17 @@ export async function POST(req: NextRequest) {
       const clarificationCalls = calls.filter((call) => call.name === 'ask_for_case_data');
       const worksheetCalls = calls.filter((call) => call.name !== 'ask_for_case_data' && call.name !== 'save_case_data_bank');
 
-      // BANK DATA: persist hasil analisis kasus langsung di server (Panduan Agent §2 langkah 1).
+      // BANK DATA: persist hanya bila ada maksud penyusunan dokumen. Soal
+      // perhitungan biasa tidak perlu Bank Data (permintaan pengguna aplikasi);
+      // lampiran inline (PDF/gambar) dipercaya pada keputusan model karena
+      // teksnya tidak bisa diperiksa di server.
+      const hasInlineAttachment = input.some((part) => part.type === 'document' || part.type === 'image');
+      const wantsBankData = hasInlineAttachment
+        || /(?:renops|rencana\s*operasi|briefing|de-?briefing|bank\s*data)/i.test(interceptSourceText);
       const bankCalls = calls.filter((call) => call.name === 'save_case_data_bank');
-      if (bankCalls.length > 0) {
+      if (bankCalls.length > 0 && !wantsBankData) {
+        bankSavedText = '\n\nℹ️ Soal ini tidak meminta penyusunan RENOPS/Briefing/De-Briefing, jadi Bank Data tidak dibuat — cukup kerjakan worksheet di atas. Bila tetap ingin disimpan, ketik \"simpan ke bank data\".';
+      } else if (bankCalls.length > 0) {
         try {
           const { db } = await import('@/lib/db');
           const { CASE_FACT_MAP, questionsToPending } = await import('@/lib/sar/dataBank');
