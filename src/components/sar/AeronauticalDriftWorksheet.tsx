@@ -12,6 +12,14 @@ import {
 import { type LatLng } from '@/lib/sar/sarCalculations';
 import { formatDMS } from '@/lib/sar/coordFormat';
 import {
+  addMinutesBasarnas,
+  parseDateParts,
+  parseSarTimeToHours,
+  roundHalfUpToMinute,
+  toBasarnasTimeFormat,
+  type SarDateParts,
+} from '@/lib/sar/aswTime';
+import {
   N13_PARACHUTES,
   TABLE_N13_SOURCE,
   getN13Parachute,
@@ -27,6 +35,8 @@ interface AeronauticalDriftWorksheetProps {
   initialState?: AeroDriftInitialState | null;
   onResults?: (results: AeroDriftResult) => void;
   onStateChange?: (state: AeroDriftInput) => void;
+  /** Waktu distress hasil A.1 + B.7 (menit turun dibulatkan) dalam format Basarnas MMDD.HHMM, untuk worksheet ASW. */
+  onDerivedDistressTime?: (basarnasTime: string | null) => void;
   className?: string;
 }
 
@@ -152,47 +162,34 @@ function HeadingInput({
   );
 }
 
+/**
+ * B.13 — Date/time at end of glide: waktu insiden + td (menit desimal; Math.round
+ * = pembulatan setengah-ke-atas sesuai aturan worksheet). Tanggal/waktu apa pun
+ * dari soal dikonversi otomatis ke format Basarnas "MMDD.HHMM Z, DD MMM YYYY".
+ * Bulan/tanggal dari string waktu insiden (mis. "17 Nov 2026 07.00 UTC")
+ * menimpa fallback dari field tanggal worksheet.
+ */
 function formatUtcEnd(dateValue: string, timeValue: string, minutes: number): string | null {
-  const dateInput = dateValue.trim();
-  let year: number;
-  let month: number;
-  let day: number;
-  const isoMatch = dateInput.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (isoMatch) {
-    year = Number(isoMatch[1]);
-    month = Number(isoMatch[2]);
-    day = Number(isoMatch[3]);
-  } else {
-    const textMatch = dateInput.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/i);
-    if (!textMatch) return null;
-    const monthIndex = new Map([
-      ['jan', 1], ['january', 1], ['januari', 1], ['feb', 2], ['february', 2], ['februari', 2], ['mar', 3], ['march', 3], ['maret', 3],
-      ['april', 4], ['apr', 4], ['may', 5], ['mei', 5], ['june', 6], ['juni', 6], ['july', 7], ['juli', 7],
-      ['aug', 8], ['august', 8], ['agustus', 8], ['agu', 8], ['agt', 8], ['sep', 9], ['sept', 9], ['september', 9],
-      ['oct', 10], ['october', 10], ['oktober', 10], ['okt', 10],
-      ['nov', 11], ['november', 11], ['dec', 12], ['december', 12], ['desember', 12], ['des', 12],
-    ]).get(textMatch[2].toLowerCase());
-    if (!monthIndex) return null;
-    day = Number(textMatch[1]);
-    month = monthIndex;
-    year = Number(textMatch[3]);
-  }
-  const timeMatch = timeValue.trim().match(/^(\d{1,2}):?(\d{2})\s*Z?$/i);
-  if (!timeMatch) return null;
-  const hour = Number(timeMatch[1]);
-  const minute = Number(timeMatch[2]);
-  const date = new Date(Date.UTC(year, month - 1, day, hour, minute));
+  const dateParts = parseDateParts(dateValue);
+  const parsedTime = parseSarTimeToHours(timeValue);
+  if (!dateParts || !parsedTime || !dateParts.year) return null;
+  const month = parsedTime.month ?? dateParts.month;
+  const day = (parsedTime.hasDay ? parsedTime.day : undefined) ?? dateParts.day;
+  if (!month || !day) return null;
+  const year = dateParts.year;
+  const minutesOfDay = Math.round((parsedTime.hours % 24) * 60);
+  const base = new Date(Date.UTC(year, month - 1, day, 0, minutesOfDay));
   if (
-    hour > 23 || minute > 59 ||
-    date.getUTCFullYear() !== year ||
-    date.getUTCMonth() !== month - 1 ||
-    date.getUTCDate() !== day
+    Number.isNaN(base.getTime()) ||
+    base.getUTCFullYear() !== year ||
+    base.getUTCMonth() !== month - 1 ||
+    base.getUTCDate() !== day
   ) return null;
-  date.setUTCMinutes(date.getUTCMinutes() + Math.round(minutes));
+  base.setUTCMinutes(base.getUTCMinutes() + Math.round(minutes));
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const hhmm = `${String(date.getUTCHours()).padStart(2, '0')}${String(date.getUTCMinutes()).padStart(2, '0')}`;
-  const finalDate = `${String(date.getUTCDate()).padStart(2, '0')} ${months[date.getUTCMonth()]} ${date.getUTCFullYear()}`;
-  return `${hhmm} Z, ${finalDate}`;
+  const basarnas = `${String(base.getUTCMonth() + 1).padStart(2, '0')}${String(base.getUTCDate()).padStart(2, '0')}.${String(base.getUTCHours()).padStart(2, '0')}${String(base.getUTCMinutes()).padStart(2, '0')} Z`;
+  const human = `${String(base.getUTCDate()).padStart(2, '0')} ${months[base.getUTCMonth()]} ${base.getUTCFullYear()}`;
+  return `${basarnas}, ${human}`;
 }
 
 export default function AeronauticalDriftWorksheet({
@@ -203,9 +200,11 @@ export default function AeronauticalDriftWorksheet({
   initialState,
   onResults,
   onStateChange,
+  onDerivedDistressTime,
   className = '',
 }: AeronauticalDriftWorksheetProps) {
-  const [formData, setFormData] = useState<AeroDriftInput>(() => ({
+  const [formData, setFormData] = useState<AeroDriftInput>(() => {
+  const base: AeroDriftInput = {
     caseTitle: '-',
     caseNumber: '0',
     date: '-',
@@ -213,6 +212,9 @@ export default function AeronauticalDriftWorksheet({
     searchObject: '-',
 
     incidentPos: initialLkp,
+    // Format tanggal/waktu apa pun dari soal (mis. "17 Nov 2026 07.00 UTC")
+    // dikonversi otomatis ke format Basarnas MMDD.HHMM (aturan workflow SAR);
+    // normalisasi diterapkan SETELAH spread initialState di bawah.
     incidentTime: '-',
 
     useAircraftGlide: false,
@@ -247,7 +249,14 @@ export default function AeronauticalDriftWorksheet({
     awaIsValid,
     awaGlideDirFrom: awaDirFrom,
     awaGlideSpeedKts: awaSpeedKts,
-  }));
+  };
+  // Normalisasi format waktu insiden (setelah spread initialState): format
+  // tanggal/waktu apa pun dari soal → Basarnas MMDD.HHMM.
+  if (base.incidentTime && base.incidentTime !== '-') {
+    base.incidentTime = toBasarnasTimeFormat(base.incidentTime, base.date) ?? base.incidentTime;
+  }
+  return base;
+});
 
   const [searchPlanOption, setSearchPlanOption] = useState<'A' | 'B' | 'C' | ''>('');
   const [viewMode, setViewMode] = useState<'dual' | 'aircraft' | 'parachute'>('dual');
@@ -277,6 +286,30 @@ export default function AeronauticalDriftWorksheet({
     if (!onResults) return;
     onResults(results);
   }, [results, onResults]);
+
+  // Waktu distress untuk worksheet ASW: A.1 (waktu insiden) + B.7 (menit turun
+  // seluruh segmen aktif — pesawat dan/atau parasut — dibulatkan setengah-ke-atas
+  // ke menit utuh, aturan sama dengan B.13). Format Basarnas MMDD.HHMM; null
+  // bila waktu insiden belum bisa diparse atau tidak ada segmen aktif.
+  const derivedDistressTime = useMemo(() => {
+    if (!formData.useAircraftGlide && !formData.useParachute) return null;
+    const tdSum =
+      (formData.useAircraftGlide ? results.aircraftTimeOfDescentMin : 0) +
+      (formData.useParachute ? results.parachuteTimeOfDescentMin : 0);
+    if (!(tdSum > 0)) return null;
+    return addMinutesBasarnas(formData.incidentTime, roundHalfUpToMinute(tdSum), formData.date);
+  }, [
+    formData.useAircraftGlide,
+    formData.useParachute,
+    formData.incidentTime,
+    formData.date,
+    results.aircraftTimeOfDescentMin,
+    results.parachuteTimeOfDescentMin,
+  ]);
+
+  useEffect(() => {
+    onDerivedDistressTime?.(derivedDistressTime);
+  }, [derivedDistressTime, onDerivedDistressTime]);
 
   const updateField = <K extends keyof AeroDriftInput>(key: K, value: AeroDriftInput[K]) => {
     setFormData((prev) => {
@@ -497,7 +530,12 @@ export default function AeronauticalDriftWorksheet({
           <div className="space-y-1.5 pl-6 text-xs text-slate-800">
             <div className="flex flex-wrap items-center gap-2">
               <span className="w-4 font-bold text-slate-900">1</span>
-              <span className="w-36 text-slate-700">Date/time (UTC)</span>
+              <div className="w-36 text-slate-700">
+                Date/time (UTC)
+                <div className="text-[9px] text-slate-500 italic">
+                  format apa pun → Basarnas MMDD.HHMM
+                </div>
+              </div>
               <div className="flex items-center gap-2">
                 <input
                   type="text"
@@ -506,6 +544,13 @@ export default function AeronauticalDriftWorksheet({
                   spellCheck={false}
                   data-ms-editor="true"
                   onChange={(e) => updateField('incidentTime', e.target.value)}
+                  onBlur={() => {
+                    setFormData((prev) => {
+                      const norm = toBasarnasTimeFormat(prev.incidentTime, prev.date);
+                      return norm && norm !== prev.incidentTime ? { ...prev, incidentTime: norm } : prev;
+                    });
+                  }}
+                  title="Format bebas (mis. '17 Nov 2026 07.00 UTC' atau '1117.0700'); dikonversi otomatis ke Basarnas MMDD.HHMM"
                   className="font-bold text-blue-900 font-mono border-b border-dotted border-slate-700 bg-transparent px-2 w-28 text-center focus:outline-none"
                 />
                 <span className="font-bold text-slate-900">Z</span>
@@ -833,23 +878,43 @@ export default function AeronauticalDriftWorksheet({
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 py-1">
               <div className="flex items-baseline gap-2">
                 <span className="w-4 font-bold text-slate-900">7</span>
-                <span className="text-slate-800">Time of descent (td = Alt Loss/rated)</span>
+                <div>
+                  <span className="text-slate-800">Time of descent (td = Alt Loss/rated)</span>
+                  <div className="text-[10px] text-slate-500 italic">
+                    (hasil desimal; dibulatkan SETENGAH-KE-ATAS ke menit utuh — nilai bulat dipakai B.13 dan waktu distress worksheet ASW)
+                  </div>
+                </div>
               </div>
               <div className="flex items-center gap-6">
                 {(viewMode === 'dual' || viewMode === 'aircraft') && (
-                  <div className="flex items-center gap-1 font-mono w-36 justify-end">
-                    <span className="w-20 font-bold text-blue-950 border-b border-dotted border-slate-700 text-right pr-1">
-                      {results.aircraftTimeOfDescentMin.toFixed(2)}
-                    </span>
-                    <span className="text-slate-600 font-sans text-xs">min</span>
+                  <div className="font-mono w-36 text-right">
+                    <div className="flex items-center gap-1 justify-end">
+                      <span className="w-20 font-bold text-blue-950 border-b border-dotted border-slate-700 text-right pr-1">
+                        {results.aircraftTimeOfDescentMin.toFixed(2)}
+                      </span>
+                      <span className="text-slate-600 font-sans text-xs">min</span>
+                    </div>
+                    {/* Hitungan pembulatan yang ditulis di worksheet */}
+                    {formData.useAircraftGlide && results.aircraftRateOfDescentFtMin > 0 && (
+                      <div className="text-[9px] leading-tight text-slate-600 mt-0.5">
+                        {formatFt(results.aircraftAltLossFt)} ÷ {formatFt(results.aircraftRateOfDescentFtMin)} = {results.aircraftTimeOfDescentMin.toFixed(2)} → <b>{roundHalfUpToMinute(results.aircraftTimeOfDescentMin)} min</b>
+                      </div>
+                    )}
                   </div>
                 )}
                 {(viewMode === 'dual' || viewMode === 'parachute') && (
-                  <div className="flex items-center gap-1 font-mono w-36 justify-end">
-                    <span className="w-20 font-bold text-blue-950 border-b border-dotted border-slate-700 text-right pr-1">
-                      {results.parachuteTimeOfDescentMin.toFixed(2)}
-                    </span>
-                    <span className="text-slate-600 font-sans text-xs">min</span>
+                  <div className="font-mono w-36 text-right">
+                    <div className="flex items-center gap-1 justify-end">
+                      <span className="w-20 font-bold text-blue-950 border-b border-dotted border-slate-700 text-right pr-1">
+                        {results.parachuteTimeOfDescentMin.toFixed(2)}
+                      </span>
+                      <span className="text-slate-600 font-sans text-xs">min</span>
+                    </div>
+                    {formData.useParachute && results.parachuteRateOfDescentFtMin > 0 && (
+                      <div className="text-[9px] leading-tight text-slate-600 mt-0.5">
+                        {formatFt(results.parachuteAltLossFt)} ÷ {formatFt(results.parachuteRateOfDescentFtMin)} = {results.parachuteTimeOfDescentMin.toFixed(2)} → <b>{roundHalfUpToMinute(results.parachuteTimeOfDescentMin)} min</b>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1120,7 +1185,8 @@ export default function AeronauticalDriftWorksheet({
             <li><b>B.10</b> — AWA diambil dari worksheet AWA aplikasi; tidak dihitung ulang dari Wind Forecast dan tidak ditebak.</li>
             <li><b>B.11</b> — arah downwind = AWA − 180°; dd = (td × AWA speed)/60.</li>
             <li><b>B.12</b> — vector sum head-to-tail (geodesik, setara plotting UPS); bukan penjumlahan jarak aritmetika.</li>
-            <li><b>B.13</b> — waktu insiden + td; pembulatan setengah-ke-atas (pecahan ≥ 0,5 menit naik); suffix Z dipertahankan; melewati 2400 lanjut tanggal berikutnya.</li>
+            <li><b>B.13</b> — waktu insiden + td; pembulatan setengah-ke-atas (pecahan ≥ 0,5 menit naik); suffix Z dipertahankan; melewati 2400 lanjut tanggal berikutnya. Ditampilkan dalam format Basarnas MMDD.HHMM Z.</li>
+            <li><b>A.1 + B.7 → ASW</b> — waktu distress worksheet ASW diambil otomatis dari A.1 (waktu insiden) + B.7 (menit turun seluruh segmen aktif, dibulatkan setengah-ke-atas), format Basarnas MMDD.HHMM.</li>
             <li><b>B.14</b> — koordinat akhir dari hasil geodesik/UPS; bila haluan turun tidak diketahui: kosongkan dan teruskan jumlah glide distance ke worksheet Total probable error of position A.5.</li>
             <li>Parachute glide ratio 0 → Part C (drift angin saja); hasil fase Pesawat &amp; Parasut disimpan terpisah.</li>
           </ul>

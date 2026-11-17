@@ -86,7 +86,8 @@ FORMAT TANGGAL-WAKTU (TW / DTG) — WAJIB dipahami untuk menafsirkan soal kasus:
 - FORMAT DTG (militer/NATO): [Tanggal][Jam][Menit][Zona] [Bulan] [Tahun]. Contoh: "171847G NOV 2026" = 17 November 2026 pukul 18.47 WIB (17 = tanggal, 1847 = pukul 18:47, G = WIB, NOV = bulan November, 2026 = tahun); varian "171847Z NOV 26" = 17 November 2026 pukul 18.47 UTC.
 - HATI-HATI: urutan angka kedua format BERBEDA — FORMAT TW diawali BULAN (MMDD), FORMAT DTG diawali TANGGAL (DD). "1117" pada format TW berarti 17 November; pada format DTG "1711…" berarti tanggal 17 bulan 11. Jangan tertukar.
 - DTG tanpa tahun berarti tahun berjalan (mis. NOV 2026 = November 2026); bila tanggalnya 29-31 periksa kecocokan dengan bulannya. Jangan mengarang tanggal/tahun yang tidak tertulis di soal.
-- Saat mengisi tool worksheet (distressTime, datumTime, incidentTime, date, dll), tuliskan waktu dalam bentuk yang SUDAH ditafsirkan, mis. "17 Nov 2026 18:47 WIB (DTG 171847G NOV 2026)", agar worksheet memakai tanggal-waktu yang benar dan jejak format asal tetap tersimpan.
+- Saat mengisi tool worksheet (distressTime, datumTime, incidentTime, date, dll), tuliskan waktu dalam bentuk yang SUDAH ditafsirkan, mis. "17 Nov 2026 18:47 WIB (DTG 171847G NOV 2026)", agar worksheet memakai tanggal-waktu yang benar dan jejak format asal tetap tersimpan. Format apa pun diterima — aplikasi otomatis mengonversinya ke format Basarnas MMDD.HHMM Z di worksheet.
+- Waktu distress worksheet ASW dihitung aplikasi otomatis dari ADW: A.1 (waktu insiden) + B.7 (menit turun seluruh segmen aktif, dibulatkan setengah-ke-atas ke menit utuh). Kirim distressTime dari soal apa adanya; bila kasus dihitung ADW, nilai turunan ADW yang dipakai worksheet.
 
 WORKSHEET YANG TERSEDIA:
 - ASW (Average Surface Wind): Menghitung rata-rata angin permukaan. Observasi per 3 atau 6 jam dari BMKG.
@@ -234,7 +235,7 @@ const tools: FunctionDeclaration[] = [
         },
         incidentTime: {
           type: SchemaType.STRING,
-          description: 'Waktu insiden persis seperti di soal, contoh: "1000 Z, 22 Nov 2025"; jangan mengarang',
+          description: 'Waktu insiden (UTC) persis seperti di soal, format apa pun: "1117.0700 Z", "07.00 UTC", "17 Nov 2026 07.00 UTC"; jangan mengarang — aplikasi mengonversi otomatis ke format Basarnas',
         },
         useAircraftGlide: {
           type: SchemaType.BOOLEAN,

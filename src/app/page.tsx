@@ -41,7 +41,7 @@ import ASWWorksheet, {
   type ASWInitialState,
   type ASWObservation,
 } from '@/components/sar/ASWWorksheet';
-import { buildAswObservationsFromCase } from '@/lib/sar/aswTime';
+import { buildAswObservationsFromCase, toBasarnasTimeFormat } from '@/lib/sar/aswTime';
 import DatumWorksheet, {
   type DatumData,
   type DatumResults,
@@ -157,6 +157,9 @@ export default function Home() {
   // Aeronautical Drift State & auto-sync to LKP
   const [aeroResults, setAeroResults] = useState<AeroDriftResult | null>(null);
   const [adwSyncLkp, setAdwSyncLkp] = useState<boolean>(true);
+  // Waktu distress turunan ADW (A.1 + B.7, format Basarnas) — otomatis mengisi
+  // Distress Time worksheet ASW (aturan workflow: distress ASW = ADW A.1 + B.7).
+  const [adwDerivedDistressTime, setAdwDerivedDistressTime] = useState<string | null>(null);
   // Bila true: saat hasil ADW valid, otomatis pindah ke tab UPS untuk melihat hasil gambaran.
   const [focusUpsOnAeroValid, setFocusUpsOnAeroValid] = useState<boolean>(false);
 
@@ -568,13 +571,20 @@ export default function Home() {
     windData: { windDirFrom: number; windSpeed: number }[];
     caseTitle?: string;
   }) => {
+    // Konversi format tanggal/waktu apa pun dari soal → Basarnas MMDD.HHMM Z
+    // (aturan workflow); bila tidak bisa diparse, pakai nilai asli.
+    const distressBasarnas = toBasarnasTimeFormat(data.distressTime);
+    const datumBasarnas = toBasarnasTimeFormat(data.datumTime);
+    const distressTime = distressBasarnas ? `${distressBasarnas} Z` : data.distressTime;
+    const datumTime = datumBasarnas ? `${datumBasarnas} Z` : data.datumTime;
+
     // Waktu baris dihitung langsung di sini (parser liberal: "07.00 UTC",
     // "17 Nov 2026 07.00 UTC", "1117.0700 Z", ...). Jangan mengandalkan
     // regenerasi worksheet saja — kolom waktu ASW read-only, kalau kosong
     // pengguna tidak bisa memperbaikinya manual (bug kasus EXE FAKFAK 2026).
     const obsWithWind = buildAswObservationsFromCase(
-      data.distressTime,
-      data.datumTime,
+      distressTime,
+      datumTime,
       data.intervalMode,
       data.windData,
     );
@@ -582,8 +592,8 @@ export default function Home() {
     setLoadedInitialState((prev) => ({
       ...prev,
       asw: {
-        distressTime: data.distressTime,
-        datumTime: data.datumTime,
+        distressTime,
+        datumTime,
         obsIntervalMode: data.intervalMode,
         observations: obsWithWind,
         caseTitle: data.caseTitle,
@@ -1625,6 +1635,7 @@ export default function Home() {
                 initialState={aeroDraft ?? loadedInitialState?.aero}
                 onResults={setAeroResults}
                 onStateChange={(s) => setAeroDraft(s)}
+                onDerivedDistressTime={setAdwDerivedDistressTime}
               />
               <PrintCompanionMap
                 title="LAMPIRAN: PETA PLOTTING AERONAUTICAL DRIFT & LKP"
@@ -1672,6 +1683,7 @@ export default function Home() {
                 onStateChange={setAswState}
                 windOverride={windOverride}
                 initialState={loadedInitialState?.asw}
+                derivedDistressTime={adwDerivedDistressTime}
               />
               <div className="print-companion-page">
                 <ManeuveringBoard

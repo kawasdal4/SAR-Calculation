@@ -16,10 +16,14 @@
 import { type ASWObservation } from './sarCalculations';
 
 export interface ParsedSarTime {
-  /** Total jam: (hari-1)*24 + jam + menit/60 bila ada info hari; tanpa info hari hanya jam+menit/60. */
+  /** Total jam: day*24 + jam + menit/60 bila ada info hari; tanpa info hari hanya jam+menit/60. */
   hours: number;
   /** true bila hari (tanggal) ikut terdeteksi dari input. */
   hasDay: boolean;
+  /** Tanggal (1–31) bila terdeteksi. */
+  day?: number;
+  /** Bulan (1–12) bila terdeteksi. */
+  month?: number;
 }
 
 export interface AswTimeRow {
@@ -29,10 +33,35 @@ export interface AswTimeRow {
   hours: number;
 }
 
+export interface SarDateParts {
+  year?: number;
+  month: number;
+  day: number;
+}
+
 const MONTH_ALIASES: Record<string, number> = {
-  JAN: 1, FEB: 2, MAR: 3, APR: 4, MEI: 5, MAY: 5, JUN: 6, JUL: 7,
-  AGT: 8, AGUSTUS: 8, AUG: 8, SEP: 9, OKT: 10, OCT: 10, NOV: 11, DES: 12, DEC: 12,
+  JANUARI: 1, JANUARY: 1, JAN: 1,
+  FEBRUARI: 2, FEBRUARY: 2, FEB: 2,
+  MARET: 3, MARCH: 3, MAR: 3,
+  APRIL: 4, APR: 4,
+  MEI: 5, MAY: 5,
+  JUNI: 6, JUNE: 6, JUN: 6,
+  JULI: 7, JULY: 7, JUL: 7,
+  AGUSTUS: 8, AUGUST: 8, AGT: 8, AGU: 8, AUG: 8,
+  SEPTEMBER: 9, SEPT: 9, SEP: 9,
+  OKTOBER: 10, OCTOBER: 10, OKT: 10, OCT: 10,
+  NOVEMBER: 11, NOV: 11,
+  DESEMBER: 12, DECEMBER: 12, DES: 12, DEC: 12,
 };
+
+/** Panjang bulan untuk penggulungan hari (format Basarnas tanpa tahun → Februari 28 hari). */
+const MONTH_LENGTHS: Record<number, number> = {
+  1: 31, 2: 28, 3: 31, 4: 30, 5: 31, 6: 30, 7: 31, 8: 31, 9: 30, 10: 31, 11: 30, 12: 31,
+};
+
+function pad2(n: number): string {
+  return String(n).padStart(2, '0');
+}
 
 /** Format HH.MM / HH:MM / HHMM → jam desimal; pilih kandidat berakhiran Z/UTC bila ada. */
 function extractTimeOfDay(s: string): { hour: number; minute: number } | null {
@@ -60,19 +89,20 @@ function extractTimeOfDay(s: string): { hour: number; minute: number } | null {
   return scan(/(?<!\d)(\d{2})(\d{2})(?!\d)/g, 1, 2);
 }
 
-/** Deteksi hari tanggal: "17 NOV 2026", "18 NOVEMBER", "17/11", "17-11". */
-function extractDayOfMonth(s: string): number | null {
-  const byName = s.match(/\b(\d{1,2})\s*\.?\s*(JANUARI|FEBRUARI|MARET|APRIL|MEI|JUNI|JULI|AGUSTUS|SEPTEMBER|OKTOBER|NOVEMBER|DESEMBER|JAN|FEB|MAR|APR|JUN|JUL|AGT|SEP|OKT|NOV|DES)\b/);
+/** Deteksi tanggal+bulan: "17 NOV 2026", "18 NOVEMBER", "17/11", "17-11". */
+function extractDateParts(s: string): { day: number; month: number } | null {
+  const byName = s.match(/\b(\d{1,2})\s*\.?\s*(JANUARI|FEBRUARI|MARET|APRIL|MEI|MAY|JUNI|JUNE|JULI|JULY|AGUSTUS|AUGUST|SEPTEMBER|OKTOBER|OCTOBER|NOVEMBER|DESEMBER|DECEMBER|JAN|FEB|MAR|APR|JUN|JUL|AGT|AGU|SEP|OKT|OCT|NOV|DES|DEC)\b/);
   if (byName) {
     const day = parseInt(byName[1], 10);
-    if (day >= 1 && day <= 31) return day;
+    const month = MONTH_ALIASES[byName[2]];
+    if (day >= 1 && day <= 31 && month) return { day, month };
   }
   const numeric = s.match(/\b(\d{1,2})\s*[\/\-]\s*(\d{1,2})\b/);
   if (numeric) {
     const day = parseInt(numeric[1], 10);
     const month = parseInt(numeric[2], 10);
     // dd/mm gaya Indonesia; tolak "07.00 UTC" (bulan 0) — titik tidak termasuk pemisah di sini.
-    if (day >= 1 && day <= 31 && month >= 1 && month <= 12) return day;
+    if (day >= 1 && day <= 31 && month >= 1 && month <= 12) return { day, month };
   }
   return null;
 }
@@ -99,18 +129,18 @@ export function parseSarTimeToHours(input: string): ParsedSarTime | null {
     const hour = parseInt(basarnas[3], 10);
     const minute = parseInt(basarnas[4], 10);
     if (month >= 1 && month <= 12 && day >= 1 && day <= 31 && hour <= 23 && minute <= 59) {
-      return { hours: day * 24 + hour + minute / 60, hasDay: true };
+      return { hours: day * 24 + hour + minute / 60, hasDay: true, day, month };
     }
   }
 
   const timeOfDay = extractTimeOfDay(s);
   if (!timeOfDay) return null;
-  const day = extractDayOfMonth(s);
+  const parts = extractDateParts(s);
   const base = timeOfDay.hour + timeOfDay.minute / 60;
   // Konvensi hari seragam dengan cabang Basarnas: day*24 + jam (hanya selisih
   // dan %24 yang dipakai, tapi nilai absolut harus konsisten antar format).
-  return day !== null
-    ? { hours: day * 24 + base, hasDay: true }
+  return parts
+    ? { hours: parts.day * 24 + base, hasDay: true, ...parts }
     : { hours: base, hasDay: false };
 }
 
@@ -249,4 +279,97 @@ export function buildAswObservationsFromCase(
     windDirFrom: windData?.[i]?.windDirFrom ?? 0,
     windSpeed: windData?.[i]?.windSpeed ?? 0,
   }));
+}
+
+// ─── Konversi ke format Basarnas (MMDD.HHMM Z) ────────────────────────────
+// Permintaan workflow: format tanggal/waktu apa pun yang diberikan di soal
+// kasus dikonversi otomatis oleh worksheet ke format Basarnas.
+
+/**
+ * Parse tanggal dari string konteks: "2026-11-17" (ISO) atau "17 Nov 2026" /
+ * "17 November 2026" (nama bulan Indonesia/Inggris). Dipakai sebagai fallback
+ * bulan/tanggal bila string waktunya tidak mencantumkan tanggal.
+ */
+export function parseDateParts(input: string): SarDateParts | null {
+  if (!input) return null;
+  const s = input.trim().toUpperCase();
+  if (!s) return null;
+  const iso = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (iso) {
+    const year = parseInt(iso[1], 10);
+    const month = parseInt(iso[2], 10);
+    const day = parseInt(iso[3], 10);
+    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) return { year, month, day };
+    return null;
+  }
+  const text = s.match(/^(\d{1,2})\s+([A-Z]+)\s+(\d{4})$/);
+  if (text) {
+    const day = parseInt(text[1], 10);
+    const month = MONTH_ALIASES[text[2]];
+    if (day >= 1 && day <= 31 && month) return { year: parseInt(text[3], 10), month, day };
+  }
+  return null;
+}
+
+/** Susun "MMDD.HHMM" dari hasil parse; bulan/tanggal kosong diisi fallback. */
+export function formatBasarnasTime(
+  parsed: ParsedSarTime,
+  fallback?: SarDateParts | null,
+): string | null {
+  const month = parsed.month ?? fallback?.month;
+  const day = (parsed.hasDay ? parsed.day : undefined) ?? fallback?.day;
+  if (!month || !day) return null;
+  const minutesOfDay = Math.round((parsed.hours % 24) * 60);
+  const hh = Math.floor(minutesOfDay / 60) % 24;
+  const mm = minutesOfDay % 60;
+  return `${pad2(month)}${pad2(day)}.${pad2(hh)}${pad2(mm)}`;
+}
+
+/**
+ * Konversi string waktu apa pun (dari soal/AI/manual) menjadi "MMDD.HHMM".
+ * Bila input tidak mencantumkan tanggal, bulan/tanggal diambil dari
+ * fallbackDate (field tanggal worksheet). Mengembalikan null bila waktu
+ * tidak bisa diparse atau bulan/tanggal tetap tidak diketahui.
+ */
+export function toBasarnasTimeFormat(input: string, fallbackDate?: string): string | null {
+  const parsed = parseSarTimeToHours(input);
+  if (!parsed) return null;
+  const fallback = fallbackDate ? parseDateParts(fallbackDate) : null;
+  return formatBasarnasTime(parsed, fallback);
+}
+
+/**
+ * Pembulatan setengah-ke-atas ke menit utuh (aturan worksheet): pecahan ≥ 0,5
+ * naik — 8.129 → 8; 8.500 → 9; 8.499 → 8. Dipakai B.13 dan waktu distress ASW.
+ */
+export function roundHalfUpToMinute(minutes: number): number {
+  return Math.floor(minutes + 0.5);
+}
+
+/**
+ * Tambah menit ke waktu Basarnas ("1117.0700" + 4 → "1117.0704"). Hari yang
+ * melewati 2400 berlanjut ke tanggal berikutnya, termasuk penggulungan bulan
+ * (30 Nov + 45 menit → 1 Des). Bila input tanpa tanggal, bulan/tanggal
+ * diambil dari fallbackDate. Mengembalikan null bila tidak bisa diparse.
+ */
+export function addMinutesBasarnas(input: string, minutes: number, fallbackDate?: string): string | null {
+  const parsed = parseSarTimeToHours(input);
+  if (!parsed || !Number.isFinite(minutes)) return null;
+  const fallback = fallbackDate ? parseDateParts(fallbackDate) : null;
+  const month = parsed.month ?? fallback?.month;
+  const day = (parsed.hasDay ? parsed.day : undefined) ?? fallback?.day;
+  if (!month || !day) return null;
+
+  const minutesOfDay = Math.round((parsed.hours % 24) * 60) + Math.round(minutes);
+  let nextDay = day + Math.floor(minutesOfDay / 1440);
+  let nextMonth = month;
+  let remaining = minutesOfDay % 1440;
+  // Penggulungan tanggal/bulan (tanpa tahun → Februari 28 hari, batasan terdokumentasi).
+  let guard = 0;
+  while (nextDay > (MONTH_LENGTHS[nextMonth] ?? 30) && guard < 24) {
+    nextDay -= MONTH_LENGTHS[nextMonth] ?? 30;
+    nextMonth = nextMonth === 12 ? 1 : nextMonth + 1;
+    guard += 1;
+  }
+  return `${pad2(nextMonth)}${pad2(nextDay)}.${pad2(Math.floor(remaining / 60))}${pad2(remaining % 60)}`;
 }

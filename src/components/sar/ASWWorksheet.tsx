@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Plus, Trash2, Printer, CheckCircle2, ChevronDown, ChevronRight, Clock, Compass } from 'lucide-react';
 import { type ASWObservation } from '@/lib/sar/sarCalculations';
-import { generateAswObservationTimes } from '@/lib/sar/aswTime';
+import { generateAswObservationTimes, toBasarnasTimeFormat } from '@/lib/sar/aswTime';
 
 export type { ASWObservation };
 
@@ -28,6 +28,12 @@ interface ASWWorksheetProps {
   onStateChange?: (state: { observations: ASWObservation[]; aswErr: number }) => void;
   windOverride?: { dirFrom: number; speed: number; hours: number; ts: number } | null;
   initialState?: ASWInitialState | null;
+  /**
+   * Waktu distress turunan dari worksheet ADW (A.1 waktu insiden + B.7 menit
+   * turun dibulatkan, format Basarnas MMDD.HHMM). Menimpa nilai distressTime
+   * lain bila tersedia — aturan workflow: distress ASW = ADW A.1 + B.7.
+   */
+  derivedDistressTime?: string | null;
   readOnly?: boolean;
   className?: string;
 }
@@ -43,16 +49,26 @@ export default function ASWWorksheet({
   onStateChange,
   windOverride,
   initialState,
+  derivedDistressTime,
   readOnly = false,
   className = '',
 }: ASWWorksheetProps) {
   const [observations, setObservations] = useState<ASWObservation[]>(
     () => initialState?.observations ?? []
   );
-  const [distressTime, setDistressTime] = useState<string>(initialState?.distressTime ?? '');
+  const [distressTime, setDistressTime] = useState<string>(
+    () => (derivedDistressTime ? `${derivedDistressTime} Z` : initialState?.distressTime ?? '')
+  );
   const [datumTime, setDatumTime] = useState<string>(initialState?.datumTime ?? '');
   const [obsIntervalMode, setObsIntervalMode] = useState<'6h' | '3h'>(initialState?.obsIntervalMode ?? '6h');
   const [aswErr, setAswErr] = useState<number>(initialState?.aswErr ?? 0);
+
+  // Sinkron waktu distress turunan ADW (A.1 + B.7): bila worksheet ADW selesai
+  // dihitung (atau berubah), distress ASW otomatis mengikuti.
+  useEffect(() => {
+    if (!derivedDistressTime) return;
+    setDistressTime((prev) => (prev === `${derivedDistressTime} Z` ? prev : `${derivedDistressTime} Z`));
+  }, [derivedDistressTime]);
 
   // Auto-generate observation rows when distress/datum time or interval mode changes
   const regenerateObs = useCallback(() => {
@@ -280,7 +296,12 @@ export default function ASWWorksheet({
                 spellCheck={false}
                 data-ms-editor="true"
                 onChange={(e) => setDistressTime(e.target.value)}
-                placeholder="-"
+                onBlur={() => {
+                  const norm = toBasarnasTimeFormat(distressTime);
+                  if (norm && norm !== distressTime) setDistressTime(`${norm} Z`);
+                }}
+                placeholder="MMDD.HHMM Z"
+                title="Format bebas dari soal (mis. '17 Nov 2026 07.00 UTC'); dikonversi otomatis ke Basarnas MMDD.HHMM Z"
                 className="w-28 text-center font-bold text-blue-900 bg-white border border-amber-300 rounded px-1.5 py-0.5 font-mono shadow-2xs"
               />
             </div>
@@ -295,7 +316,12 @@ export default function ASWWorksheet({
                 spellCheck={false}
                 data-ms-editor="true"
                 onChange={(e) => setDatumTime(e.target.value)}
-                placeholder="-"
+                onBlur={() => {
+                  const norm = toBasarnasTimeFormat(datumTime);
+                  if (norm && norm !== datumTime) setDatumTime(`${norm} Z`);
+                }}
+                placeholder="MMDD.HHMM Z"
+                title="Format bebas dari soal (mis. '18 Nov 2026 01.00 UTC'); dikonversi otomatis ke Basarnas MMDD.HHMM Z"
                 className="w-28 text-center font-bold text-blue-900 bg-white border border-amber-300 rounded px-1.5 py-0.5 font-mono shadow-2xs"
               />
             </div>
