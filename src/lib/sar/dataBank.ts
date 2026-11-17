@@ -945,12 +945,19 @@ export function buildDocument(
 }
 
 /** Pilih format RENOPS sesuai incident type (Panduan Agent §3). */
-export function pickRenopsType(bank: DataBankField[]): DocType {
+export function pickRenopsType(bank: DataBankField[], incidentTypeHint?: string): DocType {
+  // Panduan Agent langkah 2: incident_type kecelakaan kapal/pesawat → Format I;
+  // bencana / Kondisi Membahayakan Manusia → Format II. Hint dari hasil analisis
+  // Soal Kasus (kolom incidentType) bersifat otoritatif; keyword hanya fallback.
+  if (incidentTypeHint === 'ACCIDENT') return 'RENOPS_I';
+  if (incidentTypeHint === 'DISASTER') return 'RENOPS_II';
   const t = (bankValue(bank, 'incidentLabel') ?? '').toLowerCase();
-  const disasterKeys = ['bencana', 'membahayakan', 'tenggelam', 'hilang', 'kondisi membahayakan'];
-  const accidentKeys = ['kecelakaan', 'crash', 'accident', 'kapal', 'pesawat'];
-  if (disasterKeys.some((k) => t.includes(k)) && !t.includes('kecelakaan kapal') && !t.includes('kecelakaan pesawat')) return 'RENOPS_II';
+  // Cek kecelakaan lebih dulu: "kapal tenggelam"/"kapal hilang kontak" = kecelakaan kapal,
+  // sedangkan "orang diduga tenggelam" (tanpa kapal/pesawat) = KKM.
+  const accidentKeys = ['kecelakaan', 'crash', 'accident', 'kapal', 'pesawat', 'hilang kontak', 'missing'];
+  const disasterKeys = ['bencana', 'membahayakan', 'tenggelam'];
   if (accidentKeys.some((k) => t.includes(k))) return 'RENOPS_I';
+  if (disasterKeys.some((k) => t.includes(k))) return 'RENOPS_II';
   return 'RENOPS_II';
 }
 
@@ -963,10 +970,10 @@ ATURAN MUTLAK:
 1. JANGAN mengarang angka, koordinat, waktu, nama, frekuensi, atau kondisi cuaca. Nilai harus ada di teks sumber.
 2. Salin nilai PERSIS dari sumber (pertahankan satuan, format TW G/H/I, ejaan lokasi, dan kata "diduga/diperkirakan").
 3. Jika suatu fakta TIDAK ada di teks, JANGAN memasukkan field itu.
-4. Buat daftar pertanyaan (questions) untuk SETIAP fakta penting yang hilang — pertanyaan spesifik dalam Bahasa Indonesia.
+4. Buat daftar pertanyaan (questions) untuk SETIAP fakta penting yang hilang. Setiap pertanyaan WAJIB menyertakan "key" = kunci fakta kanonik yang dimaksud (dari daftar di bawah) agar jawaban pengguna otomatis mengisi field itu; gunakan "other" hanya bila tidak ada kunci yang cocok. Pertanyaan spesifik dalam Bahasa Indonesia.
 5. incidentType: "ACCIDENT" bila kecelakaan kapal/pesawat udara; "DISASTER" bila bencana/kondisi membahayakan manusia (mis. orang tenggelam).
 6. Balas HANYA dengan JSON valid (tanpa penjelasan, tanpa markdown fence) dengan skema:
-{"incidentType":"ACCIDENT|DISASTER","caseTitle":"...","fields":[{"key":"...","label":"...","value":"...","unit":null}],"questions":["..."]}
+{"incidentType":"ACCIDENT|DISASTER","caseTitle":"...","fields":[{"key":"...","label":"...","value":"...","unit":null}],"questions":[{"key":"opDay","question":"Apa hari operasi (HARI KE-...)?"}]}
 
 DAFTAR KUNCI FAKTA YANG VALID:
 ${defs}
@@ -975,4 +982,59 @@ SOAL KASUS:
 """
 ${rawText}
 """`;
+}
+
+/** Bentuk pertanyaan yang diharapkan dari LLM: string bebas atau {key, question}. */
+export type RawQuestion = string | { key?: unknown; question?: unknown };
+
+/**
+ * Ubah daftar pertanyaan hasil LLM menjadi field PENDING pada Bank Data.
+ * Pertanyaan dengan kunci kanonik → placeholder PENDING ber-kunci kanonik,
+ * sehingga jawaban pengguna langsung mengisi field tersebut (bukan kunci acak).
+ * Pertanyaan tanpa kunci yang cocok → field q_ bebas (jawaban disimpan sebagai catatan).
+ * Field kanonik yang sudah READY tidak ditimpa placeholder PENDING.
+ */
+export function questionsToPending(
+  rawQuestions: RawQuestion[],
+  existing: DataBankField[],
+): DataBankField[] {
+  const nowIso = new Date().toISOString();
+  const out: DataBankField[] = [];
+  for (const rq of rawQuestions) {
+    let key = '';
+    let question = '';
+    if (typeof rq === 'string') {
+      question = rq.trim();
+    } else if (rq && typeof rq === 'object') {
+      key = typeof rq.key === 'string' ? rq.key.trim() : '';
+      question = typeof rq.question === 'string' ? rq.question.trim() : '';
+    }
+    if (!question) continue;
+    const def = key ? CASE_FACT_MAP[key] : undefined;
+    if (def) {
+      if (existing.some((f) => f.key === key && f.status === 'READY')) continue; // sudah terisi
+      if (out.some((f) => f.key === key)) continue; // duplikat pertanyaan
+      out.push({
+        key,
+        label: def.label,
+        value: null,
+        sourceType: 'unknown',
+        status: 'PENDING',
+        question,
+        plannedActual: def.plannedActual,
+        updatedAt: nowIso,
+      });
+    } else {
+      out.push({
+        key: `q_${Date.now().toString(36)}_${out.length}`,
+        label: 'Pertanyaan AI',
+        value: null,
+        sourceType: 'unknown',
+        status: 'PENDING',
+        question,
+        updatedAt: nowIso,
+      });
+    }
+  }
+  return out;
 }

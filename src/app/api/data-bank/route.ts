@@ -5,6 +5,7 @@ import {
   type DataBankField,
   CASE_FACT_MAP,
   buildExtractionPrompt,
+  questionsToPending,
 } from '@/lib/sar/dataBank';
 
 export const maxDuration = 300;
@@ -108,20 +109,10 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Pertanyaan AI untuk fakta yang hilang → field PENDING (dijawab pengguna nanti).
+    // Pertanyaan AI untuk fakta yang hilang → placeholder PENDING ber-kunci kanonik
+    // sehingga jawaban pengguna langsung mengisi field (q_ bebas bila tak ada kunci cocok).
     const questions = Array.isArray(parsed.questions) ? parsed.questions : [];
-    for (const q of questions) {
-      if (typeof q !== 'string' || !q.trim()) continue;
-      fields.push({
-        key: `q_${Date.now().toString(36)}_${fields.length}`,
-        label: 'Pertanyaan AI',
-        value: null,
-        sourceType: 'unknown',
-        status: 'PENDING',
-        question: q.trim(),
-        updatedAt: new Date().toISOString(),
-      });
-    }
+    fields.push(...questionsToPending(questions as never[], fields));
 
     const data = {
       caseId,

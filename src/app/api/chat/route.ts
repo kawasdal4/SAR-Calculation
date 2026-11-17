@@ -277,7 +277,18 @@ const tools: FunctionDeclaration[] = [
             required: ['key', 'value'],
           },
         },
-        questions: { type: SchemaType.ARRAY, description: 'Pertanyaan spesifik untuk fakta penting yang belum ada di soal.', items: { type: SchemaType.STRING } },
+        questions: {
+          type: SchemaType.ARRAY,
+          description: 'Pertanyaan spesifik untuk fakta penting yang belum ada di soal. Sertakan key kanonik agar jawaban pengguna otomatis mengisi field tersebut.',
+          items: {
+            type: SchemaType.OBJECT,
+            properties: {
+              key: { type: SchemaType.STRING, description: 'Kunci fakta kanonik yang ditanyakan (mis. opDay, smcName); "other" bila tidak ada yang cocok.' },
+              question: { type: SchemaType.STRING, description: 'Pertanyaan spesifik dalam Bahasa Indonesia.' },
+            },
+            required: ['question'],
+          },
+        },
       },
       required: ['incidentType', 'facts'],
     },
@@ -583,7 +594,7 @@ export async function POST(req: NextRequest) {
       if (bankCalls.length > 0) {
         try {
           const { db } = await import('@/lib/db');
-          const { CASE_FACT_MAP } = await import('@/lib/sar/dataBank');
+          const { CASE_FACT_MAP, questionsToPending } = await import('@/lib/sar/dataBank');
           const savedCount = await persistCaseDataBank(db, CASE_FACT_MAP, bankCalls);
           bankSavedText = `\n\n🗂️ Hasil analisis kasus telah disimpan ke Bank Data (${savedCount} fakta + pertanyaan data yang belum ada). Buka tab Briefing/Renops → panel Bank Data & Dokumen untuk melihat, melengkapi, dan membuat draft RENOPS/Briefing/De-Briefing.`;
         } catch (bankErr) {
@@ -690,19 +701,10 @@ async function persistCaseDataBank(
       });
     }
 
+    // Pertanyaan AI: {key, question} → placeholder PENDING ber-kunci kanonik;
+    // string polos (kompatibilitas lama) → tetap disimpan sebagai q_ bebas.
     const questions = Array.isArray(args.questions) ? args.questions : [];
-    for (const q of questions) {
-      if (typeof q !== 'string' || !q.trim()) continue;
-      fields.push({
-        key: `q_${nowIso}_${fields.length}`,
-        label: 'Pertanyaan AI',
-        value: null,
-        sourceType: 'unknown',
-        status: 'PENDING',
-        question: q.trim(),
-        updatedAt: nowIso,
-      });
-    }
+    fields.push(...questionsToPending(questions as never[], fields));
 
     totalFacts += fields.filter((f) => f.status === 'READY').length;
     await dbClient.caseDataBank.create({

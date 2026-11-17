@@ -25,15 +25,18 @@ export async function POST(req: NextRequest) {
     let bank: DataBankField[] = Array.isArray(body.bankFields)
       ? (body.bankFields as DataBankField[])
       : [];
+    let incidentHint: string | undefined = typeof body.incidentType === 'string'
+      ? body.incidentType : undefined;
     if (bankId) {
       const row = await db.caseDataBank.findUnique({ where: { id: bankId } });
       if (!row) return NextResponse.json({ error: 'Bank data tidak ditemukan' }, { status: 404 });
       bank = JSON.parse(row.fields) as DataBankField[];
+      incidentHint = row.incidentType; // hasil analisis AI → otoritatif (Panduan Agent langkah 2)
     }
 
     // Pilih docType; AUTO mengikuti incident type pada Bank Data (Panduan Agent §3).
     let docType: DocType = (body.docType ?? 'AUTO') as DocType;
-    if (docType === 'AUTO') docType = pickRenopsType(bank);
+    if (docType === 'AUTO') docType = pickRenopsType(bank, incidentHint);
     if (!['RENOPS_I', 'RENOPS_II', 'BRIEFING', 'DEBRIEFING'].includes(docType)) {
       return NextResponse.json({ error: `docType tidak dikenal: ${docType}` }, { status: 400 });
     }
