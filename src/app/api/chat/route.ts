@@ -601,8 +601,8 @@ export async function POST(req: NextRequest) {
           const savedCount = await persistCaseDataBank(db, CASE_FACT_MAP, questionsToPending, bankCalls);
           bankSavedText = `\n\n🗂️ Hasil analisis kasus telah disimpan ke Bank Data (${savedCount} fakta + pertanyaan data yang belum ada). Buka tab Briefing/Renops → panel Bank Data & Dokumen untuk melihat, melengkapi, dan membuat draft RENOPS/Briefing/De-Briefing.`;
         } catch (bankErr) {
-          // Serverless/Vercel: filesystem read-only → SQLite write gagal. Kirim hasil
-          // analisis ke browser agar disimpan sebagai Bank Data lokal (localStorage).
+          // Bila DB (Supabase Postgres) tidak dapat ditulis, kirim hasil analisis ke
+          // browser agar disimpan sebagai Bank Data lokal (localStorage).
           console.warn('[AI chat] DB tidak dapat ditulis; memakai Bank Data lokal:', (bankErr as Error).message);
           try {
             const { CASE_FACT_MAP, questionsToPending } = await import('@/lib/sar/dataBank');

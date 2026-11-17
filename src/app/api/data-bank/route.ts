@@ -179,8 +179,8 @@ export async function POST(req: NextRequest) {
       fields: JSON.stringify(fields),
     };
 
-    // Serverless (Vercel): filesystem read-only → penulisan SQLite gagal.
-    // Tetap kembalikan hasil analisis (persisted=false) agar client menyimpan lokal.
+    // Jika DB (Supabase Postgres) tidak dapat ditulis, tetap kembalikan hasil
+    // analisis (persisted=false) agar client menyimpan Bank Data lokal.
     let persisted = true;
     let saved: Record<string, unknown>;
     try {

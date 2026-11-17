@@ -4,6 +4,20 @@ set -euo pipefail
 
 PROJECT_DIR="${PROJECT_DIR:-/home/z/my-project}"
 BUILD_DIR="${BUILD_DIR:?BUILD_DIR is required}"
+
+# Bila DATABASE_URL bukan SQLite (mis. Supabase Postgres untuk Vercel),
+# cukup sinkronkan schema langsung ke database remote — tidak ada berkas DB
+# yang perlu dibundel ke build output.
+if [ -n "${DATABASE_URL:-}" ] && [[ "${DATABASE_URL}" != file:* ]]; then
+    echo "🗄️  DATABASE_URL bukan SQLite — sinkronisasi schema ke database remote..."
+    (
+        cd "$PROJECT_DIR"
+        bun run db:push
+    )
+    echo "✅ Schema database remote siap"
+    exit 0
+fi
+
 SOURCE_DB_DIR="$PROJECT_DIR/db"
 SOURCE_DB_PATH="$SOURCE_DB_DIR/custom.db"
 TARGET_DB_DIR="$BUILD_DIR/db"

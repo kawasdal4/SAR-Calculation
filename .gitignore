@@ -70,3 +70,6 @@ inspect_*.js
 optimize_*.js
 probe.js
 test_*.js
+
+# Database lokal (SQLite lama) — produksi memakai Supabase Postgres
+/db/*.db*
