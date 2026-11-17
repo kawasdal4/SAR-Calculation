@@ -34,3 +34,41 @@ model SarCase {
 
   @@index([createdAt])
 }
+
+/// Bank Data kasus — fakta terstruktur hasil analisis AI atas Soal Kasus
+/// dan input manual petugas, lengkap dengan provenance per field.
+/// Merujuk Panduan Agent RENOPS/Briefing/De-Briefing (Perban 3/2020).
+model CaseDataBank {
+  id        String   @id @default(cuid())
+  /// Optional link ke SarCase.id bila kasus sudah disimpan.
+  caseId    String?
+  caseTitle String?
+  /// Jenis kejadian hasil analisis: ACCIDENT (kapal/pesawat) | DISASTER (bencana/KKM).
+  incidentType String @default("ACCIDENT")
+  /// Teks Soal Kasus asli yang dianalisis.
+  rawText   String
+  /// JSON array of DataBankField: { key, label, value, unit, sourceType, sourceRef, status, plannedActual, question }
+  fields    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([caseId])
+}
+
+/// Draft dokumen resmi (RENOPS Format I/II, Briefing, De-Briefing)
+/// hasil generator dengan resolusi sumber worksheet → peta → bank data.
+model DocumentDraft {
+  id        String   @id @default(cuid())
+  caseId    String?
+  bankId    String?
+  /// RENOPS_I | RENOPS_II | BRIEFING | DEBRIEFING
+  docType   String
+  /// DRAFT | APPROVED
+  status    String   @default("DRAFT")
+  /// JSON: { sections, validation, questions, meta }
+  payload   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([caseId, docType])
+}

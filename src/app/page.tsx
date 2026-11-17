@@ -82,6 +82,7 @@ import Worksheet4, { type Worksheet4InitialState } from '@/components/sar/worksh
 import Worksheet8, { type Worksheet8InitialState } from '@/components/sar/worksheets/Worksheet8';
 import BriefingForm from '@/components/sar/BriefingForm';
 import RenopsForm from '@/components/sar/RenopsForm';
+import DocumentWorkbench from '@/components/sar/DocumentWorkbench';
 import AllWorksheetsView from '@/components/sar/AllWorksheetsView';
 import PrintMapA3 from '@/components/sar/PrintMapA3';
 import PrintCompanionMap from '@/components/sar/PrintCompanionMap';
@@ -1945,6 +1946,33 @@ export default function Home() {
 
             {/* TAB: BRIEFING & RENOPS (PERBAN 3/2020) */}
             <TabsContent value="briefing-renops" key={`briefing-tab-${caseVersion}-${tabClearVersions['briefing-renops'] ?? 0}`} className="mt-0 space-y-6">
+              {/* BANK DATA & GENERATOR DOKUMEN — Panduan Agent RENOPS/Briefing/De-Briefing */}
+              <DocumentWorkbench
+                lkp={lkp}
+                isLkpSet={isLkpSet}
+                datumResults={datumResults}
+                searchResults={searchResults}
+                asw={asw}
+                awa={awa}
+                ws2TrackSpacingNm={ws2TrackSpacing?.spacingNm ?? null}
+                ws3TrackSpacingNm={
+                  ws3TrackSpacing
+                    ? (patternLandHeight !== null && ws3TrackSpacing.heights.includes(patternLandHeight)
+                      ? ws3TrackSpacing.spacingByHeight[ws3TrackSpacing.heights.indexOf(patternLandHeight)]
+                      : ws3TrackSpacing.spacingByHeight.find((s) => s !== null) ?? null)
+                    : null
+                }
+                ws8TrackSpacingNm={ws8TrackSpacing?.spacingNm ?? null}
+                assets={assets}
+                pattern={{
+                  type: patternType,
+                  orientation: patternOrientationText,
+                  environment: patternEnvironment,
+                  worksheetSource: patternWorksheetSource,
+                  trackLineLengthText: trackLineLengthText,
+                }}
+                worksheet1Fs={worksheet1Fs}
+              />
               <BriefingForm
                 key={`briefing-${caseVersion}`}
                 lkp={lkp}

@@ -70,6 +70,13 @@ Per 3 Jam: 00.00 (22.30–01.30), 03.00 (01.30–04.30), 06.00 (04.30–07.30), 
 
 Distress Time = awal interval pertama, Datum Time = akhir interval terakhir.
 
+BANK DATA KASUS (Panduan Agent RENOPS/Briefing/De-Briefing — Perban 3/2020):
+- Untuk SETIAP soal kasus/lampiran yang dianalisis, panggil tool save_case_data_bank untuk menyimpan fakta kasus terstruktur (Bank Data) beserta daftar pertanyaan untuk data yang belum ada.
+- JANGAN mengarang angka, koordinat, waktu, nama personel, frekuensi, atau cuaca: setiap nilai wajib ada di soal; salin persis, pertahankan satuan, format TW G/H/I, ejaan lokasi, dan kata \"diduga/diperkirakan\".
+- Fakta yang tidak ada TIDAK boleh diisi; masukkan ke questions agar diminta kepada pengguna.
+- Bank Data dipakai untuk melengkapi dokumen RENOPS/Briefing/De-Briefing bila hasil worksheet dan peta tidak menyediakan datanya; angka perhitungan tetap HANYA dari worksheet aplikasi (WS1 datum/area, WS2/WS3/WS8 track spacing).
+- Nama SMC/OSC/nakhoda/pilot adalah keputusan pejabat: hanya simpan bila tertulis eksplisit di soal.
+
 Jawab selalu dalam Bahasa Indonesia yang profesional dan lugas.`;
 
 const tools: FunctionDeclaration[] = [
@@ -245,6 +252,34 @@ const tools: FunctionDeclaration[] = [
         questions: { type: SchemaType.ARRAY, description: 'Pertanyaan ringkas untuk memperoleh semua data wajib yang belum ada.', items: { type: SchemaType.STRING } },
       },
       required: ['worksheet', 'questions'],
+    },
+  },
+  {
+    name: 'save_case_data_bank',
+    description: 'Menyimpan hasil analisis Soal Kasus ke Bank Data kasus (fakta terstruktur + pertanyaan data yang belum ada). WAJIB dipanggil setiap kali selesai menganalisis soal kasus/lampiran. Salin nilai PERSIS dari soal; jangan mengarang; fakta yang hilang masukkan ke questions.',
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        caseTitle: { type: SchemaType.STRING, description: 'Judul kasus singkat.' },
+        incidentType: { type: SchemaType.STRING, description: 'ACCIDENT bila kecelakaan kapal/pesawat udara; DISASTER bila bencana/kondisi membahayakan manusia.' },
+        rawText: { type: SchemaType.STRING, description: 'Ringkasan/kutipan Soal Kasus yang dianalisis (maks ~4000 karakter).' },
+        facts: {
+          type: SchemaType.ARRAY,
+          description: 'Fakta kasus yang ditemukan di soal. Salin nilai persis dari sumber.',
+          items: {
+            type: SchemaType.OBJECT,
+            properties: {
+              key: { type: SchemaType.STRING, description: 'Kunci kanonik: office, incidentLabel, targetName, callSign, lkpCoord, route, eventTime, reportTime, reportSource, reportChannel, targetKind, color, flag, cause, searchObject, crewCount, passengerCount, pobTotal, distressFreq, cargo, victimCount, victimStatus, previousEfforts, preparedSruAir, preparedSruSea, preparedSruLand, preparedEquipment, weather, disasterType, taskNarrative, rescuePlan, victimTransport, adminLogistics, commsPlan, potentialSar, opTime, opDay, cspCoord, patternPlan, altitudePlan, smcName, oscName.' },
+              value: { type: SchemaType.STRING, description: 'Nilai persis dari soal (pertahankan satuan/format).' },
+              unit: { type: SchemaType.STRING, description: 'Satuan bila relevan (NM, kts, orang, feet, dll).' },
+              sourceText: { type: SchemaType.STRING, description: 'Kutipan pendek dari soal sebagai provenance.' },
+            },
+            required: ['key', 'value'],
+          },
+        },
+        questions: { type: SchemaType.ARRAY, description: 'Pertanyaan spesifik untuk fakta penting yang belum ada di soal.', items: { type: SchemaType.STRING } },
+      },
+      required: ['incidentType', 'facts'],
     },
   },
   {
@@ -533,13 +568,29 @@ export async function POST(req: NextRequest) {
     const functionCalls = steps.filter((step): step is typeof step & { name: string } =>
       step.type === 'function_call' && typeof step.name === 'string'
     );
+    // BANK DATA: teks konfirmasi penyimpanan (diisi bila ada panggilan save_case_data_bank).
+    let bankSavedText = '';
     if (functionCalls.length > 0) {
       const calls = functionCalls.map((fc: { name: string; arguments?: unknown }) => ({
         name: fc.name,
         args: fc.arguments || {},
       }));
       const clarificationCalls = calls.filter((call) => call.name === 'ask_for_case_data');
-      const worksheetCalls = calls.filter((call) => call.name !== 'ask_for_case_data');
+      const worksheetCalls = calls.filter((call) => call.name !== 'ask_for_case_data' && call.name !== 'save_case_data_bank');
+
+      // BANK DATA: persist hasil analisis kasus langsung di server (Panduan Agent §2 langkah 1).
+      const bankCalls = calls.filter((call) => call.name === 'save_case_data_bank');
+      if (bankCalls.length > 0) {
+        try {
+          const { db } = await import('@/lib/db');
+          const { CASE_FACT_MAP } = await import('@/lib/sar/dataBank');
+          const savedCount = await persistCaseDataBank(db, CASE_FACT_MAP, bankCalls);
+          bankSavedText = `\n\n🗂️ Hasil analisis kasus telah disimpan ke Bank Data (${savedCount} fakta + pertanyaan data yang belum ada). Buka tab Briefing/Renops → panel Bank Data & Dokumen untuk melihat, melengkapi, dan membuat draft RENOPS/Briefing/De-Briefing.`;
+        } catch (bankErr) {
+          console.error('[AI chat] Gagal menyimpan Bank Data:', (bankErr as Error).message);
+          bankSavedText = '\n\n⚠️ Bank Data gagal disimpan ke database — coba ulangi analisis kasus.';
+        }
+      }
       const clarificationText = clarificationCalls.map((call) => {
         const args = call.args as { worksheet?: string; questions?: unknown[] };
         const questions = (args.questions ?? []).filter((question): question is string => typeof question === 'string' && question.trim().length > 0);
@@ -564,7 +615,7 @@ export async function POST(req: NextRequest) {
         ? 'Data kasus Intercept berhasil dianalisis. Saya memasukkan data ke worksheet Intercept; hasil hitung dan vektornya akan dibuat oleh kalkulator aplikasi.'
         : text || 'Data telah disiapkan. Klik "Terapkan" untuk mengisi worksheet.';
       return NextResponse.json({
-        text: `${usedModel !== GEMINI_MODELS[0] ? 'Model utama sedang sibuk; jawaban diproses dengan model cadangan.\n\n' : ''}${responseText}${clarificationText}`,
+        text: `${usedModel !== GEMINI_MODELS[0] ? 'Model utama sedang sibuk; jawaban diproses dengan model cadangan.\n\n' : ''}${responseText}${bankSavedText}${clarificationText}`,
         functionCalls: worksheetCalls.length ? worksheetCalls : null,
       });
     }
@@ -583,7 +634,7 @@ export async function POST(req: NextRequest) {
       .map((part: { text?: string }) => part.text || '')
       .join('');
     return NextResponse.json({
-      text: `${usedModel !== GEMINI_MODELS[0] ? 'Model utama sedang sibuk; jawaban diproses dengan model cadangan.\n\n' : ''}${responseText || 'Model Gemini tidak mengembalikan teks jawaban.'}`,
+      text: `${usedModel !== GEMINI_MODELS[0] ? 'Model utama sedang sibuk; jawaban diproses dengan model cadangan.\n\n' : ''}${responseText || 'Model Gemini tidak mengembalikan teks jawaban.'}${bankSavedText}`,
       functionCalls: null,
     });
   } catch (error: unknown) {
@@ -591,5 +642,78 @@ export async function POST(req: NextRequest) {
     console.error('Chat API error:', message);
     return NextResponse.json({ error: `Gagal menghubungi Gemini: ${message}` }, { status: 500 });
   }
+}
+
+/** Persist hasil analisis Soal Kasus dari tool save_case_data_bank ke CaseDataBank. */
+async function persistCaseDataBank(
+  dbClient: import('@prisma/client').PrismaClient,
+  caseFactMap: Record<string, { key: string; label: string; plannedActual?: 'planned' | 'actual' }>,
+  bankCalls: Array<{ args: Record<string, unknown> }>,
+): Promise<number> {
+  let totalFacts = 0;
+  for (const call of bankCalls) {
+    const args = call.args as {
+      caseTitle?: unknown;
+      incidentType?: unknown;
+      rawText?: unknown;
+      facts?: unknown;
+      questions?: unknown;
+    };
+    const incidentType = args.incidentType === 'DISASTER' ? 'DISASTER' : 'ACCIDENT';
+    const caseTitle = typeof args.caseTitle === 'string' && args.caseTitle.trim() ? args.caseTitle.trim() : null;
+    const rawText = typeof args.rawText === 'string' && args.rawText.trim() ? args.rawText.trim().slice(0, 8000) : '';
+    const fields: Array<{
+      key: string; label: string; value: string | null; unit?: string | null;
+      sourceType: string; sourceRef?: string | null; status: string;
+      plannedActual?: 'planned' | 'actual'; question?: string | null; updatedAt: string;
+    }> = [];
+    const nowIso = new Date().toISOString();
+
+    const facts = Array.isArray(args.facts) ? args.facts : [];
+    for (const item of facts) {
+      const rec = item as { key?: unknown; value?: unknown; unit?: unknown; sourceText?: unknown };
+      const key = typeof rec.key === 'string' ? rec.key : '';
+      const def = caseFactMap[key];
+      const value = typeof rec.value === 'string' || typeof rec.value === 'number' ? String(rec.value).trim() : '';
+      if (!def || !value) continue;
+      fields.push({
+        key,
+        label: def.label,
+        value,
+        unit: typeof rec.unit === 'string' && rec.unit ? rec.unit : null,
+        sourceType: 'case',
+        sourceRef: typeof rec.sourceText === 'string' && rec.sourceText
+          ? `Soal Kasus: "${rec.sourceText.slice(0, 160)}"` : 'Soal Kasus',
+        status: 'READY',
+        plannedActual: def.plannedActual,
+        updatedAt: nowIso,
+      });
+    }
+
+    const questions = Array.isArray(args.questions) ? args.questions : [];
+    for (const q of questions) {
+      if (typeof q !== 'string' || !q.trim()) continue;
+      fields.push({
+        key: `q_${nowIso}_${fields.length}`,
+        label: 'Pertanyaan AI',
+        value: null,
+        sourceType: 'unknown',
+        status: 'PENDING',
+        question: q.trim(),
+        updatedAt: nowIso,
+      });
+    }
+
+    totalFacts += fields.filter((f) => f.status === 'READY').length;
+    await dbClient.caseDataBank.create({
+      data: {
+        caseTitle,
+        incidentType,
+        rawText,
+        fields: JSON.stringify(fields),
+      },
+    });
+  }
+  return totalFacts;
 }
 
