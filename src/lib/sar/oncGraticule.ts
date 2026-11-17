@@ -51,17 +51,31 @@ function gridValues(minimum: number, maximum: number, interval: number): number[
   return values;
 }
 
-/** Generate viewport-only ONC graticule geometry. Tick lengths are constant screen pixels. */
+/** Select a tick interval using its projected screen spacing, or return 0 when too zoomed out. */
+export function selectOncTickInterval(zoom: number, latitude: number): number {
+  const pixelsPerLongitudeDegree = 512 * 2 ** zoom / 360;
+  if (pixelsPerLongitudeDegree < 80) return 0;
+  const pixelsPerLatitudeDegree = pixelsPerLongitudeDegree / Math.max(0.01, Math.cos(latitude * Math.PI / 180));
+  const limitingPixelsPerDegree = Math.min(pixelsPerLongitudeDegree, pixelsPerLatitudeDegree);
+  for (const interval of [1, 5, 10]) {
+    if (limitingPixelsPerDegree * interval / 60 >= 6) return interval;
+  }
+  return 30;
+}
+
+/** Generate viewport-only ONC graticule geometry. Tick dimensions remain constant in screen pixels. */
 export function buildOncGraticule(
   bounds: { west: number; south: number; east: number; north: number },
   width: number,
   height: number,
   zoom: number,
 ): FeatureCollection<Geometry, OncGridProperties> {
-  const west = Math.max(-180, bounds.west);
-  const east = Math.min(180, bounds.east);
-  const south = Math.max(-MAX_MERCATOR_LAT, bounds.south);
-  const north = Math.min(MAX_MERCATOR_LAT, bounds.north);
+  const longitudeMargin = (bounds.east - bounds.west) * 0.05;
+  const latitudeMargin = (bounds.north - bounds.south) * 0.05;
+  const west = Math.max(-180, bounds.west - longitudeMargin);
+  const east = Math.min(180, bounds.east + longitudeMargin);
+  const south = Math.max(-MAX_MERCATOR_LAT, bounds.south - latitudeMargin);
+  const north = Math.min(MAX_MERCATOR_LAT, bounds.north + latitudeMargin);
   if (!Number.isFinite(west + south + east + north + zoom) || east <= west || north <= south || width <= 0 || height <= 0) {
     return EMPTY_GRID;
   }
@@ -69,14 +83,12 @@ export function buildOncGraticule(
   const features: Array<Feature<Geometry, OncGridProperties>> = [];
   const worldPixels = 512 * 2 ** zoom;
   const pixelsPerLongitudeDegree = worldPixels / 360;
-  const tickMinutes = zoom < 6 ? 10 : zoom < 10 ? 5 : 1;
-  const tickPixels = tickMinutes === 10 ? 9 : tickMinutes === 5 ? 6 : 4;
-  const minuteInterval = tickMinutes / 60;
-  const halfTickLon = tickPixels / 2 / pixelsPerLongitudeDegree;
-  const halfTickMercator = (tickPixels / 2) * 2 * Math.PI / worldPixels;
-  const minuteLabelMinSpacingPx = 48;
+  const minuteInterval = 1 / 60;
+  const halfLabelGapPx = 20;
+  const minuteLabelMinSpacingPx = 40;
+  const isDegreeIntersectionMinute = (minute: number) => minute === 0;
 
-  // Primary one-degree and secondary half-degree graticule lines.
+  // Keep the existing major 1° and minor 30′ graticule lines.
   for (const lon of gridValues(west, east, 0.5)) {
     const major = Math.abs(lon - Math.round(lon)) < 1e-7;
     features.push(lineFeature([lon, south], [lon, north], { kind: major ? 'major' : 'minor', axis: 'longitude' }));
@@ -86,58 +98,83 @@ export function buildOncGraticule(
     features.push(lineFeature([west, lat], [east, lat], { kind: major ? 'major' : 'minor', axis: 'latitude' }));
   }
 
-  // Tick marks cross each graticule line in the map interior, at the zoom-selected minute interval.
-  const graticuleLongitudes = gridValues(west, east, 0.5);
-  const graticuleLatitudes = gridValues(south, north, 0.5);
-  const tickLatitudes = gridValues(south, north, minuteInterval);
-  const tickLongitudes = gridValues(west, east, minuteInterval);
-
-  for (const lon of graticuleLongitudes) {
-    let lastMinuteLabelY: number | undefined;
-    for (const lat of tickLatitudes) {
-      features.push(lineFeature([lon - halfTickLon, lat], [lon + halfTickLon, lat], {
+  // Cross marks are drawn only on full-degree graticules. Shorter subordinate marks retain
+  // their 1′/5′/10′ visual hierarchy when the selected minimum interval is 1′.
+  const meridians = gridValues(west, east, 1);
+  const parallels = gridValues(south, north, 1);
+  for (const lon of meridians) {
+    const interval = selectOncTickInterval(zoom, (south + north) / 2);
+    if (!interval) continue;
+    let lastLabelScreenY: number | undefined;
+    const firstMinute = Math.ceil((south * 60 - 1e-8) / interval) * interval;
+    const lastMinute = Math.floor((north * 60 + 1e-8) / interval) * interval;
+    for (let totalMinutes = firstMinute; totalMinutes <= lastMinute; totalMinutes += interval) {
+      const minuteInDegree = ((totalMinutes % 60) + 60) % 60;
+      if (isDegreeIntersectionMinute(minuteInDegree)) continue;
+      const lat = totalMinutes / 60;
+      const intervalAtPoint = selectOncTickInterval(zoom, lat);
+      if (intervalAtPoint !== interval && intervalAtPoint > interval) continue;
+      const tickMinutes = minuteInDegree % 10 === 0 ? 10 : minuteInDegree % 5 === 0 ? 5 : 1;
+      const halfPixels = tickMinutes === 10 ? 8 : tickMinutes === 5 ? 5 : 3;
+      const halfLon = halfPixels / pixelsPerLongitudeDegree;
+      features.push(lineFeature([lon - halfLon, lat], [lon + halfLon, lat], {
         kind: 'tick', axis: 'longitude', tickMinutes,
       }));
-      const label = minuteLabel(Math.round(lat * 60));
+      const label = minuteLabel(totalMinutes);
       const screenY = mercatorY(lat) * worldPixels / (2 * Math.PI);
-      const onMajorLine = Math.abs(lon - Math.round(lon)) < 1e-7;
-      if (tickMinutes === 10 && onMajorLine && label
-        && (lastMinuteLabelY === undefined || Math.abs(screenY - lastMinuteLabelY) >= minuteLabelMinSpacingPx)) {
-        features.push(pointFeature([lon + halfTickLon * 2.3, lat], { kind: 'minute-label', axis: 'longitude', label }));
-        lastMinuteLabelY = screenY;
+      const distanceToIntersection = Math.min(minuteInDegree, 60 - minuteInDegree)
+        * pixelsPerLongitudeDegree / 60;
+      if (label && distanceToIntersection >= halfLabelGapPx
+        && (lastLabelScreenY === undefined || Math.abs(screenY - lastLabelScreenY) >= minuteLabelMinSpacingPx)) {
+        features.push(pointFeature([lon + halfLon + 5 / pixelsPerLongitudeDegree, lat], {
+          kind: 'minute-label', axis: 'longitude', label,
+        }));
+        lastLabelScreenY = screenY;
       }
     }
   }
 
-  for (const lat of graticuleLatitudes) {
-    let lastMinuteLabelX: number | undefined;
-    for (const lon of tickLongitudes) {
+  for (const lat of parallels) {
+    const interval = selectOncTickInterval(zoom, lat);
+    if (!interval) continue;
+    let lastLabelScreenX: number | undefined;
+    const firstMinute = Math.ceil((west * 60 - 1e-8) / interval) * interval;
+    const lastMinute = Math.floor((east * 60 + 1e-8) / interval) * interval;
+    for (let totalMinutes = firstMinute; totalMinutes <= lastMinute; totalMinutes += interval) {
+      const minuteInDegree = ((totalMinutes % 60) + 60) % 60;
+      if (isDegreeIntersectionMinute(minuteInDegree)) continue;
+      const lon = totalMinutes / 60;
+      const intervalAtPoint = selectOncTickInterval(zoom, lat);
+      if (intervalAtPoint !== interval && intervalAtPoint > interval) continue;
+      const tickMinutes = minuteInDegree % 10 === 0 ? 10 : minuteInDegree % 5 === 0 ? 5 : 1;
+      const halfPixels = tickMinutes === 10 ? 8 : tickMinutes === 5 ? 5 : 3;
+      const halfMercator = halfPixels * 2 * Math.PI / worldPixels;
       const centerY = mercatorY(lat);
-      const northTickLat = latitudeAtMercatorY(centerY + halfTickMercator);
-      const southTickLat = latitudeAtMercatorY(centerY - halfTickMercator);
+      const northTickLat = latitudeAtMercatorY(centerY + halfMercator);
+      const southTickLat = latitudeAtMercatorY(centerY - halfMercator);
       features.push(lineFeature([lon, northTickLat], [lon, southTickLat], {
         kind: 'tick', axis: 'latitude', tickMinutes,
       }));
-      const label = minuteLabel(Math.round(lon * 60));
+      const label = minuteLabel(totalMinutes);
       const screenX = lon * pixelsPerLongitudeDegree;
-      const onMajorLine = Math.abs(lat - Math.round(lat)) < 1e-7;
-      if (tickMinutes === 10 && onMajorLine && label
-        && (lastMinuteLabelX === undefined || Math.abs(screenX - lastMinuteLabelX) >= minuteLabelMinSpacingPx)) {
-        features.push(pointFeature([lon, latitudeAtMercatorY(centerY - halfTickMercator * 2.3)], {
-          kind: 'minute-label', axis: 'latitude', label,
-        }));
-        lastMinuteLabelX = screenX;
+      const distanceToIntersection = Math.min(minuteInDegree, 60 - minuteInDegree)
+        * pixelsPerLongitudeDegree / 60;
+      if (label && distanceToIntersection >= halfLabelGapPx
+        && (lastLabelScreenX === undefined || Math.abs(screenX - lastLabelScreenX) >= minuteLabelMinSpacingPx)) {
+        const labelLat = latitudeAtMercatorY(centerY - (halfPixels + 5) * 2 * Math.PI / worldPixels);
+        features.push(pointFeature([lon, labelLat], { kind: 'minute-label', axis: 'latitude', label }));
+        lastLabelScreenX = screenX;
       }
     }
   }
 
-  // Repeat degree labels along full-degree grid lines at approximately 300 px spacing.
+  // Keep degree labels on the full-degree lines at approximately 300 px spacing.
   const labelSpacingPx = 300;
   const northY = mercatorY(north);
   const southY = mercatorY(south);
   const mercatorUnitsPerPixel = 2 * Math.PI / worldPixels;
   const labelSpacingY = Math.max(1, Math.min(labelSpacingPx, (southY - northY) / mercatorUnitsPerPixel));
-  for (const lon of gridValues(west, east, 1)) {
+  for (const lon of meridians) {
     const firstY = northY + labelSpacingY / 2 * mercatorUnitsPerPixel;
     const spacingY = labelSpacingY * mercatorUnitsPerPixel;
     for (let y = firstY; y <= southY; y += spacingY) {
@@ -148,7 +185,7 @@ export function buildOncGraticule(
     }
   }
   const labelSpacingX = Math.max(1, Math.min(labelSpacingPx, (east - west) * pixelsPerLongitudeDegree));
-  for (const lat of gridValues(south, north, 1)) {
+  for (const lat of parallels) {
     const spacing = labelSpacingX / pixelsPerLongitudeDegree;
     for (let lon = west + spacing / 2; lon <= east; lon += spacing) {
       features.push(pointFeature([lon, lat], { kind: 'degree-label', axis: 'latitude', label: axisText(lat, 'latitude') }));

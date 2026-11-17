@@ -301,8 +301,8 @@ function addGraticuleLayers(map: maplibregl.Map, visible: boolean): void {
       filter: ['==', ['get', 'kind'], 'tick'],
       paint: {
         'line-color': '#254866',
-        'line-width': ['match', ['get', 'tickMinutes'], 10, 1.4, 5, 1.1, 0.8],
-        'line-opacity': 0.8,
+        'line-width': 1,
+        'line-opacity': 0.92,
       },
       layout: { visibility },
     });
@@ -470,11 +470,13 @@ export default function Worksheet4MapLibre({
       if (gridTimer) clearTimeout(gridTimer);
       gridTimer = setTimeout(() => {
         const source = map.getSource(GRATICULE_SOURCE_ID);
-        if (!source || source.type !== 'geojson' || !map.isStyleLoaded()) return;
+        if (!source || source.type !== 'geojson') return;
+        const container = containerRef.current;
+        if (!container || container.clientWidth <= 0 || container.clientHeight <= 0) return;
         const bounds = map.getBounds();
         (source as maplibregl.GeoJSONSource).setData(buildOncGraticule({
           west: bounds.getWest(), east: bounds.getEast(), south: bounds.getSouth(), north: bounds.getNorth(),
-        }, containerRef.current?.clientWidth ?? 0, containerRef.current?.clientHeight ?? 0, map.getZoom()));
+        }, container.clientWidth, container.clientHeight, map.getZoom()));
       }, 120);
     };
     map.on('style.load', () => {
@@ -486,6 +488,7 @@ export default function Worksheet4MapLibre({
       updateGraticule();
     });
     map.on('load', updateGraticule);
+    map.once('idle', updateGraticule);
     map.on('moveend', updateGraticule);
     map.on('zoomend', updateGraticule);
     map.on('resize', updateGraticule);
