@@ -107,6 +107,66 @@ export const EXERCISE_GROUPS: ExerciseGroup[] = [
     ],
   },
   {
+    group: 'Format Tanggal-Waktu (TW/DTG)',
+    hint: 'Kalkulator: tab Zona Waktu → Format Tanggal-Waktu (TW / DTG)',
+    items: [
+      {
+        label: 'Latihan DTG 1',
+        question:
+          'MV Bahari Nusantara melaporkan kepada RCC Indonesia: "Kami mengalami kerusakan mesin pada TW 1117 1900 G". Tafsirkan tanggal-waktu laporan tersebut.',
+        given: [
+          'Format TW Basarnas: [Bulan][Tanggal] [Jam][Menit] [Zona]',
+          'Huruf zona G = WIB (UTC+7)',
+        ],
+        steps: [
+          '11 = bulan November',
+          '17 = tanggal 17',
+          '1900 = pukul 19.00',
+          'G = WIB (Waktu Indonesia Bagian Barat)',
+        ],
+        result: '17 November pukul 19.00 WIB',
+      },
+      {
+        label: 'Latihan DTG 2',
+        question:
+          'Laporan distress diterima RCC dengan DTG 171847G NOV 2026. Tafsirkan tanggal-waktu laporan tersebut.',
+        given: [
+          'Format DTG militer/NATO: [Tanggal][Jam][Menit][Zona] [Bulan] [Tahun]',
+          'Huruf zona G = WIB (UTC+7)',
+        ],
+        steps: [
+          '17 = tanggal 17',
+          '1847 = pukul 18.47',
+          'G = WIB (Waktu Indonesia Bagian Barat)',
+          'NOV = bulan November; 2026 = tahun',
+        ],
+        result: '17 November 2026 pukul 18.47 WIB',
+      },
+      {
+        label: 'Latihan DTG 3',
+        question:
+          'Ubahlah DTG 171847G NOV 2026 (17 November 2026 pukul 18.47 WIB) menjadi waktu UTC.',
+        given: ['Waktu lokal: 1847 WIB (G), 17 November 2026', 'WIB → UTC = UTC − 7'],
+        steps: ['= (1847 − 0700) UTC', '= 1147 UTC (1147 Z)', '= 17 November 2026 pukul 11.47 UTC'],
+        result: '1147 UTC (1147 Z) pada 17 November 2026',
+      },
+      {
+        label: 'Latihan DTG 4',
+        question:
+          'Perhatikan perbedaan urutan angka! TW 0211 0300 G dan DTG 110430H NOV 2026 jatuh pada tanggal berapa masing-masing?',
+        given: [
+          'Format TW diawali BULAN (MMDD)',
+          'Format DTG diawali TANGGAL (DD)',
+        ],
+        steps: [
+          'TW 0211 0300 G: 02 = bulan Februari, 11 = tanggal → 11 Februari pukul 03.00 WIB',
+          'DTG 110430H NOV 2026: 11 = tanggal, 0430 = pukul 04.30, H = WITA → 11 November 2026 pukul 04.30 WITA',
+        ],
+        result: 'TW → 11 Februari pukul 03.00 WIB · DTG → 11 November 2026 pukul 04.30 WITA',
+      },
+    ],
+  },
+  {
     group: 'Konversi Kecepatan',
     hint: 'Kalkulator: tab S·V·T (bagian konversi kecepatan)',
     items: [

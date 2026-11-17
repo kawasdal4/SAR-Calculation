@@ -15,10 +15,12 @@ import {
   Clock,
   Gauge,
   Globe,
+  GraduationCap,
   Grid3x3,
   Ruler,
   RotateCcw,
 } from 'lucide-react';
+import BasicCalcExercises from '@/components/sar/basic-calc/Exercises';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,6 +42,12 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { WorksheetCard } from '@/components/sar/WorksheetCard';
+import {
+  DTG_ZONE_LETTERS,
+  dtgToZones,
+  parseDtg,
+  type DtgParsed,
+} from '@/lib/sar/dtg.mjs';
 import {
   calcSearchers,
   convertCmPerSecond,
@@ -465,6 +473,165 @@ function parseHhmm(raw: string): number | null {
   return h + m / 60;
 }
 
+// ---------------------------------------------------------------------------
+// Format Tanggal-Waktu (DTG / TW) — penafsiran format soal kasus
+// ---------------------------------------------------------------------------
+
+const DTG_FORMAT_ROWS = [
+  {
+    name: 'Format TW (Basarnas)',
+    sample: 'TW 1117 1900 G',
+    breakdown: 'TW = Tanggal Waktu · 11 = bulan · 17 = tanggal · 1900 = jam · G = zona',
+    meaning: '17 November pukul 19.00 WIB',
+  },
+  {
+    name: 'Format DTG (Militer/NATO)',
+    sample: '171847G NOV 2026',
+    breakdown: '17 = tanggal · 1847 = jam · G = zona · NOV = bulan · 2026 = tahun',
+    meaning: '17 November 2026 pukul 18.47 WIB',
+  },
+];
+
+const DTG_EXAMPLES = ['TW 1117 1900 G', '171847G NOV 2026', '1122.1600 Z', '051014Z SEP 25'];
+
+function DtgCard() {
+  const [text, setText] = useState('');
+  const parsed: DtgParsed | null = useMemo(() => parseDtg(text), [text]);
+  const zoneRows = useMemo(
+    () => (parsed ? dtgToZones(parsed, new Date().getFullYear()) : null),
+    [parsed],
+  );
+
+  return (
+    <WorksheetCard
+      title="Format Tanggal-Waktu (TW / DTG)"
+      badge="Penafsiran Soal"
+      description="Dua format penulisan tanggal-waktu yang lazim dipakai pada soal kasus SAR / Basarnas."
+    >
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-40">Format</TableHead>
+            <TableHead className="w-44">Contoh</TableHead>
+            <TableHead>Cara membaca</TableHead>
+            <TableHead>Arti</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {DTG_FORMAT_ROWS.map((row) => (
+            <TableRow key={row.name}>
+              <TableCell className="text-xs font-medium text-slate-700">{row.name}</TableCell>
+              <TableCell className="font-mono text-xs font-bold text-emerald-700">{row.sample}</TableCell>
+              <TableCell className="text-[11px] text-slate-600">{row.breakdown}</TableCell>
+              <TableCell className="text-xs font-semibold text-slate-800">{row.meaning}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {DTG_ZONE_LETTERS.map((z) => (
+          <Badge key={z.letter} variant="outline" className="font-mono text-[11px]">
+            {z.letter} = {z.zone} (UTC{z.offset >= 0 ? '+' : ''}{z.offset})
+          </Badge>
+        ))}
+      </div>
+
+      <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+        <b>Perhatian:</b> urutan angka kedua format BERBEDA — format TW diawali <b>bulan</b>{' '}
+        (MMDD), sedangkan format DTG diawali <b>tanggal</b> (DD). "1117" pada format TW = 17
+        November, sedangkan pada DTG "1711…" berarti tanggal 17 bulan 11.
+      </div>
+
+      <div className="mt-3 space-y-1">
+        <Label htmlFor="dtg-input" className="text-[11px] font-medium text-slate-600">
+          Masukkan DTG/TW dari soal — penafsiran &amp; konversi ke semua zona
+        </Label>
+        <Input
+          id="dtg-input"
+          type="text"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Contoh: 171847G NOV 2026 atau TW 1117 1900 G"
+          className="h-9 w-full font-mono"
+        />
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        <span className="text-[11px] text-slate-400 self-center">Contoh:</span>
+        {DTG_EXAMPLES.map((ex) => (
+          <Button
+            key={ex}
+            variant="outline"
+            size="sm"
+            className="h-7 px-2 font-mono text-[11px]"
+            onClick={() => setText(ex)}
+          >
+            {ex}
+          </Button>
+        ))}
+        {text && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-[11px]"
+            onClick={() => setText('')}
+          >
+            <RotateCcw className="mr-1 h-3 w-3" /> Hapus
+          </Button>
+        )}
+      </div>
+
+      {parsed && zoneRows ? (
+        <div className="mt-3 space-y-2">
+          <ResultHighlight label="Penafsiran" value={parsed.description} />
+          {parsed.zoneAssumed && (
+            <p className="text-[11px] text-amber-700">
+              Zona tidak dicantumkan pada input — diasumsikan WIB (G).
+            </p>
+          )}
+          <div className="rounded-md bg-slate-50 p-2 font-mono text-[11px] text-slate-600">
+            {parsed.kind === 'TW'
+              ? 'Format TW (Basarnas): [Bulan][Tanggal] [Jam][Menit] [Zona]'
+              : 'Format DTG (Militer/NATO): [Tanggal][Jam][Menit][Zona] [Bulan] [Tahun]'}
+          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Zona</TableHead>
+                <TableHead>Huruf</TableHead>
+                <TableHead className="text-right">Tanggal &amp; waktu</TableHead>
+                <TableHead className="text-right">Catatan</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {zoneRows.map((row) => (
+                <TableRow key={row.zone} className={row.zone === parsed.zone ? 'bg-emerald-50/60' : ''}>
+                  <TableCell className="text-xs font-medium text-slate-700">{row.zone}</TableCell>
+                  <TableCell className="font-mono text-xs text-slate-500">{row.letter}</TableCell>
+                  <TableCell className="text-right font-mono text-sm font-bold text-emerald-800">
+                    {row.label}
+                  </TableCell>
+                  <TableCell className="text-right text-[10px] text-slate-500">
+                    {row.dayShift === 1
+                      ? '+1 hari (besok)'
+                      : row.dayShift === -1
+                      ? '−1 hari (kemarin)'
+                      : ''}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      ) : text.trim() ? (
+        <div className="mt-3">
+          <EmptyHint text="Format tidak dikenali. Gunakan pola TW: [Bulan][Tanggal] [Jam][Menit] [Zona] (mis. TW 1117 1900 G) atau DTG: [Tanggal][Jam][Menit][Zona] [Bulan] [Tahun] (mis. 171847G NOV 2026)." />
+        </div>
+      ) : null}
+    </WorksheetCard>
+  );
+}
+
 function TimezoneSection() {
   const [time, setTime] = useState('0');
   const [from, setFrom] = useState<TzZone>('UTC');
@@ -473,6 +640,8 @@ function TimezoneSection() {
 
   return (
     <div className="space-y-4">
+      <DtgCard />
+
       <WorksheetCard title="Konverter Zona Waktu" badge="UTC ↔ Lokal">
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <NumField
@@ -1223,6 +1392,7 @@ const SUB_TABS = [
   { value: 'zona', label: 'Zona Waktu', icon: Globe },
   { value: 'svt', label: 'S·V·T & Kecepatan', icon: Gauge },
   { value: 'area', label: 'Area', icon: Grid3x3 },
+  { value: 'latihan', label: 'Bank Latihan', icon: GraduationCap },
 ];
 
 export default function BasicCalculation() {
@@ -1266,6 +1436,9 @@ export default function BasicCalculation() {
           </TabsContent>
           <TabsContent value="area" className="mt-0">
             <AreaSection />
+          </TabsContent>
+          <TabsContent value="latihan" className="mt-0">
+            <BasicCalcExercises />
           </TabsContent>
         </Tabs>
       </WorksheetCard>
