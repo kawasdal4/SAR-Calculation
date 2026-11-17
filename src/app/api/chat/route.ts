@@ -51,6 +51,7 @@ JIKA PENGGUNA MELAMPIRKAN FILE/GAMBAR:
 - Gunakan set_asw_case bila ada observasi angin permukaan dengan rentang waktu; set_awa_case untuk angin berdasarkan ketinggian pada kasus penerbangan; set_lkp untuk koordinat LKP; set_datum_case untuk lama drift dan data arus/jenis objek yang tersedia; set_intercept_case untuk kasus pintasan lengkap.
 - Gunakan set_ws2_case hanya bila detail pencarian udara yang dibutuhkan WS 2 tersedia; gunakan set_ws8_case hanya bila detail pencarian kapal yang dibutuhkan WS 8 tersedia. Keduanya membutuhkan data target, kondisi pandang, status fatigue, serta parameter platform yang sesuai.
 - Dalam satu kasus maritim, panggil set_asw_case, set_lkp, dan set_datum_case bersama-sama bila seluruh datanya tersedia, agar perhitungan datum dan Worksheet 1 dapat langsung dijalankan. Jika hanya sebagian data ada, isi worksheet yang datanya cukup dan sebutkan prasyarat yang masih kurang.
+- KASUS PESAWAT (AWA/ADA) — isi beruntun bila datanya ada: set_awa_case dengan distressAltFt (feet) dan SEMUA lapisan tabel angin atas urut naik termasuk Surface (altObs "0"); set_asw_case bila ada observasi angin permukaan berurut waktu (intervalMode dari jeda observasi, distress/datum time dari soal); set_lkp untuk koordinat LKP; set_datum_case bila arus, lama drift (dari waktu distress ke waktu datum/pencarian lanjutan), dan jenis objek diketahui (life raft dengan drogue → raft-canopy-drogue; tanpa drogue → raft-canopy-no-drogue). Parameter pesawat (cruise/glide speed, glide ratio, fuel) cukup disebut di penjelasan karena ADW dihitung aplikasi dari data AWA. Worksheet hilir (WS 2/WS 8/pola pencarian) hanya bila data pencarian (visibilitas, fatigue, platform/SRU) lengkap; selain itu tanyakan via ask_for_case_data.
 - Berikan ringkasan analisis, daftar worksheet yang dipilih, data yang berhasil diekstrak, dan data yang masih kurang. Hasil angka perhitungan harus berasal dari kalkulator aplikasi.
 
 FORMAT WAKTU BASARNAS: [Bulan][Tanggal] [Jam][Menit] [Zona Waktu]
@@ -434,6 +435,55 @@ const tools: FunctionDeclaration[] = [
 const GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.5-flash-lite'] as const;
 const MAX_RETRIES_PER_MODEL = 1;
 const GEMINI_REQUEST_TIMEOUT_MS = 45_000;
+const WORKSHEET_TOOL_NAMES = ['set_asw_case', 'set_awa_case', 'set_lkp', 'set_datum_case', 'set_ws2_case', 'set_ws3_case', 'set_ws4_case', 'set_ws8_case', 'set_search_pattern_case', 'set_intercept_case', 'ask_for_case_data'];
+
+/**
+ * Coba ulang sekali dengan tool_choice paksa yang hanya mengizinkan tool
+ * worksheet/klarifikasi. Dipakai bila permintaan tampak seperti soal kasus
+ * tetapi model tidak memanggil satupun tool worksheet (mis. model cadangan
+ * hanya memanggil save_case_data_bank atau menjawab teks biasa).
+ */
+async function runForcedWorksheetRetry(
+  input: Array<Record<string, string>>,
+  apiKey: string,
+  model: string,
+  normalizeSchemaFn: (value: unknown) => unknown,
+): Promise<Array<{ type?: string; name?: string; arguments?: unknown }> | null> {
+  try {
+    console.info(`[AI chat] Kasus tanpa panggilan worksheet; ulangi dengan tool_choice paksa (model=${model}).`);
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+      signal: AbortSignal.timeout(GEMINI_REQUEST_TIMEOUT_MS),
+      body: JSON.stringify({
+        model,
+        input,
+        system_instruction: SYSTEM_PROMPT,
+        generation_config: {
+          max_output_tokens: 8192,
+          thinking_level: model === 'gemini-3.5-flash-lite' ? 'minimal' : 'low',
+          tool_choice: { allowed_tools: { mode: 'any', tools: WORKSHEET_TOOL_NAMES } },
+        },
+        tools: tools.map((tool) => ({
+          type: 'function',
+          name: tool.name,
+          description: tool.description,
+          parameters: normalizeSchemaFn(tool.parameters),
+        })),
+        store: false,
+      }),
+    });
+    if (!response.ok) {
+      console.warn(`[AI chat] Forced worksheet retry gagal (HTTP ${response.status}).`);
+      return null;
+    }
+    const payload = await response.json().catch(() => ({}));
+    return Array.isArray(payload?.steps) ? payload.steps as Array<{ type?: string; name?: string; arguments?: unknown }> : [];
+  } catch (retryErr) {
+    console.warn('[AI chat] Forced worksheet retry error:', retryErr instanceof Error ? retryErr.message : retryErr);
+    return null;
+  }
+}
 
 // This Vercel project supports 300-second functions; complex SAR case analysis
 // and document understanding can exceed the shorter 60-second default.
@@ -583,10 +633,46 @@ export async function POST(req: NextRequest) {
       throw new Error('Format respons Gemini tidak berisi langkah jawaban yang dapat diproses.');
     }
 
-    const steps = Array.isArray(result.steps) ? result.steps as Array<{ type?: string; name?: string; arguments?: unknown; content?: Array<{ type?: string; text?: string }> }> : [];
-    const functionCalls = steps.filter((step): step is typeof step & { name: string } =>
+    type RawGeminiStep = { type?: string; name?: string; arguments?: unknown; content?: Array<{ type?: string; text?: string }> };
+    type GeminiFunctionCallStep = RawGeminiStep & { name: string };
+    const steps = Array.isArray(result.steps) ? result.steps as RawGeminiStep[] : [];
+    let functionCalls: GeminiFunctionCallStep[] = steps.filter((step): step is GeminiFunctionCallStep =>
       step.type === 'function_call' && typeof step.name === 'string'
     );
+
+    // Jaring pengaman: permintaan yang tampak seperti soal kasus tetapi tidak
+    // menghasilkan panggilan worksheet maupun pertanyaan klarifikasi diulang
+    // sekali dengan tool_choice paksa ke tool worksheet (model cadangan kadang
+    // hanya memanggil save_case_data_bank atau menjawab teks biasa).
+    const hasInlineAttachment = input.some((part) => part.type === 'document' || part.type === 'image');
+    const caseStructureHits = [
+      /(detresfa|distress)/i,
+      /(lkp|last known position|koordinat|positions?)/i,
+      /\b(pob|crews?|penumpang|kapal|vessel|pesawat|aircraft|raft|perahu)\b/i,
+      /\d{1,4}[.:]\d{2}\s*(wib|wit|wita|utc|z\b|lt\b)/i,
+      /(angin|wind)\b.{0,60}\b(kts|knot|knots|derajat)/i,
+      /(derajat|°)/,
+    ].filter((re) => re.test(interceptSourceText)).length;
+    const caseLikeRequest = hasInlineAttachment
+      ? caseStructureHits >= 3
+      : caseStructureHits >= 4 && /(buat|hitung|tentukan|analisis|kerjakan|isi|telaah)/i.test(userPrompt);
+    const firstPassBankCalls: Array<{ name: string; args: unknown }> = functionCalls
+      .filter((fc) => fc.name === 'save_case_data_bank')
+      .map((fc) => ({ name: fc.name, args: fc.arguments || {} }));
+    const firstPassClarification = functionCalls.filter((fc) => fc.name === 'ask_for_case_data');
+    const firstPassWorksheet = functionCalls.filter((fc) => fc.name !== 'ask_for_case_data' && fc.name !== 'save_case_data_bank');
+    if (caseLikeRequest && firstPassWorksheet.length === 0 && firstPassClarification.length === 0) {
+      const forcedRetrySteps = await runForcedWorksheetRetry(input, apiKey, usedModel, normalizeSchema);
+      const retryWorksheet = forcedRetrySteps?.filter((step) => step.type === 'function_call' && typeof step.name === 'string'
+        && step.name !== 'save_case_data_bank') ?? [];
+      if (retryWorksheet.length > 0) {
+        console.info(`[AI chat] Forced worksheet retry menghasilkan ${retryWorksheet.length} panggilan worksheet.`);
+        functionCalls = forcedRetrySteps!.filter((step): step is GeminiFunctionCallStep =>
+          step.type === 'function_call' && typeof step.name === 'string'
+        );
+      }
+    }
+
     // BANK DATA: teks konfirmasi penyimpanan (diisi bila ada panggilan save_case_data_bank).
     let bankSavedText = '';
     // Bank lokal (fallback bila server tak bisa menulis DB, mis. Vercel serverless).
@@ -603,17 +689,19 @@ export async function POST(req: NextRequest) {
       // perhitungan biasa tidak perlu Bank Data (permintaan pengguna aplikasi);
       // lampiran inline (PDF/gambar) dipercaya pada keputusan model karena
       // teksnya tidak bisa diperiksa di server.
-      const hasInlineAttachment = input.some((part) => part.type === 'document' || part.type === 'image');
       const wantsBankData = hasInlineAttachment
         || /(?:renops|rencana\s*operasi|briefing|de-?briefing|bank\s*data)/i.test(interceptSourceText);
       const bankCalls = calls.filter((call) => call.name === 'save_case_data_bank');
-      if (bankCalls.length > 0 && !wantsBankData) {
+      // Bank dari pass pertama tetap dipersist walau retry pengganti tidak
+      // memanggil save_case_data_bank lagi.
+      const effectiveBankCalls = bankCalls.length > 0 ? bankCalls : firstPassBankCalls;
+      if (effectiveBankCalls.length > 0 && !wantsBankData) {
         bankSavedText = '\n\nℹ️ Soal ini tidak meminta penyusunan RENOPS/Briefing/De-Briefing, jadi Bank Data tidak dibuat — cukup kerjakan worksheet di atas. Bila tetap ingin disimpan, ketik \"simpan ke bank data\".';
-      } else if (bankCalls.length > 0) {
+      } else if (effectiveBankCalls.length > 0) {
         try {
           const { db } = await import('@/lib/db');
           const { CASE_FACT_MAP, questionsToPending } = await import('@/lib/sar/dataBank');
-          const savedCount = await persistCaseDataBank(db, CASE_FACT_MAP, questionsToPending, bankCalls);
+          const savedCount = await persistCaseDataBank(db, CASE_FACT_MAP, questionsToPending, effectiveBankCalls);
           bankSavedText = `\n\n🗂️ Hasil analisis kasus telah disimpan ke Bank Data (${savedCount} fakta + pertanyaan data yang belum ada). Buka tab Briefing/Renops → panel Bank Data & Dokumen untuk melihat, melengkapi, dan membuat draft RENOPS/Briefing/De-Briefing.`;
         } catch (bankErr) {
           // Bila DB (Supabase Postgres) tidak dapat ditulis, kirim hasil analisis ke
@@ -621,7 +709,7 @@ export async function POST(req: NextRequest) {
           console.warn('[AI chat] DB tidak dapat ditulis; memakai Bank Data lokal:', (bankErr as Error).message);
           try {
             const { CASE_FACT_MAP, questionsToPending } = await import('@/lib/sar/dataBank');
-            bankFallback = buildLocalBankRecords(CASE_FACT_MAP, questionsToPending, bankCalls);
+            bankFallback = buildLocalBankRecords(CASE_FACT_MAP, questionsToPending, effectiveBankCalls);
             const nFacts = bankFallback.reduce((sum, b) => sum + Number(b.readyCount ?? 0), 0);
             bankSavedText = `\n\n🗂️ Server tidak dapat menyimpan ke database (mis. deployment serverless), jadi Bank Data (${nFacts} fakta + pertanyaan) disimpan di browser Anda. Buka tab Briefing/Renops → panel Bank Data & Dokumen — bank ditandai “lokal” dan tetap bisa dilengkapi/dipakai generate dokumen.`;
           } catch {
