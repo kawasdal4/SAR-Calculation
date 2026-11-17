@@ -506,7 +506,7 @@ function buildAllocationTables(snap: DocumentSnapshot | null, bank: DataBankFiel
   const bankLand = bankValue(bank, 'preparedSruLand');
   const tables: DocTable[] = [];
 
-  const mkRow = (a: DocumentSnapshot['assets'][number] | null, name: string): string[] => {
+  const mkRow = (a: NonNullable<DocumentSnapshot['assets']>[number] | null, name: string): string[] => {
     if (!a) return [name, '-', '-', '-', '-', PENDING_TEXT, PENDING_TEXT];
     const endurance = numText(a.enduranceHours, 1) ? `${numText(a.enduranceHours, 1)} jam` : PENDING_TEXT;
     const transit = numText(a.transitSpeedKts, 0) ? `${numText(a.transitSpeedKts, 0)} kts` : PENDING_TEXT;
@@ -514,7 +514,8 @@ function buildAllocationTables(snap: DocumentSnapshot | null, bank: DataBankFiel
   };
   const cols = ['Assets', 'Total Endurance', 'Transit', 'Reserve', 'Weather (TAF)', 'OSE', 'Keterangan'];
   const prov: string[] = [];
-  const collect = (list: DocumentSnapshot['assets'], fallback: string | null, domain: string) => {
+  const collect = (listInput: DocumentSnapshot['assets'] | null | undefined, fallback: string | null, domain: string) => {
+    const list = listInput ?? [];
     const rows: string[][] = [];
     if (list.length === 0 && fallback) {
       rows.push([fallback, PENDING_TEXT, PENDING_TEXT, PENDING_TEXT, PENDING_TEXT, PENDING_TEXT, PENDING_TEXT]);

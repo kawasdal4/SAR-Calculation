@@ -1,6 +1,7 @@
 import { type FunctionDeclaration, SchemaType } from '@google/generative-ai';
 import { NextRequest, NextResponse } from 'next/server';
 import { processUploadedFile } from '@/lib/sar/fileExtractor';
+import type { DataBankField, RawQuestion } from '@/lib/sar/dataBank';
 
 const SYSTEM_PROMPT = `Kamu adalah Asisten SAR Planner AI untuk Badan SAR Nasional (Basarnas) Indonesia.
 Kamu membantu dalam perhitungan dan analisis operasi SAR berdasarkan panduan operasi SAR dan Peraturan No. 3 Tahun 2020.
@@ -581,6 +582,8 @@ export async function POST(req: NextRequest) {
     );
     // BANK DATA: teks konfirmasi penyimpanan (diisi bila ada panggilan save_case_data_bank).
     let bankSavedText = '';
+    // Bank lokal (fallback bila server tak bisa menulis DB, mis. Vercel serverless).
+    let bankFallback: Array<Record<string, unknown>> | null = null;
     if (functionCalls.length > 0) {
       const calls = functionCalls.map((fc: { name: string; arguments?: unknown }) => ({
         name: fc.name,
@@ -595,11 +598,20 @@ export async function POST(req: NextRequest) {
         try {
           const { db } = await import('@/lib/db');
           const { CASE_FACT_MAP, questionsToPending } = await import('@/lib/sar/dataBank');
-          const savedCount = await persistCaseDataBank(db, CASE_FACT_MAP, bankCalls);
+          const savedCount = await persistCaseDataBank(db, CASE_FACT_MAP, questionsToPending, bankCalls);
           bankSavedText = `\n\n🗂️ Hasil analisis kasus telah disimpan ke Bank Data (${savedCount} fakta + pertanyaan data yang belum ada). Buka tab Briefing/Renops → panel Bank Data & Dokumen untuk melihat, melengkapi, dan membuat draft RENOPS/Briefing/De-Briefing.`;
         } catch (bankErr) {
-          console.error('[AI chat] Gagal menyimpan Bank Data:', (bankErr as Error).message);
-          bankSavedText = '\n\n⚠️ Bank Data gagal disimpan ke database — coba ulangi analisis kasus.';
+          // Serverless/Vercel: filesystem read-only → SQLite write gagal. Kirim hasil
+          // analisis ke browser agar disimpan sebagai Bank Data lokal (localStorage).
+          console.warn('[AI chat] DB tidak dapat ditulis; memakai Bank Data lokal:', (bankErr as Error).message);
+          try {
+            const { CASE_FACT_MAP, questionsToPending } = await import('@/lib/sar/dataBank');
+            bankFallback = buildLocalBankRecords(CASE_FACT_MAP, questionsToPending, bankCalls);
+            const nFacts = bankFallback.reduce((sum, b) => sum + Number(b.readyCount ?? 0), 0);
+            bankSavedText = `\n\n🗂️ Server tidak dapat menyimpan ke database (mis. deployment serverless), jadi Bank Data (${nFacts} fakta + pertanyaan) disimpan di browser Anda. Buka tab Briefing/Renops → panel Bank Data & Dokumen — bank ditandai “lokal” dan tetap bisa dilengkapi/dipakai generate dokumen.`;
+          } catch {
+            bankSavedText = '\n\n⚠️ Bank Data gagal disimpan — coba ulangi analisis kasus.';
+          }
         }
       }
       const clarificationText = clarificationCalls.map((call) => {
@@ -628,6 +640,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         text: `${usedModel !== GEMINI_MODELS[0] ? 'Model utama sedang sibuk; jawaban diproses dengan model cadangan.\n\n' : ''}${responseText}${bankSavedText}${clarificationText}`,
         functionCalls: worksheetCalls.length ? worksheetCalls : null,
+        ...(bankFallback ? { bankFallback } : {}),
       });
     }
 
@@ -647,6 +660,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       text: `${usedModel !== GEMINI_MODELS[0] ? 'Model utama sedang sibuk; jawaban diproses dengan model cadangan.\n\n' : ''}${responseText || 'Model Gemini tidak mengembalikan teks jawaban.'}${bankSavedText}`,
       functionCalls: null,
+      ...(bankFallback ? { bankFallback } : {}),
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
@@ -655,15 +669,26 @@ export async function POST(req: NextRequest) {
   }
 }
 
-/** Persist hasil analisis Soal Kasus dari tool save_case_data_bank ke CaseDataBank. */
-async function persistCaseDataBank(
-  dbClient: import('@prisma/client').PrismaClient,
+/** Bentuk record Bank Data siap simpan (DB maupun lokal browser). */
+interface BankRecordData {
+  caseTitle: string | null;
+  incidentType: string;
+  rawText: string;
+  fields: string;
+  readyCount: number;
+}
+
+type QuestionsToPendingFn = (rawQuestions: RawQuestion[], existing: DataBankField[]) => DataBankField[];
+
+/** Susun record Bank Data dari panggilan tool save_case_data_bank (murni, tanpa DB). */
+function buildBankRecords(
   caseFactMap: Record<string, { key: string; label: string; plannedActual?: 'planned' | 'actual' }>,
-  bankCalls: Array<{ args: Record<string, unknown> }>,
-): Promise<number> {
-  let totalFacts = 0;
+  questionsToPendingFn: QuestionsToPendingFn,
+  bankCalls: Array<{ args?: unknown }>,
+): BankRecordData[] {
+  const records: BankRecordData[] = [];
   for (const call of bankCalls) {
-    const args = call.args as {
+    const args = (call.args ?? {}) as {
       caseTitle?: unknown;
       incidentType?: unknown;
       rawText?: unknown;
@@ -673,11 +698,7 @@ async function persistCaseDataBank(
     const incidentType = args.incidentType === 'DISASTER' ? 'DISASTER' : 'ACCIDENT';
     const caseTitle = typeof args.caseTitle === 'string' && args.caseTitle.trim() ? args.caseTitle.trim() : null;
     const rawText = typeof args.rawText === 'string' && args.rawText.trim() ? args.rawText.trim().slice(0, 8000) : '';
-    const fields: Array<{
-      key: string; label: string; value: string | null; unit?: string | null;
-      sourceType: string; sourceRef?: string | null; status: string;
-      plannedActual?: 'planned' | 'actual'; question?: string | null; updatedAt: string;
-    }> = [];
+    const fields: DataBankField[] = [];
     const nowIso = new Date().toISOString();
 
     const facts = Array.isArray(args.facts) ? args.facts : [];
@@ -704,18 +725,54 @@ async function persistCaseDataBank(
     // Pertanyaan AI: {key, question} → placeholder PENDING ber-kunci kanonik;
     // string polos (kompatibilitas lama) → tetap disimpan sebagai q_ bebas.
     const questions = Array.isArray(args.questions) ? args.questions : [];
-    fields.push(...questionsToPending(questions as never[], fields));
+    fields.push(...questionsToPendingFn(questions as RawQuestion[], fields));
 
-    totalFacts += fields.filter((f) => f.status === 'READY').length;
+    records.push({
+      caseTitle,
+      incidentType,
+      rawText,
+      fields: JSON.stringify(fields),
+      readyCount: fields.filter((f) => f.status === 'READY').length,
+    });
+  }
+  return records;
+}
+
+/** Persist hasil analisis Soal Kasus dari tool save_case_data_bank ke CaseDataBank. */
+async function persistCaseDataBank(
+  dbClient: import('@prisma/client').PrismaClient,
+  caseFactMap: Record<string, { key: string; label: string; plannedActual?: 'planned' | 'actual' }>,
+  questionsToPendingFn: QuestionsToPendingFn,
+  bankCalls: Array<{ args?: unknown }>,
+): Promise<number> {
+  const records = buildBankRecords(caseFactMap, questionsToPendingFn, bankCalls);
+  let totalFacts = 0;
+  for (const rec of records) {
+    totalFacts += rec.readyCount;
     await dbClient.caseDataBank.create({
       data: {
-        caseTitle,
-        incidentType,
-        rawText,
-        fields: JSON.stringify(fields),
+        caseTitle: rec.caseTitle,
+        incidentType: rec.incidentType,
+        rawText: rec.rawText,
+        fields: rec.fields,
       },
     });
   }
   return totalFacts;
+}
+
+/** Bank lokal untuk browser (fallback serverless): payload siap disimpan client-side. */
+function buildLocalBankRecords(
+  caseFactMap: Record<string, { key: string; label: string; plannedActual?: 'planned' | 'actual' }>,
+  questionsToPendingFn: QuestionsToPendingFn,
+  bankCalls: Array<{ args?: unknown }>,
+): Array<Record<string, unknown>> {
+  return buildBankRecords(caseFactMap, questionsToPendingFn, bankCalls).map((rec) => ({
+    caseTitle: rec.caseTitle,
+    incidentType: rec.incidentType,
+    rawText: rec.rawText,
+    fields: JSON.parse(rec.fields),
+    readyCount: rec.readyCount,
+  }));
 }
 

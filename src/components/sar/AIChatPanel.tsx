@@ -507,6 +507,7 @@ export default function AIChatPanel({
           error?: string;
           text?: string;
           functionCalls?: ChatMessage['functionCalls'];
+          bankFallback?: Array<{ caseTitle?: string | null; incidentType?: string; rawText?: string; fields?: unknown[] }>;
         };
         try {
           data = JSON.parse(responseBody);
@@ -519,6 +520,29 @@ export default function AIChatPanel({
 
         if (!res.ok) {
           throw new Error(data.error || 'API Error');
+        }
+
+        // Bank Data lokal (fallback serverless): simpan hasil analisis ke localStorage
+        // agar tetap bisa dipakai di panel Bank Data & Dokumen (tab Briefing/Renops).
+        if (Array.isArray(data.bankFallback) && data.bankFallback.length > 0) {
+          try {
+            const LOCAL_BANKS_KEY = 'sar-data-bank-local';
+            const stored = JSON.parse(localStorage.getItem(LOCAL_BANKS_KEY) ?? '[]') as Array<Record<string, unknown>>;
+            const nowIso = new Date().toISOString();
+            for (const rec of data.bankFallback) {
+              if (!Array.isArray(rec.fields)) continue;
+              stored.unshift({
+                id: `local_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
+                caseTitle: rec.caseTitle ?? null,
+                incidentType: rec.incidentType === 'DISASTER' ? 'DISASTER' : 'ACCIDENT',
+                rawText: typeof rec.rawText === 'string' ? rec.rawText : '',
+                fields: rec.fields,
+                createdAt: nowIso,
+                updatedAt: nowIso,
+              });
+            }
+            localStorage.setItem(LOCAL_BANKS_KEY, JSON.stringify(stored.slice(0, 50)));
+          } catch { /* penyimpanan lokal gagal — abaikan */ }
         }
 
         const { applied, invalidIntercept } = applyFunctionCalls(data.functionCalls);

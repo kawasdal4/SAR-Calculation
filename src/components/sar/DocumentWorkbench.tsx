@@ -42,7 +42,7 @@ interface DocumentWorkbenchProps {
   datumResults: DatumResults | null;
   searchResults: SearchPlanResults | null;
   asw: { aswDirFrom: number; aswSpeed: number };
-  awa: { aswDirFrom: number; aswSpeed: number; isValid: boolean };
+  awa: { aswDirFrom: number; aswSpeed: number; isValid?: boolean };
   ws2TrackSpacingNm: number | null;
   ws3TrackSpacingNm: number | null;
   ws8TrackSpacingNm: number | null;
@@ -64,6 +64,72 @@ interface BankRecord {
   rawText: string;
   fields: DataBankField[];
   updatedAt: string;
+}
+
+// Bank Data lokal (fallback serverless/Vercel — DB read-only).
+const LOCAL_BANKS_KEY = 'sar-data-bank-local';
+const AI_KEY_STORAGE = 'sar-ai-api-key';
+const isLocalBank = (id: string | null) => !!id && id.startsWith('local_');
+
+function readLocalBanks(): BankRecord[] {
+  try {
+    const arr = JSON.parse(localStorage.getItem(LOCAL_BANKS_KEY) ?? '[]');
+    return Array.isArray(arr) ? arr.filter((b) => b && typeof b.id === 'string' && Array.isArray(b.fields)) : [];
+  } catch { return []; }
+}
+
+function writeLocalBanks(banks: BankRecord[]) {
+  try { localStorage.setItem(LOCAL_BANKS_KEY, JSON.stringify(banks.slice(0, 50))); } catch { /* penuh/privat */ }
+}
+
+function upsertLocalBank(bank: BankRecord): BankRecord[] {
+  const current = readLocalBanks();
+  const idx = current.findIndex((b) => b.id === bank.id);
+  const next = idx >= 0 ? current.map((b, i) => (i === idx ? bank : b)) : [bank, ...current];
+  writeLocalBanks(next);
+  return next;
+}
+
+function removeLocalBank(id: string): BankRecord[] {
+  const next = readLocalBanks().filter((b) => b.id !== id);
+  writeLocalBanks(next);
+  return next;
+}
+
+/** Terapkan jawaban satu field di sisi klien (cermin logika PATCH /api/data-bank/[id]). */
+function applyFieldAnswer(
+  fields: DataBankField[],
+  key: string,
+  label: string,
+  value: string,
+  nowIso: string,
+): DataBankField[] {
+  const clean = value === null || value === undefined || String(value).trim() === '' ? null : String(value).trim();
+  const idx = fields.findIndex((f) => f.key === key);
+  if (idx >= 0) {
+    return fields.map((f, i) => (i === idx
+      ? {
+        ...f,
+        value: clean,
+        status: clean ? 'READY' : 'PENDING',
+        sourceType: clean ? 'manual_confirmed' : f.sourceType,
+        sourceRef: clean ? `Input manual petugas (${nowIso})` : f.sourceRef,
+        question: clean ? null : f.question,
+        updatedAt: nowIso,
+      }
+      : f));
+  }
+  if (!clean) return fields;
+  return [...fields, {
+    key,
+    label,
+    value: clean,
+    unit: null,
+    sourceType: 'manual_confirmed',
+    sourceRef: `Input manual petugas (${nowIso})`,
+    status: 'READY',
+    updatedAt: nowIso,
+  }];
 }
 
 const SOURCE_LABEL: Record<SourceType, string> = {
@@ -142,12 +208,14 @@ export default function DocumentWorkbench(props: DocumentWorkbenchProps) {
   }), [props]);
 
   const fetchBanks = useCallback(async () => {
+    // Gabungkan bank dari database + bank lokal browser (fallback serverless).
+    const local = readLocalBanks();
     try {
       const res = await fetch('/api/data-bank', { cache: 'no-store' });
       const data = await res.json();
-      setBanks(data.banks ?? []);
+      setBanks([...local, ...(data.banks ?? [])]);
     } catch {
-      /* senyap */
+      setBanks(local);
     }
   }, []);
 
@@ -171,18 +239,31 @@ export default function DocumentWorkbench(props: DocumentWorkbenchProps) {
     }
     setAnalyzing(true);
     try {
+      // Key Gemini (bila diisi di panel AI Asisten) → analisis tetap jalan di serverless.
+      let apiKey: string | undefined;
+      try { apiKey = localStorage.getItem(AI_KEY_STORAGE) ?? undefined; } catch { /* abaikan */ }
       const res = await fetch('/api/data-bank', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rawText, bankId }),
+        body: JSON.stringify({ rawText, bankId: isLocalBank(bankId) ? null : bankId, apiKey }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-      setBankId(data.bank.id);
-      setBankFields(data.bank.fields);
-      setBankIncidentType(data.bank.incidentType);
+      let newBank = data.bank as BankRecord;
+      if (data.persisted === false) {
+        // Server tak bisa menulis DB (serverless) → simpan sebagai bank lokal.
+        if (!newBank.id || !newBank.id.startsWith('local_')) {
+          newBank = { ...newBank, id: `local_${Date.now().toString(36)}` };
+        }
+        upsertLocalBank(newBank);
+      }
+      setBankId(newBank.id);
+      setBankFields(newBank.fields ?? []);
+      setBankIncidentType(newBank.incidentType);
       void fetchBanks();
-      toast.success(`Analisis selesai: ${data.summary.ready} fakta tersimpan, ${data.summary.questions} pertanyaan untuk Anda.`);
+      toast.success(`Analisis selesai: ${data.summary.ready} fakta tersimpan, ${data.summary.questions} pertanyaan untuk Anda.`, {
+        description: data.persisted === false ? 'Server tidak dapat menyimpan ke database — Bank Data disimpan di browser Anda (lokal).' : undefined,
+      });
     } catch (e) {
       toast.error('Analisis Bank Data gagal', { description: (e as Error).message });
     } finally {
@@ -192,6 +273,17 @@ export default function DocumentWorkbench(props: DocumentWorkbenchProps) {
 
   const patchField = async (key: string, label: string, value: string) => {
     if (!bankId) return;
+    // Bank lokal → perbarui langsung di localStorage (tanpa server).
+    if (isLocalBank(bankId)) {
+      const nowIso = new Date().toISOString();
+      const updatedFields = applyFieldAnswer(bankFields, key, label, value, nowIso);
+      const rec = { id: bankId, caseTitle: null, incidentType: bankIncidentType ?? 'ACCIDENT', rawText, fields: updatedFields, updatedAt: nowIso };
+      upsertLocalBank(rec);
+      setBankFields(updatedFields);
+      setAnswers((prev) => ({ ...prev, [key]: '' }));
+      toast.success('Jawaban tersimpan ke Bank Data lokal (browser).');
+      return;
+    }
     try {
       const res = await fetch(`/api/data-bank/${bankId}`, {
         method: 'PATCH',
@@ -204,19 +296,32 @@ export default function DocumentWorkbench(props: DocumentWorkbenchProps) {
       setAnswers((prev) => ({ ...prev, [key]: '' }));
       toast.success('Jawaban tersimpan ke Bank Data (input manual).');
     } catch (e) {
-      toast.error('Gagal menyimpan jawaban', { description: (e as Error).message });
+      // DB read-only (serverless) → konversi bank ini menjadi bank lokal dengan jawaban.
+      const nowIso = new Date().toISOString();
+      const updatedFields = applyFieldAnswer(bankFields, key, label, value, nowIso);
+      const localId = `local_${Date.now().toString(36)}`;
+      upsertLocalBank({ id: localId, caseTitle: null, incidentType: bankIncidentType ?? 'ACCIDENT', rawText, fields: updatedFields, updatedAt: nowIso });
+      setBankId(localId);
+      setBankFields(updatedFields);
+      setAnswers((prev) => ({ ...prev, [key]: '' }));
+      toast.success('Database server tidak dapat ditulis — jawaban disimpan ke Bank Data lokal (browser).', {
+        description: (e as Error).message,
+      });
     }
   };
 
   const handleGenerate = async () => {
     setGenerating(true);
     try {
+      // Bank lokal → kirim fields + incidentType inline (tanpa akses DB).
+      const isLocal = isLocalBank(bankId);
       const res = await fetch('/api/documents/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           docType,
-          bankId,
+          bankId: isLocal ? null : bankId,
+          ...(isLocal ? { bankFields: bankFields, incidentType: bankIncidentType ?? undefined } : {}),
           snapshot,
           selectedAssetId: selectedAssetId || undefined,
         }),
@@ -263,6 +368,13 @@ export default function DocumentWorkbench(props: DocumentWorkbenchProps) {
                   size="sm"
                   className="text-red-600 border-red-200 hover:bg-red-50"
                   onClick={async () => {
+                    if (isLocalBank(bankId)) {
+                      removeLocalBank(bankId);
+                      setBankId(null); setBankFields([]); setDocument(null); setDraftId(null);
+                      void fetchBanks();
+                      toast.success('Bank data lokal dihapus.');
+                      return;
+                    }
                     try {
                       await fetch(`/api/data-bank/${bankId}`, { method: 'DELETE' });
                       setBankId(null); setBankFields([]); setDocument(null); setDraftId(null);
@@ -286,7 +398,7 @@ export default function DocumentWorkbench(props: DocumentWorkbenchProps) {
                 <SelectContent>
                   {banks.map((b) => (
                     <SelectItem key={b.id} value={b.id}>
-                      {b.caseTitle ?? 'Tanpa judul'} · {b.incidentType} · {new Date(b.updatedAt).toLocaleString('id-ID')}
+                      {isLocalBank(b.id) ? '💾 ' : ''}{b.caseTitle ?? 'Tanpa judul'} · {b.incidentType}{isLocalBank(b.id) ? ' · lokal' : ''} · {new Date(b.updatedAt).toLocaleString('id-ID')}
                     </SelectItem>
                   ))}
                 </SelectContent>

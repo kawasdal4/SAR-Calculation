@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Pilih docType; AUTO mengikuti incident type pada Bank Data (Panduan Agent §3).
-    let docType: DocType = (body.docType ?? 'AUTO') as DocType;
+    let docType = String(body.docType ?? 'AUTO').toUpperCase() as DocType | 'AUTO';
     if (docType === 'AUTO') docType = pickRenopsType(bank, incidentHint);
     if (!['RENOPS_I', 'RENOPS_II', 'BRIEFING', 'DEBRIEFING'].includes(docType)) {
       return NextResponse.json({ error: `docType tidak dikenal: ${docType}` }, { status: 400 });
@@ -43,19 +43,26 @@ export async function POST(req: NextRequest) {
 
     const document = buildDocument(docType, snapshot, bank, selectedAssetId);
 
-    // Simpan draft (versi riwayat untuk review/approval SMC).
-    const draft = await db.documentDraft.create({
-      data: {
-        caseId: body.caseId ?? null,
-        bankId,
-        docType,
-        status: 'DRAFT',
-        payload: JSON.stringify(document),
-      },
-    });
+    // Simpan draft (versi riwayat untuk review/approval SMC). Best-effort:
+    // pada serverless read-only (Vercel) riwayat dilewati, dokumen tetap dibuat.
+    let draftId: string | null = null;
+    try {
+      const draft = await db.documentDraft.create({
+        data: {
+          caseId: body.caseId ?? null,
+          bankId,
+          docType,
+          status: 'DRAFT',
+          payload: JSON.stringify(document),
+        },
+      });
+      draftId = draft.id;
+    } catch (dbErr) {
+      console.warn('[documents/generate] Draft tidak tersimpan di DB (serverless read-only):', (dbErr as Error).message);
+    }
 
     return NextResponse.json({
-      draftId: draft.id,
+      draftId,
       document,
       summary: {
         ready: document.validation.ready,

@@ -51,6 +51,49 @@ export async function GET() {
   }
 }
 
+const GEMINI_FALLBACK_MODELS = ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.5-flash-lite'] as const;
+
+/** Analisis via Gemini Interactions API memakai key milik pengguna (untuk deployment non-sandbox, mis. Vercel). */
+async function geminiExtract(apiKey: string, prompt: string): Promise<string> {
+  let lastError: Error | undefined;
+  for (const model of GEMINI_FALLBACK_MODELS) {
+    try {
+      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+        signal: AbortSignal.timeout(120_000),
+        body: JSON.stringify({
+          model,
+          input: [{ type: 'text', text: prompt }],
+          system_instruction: ANALYSIS_SYSTEM_PROMPT,
+          generation_config: { max_output_tokens: 8192, thinking_level: model === 'gemini-3.5-flash-lite' ? 'minimal' : 'low' },
+          store: false,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (response.ok) {
+        const steps = Array.isArray((payload as { steps?: unknown }).steps)
+          ? (payload as { steps: Array<{ type?: string; content?: Array<{ type?: string; text?: string }> }> }).steps
+          : [];
+        const text = steps
+          .filter((s) => s.type === 'model_output')
+          .flatMap((s) => s.content || [])
+          .filter((p) => p.type === 'text')
+          .map((p) => p.text || '')
+          .join('');
+        if (text.trim()) return text;
+        lastError = new Error('Gemini mengembalikan teks kosong.');
+      } else {
+        lastError = new Error((payload as { error?: { message?: string } })?.error?.message || `Gemini HTTP ${response.status}`);
+        if (response.status !== 429 && response.status < 500) throw lastError;
+      }
+    } catch (e) {
+      lastError = e instanceof Error ? e : new Error('Koneksi Gemini gagal.');
+    }
+  }
+  throw lastError ?? new Error('Gemini tidak merespons.');
+}
+
 /** POST /api/data-bank — analisis Soal Kasus dengan AI lalu simpan sebagai Bank Data. */
 export async function POST(req: NextRequest) {
   try {
@@ -64,16 +107,30 @@ export async function POST(req: NextRequest) {
     }
     const caseId: string | null = body.caseId ?? null;
     const bankId: string | null = body.bankId ?? null; // re-analisis bank yang sama
+    const apiKey: string | undefined = typeof body.apiKey === 'string' && body.apiKey.trim()
+      ? body.apiKey.trim() : undefined;
 
-    const zai = await ZAI.create();
-    const completion = await zai.chat.completions.create({
-      messages: [
-        { role: 'assistant', content: ANALYSIS_SYSTEM_PROMPT },
-        { role: 'user', content: buildExtractionPrompt(rawText) },
-      ],
-      thinking: { type: 'disabled' },
-    });
-    const content = completion.choices[0]?.message?.content ?? '';
+    let content = '';
+    try {
+      const zai = await ZAI.create();
+      const completion = await zai.chat.completions.create({
+        messages: [
+          { role: 'assistant', content: ANALYSIS_SYSTEM_PROMPT },
+          { role: 'user', content: buildExtractionPrompt(rawText) },
+        ],
+        thinking: { type: 'disabled' },
+      });
+      content = completion.choices[0]?.message?.content ?? '';
+    } catch (zaiErr) {
+      // SDK sandbox tidak tersedia (mis. deployment Vercel) → pakai key Gemini pengguna.
+      if (!apiKey) {
+        return NextResponse.json({
+          error: 'Analisis AI tidak tersedia di server ini. Isi API key Gemini di panel AI Asisten (ikon kunci) lalu coba lagi.',
+        }, { status: 503 });
+      }
+      console.warn('[data-bank] SDK sandbox gagal, memakai Gemini key pengguna:', (zaiErr as Error).message);
+      content = await geminiExtract(apiKey, buildExtractionPrompt(rawText));
+    }
     const parsed = extractJsonObject(content);
     if (!parsed) {
       return NextResponse.json(
@@ -122,20 +179,37 @@ export async function POST(req: NextRequest) {
       fields: JSON.stringify(fields),
     };
 
-    const saved = bankId
-      ? await db.caseDataBank.update({ where: { id: bankId }, data })
-      : await db.caseDataBank.create({ data });
+    // Serverless (Vercel): filesystem read-only → penulisan SQLite gagal.
+    // Tetap kembalikan hasil analisis (persisted=false) agar client menyimpan lokal.
+    let persisted = true;
+    let saved: Record<string, unknown>;
+    try {
+      saved = bankId
+        ? await db.caseDataBank.update({ where: { id: bankId }, data })
+        : await db.caseDataBank.create({ data });
+    } catch (dbErr) {
+      console.warn('[data-bank] DB tidak dapat ditulis; hasil analisis dikirim untuk disimpan lokal:', (dbErr as Error).message);
+      persisted = false;
+      const nowIso = new Date().toISOString();
+      saved = {
+        id: bankId ?? `local_${Date.now().toString(36)}`,
+        ...data,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      };
+    }
 
     const ready = fields.filter((f) => f.status === 'READY').length;
     return NextResponse.json({
       bank: { ...saved, fields },
+      persisted,
       summary: {
         total: fields.length,
         ready,
         questions: fields.filter((f) => f.status === 'PENDING').length,
       },
       incidentType,
-    }, { status: bankId ? 200 : 201 });
+    }, { status: bankId && persisted ? 200 : persisted ? 201 : 200 });
   } catch (e) {
     console.error('Data bank analyze error:', (e as Error).message);
     return NextResponse.json(
