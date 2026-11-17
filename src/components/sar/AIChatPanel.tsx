@@ -180,37 +180,48 @@ export default function AIChatPanel({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const applyFunctionCalls = useCallback((calls: ChatMessage['functionCalls']) => {
-    if (!calls?.length) return { applied: false, invalidIntercept: false, preferredWorksheet: '' };
+    if (!calls?.length) return { applied: false, invalidIntercept: false, attempted: false, failedWorksheets: [] as string[], preferredWorksheet: '' };
     let applied = false;
     let invalidIntercept = false;
+    let attempted = false;
     const appliedWorksheets: string[] = [];
+    const failedWorksheets: string[] = [];
     for (const call of calls) {
       const args = call.args;
       switch (call.name) {
         case 'set_asw_case': {
           const data = args as Parameters<NonNullable<typeof onApplyASW>>[0];
+          attempted = true;
           if (data.windData?.length && data.distressTime && data.datumTime && ['3h', '6h'].includes(data.intervalMode)) {
             onApplyASW?.(data);
             applied = true;
             appliedWorksheets.push('asw');
+          } else {
+            failedWorksheets.push('ASW');
           }
           break;
         }
         case 'set_awa_case': {
           const data = args as Parameters<NonNullable<typeof onApplyAWA>>[0];
+          attempted = true;
           if (data.distressAltFt > 0 && data.windData?.length >= 2) {
             onApplyAWA?.(data);
             applied = true;
             appliedWorksheets.push('awa');
+          } else {
+            failedWorksheets.push('AWA');
           }
           break;
         }
         case 'set_lkp': {
           const data = args as { lat: number; lng: number };
+          attempted = true;
           if (Number.isFinite(data.lat) && Math.abs(data.lat) <= 90 && Number.isFinite(data.lng) && Math.abs(data.lng) <= 180) {
             onApplyLKP?.(data);
             applied = true;
             appliedWorksheets.push('datum');
+          } else {
+            failedWorksheets.push('LKP');
           }
           break;
         }
@@ -227,6 +238,8 @@ export default function AIChatPanel({
             onApplyDatum?.(data);
             applied = true;
             appliedWorksheets.push('datum');
+          } else {
+            failedWorksheets.push('Datum (WS 1)');
           }
           break;
         }
@@ -242,6 +255,8 @@ export default function AIChatPanel({
             onApplyWS2?.(data);
             applied = true;
             appliedWorksheets.push('ws2');
+          } else {
+            failedWorksheets.push('WS 2');
           }
           break;
         }
@@ -259,6 +274,8 @@ export default function AIChatPanel({
             onApplyWS3?.(data);
             applied = true;
             appliedWorksheets.push('ws3');
+          } else {
+            failedWorksheets.push('WS 3 (Land)');
           }
           break;
         }
@@ -285,6 +302,8 @@ export default function AIChatPanel({
             onApplyWS4?.(data);
             applied = true;
             appliedWorksheets.push('ws4');
+          } else {
+            failedWorksheets.push('WS 4');
           }
           break;
         }
@@ -303,6 +322,8 @@ export default function AIChatPanel({
             onApplyWS8?.(data);
             applied = true;
             appliedWorksheets.push('ws8');
+          } else {
+            failedWorksheets.push('WS 8');
           }
           break;
         }
@@ -327,11 +348,14 @@ export default function AIChatPanel({
             onApplySearchPattern?.(data);
             applied = true;
             appliedWorksheets.push('search-pattern');
+          } else {
+            failedWorksheets.push('Search Pattern');
           }
           break;
         }
         case 'set_intercept_case': {
           const data = args as unknown as InterceptInput;
+          attempted = true;
           const target = data.target;
           const sru = data.sru;
           const valid = ['head-on', 'overtaking', 'beam-on'].includes(data.type)
@@ -343,9 +367,18 @@ export default function AIChatPanel({
           if (valid && onApplyIntercept?.(data)) {
             applied = true;
             appliedWorksheets.push('intercept');
-          } else invalidIntercept = true;
+          } else {
+            invalidIntercept = true;
+            failedWorksheets.push('Intercept');
+          }
           break;
         }
+        default:
+          if (call.name.startsWith('set_')) {
+            attempted = true;
+            failedWorksheets.push(call.name);
+          }
+          break;
       }
     }
     const preferredWorksheet = appliedWorksheets.includes('intercept') ? 'intercept'
@@ -358,7 +391,7 @@ export default function AIChatPanel({
         : appliedWorksheets.includes('awa') ? 'awa'
           : appliedWorksheets.includes('asw') ? 'asw' : '';
     if (preferredWorksheet) onFocusWorksheet?.(preferredWorksheet);
-    return { applied, invalidIntercept, preferredWorksheet };
+    return { applied, invalidIntercept, attempted, failedWorksheets, preferredWorksheet };
   }, [onApplyASW, onApplyAWA, onApplyLKP, onApplyDatum, onApplyWS2, onApplyWS3, onApplyWS4, onApplyWS8, onApplySearchPattern, onApplyIntercept, onFocusWorksheet]);
 
   // Load API key and chat history from localStorage
@@ -545,7 +578,7 @@ export default function AIChatPanel({
           } catch { /* penyimpanan lokal gagal — abaikan */ }
         }
 
-        const { applied, invalidIntercept } = applyFunctionCalls(data.functionCalls);
+        const { applied, invalidIntercept, attempted, failedWorksheets } = applyFunctionCalls(data.functionCalls);
 
         const assistantMsg: ChatMessage = {
           role: 'assistant',
@@ -556,7 +589,14 @@ export default function AIChatPanel({
         if (invalidIntercept) {
           assistantMsg.content += '\n\nAgar saya bisa mengisi Intercept dengan benar, mohon lengkapi posisi awal target dan SRU/pangkalan, kecepatan target dan SRU, serta haluan target. Waktu referensi hanya diperlukan jika ETA ingin dihitung.';
         }
-        if (applied) assistantMsg.content += '\n\nData worksheet yang berhasil diekstrak sudah diterapkan otomatis ke aplikasi. Periksa input dan lengkapi bagian yang ditandai masih kurang.';
+        const failedList = failedWorksheets.filter((name) => !(invalidIntercept && name === 'Intercept'));
+        if (applied) {
+          assistantMsg.content += failedList.length
+            ? `\n\nSebagian data sudah diterapkan otomatis ke aplikasi. ⚠️ Data ${failedList.join(', ')} belum dapat diterapkan karena ada nilai wajib yang kurang atau tidak valid — lengkapi datanya, lalu minta saya mengekstrak ulang.`
+            : '\n\nData worksheet yang berhasil diekstrak sudah diterapkan otomatis ke aplikasi. Periksa input dan lengkapi bagian yang ditandai masih kurang.';
+        } else if (attempted && failedList.length > 0) {
+          assistantMsg.content += `\n\n⚠️ Data ${failedList.join(', ')} belum dapat diterapkan otomatis karena ada nilai wajib yang kurang atau tidak valid. Lengkapi datanya, lalu minta saya mengekstrak ulang.`;
+        }
         setMessages([...newMessages, assistantMsg]);
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : 'Unknown error';
@@ -577,7 +617,12 @@ export default function AIChatPanel({
       const result = applyFunctionCalls(msg.functionCalls);
       if (result.applied) {
         setMessages((prev) => prev.map((m, i) => (i === idx ? { ...m, applied: true } : m)));
+        return;
       }
+      const note = result.invalidIntercept
+        ? '\n\n⚠️ Data Intercept belum lengkap: posisi target dan SRU/pangkalan, kecepatan keduanya, serta haluan target wajib diisi sebelum data bisa diterapkan.'
+        : `\n\n⚠️ Data ${result.failedWorksheets.length ? result.failedWorksheets.join(', ') : 'worksheet'} belum dapat diterapkan karena ada nilai wajib yang kurang atau tidak valid. Lengkapi datanya, lalu minta asisten mengekstrak ulang.`;
+      setMessages((prev) => prev.map((m, i) => (i === idx && !m.content.includes('⚠️ Data') ? { ...m, content: m.content + note } : m)));
     },
     [applyFunctionCalls]
   );
