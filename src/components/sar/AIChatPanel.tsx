@@ -261,7 +261,7 @@ export default function AIChatPanel({
         }
         case 'set_datum_case': {
           const data = args as Parameters<NonNullable<typeof onApplyDatum>>[0];
-          const leewayIds = ['piw-novice', 'piw-lifejacket', 'raft-46-person', 'raft-1520-person', 'raft-canopy-drogue', 'raft-canopy-no-drogue', 'dinghy-fibreglass', 'dinghy-upright', 'small-fishing', 'commercial-fishing', 'sailboat', 'merchant-vessel'];
+          const leewayIds = ['piw-novice', 'piw-lifejacket', 'raft-46-person', 'raft-1520-person', 'raft-noballast-drogue', 'raft-canopy-drogue', 'raft-canopy-no-drogue', 'dinghy-fibreglass', 'dinghy-upright', 'small-fishing', 'commercial-fishing', 'sailboat', 'merchant-vessel'];
           if (Number.isFinite(data.latitude) && data.latitude >= 0 && data.latitude <= 90
             && Number.isFinite(data.lkp?.lat) && Math.abs(data.lkp.lat) <= 90
             && Number.isFinite(data.lkp?.lng) && Math.abs(data.lkp.lng) <= 180

@@ -454,6 +454,15 @@ export const LEEWAY_OBJECT_TYPES: LeewayObjectType[] = [
     probableError: 0.18,
   },
   {
+    id: 'raft-noballast-drogue',
+    label: 'Liferaft no ballast, no canopy, with drogue',
+    // Table I-1 (Appendix I): No Ballast Systems — no canopy, w/ drogue.
+    leewayRate: 0.044,
+    leewayModifier: -0.2,
+    divergenceAngle: 28,
+    probableError: 0.18,
+  },
+  {
     id: 'raft-canopy-drogue',
     label: 'Liferaft with canopy and drogue',
     leewayRate: 0.030,
