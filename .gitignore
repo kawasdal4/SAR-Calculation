@@ -77,3 +77,6 @@ test_*.js
 # sandbox workspace artifacts
 tool-results/
 .zscripts/dev.pid
+
+# SQLite dev database (lokal, berisi data smoke test)
+prisma/*.db*

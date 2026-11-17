@@ -87,3 +87,42 @@ model DocumentDraft {
 
   @@index([caseId, docType])
 }
+
+/// SAR Workflow Memory — konteks terstruktur per workspace (SarCase).
+/// Append-only: versi baru = baris baru; hasil lama TIDAK pernah dihapus
+/// (status jadi ARCHIVED dengan supersededBy) sesuai kebijakan retensi &
+/// versioning (audit trail). Workspace = SarCase existing — bukan entitas baru.
+model WorkspaceContext {
+  id        String   @id @default(cuid())
+  /// Link ke SarCase.id — workspace identifier (wajib, isolation antar workspace).
+  caseId    String
+  /// Slot stabil: 'calc:awa' | 'calc:ws1-datum' | 'map:features' | 'conv:<ts>' | 'doc:renops' …
+  entryKey  String
+  /// A: scenario | B: calculation | C: map | D: operational | E: conversation
+  category  String
+  /// Capability registry id sumber (env-awa, ws1-datum, map-sea-render, …).
+  capabilityId String?
+  /// Referensi hasil kalkulasi/objek (mis. id pola, id dokumen).
+  calculationId String?
+  /// 'user-input' | 'ai-extraction' | 'worksheet' | 'map' | 'document' | 'conversation'
+  source    String   @default("user-input")
+  /// JSON data entry (snapshot nilai + ringkasan) — tanpa API key/secret.
+  data      String
+  /// CURRENT | STALE | PENDING | NEEDS_REVIEW | INVALID | ARCHIVED
+  status    String   @default("CURRENT")
+  /// Ringkasan satu baris untuk retrieval selektif AI.
+  summary   String?
+  /// Versi monoton per entryKey.
+  version   Int      @default(1)
+  /// Hash input sumber — dasar deteksi STALE.
+  inputsHash String?
+  /// JSON array: entryKey dependency (relasi aktual, bukan tebakan).
+  dependencies String @default("[]")
+  /// entryKey versi yang digantikan oleh baris ini (untuk histori).
+  supersededBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([caseId, entryKey])
+  @@index([caseId, status])
+}

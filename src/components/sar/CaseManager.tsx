@@ -57,9 +57,13 @@ interface CaseManagerProps {
   buildState: () => SarStatePayload | null;
   /** Apply a loaded state back to the worksheets. */
   applyState: (state: Record<string, unknown>) => void;
+  /** SAR Workflow Memory: workspace aktif berubah (save/load/delete). */
+  onActiveCaseChange?: (c: { id: string; title: string } | null) => void;
+  /** Id kasus aktif saat ini — untuk proteksi: hapus kasus aktif → workspace kosong. */
+  activeCaseId?: string | null;
 }
 
-export default function CaseManager({ buildState, applyState }: CaseManagerProps) {
+export default function CaseManager({ buildState, applyState, onActiveCaseChange, activeCaseId }: CaseManagerProps) {
   const [saveOpen, setSaveOpen] = useState(false);
   const [loadOpen, setLoadOpen] = useState(false);
   const [title, setTitle] = useState('');
@@ -116,6 +120,9 @@ export default function CaseManager({ buildState, applyState }: CaseManagerProps
         }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      // SAR Workflow Memory: kasus baru = workspace aktif.
+      if (data?.case?.id) onActiveCaseChange?.({ id: data.case.id, title: title.trim() });
       toast.success(`Saved case "${title}"`);
       setSaveOpen(false);
       setTitle('');
@@ -146,6 +153,8 @@ export default function CaseManager({ buildState, applyState }: CaseManagerProps
       if (data.case.phase) setPhase(data.case.phase);
       if (data.case.notes) setNotes(data.case.notes);
       toast.success(`Loaded case "${data.case.title}"`);
+      // SAR Workflow Memory: workspace aktif berpindah ke kasus yang dimuat.
+      onActiveCaseChange?.({ id: data.case.id, title: String(data.case.title ?? '') });
       setLoadOpen(false);
       setLoadTarget(null);
     } catch (e) {
@@ -161,6 +170,9 @@ export default function CaseManager({ buildState, applyState }: CaseManagerProps
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       toast.success(`Deleted "${deleteTarget.title}"`);
+      // SAR Workflow Memory: hapus kasus aktif → workspace aktif dikosongkan
+      // (proteksi antar-workspace: konteks tidak menggantung).
+      if (deleteTarget.id === activeCaseId) onActiveCaseChange?.(null);
       setCases((prev) => prev.filter((c) => c.id !== deleteTarget.id));
     } catch (e) {
       toast.error('Delete failed', { description: (e as Error).message });

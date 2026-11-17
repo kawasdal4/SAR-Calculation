@@ -629,6 +629,31 @@ export function computeE(input: EInput): EResult {
 }
 
 // ============================================================================
+// WORKSHEET 1 - SEARCH AREA (PHASE 3 ekstraksi, rumus Worksheet1.tsx)
+// ============================================================================
+
+export interface Ws1SearchAreaInput {
+  De: number;   // Total drift error (NM) — dari pengukuran peta atau estimasi datum
+  X: number;    // Fix error distress craft (Table J)
+  Y: number;    // Fix error SRU (Table J)
+  fs: number;   // Safety factor (opsi Worksheet1: 1.1/1.6/2.0/2.3/2.5)
+}
+
+export interface Ws1SearchAreaResult {
+  E: number;    // Total probable error E = √(De² + X² + Y²)
+  E2: number;   // E² (ditampilkan Worksheet 1)
+  R: number;    // Search radius R = ⌈E × fs⌉ (NM)
+  Ao: number;   // Search area Ao = 4R² (NM²), persegi sisi 2R
+}
+
+/** Rumus Worksheet 1: E dari computeE existing, R dibulatkan ke atas, Ao = 4R². */
+export function computeWs1SearchArea(input: Ws1SearchAreaInput): Ws1SearchAreaResult {
+  const { E, E2 } = computeE({ X: input.X, De: input.De, Y: input.Y });
+  const R = Math.ceil(E * input.fs);
+  return { E, E2, R, Ao: 4 * R * R };
+}
+
+// ============================================================================
 // DATUM WORKSHEET (MARINE) - Appendix K-13
 // ============================================================================
 

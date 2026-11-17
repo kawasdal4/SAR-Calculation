@@ -11,6 +11,8 @@ import {
   User,
   Loader2,
   Zap,
+  Check,
+  FolderOpen,
   Paperclip,
   FileText,
   Image as ImageIcon,
@@ -19,6 +21,8 @@ import {
   UploadCloud,
 } from 'lucide-react';
 import { formatDMS } from '@/lib/sar/coordFormat';
+import { buildChatPreviewContract, buildChatPreviewContracts, CHAT_NON_MUTATING_TOOLS, TARGET_LABELS } from '@/lib/sar/chatPreview';
+import { nextWorkflowSteps, selectiveWorkspaceContext, workflowPlanText, type ContextEntry } from '@/lib/sar/workspaceContext';
 import type { InterceptInput } from '@/lib/sar/interceptCalculations';
 import type { Worksheet2InitialState } from '@/components/sar/worksheets/Worksheet2';
 import type { Worksheet3InitialState } from '@/components/sar/worksheets/Worksheet3';
@@ -41,6 +45,8 @@ interface ChatMessage {
   files?: { name: string; type: string; size?: number }[];
   functionCalls?: { name: string; args: Record<string, unknown> }[] | null;
   applied?: boolean;
+  /** PHASE 5: pengguna membatalkan pratinjau — tidak ada data diterapkan. */
+  dismissed?: boolean;
 }
 
 interface AIChatPanelProps {
@@ -59,8 +65,9 @@ interface AIChatPanelProps {
   onApplyLKP?: (data: { lat: number; lng: number }) => void;
   onApplyAeroDrift?: (data: AeroDriftInitialState) => void;
   onApplyDatum?: (data: {
-    latitude: number;
-    lkp: { lat: number; lng: number };
+    latitude?: number;
+    lkp?: { lat: number; lng: number };
+    lkpSource?: 'adw-landing' | 'explicit';
     driftInterval: number;
     seaCurrentDir: number;
     seaCurrentSpeed: number;
@@ -79,6 +86,20 @@ interface AIChatPanelProps {
   isOpen?: boolean;
   onToggle?: (open: boolean) => void;
   className?: string;
+  /** === SAR Workflow Memory & Context Manager === */
+  /** Workspace aktif (= SarCase yang dimuat/di-save di CaseManager). */
+  activeWorkspace?: { id: string; title: string } | null;
+  /** Entry konteks workspace aktif (semua versi, dari /api/workspace-context). */
+  workspaceEntries?: ContextEntry[];
+  /** Blok konteks selektif (dibangun page.tsx via selectiveWorkspaceContext). */
+  workspaceContextBlock?: string;
+  /** Simpan snapshot state aplikasi ke konteks workspace (POST snapshot). */
+  onSaveWorkspaceSnapshot?: () => Promise<boolean>;
+  /** Catat keputusan/koreksi/konfirmasi pengguna ke konteks (category E). */
+  onLogConversation?: (
+    kind: 'decision' | 'correction' | 'pending-question' | 'approved-action' | 'note',
+    text: string,
+  ) => void;
 }
 
 const STORAGE_KEY = 'sar-ai-api-key';
@@ -162,6 +183,11 @@ export default function AIChatPanel({
   isOpen: controlledIsOpen,
   onToggle,
   className = '',
+  activeWorkspace,
+  workspaceEntries = [],
+  workspaceContextBlock,
+  onSaveWorkspaceSnapshot,
+  onLogConversation,
 }: AIChatPanelProps) {
   const [internalIsOpen, setInternalIsOpen] = useState(false);
   const isOpen = controlledIsOpen !== undefined ? controlledIsOpen : internalIsOpen;
@@ -177,6 +203,8 @@ export default function AIChatPanel({
   const [attachedFiles, setAttachedFiles] = useState<UploadedAttachment[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [snapshotSaving, setSnapshotSaving] = useState(false);
+  const [showWorkspace, setShowWorkspace] = useState(true);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -261,14 +289,18 @@ export default function AIChatPanel({
         }
         case 'set_datum_case': {
           const data = args as Parameters<NonNullable<typeof onApplyDatum>>[0];
+          attempted = true;
           const leewayIds = ['piw-novice', 'piw-lifejacket', 'raft-46-person', 'raft-1520-person', 'raft-noballast-drogue', 'raft-canopy-drogue', 'raft-canopy-no-drogue', 'dinghy-fibreglass', 'dinghy-upright', 'small-fishing', 'commercial-fishing', 'sailboat', 'merchant-vessel'];
-          if (Number.isFinite(data.latitude) && data.latitude >= 0 && data.latitude <= 90
-            && Number.isFinite(data.lkp?.lat) && Math.abs(data.lkp.lat) <= 90
-            && Number.isFinite(data.lkp?.lng) && Math.abs(data.lkp.lng) <= 180
-            && Number.isFinite(data.driftInterval) && data.driftInterval > 0
+          const currentsOk = Number.isFinite(data.driftInterval) && data.driftInterval > 0
             && Number.isFinite(data.seaCurrentDir) && data.seaCurrentDir >= 0 && data.seaCurrentDir < 360
-            && Number.isFinite(data.seaCurrentSpeed) && data.seaCurrentSpeed >= 0
-            && leewayIds.includes(data.leewayObjectId ?? '')) {
+            && Number.isFinite(data.seaCurrentSpeed) && data.seaCurrentSpeed >= 0;
+          // Rantai penerbangan (ADW → Datum): LKP otomatis dari posisi ditching
+          // hasil ADW — lkp/latitude tidak dikirim oleh AI.
+          const adwLandingOk = data.lkpSource === 'adw-landing';
+          const explicitOk = Number.isFinite(data.latitude) && (data.latitude ?? -1) >= 0 && (data.latitude ?? 91) <= 90
+            && Number.isFinite(data.lkp?.lat) && Math.abs(data.lkp?.lat ?? 999) <= 90
+            && Number.isFinite(data.lkp?.lng) && Math.abs(data.lkp?.lng ?? 999) <= 180;
+          if (currentsOk && leewayIds.includes(data.leewayObjectId ?? '') && (adwLandingOk || explicitOk)) {
             onApplyDatum?.(data);
             applied = true;
             appliedWorksheets.push('datum');
@@ -454,6 +486,7 @@ export default function AIChatPanel({
         files: m.files,
         functionCalls: m.functionCalls,
         applied: m.applied,
+        dismissed: m.dismissed,
       }));
       localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(sanitized));
     }
@@ -550,11 +583,14 @@ export default function AIChatPanel({
       setIsLoading(true);
 
       try {
-        const requestPayload = {
+        const requestPayload: Record<string, unknown> = {
           messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
           apiKey,
           files: filesToSend.map((f) => ({ name: f.name, type: f.type, base64: f.base64 })),
         };
+        // SAR Workflow Memory: blok konteks selektif workspace aktif ikut dikirim
+        // (retrieval selektif — bukan seluruh DB/riwayat).
+        if (workspaceContextBlock) requestPayload.workspaceContext = workspaceContextBlock;
         const requestBody = JSON.stringify(requestPayload);
         // Vercel Functions reject request bodies above 4.5 MB before this route runs.
         // Leave headroom for platform/proxy overhead and give users a useful error.
@@ -613,24 +649,25 @@ export default function AIChatPanel({
           } catch { /* penyimpanan lokal gagal — abaikan */ }
         }
 
-        const { applied, invalidIntercept, attempted, failedWorksheets } = applyFunctionCalls(data.functionCalls);
-
+        // PHASE 5: TIDAK auto-apply — semua tool-call yang mengubah
+        // peta/state/dokumen lewat kontrak preview/konfirmasi seragam
+        // (chatPreview.ts). Pengguna meninjau pratinjau di kartu pesan lalu
+        // menekan "Konfirmasi & Terapkan" (handleApply yang sama).
+        const mutating = (data.functionCalls ?? []).filter(
+          (c: { name: string }) => !CHAT_NON_MUTATING_TOOLS.has(c.name),
+        );
         const assistantMsg: ChatMessage = {
           role: 'assistant',
           content: data.text || 'Server tidak mengirim teks jawaban.',
           functionCalls: data.functionCalls,
-          applied,
         };
-        if (invalidIntercept) {
-          assistantMsg.content += '\n\nAgar saya bisa mengisi Intercept dengan benar, mohon lengkapi posisi awal target dan SRU/pangkalan, kecepatan target dan SRU, serta haluan target. Waktu referensi hanya diperlukan jika ETA ingin dihitung.';
-        }
-        const failedList = failedWorksheets.filter((name) => !(invalidIntercept && name === 'Intercept'));
-        if (applied) {
-          assistantMsg.content += failedList.length
-            ? `\n\nSebagian data sudah diterapkan otomatis ke aplikasi. ⚠️ Data ${failedList.join(', ')} belum dapat diterapkan karena ada nilai wajib yang kurang atau tidak valid — lengkapi datanya, lalu minta saya mengekstrak ulang.`
-            : '\n\nData worksheet yang berhasil diekstrak sudah diterapkan otomatis ke aplikasi. Periksa input dan lengkapi bagian yang ditandai masih kurang.';
-        } else if (attempted && failedList.length > 0) {
-          assistantMsg.content += `\n\n⚠️ Data ${failedList.join(', ')} belum dapat diterapkan otomatis karena ada nilai wajib yang kurang atau tidak valid. Lengkapi datanya, lalu minta saya mengekstrak ulang.`;
+        if (mutating.length > 0) {
+          const targets = [...new Set(buildChatPreviewContracts(mutating).map((c) => c.target))];
+          const targetText = targets.map((t) => TARGET_LABELS[t] ?? t).join(', ');
+          assistantMsg.content +=
+            targets.length > 0
+              ? `\n\n📋 Pratinjau ${mutating.length} operasi siap diterapkan (${targetText}). Tinjau di bawah, lalu konfirmasi untuk menerapkan — tidak ada data yang berubah sebelum Anda konfirmasi.`
+              : '\n\n📋 Pratinjau operasi siap diterapkan. Tinjau di bawah, lalu konfirmasi untuk menerapkan.';
         }
         setMessages([...newMessages, assistantMsg]);
       } catch (err) {
@@ -652,6 +689,11 @@ export default function AIChatPanel({
       const result = applyFunctionCalls(msg.functionCalls);
       if (result.applied) {
         setMessages((prev) => prev.map((m, i) => (i === idx ? { ...m, applied: true } : m)));
+        // SAR Workflow Memory: konfirmasi pengguna = keputusan tercatat di konteks.
+        onLogConversation?.(
+          'approved-action',
+          `Pengguna mengonfirmasi penerapan: ${msg.functionCalls.map((c) => c.name).join(', ')}`,
+        );
         return;
       }
       const note = result.invalidIntercept
@@ -659,8 +701,27 @@ export default function AIChatPanel({
         : `\n\n⚠️ Data ${result.failedWorksheets.length ? result.failedWorksheets.join(', ') : 'worksheet'} belum dapat diterapkan karena ada nilai wajib yang kurang atau tidak valid. Lengkapi datanya, lalu minta asisten mengekstrak ulang.`;
       setMessages((prev) => prev.map((m, i) => (i === idx && !m.content.includes('⚠️ Data') ? { ...m, content: m.content + note } : m)));
     },
-    [applyFunctionCalls]
+    [applyFunctionCalls, onLogConversation]
   );
+
+  /** PHASE 5: batalkan pratinjau — tandai pesan dismissed tanpa menerapkan apa pun. */
+  const handleDismiss = useCallback((idx: number) => {
+    setMessages((prev) =>
+      prev.map((m, i) =>
+        i === idx
+          ? {
+              ...m,
+              dismissed: true,
+              content: m.content.includes('✕ Pratinjau dibatalkan')
+                ? m.content
+                : `${m.content}\n\n✕ Pratinjau dibatalkan — tidak ada data yang diterapkan ke aplikasi.`,
+            }
+          : m
+      )
+    );
+    // SAR Workflow Memory: koreksi pengguna tercatat di konteks workspace.
+    onLogConversation?.('correction', 'Pengguna membatalkan pratinjau penerapan data AI.');
+  }, [onLogConversation]);
 
   const clearHistory = useCallback(() => {
     setMessages([]);
@@ -709,8 +770,11 @@ export default function AIChatPanel({
         return `📍 LKP: ${formatDMS(a.lat ?? 0, false)}, ${formatDMS(a.lng ?? 0, true)}`;
       }
       case 'set_datum_case': {
-        const a = fc.args as { driftInterval?: number; seaCurrentDir?: number; seaCurrentSpeed?: number; leewayObjectId?: string };
-        return `🧭 Datum / WS 1: drift ${a.driftInterval ?? 0} jam · arus ${a.seaCurrentDir ?? 0}°T / ${a.seaCurrentSpeed ?? 0} kt${a.leewayObjectId ? ` · objek ${a.leewayObjectId}` : ''}`;
+        const a = fc.args as { lkpSource?: string; lkp?: { lat?: number; lng?: number }; driftInterval?: number; seaCurrentDir?: number; seaCurrentSpeed?: number; leewayObjectId?: string };
+        const lkpText = a.lkpSource === 'adw-landing'
+          ? 'LKP otomatis dari posisi ditching hasil ADW'
+          : a.lkp ? `${formatDMS(a.lkp.lat ?? 0, false)}, ${formatDMS(a.lkp.lng ?? 0, true)}` : 'LKP?';
+        return `🧭 Datum / WS 1: ${lkpText}\ndrift ${a.driftInterval ?? 0} jam · arus ${a.seaCurrentDir ?? 0}°T / ${a.seaCurrentSpeed ?? 0} kt${a.leewayObjectId ? ` · objek ${a.leewayObjectId}` : ''}`;
       }
       case 'set_ws2_case': {
         const a = fc.args as Worksheet2InitialState;
@@ -846,6 +910,73 @@ export default function AIChatPanel({
             </div>
           )}
 
+          {/* SAR Workflow Memory — panel konteks workspace aktif */}
+          {activeWorkspace && (
+            <div className="border-b border-slate-200 bg-slate-50 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowWorkspace((v) => !v)}
+                className="w-full px-3 py-2 flex items-center justify-between gap-2 text-left"
+              >
+                <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5 min-w-0">
+                  <FolderOpen className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                  <span className="truncate">Workspace: {activeWorkspace.title || activeWorkspace.id}</span>
+                </span>
+                <span className="text-[10px] text-slate-500 shrink-0">{showWorkspace ? '▲' : '▼'}</span>
+              </button>
+              {showWorkspace && (() => {
+                const steps = nextWorkflowSteps(workspaceEntries, activeWorkspace.id);
+                const staleCount = steps.filter((s) => s.state === 'STALE_INPUT').length;
+                const doneCount = steps.filter((s) => s.state === 'DONE').length;
+                const badge: Record<string, string> = {
+                  DONE: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+                  READY: 'bg-blue-100 text-blue-800 border-blue-300',
+                  BLOCKED: 'bg-amber-100 text-amber-800 border-amber-300',
+                  STALE_INPUT: 'bg-rose-100 text-rose-800 border-rose-300',
+                  PENDING_DATA: 'bg-slate-100 text-slate-600 border-slate-300',
+                };
+                return (
+                  <div className="px-3 pb-2.5 space-y-2">
+                    <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+                      <span className="font-bold text-slate-600">
+                        {doneCount}/{steps.length} tahap selesai
+                      </span>
+                      {staleCount > 0 && (
+                        <span className="font-bold text-rose-700 bg-rose-50 border border-rose-300 rounded px-1.5 py-0.5">
+                          ⚠ {staleCount} perlu dihitung ulang
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        disabled={snapshotSaving}
+                        onClick={async () => {
+                          setSnapshotSaving(true);
+                          try { await onSaveWorkspaceSnapshot?.(); } finally { setSnapshotSaving(false); }
+                        }}
+                        className="ml-auto text-[10px] font-bold text-white bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-300 rounded px-2 py-1 transition-colors"
+                      >
+                        {snapshotSaving ? 'Menyimpan…' : 'Simpan snapshot konteks'}
+                      </button>
+                    </div>
+                    <div className="max-h-40 overflow-y-auto space-y-1">
+                      {steps.map((s) => (
+                        <div key={s.slotKey} className="flex items-start gap-1.5 text-[10px] leading-snug">
+                          <span className={`shrink-0 font-bold border rounded px-1 py-0.5 ${badge[s.state]}`}>
+                            {s.state === 'DONE' ? '✓' : s.state === 'READY' ? '▶' : s.state === 'BLOCKED' ? '⛔' : s.state === 'STALE_INPUT' ? '⚠' : '◻'} {s.state}
+                          </span>
+                          <span className="text-slate-700">{s.detail}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-[9px] text-slate-400">
+                      Konteks workspace aktif dikirim ke AI secara selektif (bukan seluruh data) — aturan memori: hanya entry CURRENT yang dipakai.
+                    </p>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
           {/* Messages List */}
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
             {messages.length === 0 && (
@@ -915,31 +1046,67 @@ export default function AIChatPanel({
                   {/* Function Call / Action Card */}
                   {msg.functionCalls && msg.functionCalls.length > 0 && (
                     <div className="mt-2 space-y-2">
-                      {msg.functionCalls.map((fc, fi) => (
-                        <div
-                          key={fi}
-                          className="bg-white/95 border border-emerald-300 rounded-lg p-2.5 shadow-xs text-slate-900"
-                        >
-                          <pre className="text-[10px] text-slate-700 whitespace-pre-wrap font-mono font-medium">
-                            {getFunctionCallSummary(fc)}
-                          </pre>
-                          {!msg.applied ? (
-                            <button
-                              type="button"
-                              onClick={() => handleApply(msg, idx)}
-                              className="mt-2 w-full text-[11px] bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-1.5 rounded-md flex items-center justify-center gap-1.5 shadow-sm transition-colors"
-                            >
-                              <Zap className="h-3.5 w-3.5" /> Terapkan ke Worksheet
-                            </button>
-                          ) : (
-                            <div className="mt-2 text-[11px] text-emerald-800 font-bold text-center py-1 bg-emerald-50 rounded">
-                              {msg.functionCalls?.some((call) => call.name === 'set_intercept_case')
-                                ? '✅ Data otomatis diterapkan; hasil dihitung dan dipetakan di tab Intercept'
-                                : '✅ Data sudah diterapkan ke Worksheet'}
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                      {msg.functionCalls.map((fc, fi) => {
+                        // PHASE 5: kontrak preview/konfirmasi seragam per tool-call.
+                        const contract = buildChatPreviewContract(fc);
+                        return (
+                          <div
+                            key={fi}
+                            className="bg-white/95 border border-emerald-300 rounded-lg p-2.5 shadow-xs text-slate-900"
+                          >
+                            <pre className="text-[10px] text-slate-700 whitespace-pre-wrap font-mono font-medium">
+                              {getFunctionCallSummary(fc)}
+                            </pre>
+                            {msg.applied ? (
+                              <div className="mt-2 text-[11px] text-emerald-800 font-bold text-center py-1 bg-emerald-50 rounded">
+                                {msg.functionCalls?.some((call) => call.name === 'set_intercept_case')
+                                  ? '✅ Data otomatis diterapkan; hasil dihitung dan dipetakan di tab Intercept'
+                                  : '✅ Data sudah diterapkan ke Worksheet'}
+                              </div>
+                            ) : msg.dismissed ? (
+                              <div className="mt-2 text-[11px] text-slate-500 font-bold text-center py-1 bg-slate-100 rounded">
+                                ✕ Pratinjau dibatalkan — tidak ada data diterapkan
+                              </div>
+                            ) : contract ? (
+                              <div className="mt-2 border-t border-emerald-200 pt-2">
+                                <p className="text-[11px] font-bold text-slate-800 leading-relaxed">
+                                  📋 {contract.summary}
+                                  <span className="ml-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5">
+                                    {TARGET_LABELS[contract.target]}
+                                  </span>
+                                </p>
+                                {contract.warnings?.map((w, wi) => (
+                                  <p key={wi} className="text-[10px] text-amber-800 mt-1">⚠ {w}</p>
+                                ))}
+                                <div className="mt-2 flex gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleApply(msg, idx)}
+                                    className="flex-1 text-[11px] bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-1.5 rounded-md flex items-center justify-center gap-1.5 shadow-sm transition-colors"
+                                  >
+                                    <Check className="h-3.5 w-3.5" /> Konfirmasi &amp; Terapkan
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDismiss(idx)}
+                                    className="text-[11px] bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold py-1.5 px-2.5 rounded-md flex items-center gap-1 transition-colors"
+                                  >
+                                    <X className="h-3.5 w-3.5" /> Batal
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleApply(msg, idx)}
+                                className="mt-2 w-full text-[11px] bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-1.5 rounded-md flex items-center justify-center gap-1.5 shadow-sm transition-colors"
+                              >
+                                <Zap className="h-3.5 w-3.5" /> Terapkan ke Worksheet
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

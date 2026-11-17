@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Printer } from 'lucide-react';
-import { lookupW8Wu, lookupFw, readFigureI12, W8_TARGET_OPTIONS, type W8Target, type SearchNumber } from '@/lib/sar/wscPodTables';
+import { computeW8Row, readFigureI12, W8_TARGET_OPTIONS, type W8Target, type SearchNumber } from '@/lib/sar/wscPodTables';
 
 export interface Worksheet8InitialState {
   caseTitle?: string;
@@ -50,35 +50,33 @@ export default function Worksheet8({
   // Vessel eye heights: Eye height 8 ft (Small craft), Eye height 14 ft (Patrol boat), MERSHIP (Large ship bridge)
   const columns = ['Eye height 8 ft', 'Eye height 14 ft', 'MERSHIP'];
 
-  // Correction factors (Table I-7)
-  const targetGroup = searchObject === 'person' || searchObject.startsWith('raft') || searchObject === 'boatUnder5' || searchObject === 'boat5to8' ? 'small' : 'other';
-  const fw = lookupFw(windKts, targetGroup);
-  const ff = isFatigue === 'Yes' ? 0.9 : isFatigue === 'No' ? 1 : 0;
-
-  // Uncorrected sweep widths for vessels (Tables I-3, I-4)
+  // Math diekstraksi ke lib (PHASE 3): computeW8Row — rumus identik dengan versi inline sebelumnya
+  // (termasuk pembulatan W/C 2 desimal dan T 1 desimal).
   const heights = ['8','14','MERSHIP'] as const;
-  const wuList = heights.map((eye) => searchObject && visibilityKm ? lookupW8Wu(searchObject, eye, visibilityKm) ?? 0 : 0);
-
-  // Calculated sweep width factors: W = Wu * Fw * Ff
-  const ready = Boolean(searchObject && visibilityKm && windKts > 0 && isFatigue && searchNumber > 0);
-  const wFactors = wuList.map((wu) => ready && wu > 0 ? Number((wu * fw * ff).toFixed(2)) : 0);
-
-  // Practical track spacing S (NM)
-  const trackSpacings = wFactors.map((w) => w > 0 ? Math.max(0.25, Math.round(w / 0.25) * 0.25) : 0);
-
-  // Coverage C = W / S
-  const coverages = wFactors.map((w, idx) => Number((w / trackSpacings[idx]).toFixed(2)));
-
-  // POD
-  const pods = coverages.map((c) => ready ? readFigureI12(c, searchNumber || 1) : 0);
+  const w8Rows = heights.map((eye) => computeW8Row({
+    target: searchObject,
+    eyeHeight: eye,
+    visibilityKm,
+    windKts,
+    fatigue: isFatigue,
+    searchNumber,
+    vesselSpeedKts,
+    areaAoNm2: ws1Ao,
+  }));
+  const wuList = w8Rows.map((r) => r.Wu);
+  const fw = w8Rows[0].fw;
+  const ff = w8Rows[0].ff;
+  const ready = w8Rows[0].ready;
+  const wFactors = w8Rows.map((r) => r.W);
+  const trackSpacings = w8Rows.map((r) => r.S);
+  const coverages = w8Rows.map((r) => r.C);
+  const pods = w8Rows.map((r) => r.POD);
 
   // Search Area A from Worksheet 1 Ao
   const searchAreaA = ws1Ao;
 
-  // Search Hours T required: T = A / (V * S)
-  const hoursRequired = trackSpacings.map((s) =>
-    vesselSpeedKts > 0 && s > 0 ? Number((searchAreaA / (vesselSpeedKts * s)).toFixed(1)) : 0
-  );
+  // Search Hours T required: T = A / (V * S) — dihitung di computeW8Row (lib)
+  const hoursRequired = w8Rows.map((r) => r.T);
 
   // Available search hours from Worksheet No. 7
   const [hoursAvailable, setHoursAvailable] = useState(0);

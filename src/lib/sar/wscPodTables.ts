@@ -154,3 +154,92 @@ export function readFigureI12(coverage: number, search: SearchNumber): number {
 
 export const W2_VISIBILITY_LABELS = ['2','5','10','20','30','>40'] as const;
 export const W8_VISIBILITY_LABELS = ['2','5','10','15','20','>25'] as const;
+
+// ============================================================================
+// EKSTRAKSI MATH WORKSHEET (PHASE 3) — rumus identik dengan komponen
+// Worksheet2.tsx / Worksheet8.tsx. Tidak ada formula baru: satu sumber kebenaran
+// untuk eksekusi UI maupun headless (AI tool routing).
+// ============================================================================
+
+export interface WscPodRowResult {
+  ready: boolean; // gerbang faktor lengkap (platform/target/visibilitas/angin/fs/fatigue/searchNumber)
+  Wu: number;   // Uncorrected sweep width (NM)
+  fw: number;   // Weather correction (Table I-7)
+  fs: number;   // Speed correction (Table I-8; WS8 tanpa koreksi kecepatan → 0 tidak dipakai)
+  ff: number;   // Fatigue factor (0.9 / 1)
+  W: number;    // Corrected sweep width (NM)
+  S: number;    // Practical track spacing (NM)
+  C: number;    // Coverage factor
+  POD: number;  // Probability of detection dari Figure I-12 (persen 0-100)
+  T: number;    // Search hours required (h), 0 bila area/speed belum ada
+}
+
+export interface W2RowInput {
+  platform: '' | 'fixed-wing' | 'helicopter';
+  target: W2Target | '';
+  heightFt: 500 | 1000 | 1500 | 2000;
+  visibilityIndex: number;          // indeks W2_VISIBILITY_LABELS (0-5), -1 = belum dipilih
+  windKts: number;                  // ASW speed
+  tasKts: number;
+  fatigue: '' | 'Yes' | 'No';
+  searchNumber: SearchNumber | 0;
+  piwFlotationKnown?: boolean;      // khusus PIW: Wu 500 ft ×4 bila flotation known
+  areaAoNm2?: number;               // Ao dari Worksheet 1 (untuk T)
+}
+
+/** Baris Worksheet 2 — math persis komponen (termasuk kasus PIW ×4 @500 ft). */
+export function computeW2Row(input: W2RowInput): WscPodRowResult {
+  const targetMeta = input.target ? W2_TARGET_OPTIONS.find((t) => t.id === input.target) : undefined;
+  const fw = targetMeta && input.windKts > 0 ? lookupFw(input.windKts, targetMeta.fwGroup) : 0;
+  const fs = input.platform && input.target
+    ? lookupFs(input.target as W2Target, input.platform as 'fixed-wing' | 'helicopter', input.tasKts) ?? 0
+    : 0;
+  const ff = input.fatigue === 'Yes' ? 0.9 : input.fatigue === 'No' ? 1 : 0;
+  const factorsReady = Boolean(
+    input.platform && input.target && input.visibilityIndex >= 0 && input.windKts > 0 && fs > 0 && input.fatigue && input.searchNumber > 0,
+  );
+  const wuRaw = input.platform && input.target && input.visibilityIndex >= 0
+    ? lookupW2Wu(input.platform as 'fixed-wing' | 'helicopter', input.target as W2Target, input.heightFt, input.visibilityIndex)
+    : null;
+  const Wu = wuRaw === null ? 0 : wuRaw * (targetMeta?.isPiw && input.piwFlotationKnown && input.heightFt === 500 ? 4 : 1);
+  const W = factorsReady ? Wu * fw * fs * ff : 0;
+  const spacingStep = input.platform === 'fixed-wing' ? 0.5 : input.platform === 'helicopter' ? 0.25 : 0;
+  const S = spacingStep && W > 0 ? Math.max(spacingStep, Math.round(W / spacingStep) * spacingStep) : 0;
+  const C = S > 0 ? W / S : 0;
+  const POD = factorsReady ? readFigureI12(C, (input.searchNumber || 1) as SearchNumber) : 0;
+  const T = input.areaAoNm2 && input.tasKts > 0 && S > 0 ? input.areaAoNm2 / (input.tasKts * S) : 0;
+  return { ready: factorsReady, Wu, fw, fs, ff, W, S, C, POD, T };
+}
+
+export interface W8RowInput {
+  target: W8Target | '';
+  eyeHeight: '' | '8' | '14' | 'MERSHIP';
+  visibilityKm: string;             // label kolom W8_VISIBILITY_LABELS
+  windKts: number;
+  fatigue: '' | 'Yes' | 'No';
+  searchNumber: SearchNumber | 0;
+  vesselSpeedKts: number;
+  areaAoNm2?: number;               // Ao dari Worksheet 1 (untuk T)
+}
+
+export function w8TargetGroup(target: W8Target | ''): 'small' | 'other' {
+  return target === 'person' || target.startsWith('raft') || target === 'boatUnder5' || target === 'boat5to8' ? 'small' : 'other';
+}
+
+/** Baris Worksheet 8 — math persis komponen, termasuk pembulatan W/C 2 desimal dan T 1 desimal. */
+export function computeW8Row(input: W8RowInput): WscPodRowResult {
+  const fw = lookupFw(input.windKts, w8TargetGroup(input.target));
+  const ff = input.fatigue === 'Yes' ? 0.9 : input.fatigue === 'No' ? 1 : 0;
+  const ready = Boolean(input.target && input.visibilityKm && input.windKts > 0 && input.fatigue && input.searchNumber > 0);
+  const wuRaw = input.target && input.visibilityKm && input.eyeHeight
+    ? lookupW8Wu(input.target as W8Target, input.eyeHeight as '8' | '14' | 'MERSHIP', input.visibilityKm)
+    : null;
+  const Wu = input.target && input.visibilityKm ? (wuRaw ?? 0) : 0;
+  const W = ready && Wu > 0 ? Number((Wu * fw * ff).toFixed(2)) : 0;
+  const S = W > 0 ? Math.max(0.25, Math.round(W / 0.25) * 0.25) : 0;
+  // Komponen menghitung 0/0 → NaN untuk baris kosong; lib mengembalikan 0 (degenerate row).
+  const C = S > 0 ? Number((W / S).toFixed(2)) : 0;
+  const POD = ready ? readFigureI12(C, (input.searchNumber || 1) as SearchNumber) : 0;
+  const T = input.vesselSpeedKts > 0 && S > 0 ? Number(((input.areaAoNm2 ?? 0) / (input.vesselSpeedKts * S)).toFixed(1)) : 0;
+  return { ready, Wu, fw, fs: 0, ff, W, S, C, POD, T };
+}

@@ -43,7 +43,7 @@ KEBIJAKAN DEFAULT PILIHAN PLANNER (WAJIB — JANGAN DITANYAKAN KEPADA PENGGUNA):
 - WS8 eyeHeight: kapal patroli/rescue vessel → "14" (Eye height 14 ft, Patrol boat); perahu kecil/RIB/Sea Rider → "8" (Small craft); kapal besar/jembatan tinggi → "MERSHIP". Tulis sebagai asumsi di jawaban.
 - searchNumber (WS2/WS3/WS8): bila soal tidak menyebut nomor pencarian, gunakan 1.
 - Safety Factor WS4 tetap harus dipilih eksplisit dari pengguna (kebijakan SMC), kecuali nomor pencariannya disebut di soal.
-- Contoh alur BENAR kasus pesawat lengkap (SRX48): panggil set_asw_case + set_awa_case + set_aero_drift_case + set_lkp + set_datum_case + set_ws2_case + set_ws8_case bersamaan dalam satu respons; hanya worksheet yang benar-benar kekurangan FAKTA wajib yang ditunda dan ditanyakan via ask_for_case_data.
+- Contoh alur BENAR kasus pesawat lengkap ditching (SRX48/SRX26): panggil set_asw_case (bila ada observasi angin permukaan berurut) + set_awa_case + set_aero_drift_case + set_datum_case (dengan lkpSource "adw-landing", TANPA koordinat lkp) bersamaan dalam satu respons; hanya worksheet yang benar-benar kekurangan FAKTA wajib yang ditunda dan ditanyakan via ask_for_case_data.
 - Tombol "Terapkan ke Worksheet" di panel chat HANYA muncul bila Anda memanggil tool set_* pada respons yang sama. JANGAN menulis instruksi "klik Terapkan" bila Anda tidak memanggil tool worksheet di respons itu; cukup sebutkan data yang masih kurang sebagai gantinya.
 
 ATURAN KASUS INTERCEPT:
@@ -58,16 +58,16 @@ JIKA PENGGUNA MELAMPIRKAN FILE/GAMBAR:
 - Langkah pertama: simpulkan worksheet mana saja yang harus dipakai untuk penghitungan yang diminta soal, lalu sajikan sesuai FORMAT WAJIB di atas.
 - Ekstrak data operasional: Distress Time, Datum Time, Data Angin BMKG (waktu, arah °T, kecepatan kts), ketinggian, LKP, jenis musibah.
 - Pilih setiap worksheet berdasarkan data dan tujuan kasus, bukan berdasarkan ada/tidaknya lampiran saja.
-- Gunakan set_asw_case bila ada observasi angin permukaan dengan rentang waktu; set_awa_case untuk angin berdasarkan ketinggian pada kasus penerbangan; set_lkp untuk koordinat LKP; set_datum_case untuk lama drift dan data arus/jenis objek yang tersedia; set_intercept_case untuk kasus pintasan lengkap.
+- Gunakan set_asw_case bila ada observasi angin permukaan dengan rentang waktu; set_awa_case untuk angin berdasarkan ketinggian pada kasus penerbangan; set_lkp untuk koordinat LKP; set_datum_case untuk lama drift dan data arus/jenis objek yang tersedia — pada kasus penerbangan yang dihitung ADW, panggil set_datum_case dengan lkpSource "adw-landing" TANPA koordinat lkp/latitude karena aplikasi otomatis memakai posisi ditching hasil ADW; set_intercept_case untuk kasus pintasan lengkap.
 - Gunakan set_ws2_case hanya bila detail pencarian udara yang dibutuhkan WS 2 tersedia; gunakan set_ws8_case hanya bila detail pencarian kapal yang dibutuhkan WS 8 tersedia. Keduanya membutuhkan data target, kondisi pandang, status fatigue, serta parameter platform yang sesuai.
 - Dalam satu kasus maritim, panggil set_asw_case, set_lkp, dan set_datum_case bersama-sama bila seluruh datanya tersedia, agar perhitungan datum dan Worksheet 1 dapat langsung dijalankan. Jika hanya sebagian data ada, isi worksheet yang datanya cukup dan sebutkan prasyarat yang masih kurang.
-- KASUS PESAWAT (AWA/ADA) — isi beruntun bila datanya ada: set_awa_case dengan distressAltFt (feet) dan SEMUA lapisan tabel angin atas urut naik termasuk Surface (altObs "0"); set_asw_case bila ada observasi angin permukaan berurut waktu (intervalMode dari jeda observasi, distress/datum time dari soal); set_lkp untuk koordinat LKP; set_datum_case bila arus, lama drift (dari waktu distress ke waktu datum/pencarian lanjutan), dan jenis objek diketahui. Pilih leewayObjectId SESUAI Table I-1 (jangan menebak): life raft NO ballast tanpa canopy DENGAN drogue → raft-noballast-drogue; canopy dengan drogue → raft-canopy-drogue; canopy tanpa drogue → raft-canopy-no-drogue; no ballast tanpa canopy tanpa drogue (4-6 orang) → raft-46-person; 15-20 orang tanpa ballast → raft-1520-person; PIW → piw-novice/piw-lifejacket. Worksheet hilir (WS 2/WS 8/pola pencarian) hanya bila data pencarian (visibilitas, fatigue, platform/SRU) lengkap; selain itu tanyakan via ask_for_case_data.
+- KASUS PESAWAT (AWA/ADA) — isi beruntun bila datanya ada: set_awa_case dengan distressAltFt (feet) dan SEMUA lapisan tabel angin atas urut naik termasuk Surface (altObs "0"); set_asw_case bila ada observasi angin permukaan berurut waktu (intervalMode dari jeda observasi, distress/datum time dari soal); set_lkp untuk koordinat LKP; set_datum_case bila arus, lama drift (dari waktu ditching/detresfa ke waktu datum/pencarian lanjutan), dan jenis objek diketahui. Setelah set_aero_drift_case, WAJIB lanjutkan set_datum_case dengan lkpSource "adw-landing" dan TANPA koordinat lkp/latitude — aplikasi otomatis memakai posisi ditching hasil ADW sebagai LKP dan menghitung datum/search area; JANGAN memanggil set_datum_case dengan koordinat insiden untuk kasus yang dihitung ADW (titik mulai drift adalah posisi ditching, bukan posisi insiden). Pilih leewayObjectId SESUAI Table I-1 (jangan menebak): life raft NO ballast tanpa canopy DENGAN drogue → raft-noballast-drogue; canopy dengan drogue → raft-canopy-drogue; canopy tanpa drogue → raft-canopy-no-drogue; no ballast tanpa canopy tanpa drogue (4-6 orang) → raft-46-person; 15-20 orang tanpa ballast → raft-1520-person; PIW → piw-novice/piw-lifejacket. Worksheet hilir (WS 2/WS 8/pola pencarian) hanya bila data pencarian (visibilitas, fatigue, platform/SRU) lengkap; selain itu tanyakan via ask_for_case_data.
 - ALUR PENERBANGAN BERUNTUN (WAJIB, AWA → ADW → UPS): panggil set_awa_case DAN set_aero_drift_case bersama-sama dalam satu jawaban bila data kasus penerbangan lengkap. Hasil AWA (arah/kecepatan angin atas) otomatis mengalir dari aplikasi ke ADW — JANGAN mengarang angka angin AWA di set_aero_drift_case. ADW menghitung drift sampai selesai: Landing Position otomatis menjadi LKP dan vektor glide, vektor angin, serta posisi pendaratan otomatis digambar di UPS Plotter. Segmen pesawat (useAircraftGlide) hanya true bila Altmax, Altmin, glide ratio, TAS, dan haluan turun tersedia di soal; haluan turun pesawat WAJIB bila segmen pesawat aktif. Segmen parasut (useParachute) hanya true bila Altmax parasut, terrain, dan rate of descent (tabel N-13) tersedia. Data yang tidak ada di soal jangan mengarang: gunakan ask_for_case_data.
 - Berikan ringkasan analisis, daftar worksheet yang dipilih, data yang berhasil diekstrak, dan data yang masih kurang. Hasil angka perhitungan harus berasal dari kalkulator aplikasi.
 
 PANDUAN ADW (AERONAUTICAL DRIFT WORKSHEET) — ASAL ANGKA & KETENTUAN:
 - Urutan sumber nilai: (1) Soal Kasus untuk tanggal/waktu, koordinat, Altmax/Altmin, Glide Ratio, Glide Speed (TASg), heading, Variation; (2) hasil AWA dari worksheet AWA aplikasi untuk B.10 — jangan hitung ulang dari Wind Forecast dan jangan interpolasi; (3) Flight Manual untuk aircraft, Table N-13 untuk parachute; (4) UPS/geodesik aplikasi untuk B.12 dan B.14.
-- B.3 Altitude Loss = Altmax − Altmin. Valid: Altmax ≥ Altmin. Jangan default Altmin ke 0 bila soal tidak menyebutnya — tanyakan bila tidak jelas.
+- B.3 Altitude Loss = Altmax − Altmin. Valid: Altmax ≥ Altmin. Untuk kasus DITCHING di laut (pesawat berakhir di air / life raft disiapkan), Altmin = 0 ft (permukaan laut) adalah asumsi standar — gunakan langsung dan tulis sebagai asumsi di jawaban; JANGAN menunda ADW hanya karena Altmin tidak tertulis. Untuk kasus darat/lainnya bila Altmin tidak tertulis, tanyakan bila tidak jelas.
 - B.6 Rate of Descent: AIRCRAFT = (TASg × 101) / Glide Ratio — konstanta 101 HANYA untuk aircraft. PARACHUTE = nilai Table N-13 (IAMSAR Vol II 2022, hal. N-20; beban 300 lb) — JANGAN pakai rumus 101 dan JANGAN menginterpolasi.
 - TABLE N-13 (jenis: ROD sea level / ROD 7.000 ft dalam ft/min / glide ratio): 28 ft (C-9) escape = 1176/1284/0; 28 ft (C-9) dengan 4 suspension line release = 1146/1260/0.40; 24 ft paratroop reserve = 1362/1494/0; 24 ft Martin-Baker = 1440/-/0; 35 ft (T-10) Army paratroop = 918/1008/0; 35 ft (HALO) AF & Army = 960/1038/0.35; Skysail (Navy) escape = 1212/1320/0; Paracommander AF = 1080/482/1.16; Parawing (eksperimental) = 600-900/gl 3.0; Parafoil (eksperimental) = 600-900/gl 3.0; Parasail (eksperimental) = 600-900/gl 2.7; Apollo 2 masing-masing (83 ft) = 2100/2232/0; Apollo 3 masing-masing (buka di 24.000 ft) = 1800/1950/0. Pilih kolom TANPA interpolasi: ketinggian buka ≤ 3.500 ft → kolom sea level; > 3.500 ft → kolom 7.000 ft (bila ada). Jenis eksperimental (rentang 600-900): minta planner menetapkan nilai ROD-nya. Selalu kirim parachuteN13TypeId bila jenis parasut diketahui.
 - B.7 Time of Descent = Altitude Loss / Rate of Descent (menit desimal). B.8 Glide Distance = (TASg × td)/60 NM — gunakan td DESIMAL (contoh 8,129 menit), bukan menit bulat.
@@ -356,14 +356,15 @@ const tools: FunctionDeclaration[] = [
   },
   {
     name: 'set_datum_case',
-    description: 'Mengisi parameter Datum Worksheet dari kasus maritim agar aplikasi menghitung datum dan Worksheet 1. Gunakan hanya jika posisi LKP, drift interval, dan jenis objek sudah diketahui. Arah arus laut adalah arah SET. Jangan mengarang X/Y atau jenis objek yang tidak diketahui.',
+    description: 'Mengisi parameter Datum Worksheet dari kasus maritim agar aplikasi menghitung datum dan Worksheet 1. Gunakan hanya jika lama drift dan jenis objek sudah diketahui. Pada kasus penerbangan yang dihitung ADW (ditching), WAJIB kirim lkpSource "adw-landing" TANPA lkp/latitude: aplikasi otomatis memakai posisi ditching hasil ADW sebagai LKP. Untuk kasus maritim biasa kirim lkp + latitude eksplisit. Arah arus laut adalah arah SET. Jangan mengarang X/Y atau jenis objek yang tidak diketahui.',
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
-        latitude: { type: SchemaType.NUMBER, description: 'Lintang LKP absolut dalam derajat (0-90), diturunkan dari koordinat LKP.' },
+        lkpSource: { type: SchemaType.STRING, description: '"adw-landing" bila LKP otomatis dari posisi ditching/landing hasil ADW (kasus penerbangan — JANGAN kirim lkp/latitude); "explicit" bila koordinat LKP dikirim langsung (kasus maritim biasa).' },
+        latitude: { type: SchemaType.NUMBER, description: 'Lintang LKP absolut dalam derajat (0-90), diturunkan dari koordinat LKP. Kosongkan bila lkpSource "adw-landing".' },
         lkp: {
           type: SchemaType.OBJECT,
-          description: 'Posisi LKP dalam derajat desimal, lintang selatan dan bujur barat negatif.',
+          description: 'Posisi LKP dalam derajat desimal, lintang selatan dan bujur barat negatif. Kosongkan bila lkpSource "adw-landing".',
           properties: {
             lat: { type: SchemaType.NUMBER, description: 'Lintang LKP bertanda, selatan negatif.' },
             lng: { type: SchemaType.NUMBER, description: 'Bujur LKP bertanda, barat negatif.' },
@@ -378,7 +379,7 @@ const tools: FunctionDeclaration[] = [
         X: { type: SchemaType.NUMBER, description: 'Error posisi pesawat X (NM), hanya jika tersedia.' },
         Y: { type: SchemaType.NUMBER, description: 'Error posisi pencari Y (NM), hanya jika tersedia.' },
       },
-      required: ['latitude', 'lkp', 'driftInterval', 'seaCurrentDir', 'seaCurrentSpeed', 'leewayObjectId'],
+      required: ['driftInterval', 'seaCurrentDir', 'seaCurrentSpeed', 'leewayObjectId'],
     },
   },
   {
@@ -570,7 +571,7 @@ const WORKSHEET_TOOL_NAMES = ['set_asw_case', 'set_awa_case', 'set_aero_drift_ca
  * Instruksi tambahan yang disuntikkan pada pass paksa agar model tidak
  * lagi menjawab teks/list worksheet tanpa memanggil tool.
  */
-const FORCED_RETRY_INSTRUCTION = 'PENTING: ini soal kasus perhitungan SAR. Panggil SEKARANG, pada respons ini, SEMUA tool worksheet yang relevan dalam SATU respons (set_asw_case, set_awa_case, set_aero_drift_case, set_lkp, set_datum_case, set_ws2_case, set_ws8_case, set_ws3_case, set_ws4_case, set_intercept_case, set_search_pattern_case) dengan data dari soal. Pilihan planner dipakai default tanpa bertanya: intervalMode ASW dari jam observasi (hanya 00/06/12/18 → "6h"; ada 03/09/15/21 → "3h"), WS2 selectedHeight 1000 ft bila tidak disebut, WS8 eyeHeight "14" untuk kapal patroli/rescue, "8" untuk perahu kecil/RIB, "MERSHIP" untuk kapal besar, searchNumber 1. Hanya bila ada FAKTA soal yang wajib dan benar-benar tidak ada, panggil ask_for_case_data untuk fakta itu dan tetap isi worksheet lain yang datanya lengkap.';
+const FORCED_RETRY_INSTRUCTION = 'PENTING: ini soal kasus perhitungan SAR. Panggil SEKARANG, pada respons ini, SEMUA tool worksheet yang relevan dalam SATU respons (set_asw_case, set_awa_case, set_aero_drift_case, set_lkp, set_datum_case, set_ws2_case, set_ws8_case, set_ws3_case, set_ws4_case, set_intercept_case, set_search_pattern_case) dengan data dari soal. Pilihan planner dipakai default tanpa bertanya: intervalMode ASW dari jam observasi (hanya 00/06/12/18 → "6h"; ada 03/09/15/21 → "3h"), WS2 selectedHeight 1000 ft bila tidak disebut, WS8 eyeHeight "14" untuk kapal patroli/rescue, "8" untuk perahu kecil/RIB, "MERSHIP" untuk kapal besar, searchNumber 1. Kasus ditching di laut: Altmin = 0 ft (permukaan laut) boleh diasumsikan dan dinyatakan sebagai asumsi, dan set_datum_case dikirim dengan lkpSource "adw-landing" TANPA koordinat lkp karena aplikasi memakai posisi ditching hasil ADW. Hanya bila ada FAKTA soal yang wajib dan benar-benar tidak ada, panggil ask_for_case_data untuk fakta itu dan tetap isi worksheet lain yang datanya lengkap.';
 
 /**
  * Coba ulang sekali dengan tool_choice paksa yang hanya mengizinkan tool
@@ -585,6 +586,7 @@ async function runForcedWorksheetRetry(
   apiKey: string,
   primaryModel: string,
   normalizeSchemaFn: (value: unknown) => unknown,
+  systemPrompt: string = SYSTEM_PROMPT,
 ): Promise<Array<{ type?: string; name?: string; arguments?: unknown }> | null> {
   const orderedModels = [primaryModel, ...GEMINI_MODELS.filter((model) => model !== primaryModel)];
   for (const model of orderedModels) {
@@ -597,7 +599,7 @@ async function runForcedWorksheetRetry(
         body: JSON.stringify({
           model,
           input: [...input, { type: 'text', text: FORCED_RETRY_INSTRUCTION }],
-          system_instruction: SYSTEM_PROMPT,
+          system_instruction: systemPrompt,
           generation_config: {
             max_output_tokens: 8192,
             thinking_level: model === 'gemini-3.5-flash-lite' ? 'minimal' : 'low',
@@ -629,13 +631,73 @@ async function runForcedWorksheetRetry(
   return null;
 }
 
+/**
+ * Instruksi pass penyambung rantai: dipakai bila kasus penerbangan baru
+ * memanggil set_awa_case tetapi belum memanggil set_aero_drift_case (model
+ * kadang berhenti setelah tool pertama walau data hilir sudah lengkap).
+ */
+const chainCompletionInstruction = (appliedNames: string[]) => `LANJUTKAN RANTAI WORKSHEET: pada respons sebelumnya kamu sudah memanggil ${appliedNames.join(', ')}. Untuk kasus penerbangan ini rantai hulu→hilir belum selesai — kerjakan lanjutan SEKARANG pada respons ini: (1) set_aero_drift_case bila data drift tersedia — untuk kasus DITCHING di laut, Altmin = 0 ft (permukaan laut) boleh dipakai dan dinyatakan sebagai asumsi; konversi haluan turun Magnetic → True memakai variation soal (Var W dikurangi, Var E ditambah) sebelum mengirim aircraftDescentHeadingDeg; (2) set_datum_case dengan lkpSource "adw-landing" dan TANPA koordinat lkp/latitude — aplikasi otomatis memakai posisi ditching hasil ADW sebagai LKP; driftInterval dari waktu ditching/detresfa ke waktu datum/pencarian lanjutan, arus laut dan leewayObjectId dari soal; (3) set_asw_case bila observasi angin permukaan berurut waktu ada di soal. HANYA panggil tool yang fakta wajibnya tersedia di soal atau yang punya default kebijakan planner, dan SESUAI yang diminta soal — bila soal hanya meminta sebagian penghitungan, panggil sesuai permintaan; bila tidak ada yang perlu ditambahkan, jawab teks saja tanpa memanggil tool yang sudah dipanggil sebelumnya.`;
+
+/**
+ * Pass lanjutan penyambung rantai worksheet penerbangan (AWA → ADW → Datum).
+ * Mengembalikan langkah function_call tambahan, atau null bila pass gagal /
+ * model memutuskan tidak ada yang perlu ditambahkan.
+ */
+async function runChainCompletionPass(
+  input: Array<Record<string, string>>,
+  apiKey: string,
+  primaryModel: string,
+  normalizeSchemaFn: (value: unknown) => unknown,
+  appliedNames: string[],
+  systemPrompt: string = SYSTEM_PROMPT,
+): Promise<Array<{ type?: string; name?: string; arguments?: unknown }> | null> {
+  try {
+    console.info(`[AI chat] Rantai penerbangan belum lengkap (sudah: ${appliedNames.join(', ')}); jalankan pass penyambung (model=${primaryModel}).`);
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+      signal: AbortSignal.timeout(GEMINI_REQUEST_TIMEOUT_MS),
+      body: JSON.stringify({
+        model: primaryModel,
+        input: [...input, { type: 'text', text: chainCompletionInstruction(appliedNames) }],
+        system_instruction: systemPrompt,
+        generation_config: {
+          max_output_tokens: 8192,
+          thinking_level: primaryModel === 'gemini-3.5-flash-lite' ? 'minimal' : 'low',
+        },
+        tools: tools.map((tool) => ({
+          type: 'function',
+          name: tool.name,
+          description: tool.description,
+          parameters: normalizeSchemaFn(tool.parameters),
+        })),
+        store: false,
+      }),
+    });
+    if (!response.ok) {
+      console.warn(`[AI chat] Chain completion pass gagal (HTTP ${response.status}, model=${primaryModel}).`);
+      return null;
+    }
+    const payload = await response.json().catch(() => ({}));
+    const steps = Array.isArray(payload?.steps) ? payload.steps as Array<{ type?: string; name?: string; arguments?: unknown }> : [];
+    if (steps.some((step) => step.type === 'function_call' && typeof step.name === 'string')) {
+      return steps;
+    }
+    console.warn('[AI chat] Chain completion pass tanpa panggilan tool baru.');
+    return null;
+  } catch (err) {
+    console.warn('[AI chat] Chain completion pass error:', err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+
 // This Vercel project supports 300-second functions; complex SAR case analysis
 // and document understanding can exceed the shorter 60-second default.
 export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages, apiKey, files } = await req.json();
+    const { messages, apiKey, files, workspaceContext } = await req.json();
 
     if (!apiKey) {
       return NextResponse.json(
@@ -643,6 +705,29 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    // SAR Workflow Memory: konteks terstruktur workspace aktif (retrieval
+    // selektif sudah dilakukan klien — hanya blok ringkas yang dikirim).
+    // Aturan memori (bab 11) menyertai blok konteks.
+    const workspaceBlock = typeof workspaceContext === 'string' && workspaceContext.trim()
+      ? workspaceContext.trim().slice(0, 6000)
+      : '';
+    const effectiveSystemPrompt = workspaceBlock
+      ? `${SYSTEM_PROMPT}
+
+=== SAR WORKSPACE MEMORY (konteks workspace aktif) ===
+${workspaceBlock}
+
+ATURAN MEMORI WORKSPACE:
+1. Workspace aktif adalah konteks utama — jangan mencampur data dari workspace lain.
+2. Nilai kalkulasi resmi hanya dari baris KALKULASI/PETA/DOKUMEN (sumber engine/capability); percakapan BUKAN sumber nilai.
+3. Gunakan hanya entry berstatus CURRENT; entry STALE/NEEDS_REVIEW/PENDING → beri peringatan dan minta pengguna menghitung ulang, jangan pakai angkanya.
+4. Jika data yang diminta tidak ada di konteks, katakan belum tersedia — jangan mengarang angka.
+5. Jika beberapa hasil cocok dengan permintaan, tanyakan mana yang dimaksud.
+6. Setiap jawaban yang memakai data workspace sebut sumbernya ([entryKey] vX, capability).
+7. Gunakan blok RENCANA TAHAPAN untuk orchestration: kerjakan tahap READY, tanyakan data yang BLOCKED, jangan melompati dependency.
+8. Tindakan yang mengubah data/peta/dokumen wajib konfirmasi pengguna (kontrak preview).`
+      : SYSTEM_PROMPT;
 
     // Interactions API accepts multimodal content directly and is the supported
     // API for current Gemini models.
@@ -721,7 +806,7 @@ export async function POST(req: NextRequest) {
             body: JSON.stringify({
               model,
               input,
-              system_instruction: SYSTEM_PROMPT,
+              system_instruction: effectiveSystemPrompt,
               generation_config: {
                 max_output_tokens: 8192,
                 thinking_level: model === 'gemini-3.5-flash-lite' ? 'minimal' : 'low',
@@ -808,7 +893,7 @@ export async function POST(req: NextRequest) {
       .map((fc) => ({ name: fc.name, args: fc.arguments || {} }));
     const firstPassWorksheet = functionCalls.filter((fc) => fc.name !== 'ask_for_case_data' && fc.name !== 'save_case_data_bank');
     if (caseLikeRequest && firstPassWorksheet.length === 0) {
-      const forcedRetrySteps = await runForcedWorksheetRetry(input, apiKey, usedModel, normalizeSchema);
+      const forcedRetrySteps = await runForcedWorksheetRetry(input, apiKey, usedModel, normalizeSchema, effectiveSystemPrompt);
       const retryWorksheet = forcedRetrySteps?.filter((step) => step.type === 'function_call' && typeof step.name === 'string'
         && step.name !== 'save_case_data_bank') ?? [];
       if (retryWorksheet.length > 0) {
@@ -817,6 +902,32 @@ export async function POST(req: NextRequest) {
         functionCalls = forcedRetrySteps!.filter((step): step is GeminiFunctionCallStep =>
           step.type === 'function_call' && typeof step.name === 'string'
         );
+      }
+    }
+
+    // Penyambung rantai penerbangan: kasus yang sudah memanggil set_awa_case
+    // tetapi belum memanggil set_aero_drift_case (dan bukan kasus intercept)
+    // diberi SATU pass lanjutan agar AWA → ADW → Datum tidak berhenti di
+    // tengah. Panggilan baru digabung dengan hasil pass pertama (dedupe per
+    // nama tool; versi pass pertama menang).
+    const firstPassNames = new Set(functionCalls.map((fc) => fc.name));
+    const chainIncomplete = firstPassNames.has('set_awa_case')
+      && !firstPassNames.has('set_aero_drift_case')
+      && !firstPassNames.has('set_intercept_case');
+    if (chainIncomplete) {
+      const completionSteps = await runChainCompletionPass(input, apiKey, usedModel, normalizeSchema, [...firstPassNames], effectiveSystemPrompt);
+      if (completionSteps) {
+        const merged = [...functionCalls];
+        for (const step of completionSteps) {
+          if (step.type === 'function_call' && typeof step.name === 'string' && !firstPassNames.has(step.name)) {
+            merged.push(step as GeminiFunctionCallStep);
+            firstPassNames.add(step.name);
+          }
+        }
+        if (merged.length > functionCalls.length) {
+          console.info(`[AI chat] Chain completion menambah ${merged.length - functionCalls.length} panggilan worksheet.`);
+          functionCalls = merged;
+        }
       }
     }
 

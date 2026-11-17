@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FileSpreadsheet, Printer } from 'lucide-react';
-import { type LatLng, distanceNm } from '@/lib/sar/sarCalculations';
+import { type LatLng, distanceNm, computeWs1SearchArea } from '@/lib/sar/sarCalculations';
 import { formatDMS } from '@/lib/sar/coordFormat';
 import type { DatumData, DatumResults } from '@/components/sar/DatumWorksheet';
 
@@ -79,15 +79,16 @@ export default function Worksheet1({
   const distressCraftX = datumResults?.X ?? 0;
   const searchCraftY = datumResults?.Y ?? 0;
 
-  // Total Errors (E)
-  const E_squared = De * De + distressCraftX * distressCraftX + searchCraftY * searchCraftY;
-  const E = Math.sqrt(E_squared);
-
-  // Search Area
+  // Total Errors (E) + Search Area — math diekstraksi ke lib (PHASE 3):
+  // computeWs1SearchArea = computeE existing + R = ⌈E × fs⌉ + Ao = 4R² (rumus identik).
   const fsOptions = [1.1, 1.6, 2.0, 2.3, 2.5];
-  const R_exact = E * fsSelected;
-  const R_round = Math.ceil(R_exact);
-  const Ao = 4 * R_round * R_round;
+  const { E, E2: E_squared, R: R_round, Ao } = computeWs1SearchArea({
+    De,
+    X: distressCraftX,
+    Y: searchCraftY,
+    fs: fsSelected,
+  });
+  const R_exact = E * fsSelected; // tampilan E × fs sebelum pembulatan
 
   const handlePrint = () => {
     window.print();

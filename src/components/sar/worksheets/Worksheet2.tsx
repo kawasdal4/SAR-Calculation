@@ -6,7 +6,7 @@ import { type LatLng } from '@/lib/sar/sarCalculations';
 import { formatDMS } from '@/lib/sar/coordFormat';
 import type { DatumData, DatumResults } from '@/components/sar/DatumWorksheet';
 import { Printer } from 'lucide-react';
-import { lookupW2Wu, lookupFw, lookupFs, readFigureI12, W2_TARGET_OPTIONS, W2_VISIBILITY_LABELS, type W2Target, type SearchNumber } from '@/lib/sar/wscPodTables';
+import { computeW2Row, readFigureI12, W2_TARGET_OPTIONS, W2_VISIBILITY_LABELS, type W2Target, type SearchNumber } from '@/lib/sar/wscPodTables';
 
 export interface Worksheet2InitialState {
   caseTitle?: string;
@@ -55,29 +55,35 @@ export default function Worksheet2({
   const [selectedHeight, setSelectedHeight] = useState<500 | 1000 | 1500 | 2000 | 0>(initialState?.selectedHeight ?? 0);
   const windKts = datumData?.aswSpeed ?? 0;
   const heights = [500, 1000, 1500, 2000];
-  const targetMeta = W2_TARGET_OPTIONS.find((target) => target.id === searchObject);
-  const fw = targetMeta && windKts > 0 ? lookupFw(windKts, targetMeta.fwGroup) : 0;
-  const fs = searchPlatform && searchObject ? lookupFs(searchObject, searchPlatform, searchTas) ?? 0 : 0;
-  const ff = isFatigue === 'Yes' ? 0.9 : isFatigue === 'No' ? 1 : 0;
-  const wuList = heights.map((height) => {
-    if (!searchPlatform || !searchObject || visibilityIndex < 0) return 0;
-    const value = lookupW2Wu(searchPlatform, searchObject, height as 500 | 1000 | 1500 | 2000, visibilityIndex);
-    return value === null ? 0 : value * (targetMeta?.isPiw && piwFlotationKnown && height === 500 ? 4 : 1);
-  });
-  const factorsReady = Boolean(searchPlatform && searchObject && visibilityIndex >= 0 && windKts > 0 && fs > 0 && isFatigue && searchNumber > 0);
-  const wFactors = wuList.map((wu) => factorsReady ? wu * fw * fs * ff : 0);
-  const spacingStep = searchPlatform === 'fixed-wing' ? 0.5 : searchPlatform === 'helicopter' ? 0.25 : 0;
-  const trackSpacings = wFactors.map((w) => spacingStep && w > 0 ? Math.max(spacingStep, Math.round(w / spacingStep) * spacingStep) : 0);
-  const coverages = wFactors.map((w, idx) => trackSpacings[idx] > 0 ? w / trackSpacings[idx] : 0);
-  const pods = coverages.map((c) => factorsReady ? readFigureI12(c, searchNumber || 1) : 0);
+  const targetMeta = W2_TARGET_OPTIONS.find((target) => target.id === searchObject); // UI: ceklis PIW
+  // Math diekstraksi ke lib (PHASE 3): computeW2Row — rumus identik dengan versi inline sebelumnya.
+  const w2Rows = heights.map((height) => computeW2Row({
+    platform: searchPlatform,
+    target: searchObject,
+    heightFt: height as 500 | 1000 | 1500 | 2000,
+    visibilityIndex,
+    windKts,
+    tasKts: searchTas,
+    fatigue: isFatigue,
+    searchNumber,
+    piwFlotationKnown,
+    areaAoNm2: ws1Ao,
+  }));
+  const fw = w2Rows[0].fw;
+  const fs = w2Rows[0].fs;
+  const ff = w2Rows[0].ff;
+  const wuList = w2Rows.map((r) => r.Wu);
+  const factorsReady = w2Rows[0].ready;
+  const wFactors = w2Rows.map((r) => r.W);
+  const trackSpacings = w2Rows.map((r) => r.S);
+  const coverages = w2Rows.map((r) => r.C);
+  const pods = w2Rows.map((r) => r.POD);
 
   // Search Area A from Worksheet 1 Ao
   const searchAreaAo = ws1Ao;
 
-  // Search Hours T required: T = A / (V * S)
-  const hoursRequired = trackSpacings.map((s) =>
-    searchTas > 0 && s > 0 ? searchAreaAo / (searchTas * s) : 0
-  );
+  // Search Hours T required: T = A / (V * S) — dihitung di computeW2Row (lib)
+  const hoursRequired = w2Rows.map((r) => r.T);
 
   // Available search hours (e.g. from 2 sorties of 2.5 hrs = 5.0 hrs)
   const [hoursAvailable, setHoursAvailable] = useState(0);

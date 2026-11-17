@@ -67,6 +67,8 @@ import {
 import { formatDMS } from '@/lib/sar/coordFormat';
 import type { MapMarker, MapLine, MapPolygon, MapCircle } from '@/components/sar/SeaMap';
 import BasicCalculation from '@/components/sar/BasicCalculation';
+import ChartDistanceGuide from '@/components/sar/chart-distance/ChartDistanceGuide';
+import { selectiveWorkspaceContext, workflowPlanText, type ContextEntry } from '@/lib/sar/workspaceContext';
 import SeaMapMount from '@/components/sar/SeaMapMount';
 
 // Worksheet navigation and training tools
@@ -225,6 +227,11 @@ export default function Home() {
   } | null>(null);
   const [caseVersion, setCaseVersion] = useState<number>(0);
 
+  // === SAR Workflow Memory & Context Manager ===
+  // Workspace aktif = SarCase yang dimuat/di-save (CaseManager) — bukan entitas baru.
+  const [activeSarCase, setActiveSarCase] = useState<{ id: string; title: string } | null>(null);
+  const [wsContextEntries, setWsContextEntries] = useState<ContextEntry[]>([]);
+
   // Overrides from WeatherPanel
   const [windOverride, setWindOverride] = useState<{ dirFrom: number; speed: number; hours: number; ts: number } | null>(null);
   const [seaCurrentOverride, setSeaCurrentOverride] = useState<{ dir: number; speed: number; ts: number } | null>(null);
@@ -263,6 +270,11 @@ export default function Home() {
       state: {
         awa: { observations: awaObservations, ...awaContext },
         asw: { observations: aswState.observations, aswErr: aswState.aswErr },
+        // PHASE 3: draf input Aero Drift (ADW) ikut disimpan agar rantai
+        // penerbangan ditching tidak hilang saat kasus dimuat ulang
+        // (hasil dihitung ulang dari draf saat tab ADW dibuka — pola yang
+        // sama dengan observasi AWA/ASW).
+        aero: aeroDraft ?? undefined,
         datum: datumState ?? {},
         search: searchState ?? {},
         lkp,
@@ -280,12 +292,14 @@ export default function Home() {
         tsReturnOffsetText,
       },
     };
-  }, [awaObservations, awaContext, aswState, datumState, searchState, lkp, assets, patternType, patternAssetId, patternOrientationText, patternEnvironment, patternWorksheetSource, patternLandHeight, sectorAngleText, sectorLegLengthText, sectorLegCountText, trackLineLengthText, tsReturnOffsetText]);
+  }, [awaObservations, awaContext, aswState, aeroDraft, datumState, searchState, lkp, assets, patternType, patternAssetId, patternOrientationText, patternEnvironment, patternWorksheetSource, patternLandHeight, sectorAngleText, sectorLegLengthText, sectorLegCountText, trackLineLengthText, tsReturnOffsetText]);
 
   /** Apply loaded state */
   const applyState = useCallback((state: Record<string, unknown>) => {
     const awa = (state.awa ?? {}) as AWAInitialState;
     const asw = (state.asw ?? {}) as ASWInitialState;
+    // PHASE 3: pulihkan draf ADW (aero) — hasil dihitung ulang saat tab dibuka.
+    const aeroLoaded = (state.aero ?? undefined) as AeroDriftInitialState | undefined;
     const datum = (state.datum ?? {}) as DatumInitialState;
     const search = (state.search ?? {}) as SearchPlanInitialState;
     const lkpLoaded = state.lkp as LatLng | undefined;
@@ -305,11 +319,74 @@ export default function Home() {
     setWorksheet1Fs(1.1);
     if (assetsLoaded && Array.isArray(assetsLoaded)) setAssets(assetsLoaded);
 
-    setLoadedInitialState({ awa, asw, datum, search, lkp: lkpLoaded });
+    // ADW: muat draf dari kasus, atau bersihkan bila kasus tidak memilikinya
+    // (hindari kebocoran data antarkasus). Hasil lama tidak dibawa — dihitung
+    // ulang dari draf oleh worksheet saat tab ADW dibuka.
+    if (aeroLoaded && typeof aeroLoaded === 'object') {
+      setAeroDraft(aeroLoaded);
+      setAeroResults(null);
+    } else {
+      setAeroDraft(null);
+      setAeroResults(null);
+    }
+
+    setLoadedInitialState({ awa, asw, aero: aeroLoaded, datum, search, lkp: lkpLoaded });
     setAwaContext({ distressAltFt: awa.distressAltFt, forecastSource: awa.forecastSource, forecastValidTime: awa.forecastValidTime });
     if (lkpLoaded) setLkp(lkpLoaded);
     setCaseVersion((v) => v + 1);
   }, []);
+
+  // --- SAR Workflow Memory: muat konteks, snapshot, catat percakapan ---
+  // Konteks workspace dimuat saat workspace aktif berpindah (isolasi antar workspace).
+  useEffect(() => {
+    if (!activeSarCase) { setWsContextEntries([]); return; }
+    let cancelled = false;
+    fetch(`/api/workspace-context?caseId=${encodeURIComponent(activeSarCase.id)}`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : { entries: [] }))
+      .then((d) => { if (!cancelled) setWsContextEntries((d.entries ?? []) as ContextEntry[]); })
+      .catch(() => { /* konteks opsional — jangan blokir aplikasi */ });
+    return () => { cancelled = true; };
+  }, [activeSarCase]);
+
+  // Blok konteks selektif untuk AI: prioritas entry terstruktur CURRENT,
+  // STALE hanya peringatan + rencana tahapan (bukan seluruh DB/riwayat).
+  const workspaceContextBlock = useMemo(() => {
+    if (!activeSarCase) return undefined;
+    const retrieval = selectiveWorkspaceContext(wsContextEntries, activeSarCase.id);
+    const plan = workflowPlanText(wsContextEntries, activeSarCase.id);
+    const warn = retrieval.staleWarnings.length ? `\n\n${retrieval.staleWarnings.join('\n')}` : '';
+    return `${retrieval.block}\n\n${plan}${warn}`;
+  }, [activeSarCase, wsContextEntries]);
+
+  // Simpan snapshot state aplikasi → konteks workspace (versi baru hanya bila input berubah).
+  const handleSaveWorkspaceSnapshot = useCallback(async (): Promise<boolean> => {
+    if (!activeSarCase) return false;
+    try {
+      const payload = buildState();
+      if (!payload) return false;
+      const res = await fetch('/api/workspace-context', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ caseId: activeSarCase.id, action: 'snapshot', state: payload.state }),
+      });
+      if (!res.ok) return false;
+      const d = await res.json();
+      setWsContextEntries((d.entries ?? []) as ContextEntry[]);
+      return true;
+    } catch {
+      return false;
+    }
+  }, [activeSarCase, buildState]);
+
+  // Catat keputusan/koreksi/konfirmasi pengguna ke konteks (category E — bukan sumber nilai).
+  const handleLogConversation = useCallback((kind: 'decision' | 'correction' | 'pending-question' | 'approved-action' | 'note', text: string) => {
+    if (!activeSarCase) return;
+    fetch('/api/workspace-context', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ caseId: activeSarCase.id, action: 'conversation', kind, text }),
+    }).catch(() => { /* pencatatan percakapan opsional */ });
+  }, [activeSarCase]);
 
   /** Clear all worksheets and reset entire state to clean initial condition */
   const handleClearAll = useCallback(() => {
@@ -336,6 +413,7 @@ export default function Home() {
     setLkp(DEFAULT_CENTER);
     setIsLkpSet(false);
     setAeroResults(null);
+    setAeroDraft(null); // PHASE 3: bersihkan draf ADW juga
     setAdwSyncLkp(true);
     setFocusUpsOnAeroValid(false);
     setPickMode(false);
@@ -553,8 +631,9 @@ export default function Home() {
   }, []);
 
   const handleApplyDatum = useCallback((data: {
-    latitude: number;
-    lkp: LatLng;
+    latitude?: number;
+    lkp?: LatLng;
+    lkpSource?: 'adw-landing' | 'explicit';
     driftInterval: number;
     seaCurrentDir: number;
     seaCurrentSpeed: number;
@@ -563,12 +642,17 @@ export default function Home() {
     X?: number;
     Y?: number;
   }) => {
-    setLkp(data.lkp);
-    setIsLkpSet(true);
+    // Rantai penerbangan (ADW → Datum): bila LKP otomatis dari posisi ditching
+    // hasil ADW, jangan timpa LKP di sini — sinkronisasi ADW (adwSyncLkp) yang
+    // mengisinya setelah worksheet ADW selesai dihitung.
+    if (data.lkpSource !== 'adw-landing' && data.lkp && Number.isFinite(data.lkp.lat) && Number.isFinite(data.lkp.lng)) {
+      setLkp(data.lkp);
+      setIsLkpSet(true);
+    }
     setLoadedInitialState((prev) => ({
       ...prev,
       datum: {
-        latitude: data.latitude,
+        ...(data.latitude !== undefined ? { latitude: data.latitude } : {}),
         driftInterval: data.driftInterval,
         seaCurrentDir: data.seaCurrentDir,
         seaCurrentSpeed: data.seaCurrentSpeed,
@@ -1374,7 +1458,12 @@ export default function Home() {
               >
                 <Trash2 className="h-3.5 w-3.5" /> Bersihkan Tab Ini
               </button>
-              <CaseManager buildState={buildState} applyState={applyState} />
+              <CaseManager
+                buildState={buildState}
+                applyState={applyState}
+                onActiveCaseChange={setActiveSarCase}
+                activeCaseId={activeSarCase?.id ?? null}
+              />
               <ExportButtons data={searchActionPlanData} caseTitle="SAR_Search_Action_Plan" />
               <Badge variant="secondary" className="bg-slate-800 text-slate-200 border-slate-700">
                 SAR Planning
@@ -2064,8 +2153,10 @@ export default function Home() {
             </TabsContent>
 
             {/* TAB: HITUNG DASAR */}
-            <TabsContent value="basic-calc" key={`basic-tab-${caseVersion}-${tabClearVersions['basic-calc'] ?? 0}`} className="mt-0">
+            <TabsContent value="basic-calc" key={`basic-tab-${caseVersion}-${tabClearVersions['basic-calc'] ?? 0}`} className="mt-0 space-y-4">
               <BasicCalculation key={`calc-${caseVersion}`} />
+              {/* PHASE 4: panduan + kalkulator jarak peta laut & peta udara (1 menit = 1 NM) */}
+              <ChartDistanceGuide key={`chart-dist-${caseVersion}`} />
             </TabsContent>
           </Tabs>
         </section>
@@ -2362,6 +2453,11 @@ export default function Home() {
         onApplySearchPattern={handleApplySearchPattern}
         onApplyIntercept={handleApplyIntercept}
         onFocusWorksheet={(worksheet) => setActiveTab(worksheet === 'datum' ? 'ws1' : worksheet)}
+        activeWorkspace={activeSarCase}
+        workspaceEntries={wsContextEntries}
+        workspaceContextBlock={workspaceContextBlock}
+        onSaveWorkspaceSnapshot={handleSaveWorkspaceSnapshot}
+        onLogConversation={handleLogConversation}
       />
 
       <footer className="mt-auto bg-slate-900 text-slate-400 text-xs">
