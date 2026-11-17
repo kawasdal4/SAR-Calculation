@@ -35,6 +35,7 @@ import AWAWorksheet, {
   type AWAInitialState,
   type AWAObservation,
 } from '@/components/sar/AWAWorksheet';
+import type { AeroDriftInitialState } from '@/components/sar/AeronauticalDriftWorksheet';
 import ASWWorksheet, {
   type ASWData,
   type ASWInitialState,
@@ -57,6 +58,7 @@ import { buildSearchActionPlanData } from '@/lib/sar/searchActionPlan';
 import {
   type LatLng,
   type Vector,
+  computeAWA,
   project,
   rectangleCorners,
   distanceNm,
@@ -114,7 +116,8 @@ const SEARCH_CONNECTOR_COLOR = '#a16207';
 
 export default function Home() {
   // AWA & ASW states
-  const [awa, setAwa] = useState<AWAData>({ aswDirFrom: 0, aswSpeed: 0, isValid: false });
+  // Data AWA yang di-report worksheet saat tab AWA aktif (authoritative saat user mengedit).
+  const [awaWorksheet, setAwaWorksheet] = useState<AWAData>({ aswDirFrom: 0, aswSpeed: 0, isValid: false });
   const [asw, setAsw] = useState<ASWData>({
     aswDirFrom: 0,
     aswSpeed: 0,
@@ -151,6 +154,8 @@ export default function Home() {
   // Aeronautical Drift State & auto-sync to LKP
   const [aeroResults, setAeroResults] = useState<AeroDriftResult | null>(null);
   const [adwSyncLkp, setAdwSyncLkp] = useState<boolean>(true);
+  // Bila true: saat hasil ADW valid, otomatis pindah ke tab UPS untuk melihat hasil gambaran.
+  const [focusUpsOnAeroValid, setFocusUpsOnAeroValid] = useState<boolean>(false);
 
   // SRU Asset Allocation State (Multi-Asset Fleet)
   const [assets, setAssets] = useState<SruAssetInput[]>([]);
@@ -180,6 +185,23 @@ export default function Home() {
   // Raw state snapshots for saving cases
   const [awaObservations, setAwaObservations] = useState<AWAObservation[]>([]);
   const [awaContext, setAwaContext] = useState<Pick<AWAInitialState, 'distressAltFt' | 'forecastSource' | 'forecastValidTime'>>({ distressAltFt: 0 });
+
+  // AWA hasil perhitungan langsung dari observasi. TabsContent meng-unmount tab non-aktif,
+  // jadi pada alur AI beruntun (AWA → ADW → UPS) worksheet AWA bisa tidak sempat dirender;
+  // dengan perhitungan di level page, angin AWA tetap mengalir ke ADW tanpa harus membuka tab AWA.
+  const awaComputed = useMemo(() => {
+    const summary = computeAWA(awaObservations, awaContext.distressAltFt ?? 0);
+    return {
+      aswDirFrom: summary.isValid ? summary.awaDirFrom : 0,
+      aswSpeed: summary.isValid ? summary.awaSpeed : 0,
+      vectorSumKts: summary.vectorSumKts,
+      totalAltLossKft: summary.totalAltLossKft,
+      directionDefined: summary.directionDefined,
+      isValid: summary.isValid,
+      rows: summary.rows,
+    } satisfies AWAData;
+  }, [awaObservations, awaContext.distressAltFt]);
+  const awa = awaWorksheet.isValid ? awaWorksheet : awaComputed;
   const [aswState, setAswState] = useState<{ observations: ASWObservation[]; aswErr: number }>({
     observations: [],
     aswErr: 0,
@@ -189,6 +211,7 @@ export default function Home() {
 
   const [loadedInitialState, setLoadedInitialState] = useState<{
     awa?: AWAInitialState;
+    aero?: AeroDriftInitialState;
     asw?: ASWInitialState;
     datum?: DatumInitialState;
     search?: SearchPlanInitialState;
@@ -221,6 +244,15 @@ export default function Home() {
       });
     }
   }, [aeroResults, adwSyncLkp]);
+
+  // Alur beruntun AWA → ADW → UPS: saat penghitungan ADW selesai (valid) dan permintaan
+  // berasal dari AI, otomatis tampilkan tab UPS tempat hasil digambar.
+  useEffect(() => {
+    if (focusUpsOnAeroValid && aeroResults?.positionValid) {
+      setFocusUpsOnAeroValid(false);
+      setActiveTab('ups');
+    }
+  }, [focusUpsOnAeroValid, aeroResults]);
 
   /** Build state for saving */
   const buildState = useCallback(() => {
@@ -280,7 +312,7 @@ export default function Home() {
   /** Clear all worksheets and reset entire state to clean initial condition */
   const handleClearAll = useCallback(() => {
     // Reset AWA & ASW
-    setAwa({ aswDirFrom: 0, aswSpeed: 0 });
+    setAwaWorksheet({ aswDirFrom: 0, aswSpeed: 0 });
     setAsw({ aswDirFrom: 0, aswSpeed: 0, aswErr: 0, aswdve: 0 });
     setAwaObservations([]);
     setAwaContext({ distressAltFt: 0 });
@@ -303,6 +335,7 @@ export default function Home() {
     setIsLkpSet(false);
     setAeroResults(null);
     setAdwSyncLkp(true);
+    setFocusUpsOnAeroValid(false);
     setPickMode(false);
     setPickSruMode(false);
     setMainMapToolMode('pan');
@@ -356,13 +389,15 @@ export default function Home() {
 
     switch (activeTab) {
       case 'awa':
-        setAwa({ aswDirFrom: 0, aswSpeed: 0, isValid: false });
+        setAwaWorksheet({ aswDirFrom: 0, aswSpeed: 0, isValid: false });
         setAwaObservations([]);
         setAwaContext({ distressAltFt: 0 });
         setLoadedInitialState((prev) => ({ ...(prev ?? {}), awa: { observations: [], distressAltFt: 0, caseTitle: '-' } }));
         break;
       case 'aero':
         setAeroResults(null);
+        setFocusUpsOnAeroValid(false);
+        setLoadedInitialState((prev) => ({ ...(prev ?? {}), aero: {} }));
         setLkp({ lat: 0, lng: 0 });
         setIsLkpSet(false);
         break;
@@ -488,6 +523,9 @@ export default function Home() {
         caseTitle: data.caseTitle,
       },
     }));
+    // Observasi & konteks langsung ke state page agar alur beruntun AI (AWA → ADW → UPS)
+    // tetap mengalir walau tab AWA tidak sempat dirender (TabsContent meng-unmount tab non-aktif).
+    setAwaObservations(data.windData ?? []);
     setAwaContext({ distressAltFt: data.distressAltFt, forecastSource: '', forecastValidTime: '' });
     setCaseVersion((v) => v + 1);
     setActiveTab('awa');
@@ -496,6 +534,19 @@ export default function Home() {
   const handleApplyLKP = useCallback((data: { lat: number; lng: number }) => {
     setLkp(data);
     setIsLkpSet(true);
+  }, []);
+
+  // AI menerapkan data ADW: worksheet ADW dihitung sampai selesai (angin AWA otomatis),
+  // landing position menjadi LKP (sinkron otomatis), lalu hasil digambar di UPS.
+  const handleApplyAeroDrift = useCallback((data: AeroDriftInitialState) => {
+    setLoadedInitialState((prev) => ({ ...prev, aero: data }));
+    if (data.incidentPos && Number.isFinite(data.incidentPos.lat) && Number.isFinite(data.incidentPos.lng)) {
+      setLkp({ lat: data.incidentPos.lat, lng: data.incidentPos.lng });
+      setIsLkpSet(true);
+    }
+    setFocusUpsOnAeroValid(true);
+    setCaseVersion((v) => v + 1);
+    setActiveTab('aero');
   }, []);
 
   const handleApplyDatum = useCallback((data: {
@@ -1418,7 +1469,7 @@ export default function Home() {
             <TabsContent value="awa" key={`awa-tab-${caseVersion}-${tabClearVersions.awa ?? 0}`} className="mt-0 space-y-4">
               <AWAWorksheet
                 key={`awa-${caseVersion}`}
-                onDataChange={setAwa}
+                onDataChange={setAwaWorksheet}
                 onObservationsChange={setAwaObservations}
                 onContextChange={setAwaContext}
                 initialState={loadedInitialState?.awa}
@@ -1476,6 +1527,7 @@ export default function Home() {
                 awaDirFrom={awa.aswDirFrom}
                 awaSpeedKts={awa.aswSpeed}
                 awaIsValid={awa.isValid}
+                initialState={loadedInitialState?.aero}
                 onResults={setAeroResults}
               />
               <PrintCompanionMap
@@ -2296,6 +2348,7 @@ export default function Home() {
         onToggle={setIsAiChatOpen}
         onApplyASW={handleApplyASW}
         onApplyAWA={handleApplyAWA}
+        onApplyAeroDrift={handleApplyAeroDrift}
         onApplyLKP={handleApplyLKP}
         onApplyDatum={handleApplyDatum}
         onApplyWS2={handleApplyWS2}

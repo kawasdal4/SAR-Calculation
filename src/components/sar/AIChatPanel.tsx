@@ -26,6 +26,7 @@ import type { Worksheet4InitialState } from '@/components/sar/worksheets/Workshe
 import type { Worksheet8InitialState } from '@/components/sar/worksheets/Worksheet8';
 import { W2_TARGET_OPTIONS, W8_TARGET_OPTIONS } from '@/lib/sar/wscPodTables';
 import type { SearchPatternPlanInitialState } from '@/lib/sar/searchPatterns';
+import type { AeroDriftInitialState } from '@/components/sar/AeronauticalDriftWorksheet';
 
 interface UploadedAttachment {
   name: string;
@@ -56,6 +57,7 @@ interface AIChatPanelProps {
     caseTitle?: string;
   }) => void;
   onApplyLKP?: (data: { lat: number; lng: number }) => void;
+  onApplyAeroDrift?: (data: AeroDriftInitialState) => void;
   onApplyDatum?: (data: {
     latitude: number;
     lkp: { lat: number; lng: number };
@@ -148,6 +150,7 @@ export default function AIChatPanel({
   onApplyASW,
   onApplyAWA,
   onApplyLKP,
+  onApplyAeroDrift,
   onApplyDatum,
   onApplyWS2,
   onApplyWS3,
@@ -210,6 +213,37 @@ export default function AIChatPanel({
             appliedWorksheets.push('awa');
           } else {
             failedWorksheets.push('AWA');
+          }
+          break;
+        }
+        case 'set_aero_drift_case': {
+          const data = args as unknown as AeroDriftInitialState;
+          attempted = true;
+          const incidentOk = Number.isFinite(data.incidentPos?.lat)
+            && Math.abs(data.incidentPos?.lat ?? 999) <= 90
+            && Number.isFinite(data.incidentPos?.lng)
+            && Math.abs(data.incidentPos?.lng ?? 999) <= 180;
+          const aircraftReady = data.useAircraftGlide === true
+            ? Number.isFinite(data.aircraftAltMaxFt) && Number.isFinite(data.aircraftAltMinFt)
+              && (data.aircraftAltMaxFt ?? 0) > (data.aircraftAltMinFt ?? -1) && (data.aircraftAltMinFt ?? -1) >= 0
+              && (data.aircraftGlideRatio ?? 0) > 0 && (data.aircraftTASgKts ?? 0) > 0
+              && Number.isFinite(data.aircraftDescentHeadingDeg)
+            : true;
+          const parachuteReady = data.useParachute === true
+            ? Number.isFinite(data.parachuteAltMaxFt) && Number.isFinite(data.parachuteTerrainAltFt)
+              && (data.parachuteAltMaxFt ?? 0) > (data.parachuteTerrainAltFt ?? -1) && (data.parachuteTerrainAltFt ?? -1) >= 0
+              && (data.parachuteRateOfDescentFtMin ?? 0) > 0
+              && (data.parachuteType === 'round-zero-glide'
+                || ((data.parachuteGlideRatio ?? 0) > 0 && (data.parachuteTASgKts ?? 0) > 0
+                  && Number.isFinite(data.parachuteDescentHeadingDeg)))
+            : true;
+          const anySegment = data.useAircraftGlide === true || data.useParachute === true;
+          if (incidentOk && anySegment && aircraftReady && parachuteReady) {
+            onApplyAeroDrift?.(data);
+            applied = true;
+            appliedWorksheets.push('aero');
+          } else {
+            failedWorksheets.push('ADW (Aero Drift)');
           }
           break;
         }
@@ -387,12 +421,13 @@ export default function AIChatPanel({
         : appliedWorksheets.includes('ws4') ? 'ws4'
         : appliedWorksheets.includes('ws2') ? 'ws2'
         : appliedWorksheets.includes('ws8') ? 'ws8'
+      : appliedWorksheets.includes('aero') ? 'aero'
       : appliedWorksheets.includes('datum') ? 'datum'
         : appliedWorksheets.includes('awa') ? 'awa'
           : appliedWorksheets.includes('asw') ? 'asw' : '';
     if (preferredWorksheet) onFocusWorksheet?.(preferredWorksheet);
     return { applied, invalidIntercept, attempted, failedWorksheets, preferredWorksheet };
-  }, [onApplyASW, onApplyAWA, onApplyLKP, onApplyDatum, onApplyWS2, onApplyWS3, onApplyWS4, onApplyWS8, onApplySearchPattern, onApplyIntercept, onFocusWorksheet]);
+  }, [onApplyASW, onApplyAWA, onApplyLKP, onApplyAeroDrift, onApplyDatum, onApplyWS2, onApplyWS3, onApplyWS4, onApplyWS8, onApplySearchPattern, onApplyIntercept, onFocusWorksheet]);
 
   // Load API key and chat history from localStorage
   useEffect(() => {
@@ -660,6 +695,14 @@ export default function AIChatPanel({
           caseTitle?: string;
         };
         return `✈️ AWA: ${a.caseTitle || 'Kasus Penerbangan'}\nAltitude: ${a.distressAltFt} ft, ${a.windData?.length || 0} lapisan angin`;
+      }
+      case 'set_aero_drift_case': {
+        const a = fc.args as AeroDriftInitialState;
+        const segments = [
+          a.useAircraftGlide ? `Pesawat (Altmax ${a.aircraftAltMaxFt ?? '?'} ft → Altmin ${a.aircraftAltMinFt ?? '?'} ft, L/D ${a.aircraftGlideRatio ?? '?'} , TAS ${a.aircraftTASgKts ?? '?'} kt, haluan ${a.aircraftDescentHeadingDeg ?? '?'}°T)` : null,
+          a.useParachute ? `Parasut ${(a.parachuteType ?? 'round-zero-glide') === 'steerable' ? 'steerable' : 'round'} (Altmax ${a.parachuteAltMaxFt ?? '?'} ft, ROD ${a.parachuteRateOfDescentFtMin ?? '?'} ft/min)` : null,
+        ].filter(Boolean).join(' + ') || 'tanpa segmen';
+        return `🪂 ADW: ${a.incidentPos ? `${formatDMS(a.incidentPos.lat ?? 0, false)}, ${formatDMS(a.incidentPos.lng ?? 0, true)}` : 'posisi insiden?'}\nSegmen: ${segments}\nAngin atas otomatis dari AWA, hasil digambar di UPS`;
       }
       case 'set_lkp': {
         const a = fc.args as { lat?: number; lng?: number };

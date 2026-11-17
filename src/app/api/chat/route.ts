@@ -51,7 +51,8 @@ JIKA PENGGUNA MELAMPIRKAN FILE/GAMBAR:
 - Gunakan set_asw_case bila ada observasi angin permukaan dengan rentang waktu; set_awa_case untuk angin berdasarkan ketinggian pada kasus penerbangan; set_lkp untuk koordinat LKP; set_datum_case untuk lama drift dan data arus/jenis objek yang tersedia; set_intercept_case untuk kasus pintasan lengkap.
 - Gunakan set_ws2_case hanya bila detail pencarian udara yang dibutuhkan WS 2 tersedia; gunakan set_ws8_case hanya bila detail pencarian kapal yang dibutuhkan WS 8 tersedia. Keduanya membutuhkan data target, kondisi pandang, status fatigue, serta parameter platform yang sesuai.
 - Dalam satu kasus maritim, panggil set_asw_case, set_lkp, dan set_datum_case bersama-sama bila seluruh datanya tersedia, agar perhitungan datum dan Worksheet 1 dapat langsung dijalankan. Jika hanya sebagian data ada, isi worksheet yang datanya cukup dan sebutkan prasyarat yang masih kurang.
-- KASUS PESAWAT (AWA/ADA) — isi beruntun bila datanya ada: set_awa_case dengan distressAltFt (feet) dan SEMUA lapisan tabel angin atas urut naik termasuk Surface (altObs "0"); set_asw_case bila ada observasi angin permukaan berurut waktu (intervalMode dari jeda observasi, distress/datum time dari soal); set_lkp untuk koordinat LKP; set_datum_case bila arus, lama drift (dari waktu distress ke waktu datum/pencarian lanjutan), dan jenis objek diketahui (life raft dengan drogue → raft-canopy-drogue; tanpa drogue → raft-canopy-no-drogue). Parameter pesawat (cruise/glide speed, glide ratio, fuel) cukup disebut di penjelasan karena ADW dihitung aplikasi dari data AWA. Worksheet hilir (WS 2/WS 8/pola pencarian) hanya bila data pencarian (visibilitas, fatigue, platform/SRU) lengkap; selain itu tanyakan via ask_for_case_data.
+- KASUS PESAWAT (AWA/ADA) — isi beruntun bila datanya ada: set_awa_case dengan distressAltFt (feet) dan SEMUA lapisan tabel angin atas urut naik termasuk Surface (altObs "0"); set_asw_case bila ada observasi angin permukaan berurut waktu (intervalMode dari jeda observasi, distress/datum time dari soal); set_lkp untuk koordinat LKP; set_datum_case bila arus, lama drift (dari waktu distress ke waktu datum/pencarian lanjutan), dan jenis objek diketahui (life raft dengan drogue → raft-canopy-drogue; tanpa drogue → raft-canopy-no-drogue). Worksheet hilir (WS 2/WS 8/pola pencarian) hanya bila data pencarian (visibilitas, fatigue, platform/SRU) lengkap; selain itu tanyakan via ask_for_case_data.
+- ALUR PENERBANGAN BERUNTUN (WAJIB, AWA → ADW → UPS): panggil set_awa_case DAN set_aero_drift_case bersama-sama dalam satu jawaban bila data kasus penerbangan lengkap. Hasil AWA (arah/kecepatan angin atas) otomatis mengalir dari aplikasi ke ADW — JANGAN mengarang angka angin AWA di set_aero_drift_case. ADW menghitung drift sampai selesai: Landing Position otomatis menjadi LKP dan vektor glide, vektor angin, serta posisi pendaratan otomatis digambar di UPS Plotter. Segmen pesawat (useAircraftGlide) hanya true bila Altmax, Altmin, glide ratio, TAS, dan haluan turun tersedia di soal; haluan turun pesawat WAJIB bila segmen pesawat aktif. Segmen parasut (useParachute) hanya true bila Altmax parasut, terrain, dan rate of descent (tabel N-13) tersedia. Data yang tidak ada di soal jangan mengarang: gunakan ask_for_case_data.
 - Berikan ringkasan analisis, daftar worksheet yang dipilih, data yang berhasil diekstrak, dan data yang masih kurang. Hasil angka perhitungan harus berasal dari kalkulator aplikasi.
 
 FORMAT WAKTU BASARNAS: [Bulan][Tanggal] [Jam][Menit] [Zona Waktu]
@@ -172,6 +173,101 @@ const tools: FunctionDeclaration[] = [
         },
       },
       required: ['distressAltFt', 'windData'],
+    },
+  },
+  {
+    name: 'set_aero_drift_case',
+    description: 'Mengisi Aeronautical Drift Worksheet (ADW) agar penghitungan drift pesawat/parasut berlanjut sampai selesai: posisi & waktu insiden, segmen pesawat dan/atau parasut (altitude, glide ratio, TAS, rate of descent, haluan turun). Angin AWA otomatis dari worksheet AWA; landing position menjadi LKP dan hasil digambar di UPS Plotter. WAJIB dipanggil bersama set_awa_case pada kasus penerbangan bila datanya tersedia.',
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        caseTitle: {
+          type: SchemaType.STRING,
+          description: 'Judul kasus penerbangan',
+        },
+        caseNumber: {
+          type: SchemaType.STRING,
+          description: 'Nomor kasus bila ada di soal',
+        },
+        date: {
+          type: SchemaType.STRING,
+          description: 'Tanggal insiden UTC bila disebut di soal, contoh: "22 Nov 2025"; jangan mengarang',
+        },
+        incidentPos: {
+          type: SchemaType.OBJECT,
+          description: 'Posisi insiden/LKP pesawat dalam derajat desimal; lintang selatan dan bujur barat negatif.',
+          properties: {
+            lat: { type: SchemaType.NUMBER, description: 'Lintang bertanda, selatan negatif' },
+            lng: { type: SchemaType.NUMBER, description: 'Bujur bertanda, barat negatif' },
+          },
+          required: ['lat', 'lng'],
+        },
+        incidentTime: {
+          type: SchemaType.STRING,
+          description: 'Waktu insiden persis seperti di soal, contoh: "1000 Z, 22 Nov 2025"; jangan mengarang',
+        },
+        useAircraftGlide: {
+          type: SchemaType.BOOLEAN,
+          description: 'true bila segmen glide pesawat dihitung (datanya lengkap di soal)',
+        },
+        aircraftAltMaxFt: {
+          type: SchemaType.NUMBER,
+          description: 'Altitude maksimum pesawat dalam feet, contoh ketinggian distress/bail out',
+        },
+        aircraftAltMinFt: {
+          type: SchemaType.NUMBER,
+          description: 'Altitude minimum pesawat dalam feet',
+        },
+        aircraftGlideRatio: {
+          type: SchemaType.NUMBER,
+          description: 'Glide ratio pesawat (L/D), contoh: 9',
+        },
+        aircraftTASgKts: {
+          type: SchemaType.NUMBER,
+          description: 'TAS saat glide dalam knot',
+        },
+        aircraftDescentHeadingDeg: {
+          type: SchemaType.NUMBER,
+          description: 'Haluan turun pesawat derajat True (WAJIB bila segmen pesawat aktif); jangan mengarang',
+        },
+        useParachute: {
+          type: SchemaType.BOOLEAN,
+          description: 'true bila segmen terjun payung dihitung (datanya lengkap di soal)',
+        },
+        parachuteType: {
+          type: SchemaType.STRING,
+          description: '"steerable" bila parasut bisa dikendalikan, "round-zero-glide" bila parasut bulat tanpa glide',
+        },
+        parachuteAltMaxFt: {
+          type: SchemaType.NUMBER,
+          description: 'Altitude buka parasut dalam feet',
+        },
+        parachuteTerrainAltFt: {
+          type: SchemaType.NUMBER,
+          description: 'Ketinggian terrain/tempat mendarat dalam feet',
+        },
+        parachuteRateOfDescentFtMin: {
+          type: SchemaType.NUMBER,
+          description: 'Rate of descent parasut dalam ft/menit dari tabel N-13; jangan mengarang',
+        },
+        parachuteGlideRatio: {
+          type: SchemaType.NUMBER,
+          description: 'Glide ratio parasut steerable (opsional)',
+        },
+        parachuteTASgKts: {
+          type: SchemaType.NUMBER,
+          description: 'TAS parasut steerable dalam knot (opsional)',
+        },
+        parachuteDescentHeadingDeg: {
+          type: SchemaType.NUMBER,
+          description: 'Haluan turun parasut steerable derajat True (opsional)',
+        },
+        searchObject: {
+          type: SchemaType.STRING,
+          description: 'Objek pencarian, contoh: "Pesawat tempur PD-ABC"',
+        },
+      },
+      required: ['incidentPos'],
     },
   },
   {
@@ -435,7 +531,7 @@ const tools: FunctionDeclaration[] = [
 const GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.5-flash-lite'] as const;
 const MAX_RETRIES_PER_MODEL = 1;
 const GEMINI_REQUEST_TIMEOUT_MS = 45_000;
-const WORKSHEET_TOOL_NAMES = ['set_asw_case', 'set_awa_case', 'set_lkp', 'set_datum_case', 'set_ws2_case', 'set_ws3_case', 'set_ws4_case', 'set_ws8_case', 'set_search_pattern_case', 'set_intercept_case', 'ask_for_case_data'];
+const WORKSHEET_TOOL_NAMES = ['set_asw_case', 'set_awa_case', 'set_aero_drift_case', 'set_lkp', 'set_datum_case', 'set_ws2_case', 'set_ws3_case', 'set_ws4_case', 'set_ws8_case', 'set_search_pattern_case', 'set_intercept_case', 'ask_for_case_data'];
 
 /**
  * Coba ulang sekali dengan tool_choice paksa yang hanya mengizinkan tool

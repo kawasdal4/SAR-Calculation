@@ -18,10 +18,14 @@ interface AeronauticalDriftWorksheetProps {
   awaDirFrom?: number;
   awaSpeedKts?: number;
   awaIsValid?: boolean;
+  initialState?: AeroDriftInitialState | null;
   onResults?: (results: AeroDriftResult) => void;
   onStateChange?: (state: AeroDriftInput) => void;
   className?: string;
 }
+
+/** Data awal yang bisa diterapkan dari luar (mis. AI assistant) tanpa field AWA (dari props). */
+export type AeroDriftInitialState = Omit<Partial<AeroDriftInput>, 'awaIsValid' | 'awaGlideDirFrom' | 'awaGlideSpeedKts'>;
 
 function formatFt(val: number): string {
   return Math.round(val)
@@ -189,11 +193,12 @@ export default function AeronauticalDriftWorksheet({
   awaDirFrom = 0,
   awaSpeedKts = 0,
   awaIsValid = false,
+  initialState,
   onResults,
   onStateChange,
   className = '',
 }: AeronauticalDriftWorksheetProps) {
-  const [formData, setFormData] = useState<AeroDriftInput>({
+  const [formData, setFormData] = useState<AeroDriftInput>(() => ({
     caseTitle: '-',
     caseNumber: '0',
     date: '-',
@@ -227,13 +232,15 @@ export default function AeronauticalDriftWorksheet({
     parachuteDeviationDeg: undefined,
     parachuteDeviationDirection: 'E',
 
+    fixErrorXNm: 0,
+    safetyFactorFs: 0,
+
+    ...initialState,
+    // Angin atas selalu berasal dari worksheet AWA yang hidup, bukan dari initialState.
     awaIsValid,
     awaGlideDirFrom: awaDirFrom,
     awaGlideSpeedKts: awaSpeedKts,
-
-    fixErrorXNm: 0,
-    safetyFactorFs: 0,
-  });
+  }));
 
   const [searchPlanOption, setSearchPlanOption] = useState<'A' | 'B' | 'C' | ''>('');
   const [viewMode, setViewMode] = useState<'dual' | 'aircraft' | 'parachute'>('dual');
