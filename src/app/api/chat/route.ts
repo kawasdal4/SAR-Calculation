@@ -610,9 +610,13 @@ const GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.5-flash
 const MAX_RETRIES_PER_MODEL = 1;
 // Timeout per percobaan dinaikkan: lampiran besar + prompt panjang dapat melewati 45s
 // (kasus nyata: "Gemini gemini-3.5-flash-lite tidak merespons dalam 45 detik").
-const GEMINI_REQUEST_TIMEOUT_MS = 120_000;
-// Anggaran waktu total SEMUA percobaan (3 model × 2 percobaan) — di bawah maxDuration 300s.
-const GEMINI_TOTAL_BUDGET_MS = 240_000;
+// Override lewat env GEMINI_REQUEST_TIMEOUT_MS (min 10s) untuk tuning di Vercel.
+const envTimeoutMs = Number(process.env.GEMINI_REQUEST_TIMEOUT_MS);
+const GEMINI_REQUEST_TIMEOUT_MS = Number.isFinite(envTimeoutMs) && envTimeoutMs >= 10_000 ? envTimeoutMs : 120_000;
+// Anggaran waktu total SEMUA percobaan (3 model × 2 percobaan) — di bawah batas Fluid
+// compute Vercel Hobby/Pro (default & maksimum 300s). Override: env GEMINI_TOTAL_BUDGET_MS (min 15s).
+const envBudgetMs = Number(process.env.GEMINI_TOTAL_BUDGET_MS);
+const GEMINI_TOTAL_BUDGET_MS = Number.isFinite(envBudgetMs) && envBudgetMs >= 15_000 ? envBudgetMs : 240_000;
 const WORKSHEET_TOOL_NAMES = ['set_asw_case', 'set_awa_case', 'set_aero_drift_case', 'set_lkp', 'set_datum_case', 'set_ws2_case', 'set_ws3_case', 'set_ws4_case', 'set_ws8_case', 'set_search_pattern_case', 'set_intercept_case', 'ask_for_case_data'];
 
 /**
@@ -834,6 +838,24 @@ ATURAN MEMORI WORKSPACE:
         key === 'type' && typeof child === 'string' ? child.toLowerCase() : normalizeSchema(child),
       ]));
     };
+    // Google 429/5xx ("high demand", RESOURCE_EXHAUSTED) menyertakan RetryInfo di
+    // error.details[].retryDelay ("Ns"). Hormati saran tunggu itu — backoff cepat
+    // (1–2 detik) membuat retry langsung gagal lagi saat model sedang overloaded.
+    const extractRetryDelayMs = (payload: unknown): number | null => {
+      try {
+        const details = (payload as { error?: { details?: unknown[] } })?.error?.details;
+        if (!Array.isArray(details)) return null;
+        for (const item of details) {
+          if (!item || typeof item !== 'object') continue;
+          const record = item as Record<string, unknown>;
+          if (typeof record['@type'] === 'string' && record['@type'].includes('RetryInfo')) {
+            const match = typeof record.retryDelay === 'string' ? record.retryDelay.match(/^([\d.]+)s$/) : null;
+            if (match) return Math.round(parseFloat(match[1]) * 1000);
+          }
+        }
+      } catch { /* bentuk detail tidak terduga — abaikan */ }
+      return null;
+    };
     const geminiStartedAt = Date.now();
     // Anggaran waktu total: semua model × semua percobaan dihentikan bila tercapai.
     const geminiDeadlineMs = geminiStartedAt + GEMINI_TOTAL_BUDGET_MS;
@@ -850,6 +872,7 @@ ATURAN MEMORI WORKSPACE:
           break;
         }
         console.info(`[AI chat] Gemini request started (model=${model}, attempt=${attempt + 1}, files=${incomingFiles.length}).`);
+        let suggestedRetryDelayMs: number | null = null;
         try {
           const response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
             method: 'POST',
@@ -888,6 +911,7 @@ ATURAN MEMORI WORKSPACE:
           const detail = (payload as { error?: { message?: string } })?.error?.message || `Gemini API returned HTTP ${response.status}`;
           lastError = new Error(`${detail} (model: ${model}, Interactions API)`);
           const transient = response.status === 429 || response.status >= 500;
+          if (transient) suggestedRetryDelayMs = extractRetryDelayMs(payload);
           if (!transient) throw lastError;
         } catch (requestError) {
           if (requestError instanceof Error && requestError.message.includes('(model:')) throw requestError;
@@ -902,7 +926,15 @@ ATURAN MEMORI WORKSPACE:
         }
 
         if (attempt < MAX_RETRIES_PER_MODEL) {
-          await new Promise((resolve) => setTimeout(resolve, 1000 * (2 ** attempt)));
+          // Hormati retryDelay yang disarankan Google bila ada; fallback backoff
+          // eksponensial. Dibatasi 45s dan sisa anggaran waktu total.
+          const wantedMs = suggestedRetryDelayMs ?? 1000 * (2 ** attempt);
+          const remainingBudgetMs = geminiDeadlineMs - Date.now();
+          const waitMs = Math.max(0, Math.min(wantedMs, 45_000, remainingBudgetMs - 1000));
+          if (waitMs > 0) {
+            console.info(`[AI chat] Backoff ${waitMs}ms sebelum percobaan berikutnya (retryDelay Google: ${suggestedRetryDelayMs ?? 'tidak ada'}).`);
+            await new Promise((resolve) => setTimeout(resolve, waitMs));
+          }
         }
       }
       if (result) break;
