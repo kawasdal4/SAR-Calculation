@@ -33,7 +33,7 @@ export const CHAT_TOOL_TO_CAPABILITY: Record<string, string> = {
 };
 
 /** Tool yang tidak mengubah apa pun (hanya meminta data) — tanpa preview. */
-export const CHAT_NON_MUTATING_TOOLS = new Set<string>(['ask_for_case_data']);
+export const CHAT_NON_MUTATING_TOOLS = new Set<string>(['ask_for_case_data', 'clarify_datum_time']);
 
 const TOOL_LABELS: Record<string, string> = {
   set_asw_case: 'Worksheet ASW (maritime surface)',

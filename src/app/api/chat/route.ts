@@ -110,6 +110,12 @@ Per 3 Jam: 00.00 (22.30–01.30), 03.00 (01.30–04.30), 06.00 (04.30–07.30), 
 
 Distress Time = awal interval pertama, Datum Time = akhir interval terakhir.
 
+ATURAN DATUM TIME (worksheet ASW):
+- Datum Time = waktu dimulainya pencarian/SRU berada di lokasi objek — BUKAN waktu distress. Bahasa soal beragam; analisis kalimatnya, misalnya: "SRU tiba di lokasi pukul ...", "Pencarian dilakukan pukul ...", "Pencarian akan dilakukan pukul ...", "Pencarian kedua akan dilakukan pukul ...", "SRU akan melaksanakan pencarian pukul ...", "SRU onscene pukul ...", "OSC tiba di area pukul ...", "search commenced at ...", dan padanan kalimat lain yang bermakna sama.
+- Bila soal mencantumkan waktu lokal beserta UTC (mis. "pukul 10.00 WIT (03.00 UTC)"), kirim keduanya apa adanya, mis. "18 Nov 2026 10.00 WIT (03.00 UTC)" — aplikasi mengonversi otomatis ke format Basarnas MMDD.HHMM Z.
+- Bila soal menyebut lebih dari satu pencarian (pertama/kedua/dst.), kandidat datum time adalah waktu pencarian yang menjadi akhir rentang observasi ASW yang diminta soal (umumnya pencarian TERAKHIR yang disebut). Bila tidak yakin yang mana, JANGAN menebak.
+- WAJIB bertanya bila ragu: datum time ambigu (beberapa waktu pencarian, frasa tidak jelas UTC atau waktu lokal, atau waktu pencarian tidak tertulis) → panggil tool clarify_datum_time dengan question + candidates (label, value, frasa sumber dari soal). Pengguna akan memilih kandidat atau mengisi manual di chat; gunakan jawaban pengguna PERSIS. Bila datum time sudah jelas di soal, isi langsung di set_asw_case tanpa bertanya.
+
 BANK DATA KASUS (Panduan Agent RENOPS/Briefing/De-Briefing — Perban 3/2020):
 - Bank Data HANYA untuk penyusunan dokumen: panggil save_case_data_bank hanya bila soal kasus/lampiran EKSPLISIT meminta pembuatan RENOPS (Rencana Operasi SAR) dan/atau Briefing/De-Briefing, atau pengguna eksplisit meminta menyimpan ke Bank Data.
 - Untuk soal perhitungan biasa (datum, search area, track spacing, intercept, dll.) JANGAN memanggil save_case_data_bank — cukup analisis worksheet yang harus dipakai lalu isi tool worksheet yang relevan.
@@ -134,7 +140,7 @@ const tools: FunctionDeclaration[] = [
         },
         datumTime: {
           type: SchemaType.STRING,
-          description: 'Waktu datum / awal pencarian berikutnya (UTC) dari soal, format apa pun: "1118.0100 Z", "01.00 UTC", "18 Nov 2026 01.00 UTC". Jangan konversi ke zona waktu lokal.',
+          description: 'Datum time (UTC) = waktu mulai pencarian/SRU di lokasi dari soal ("SRU tiba di lokasi pukul ...", "Pencarian (kedua) akan dilakukan pukul ...", "Pencarian dilakukan pukul ...", dsb), format apa pun: "1118.0100 Z", "01.00 UTC", "18 Nov 2026 10.00 WIT (03.00 UTC)". Jangan konversi zona waktu; aplikasi mengonversi ke Basarnas otomatis. Bila ambigu, panggil clarify_datum_time dulu — jangan menebak.',
         },
         intervalMode: {
           type: SchemaType.STRING,
@@ -394,6 +400,42 @@ const tools: FunctionDeclaration[] = [
         questions: { type: SchemaType.ARRAY, description: 'Pertanyaan ringkas untuk memperoleh semua data wajib yang belum ada.', items: { type: SchemaType.STRING } },
       },
       required: ['worksheet', 'questions'],
+    },
+  },
+  {
+    name: 'clarify_datum_time',
+    description: 'Menanyakan datum time (worksheet ASW) kepada pengguna saat soal ambigu atau pengguna perlu memilih antar kandidat waktu — JANGAN menebak. Kirim pertanyaan + daftar kandidat waktu hasil tafsiran soal (label, value apa adanya, frasa sumber). Pengguna memilih salah satu kandidat atau mengisi manual di chat; jawaban dikirim balik ke percakapan untuk dipakai di set_asw_case. Gunakan HANYA bila datum time ragu/ambigu; bila sudah jelas di soal, isi langsung set_asw_case.',
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        question: {
+          type: SchemaType.STRING,
+          description: 'Pertanyaan ringkas, mis. "Waktu pencarian yang mana yang dipakai sebagai Datum Time?"',
+        },
+        candidates: {
+          type: SchemaType.ARRAY,
+          description: 'Kandidat waktu hasil tafsiran soal, urut sesuai kemunculan di soal. Kirim array kosong bila tidak ada kandidat dan hanya minta input manual.',
+          items: {
+            type: SchemaType.OBJECT,
+            properties: {
+              label: {
+                type: SchemaType.STRING,
+                description: 'Keterangan kandidat yang mudah dibaca, mis. "Pencarian kedua — 18 Nov 2026 10.00 WIT (03.00 UTC)"',
+              },
+              value: {
+                type: SchemaType.STRING,
+                description: 'Nilai waktu apa adanya dari soal (format apa pun), mis. "18 Nov 2026 10.00 WIT (03.00 UTC)"',
+              },
+              source: {
+                type: SchemaType.STRING,
+                description: 'Kutipan frasa soal sumber kandidat, mis. "Pencarian kedua akan dilakukan pukul 10.00 WIT (03.00 UTC)"',
+              },
+            },
+            required: ['label', 'value'],
+          },
+        },
+      },
+      required: ['question', 'candidates'],
     },
   },
   {

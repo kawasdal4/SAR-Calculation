@@ -19,8 +19,10 @@ import {
   FileSpreadsheet,
   File,
   UploadCloud,
+  HelpCircle,
 } from 'lucide-react';
 import { formatDMS } from '@/lib/sar/coordFormat';
+import { toBasarnasTimeFormat } from '@/lib/sar/aswTime';
 import { buildChatPreviewContract, buildChatPreviewContracts, CHAT_NON_MUTATING_TOOLS, TARGET_LABELS } from '@/lib/sar/chatPreview';
 import { nextWorkflowSteps, selectiveWorkspaceContext, workflowPlanText, type ContextEntry } from '@/lib/sar/workspaceContext';
 import type { InterceptInput } from '@/lib/sar/interceptCalculations';
@@ -167,6 +169,99 @@ function formatFileSize(bytes?: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+/** Kandidat datum time hasil tafsiran AI atas soal (tool clarify_datum_time). */
+interface DatumTimeCandidate {
+  label?: string;
+  value?: string;
+  source?: string;
+}
+
+/**
+ * Kartu klarifikasi datum time (tool clarify_datum_time, non-mutating):
+ * pengguna memilih salah satu kandidat tafsiran AI atau mengisi manual di
+ * chat. Jawaban dikirim sebagai pesan user sehingga AI meneruskan set_asw_case
+ * dengan nilai yang dikonfirmasi (alur pratinjau/konfirmasi tetap berlaku).
+ */
+function DatumTimeClarifyCard({
+  question,
+  candidates,
+  answered,
+  onAnswer,
+}: {
+  question?: string;
+  candidates?: DatumTimeCandidate[];
+  answered?: string;
+  onAnswer: (value: string, label?: string) => void;
+}) {
+  const [manual, setManual] = useState('');
+  const basarnasPreview = manual.trim() ? toBasarnasTimeFormat(manual) : null;
+  const validCandidates = (candidates ?? []).filter((c) => c.value);
+  return (
+    <div className="mt-2 border border-amber-300 bg-amber-50 rounded-lg p-2.5 space-y-2">
+      <div className="flex items-center gap-1.5 text-[11px] font-bold text-amber-900">
+        <HelpCircle className="h-3.5 w-3.5" /> Klarifikasi Datum Time
+      </div>
+      {question && <p className="text-[11px] text-slate-800 whitespace-pre-wrap">{question}</p>}
+      {answered ? (
+        <div className="text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded px-2 py-1.5 flex items-center gap-1.5">
+          <Check className="h-3.5 w-3.5 shrink-0" />
+          <span>Datum time dikirim ke chat: <span className="font-mono">{answered}</span></span>
+        </div>
+      ) : (
+        <>
+          {validCandidates.length > 0 && (
+            <div className="space-y-1.5">
+              {validCandidates.map((c, ci) => (
+                <button
+                  key={ci}
+                  type="button"
+                  onClick={() => onAnswer(c.value as string, c.label)}
+                  className="w-full text-left bg-white border border-slate-300 hover:border-emerald-400 hover:bg-emerald-50 rounded-md px-2 py-1.5 transition-colors"
+                >
+                  <span className="block text-[11px] font-bold text-slate-900">{c.label || c.value}</span>
+                  {c.source && (
+                    <span className="block text-[10px] text-slate-500 italic mt-0.5">&ldquo;{c.source}&rdquo;</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="flex items-center gap-1.5">
+            <input
+              type="text"
+              value={manual}
+              onChange={(e) => setManual(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && manual.trim()) {
+                  e.preventDefault();
+                  onAnswer(manual.trim());
+                }
+              }}
+              placeholder={validCandidates.length > 0 ? 'atau isi manual' : 'Isi datum time manual, mis. 18 Nov 2026 03.00 UTC'}
+              spellCheck={false}
+              data-ms-editor="true"
+              className="flex-1 min-w-0 text-[11px] font-mono bg-white border border-slate-300 rounded-md px-2 py-1.5 focus:outline-none focus:border-emerald-400"
+            />
+            <button
+              type="button"
+              disabled={!manual.trim()}
+              onClick={() => manual.trim() && onAnswer(manual.trim())}
+              className="shrink-0 text-[11px] bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-300 text-white font-bold px-2.5 py-1.5 rounded-md flex items-center gap-1 transition-colors"
+            >
+              <Send className="h-3 w-3" /> Kirim
+            </button>
+          </div>
+          {basarnasPreview && (
+            <p className="text-[10px] text-slate-600">
+              → format Basarnas: <b className="font-mono">{basarnasPreview} Z</b> (worksheet otomatis mengonversi)
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function AIChatPanel({
   onApplyASW,
   onApplyAWA,
@@ -200,6 +295,8 @@ export default function AIChatPanel({
   const [apiKey, setApiKey] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
+  // Jawaban pengguna atas kartu klarifikasi datum time (key: `clarify-<msgIdx>-<fi>`).
+  const [clarifyAnswers, setClarifyAnswers] = useState<Record<string, string>>({});
   const [attachedFiles, setAttachedFiles] = useState<UploadedAttachment[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -688,6 +785,22 @@ export default function AIChatPanel({
     [apiKey, attachedFiles, isLoading, messages, applyFunctionCalls]
   );
 
+  /** Jawaban klarifikasi datum time: catat keputusan, kirim ke chat agar AI meneruskan set_asw_case dengan nilai terkonfirmasi. */
+  const handleClarifyAnswer = useCallback(
+    (key: string, value: string, label?: string) => {
+      setClarifyAnswers((prev) => ({ ...prev, [key]: value }));
+      // SAR Workflow Memory: keputusan pengguna atas waktu datum tercatat di konteks.
+      onLogConversation?.(
+        'decision',
+        `Datum time dikonfirmasi pengguna: ${value}${label ? ` (${label})` : ''}`,
+      );
+      void sendMessage(
+        `Datum time yang benar: ${value}${label ? ` — ${label}` : ''}. Gunakan nilai ini sebagai datum time worksheet ASW (distress time dan data angin tetap dari soal), lalu lanjutkan pengisian worksheet.`,
+      );
+    },
+    [sendMessage, onLogConversation],
+  );
+
   const handleApply = useCallback(
     (msg: ChatMessage, idx: number) => {
       if (!msg.functionCalls) return;
@@ -752,6 +865,13 @@ export default function AIChatPanel({
 
   const getFunctionCallSummary = (fc: { name: string; args: Record<string, unknown> }) => {
     switch (fc.name) {
+      case 'clarify_datum_time': {
+        const a = fc.args as { question?: string; candidates?: DatumTimeCandidate[] };
+        const list = (a.candidates ?? [])
+          .map((c) => `• ${c.label || c.value}${c.source ? ` — “${c.source}”` : ''}`)
+          .join('\n');
+        return `❓ Klarifikasi Datum Time\n${a.question || ''}${list ? `\nKandidat:\n${list}` : '\n(menunggu input manual)'}`;
+      }
       case 'set_asw_case': {
         const a = fc.args as {
           distressTime?: string;
@@ -1060,6 +1180,21 @@ export default function AIChatPanel({
                   {msg.functionCalls && msg.functionCalls.length > 0 && (
                     <div className="mt-2 space-y-2">
                       {msg.functionCalls.map((fc, fi) => {
+                        // Klarifikasi datum time: kartu interaktif (kandidat +
+                        // input manual) — bukan kontrak mutasi worksheet.
+                        if (fc.name === 'clarify_datum_time') {
+                          const a = fc.args as { question?: string; candidates?: DatumTimeCandidate[] };
+                          const clarifyKey = `clarify-${idx}-${fi}`;
+                          return (
+                            <DatumTimeClarifyCard
+                              key={fi}
+                              question={a.question}
+                              candidates={a.candidates}
+                              answered={clarifyAnswers[clarifyKey]}
+                              onAnswer={(value, label) => handleClarifyAnswer(clarifyKey, value, label)}
+                            />
+                          );
+                        }
                         // PHASE 5: kontrak preview/konfirmasi seragam per tool-call.
                         const contract = buildChatPreviewContract(fc);
                         return (

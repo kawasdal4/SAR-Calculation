@@ -115,3 +115,11 @@ test('setiap tool bermutasi memetakan ke capability requiresConfirmation yang ko
   expect(cap).toBeDefined();
   expect(cap!.category).toBe('MAP_OPERATION');
 });
+
+test('clarify_datum_time non-mutating: tanpa kontrak preview, jawaban lewat chat', () => {
+  // Tool klarifikasi datum time tidak mengubah worksheet — kandidat waktu
+  // dijawab pengguna di kartu chat, lalu AI meneruskan set_asw_case.
+  expect(CHAT_NON_MUTATING_TOOLS.has('clarify_datum_time')).toBe(true);
+  expect(buildChatPreviewContracts([{ name: 'clarify_datum_time', args: { question: 'q?', candidates: [] } }])).toEqual([]);
+  expect(buildChatPreviewContract({ name: 'clarify_datum_time', args: {} })).toBeNull();
+});
