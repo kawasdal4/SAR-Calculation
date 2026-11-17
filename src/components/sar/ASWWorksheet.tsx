@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Plus, Trash2, Printer, CheckCircle2, ChevronDown, ChevronRight, Clock, Compass } from 'lucide-react';
 import { type ASWObservation } from '@/lib/sar/sarCalculations';
+import { generateAswObservationTimes } from '@/lib/sar/aswTime';
 
 export type { ASWObservation };
 
@@ -32,135 +33,10 @@ interface ASWWorksheetProps {
 }
 
 // ─── Basarnas Time Format Helpers ─────────────────────────────────────────
-// Format: MMDD.HHMM Z  e.g. "1122.1600 Z" = Nov 22, 16:00 UTC
-
-/** Parse Basarnas time string to decimal hours (0-based from midnight day 1).
- *  Returns hours since midnight of the distress day. If across days, adds 24.
- *  For simplicity we only care about HHMM portion for observation generation.
- */
-function parseBasarnasHHMM(str: string): number {
-  const m = str.trim().match(/(\d{2})(\d{2})[.\s]?(\d{2})(\d{2})/);
-  if (!m) return 0;
-  const day = parseInt(m[2], 10);
-  const hour = parseInt(m[3], 10);
-  const minute = parseInt(m[4], 10);
-  return day * 24 + hour + minute / 60;
-}
-
-function formatHHMM(decimalHours: number): string {
-  let h = decimalHours % 24;
-  if (h < 0) h += 24;
-  const hh = Math.floor(h);
-  const mm = Math.round((h - hh) * 60);
-  return `${String(hh).padStart(2, '0')}.${String(mm).padStart(2, '0')}`;
-}
-
-/** Standard observation windows per BMKG/Basarnas slides */
-const OBS_WINDOWS_6H: { obsHour: number; startHour: number; endHour: number }[] = [
-  { obsHour: 0,  startHour: 21, endHour: 3 },   // 21.00 – 03.00
-  { obsHour: 6,  startHour: 3,  endHour: 9 },   // 03.00 – 09.00
-  { obsHour: 12, startHour: 9,  endHour: 15 },  // 09.00 – 15.00
-  { obsHour: 18, startHour: 15, endHour: 21 },  // 15.00 – 21.00
-];
-
-const OBS_WINDOWS_3H: { obsHour: number; startHour: number; endHour: number }[] = [
-  { obsHour: 0,  startHour: 22.5, endHour: 1.5 },   // 22.30 – 01.30
-  { obsHour: 3,  startHour: 1.5,  endHour: 4.5 },   // 01.30 – 04.30
-  { obsHour: 6,  startHour: 4.5,  endHour: 7.5 },   // 04.30 – 07.30
-  { obsHour: 9,  startHour: 7.5,  endHour: 10.5 },  // 07.30 – 10.30
-  { obsHour: 12, startHour: 10.5, endHour: 13.5 },  // 10.30 – 13.30
-  { obsHour: 15, startHour: 13.5, endHour: 16.5 },  // 13.30 – 16.30
-  { obsHour: 18, startHour: 16.5, endHour: 19.5 },  // 16.30 – 19.30
-  { obsHour: 21, startHour: 19.5, endHour: 22.5 },  // 19.30 – 22.30
-];
-
-/**
- * Generate observation rows automatically from distress time → datum time,
- * slicing into the correct BMKG observation windows (6h or 3h).
- * First interval starts at distress time, last interval ends at datum time.
- */
-function generateObservations(
-  distressStr: string,
-  datumStr: string,
-  mode: '6h' | '3h'
-): ASWObservation[] {
-  const distressTotal = parseBasarnasHHMM(distressStr);
-  const datumTotal = parseBasarnasHHMM(datumStr);
-  if (distressTotal >= datumTotal || datumTotal - distressTotal > 72) return [];
-
-  const windows = mode === '6h' ? OBS_WINDOWS_6H : OBS_WINDOWS_3H;
-  const distressHH = distressTotal % 24;
-  const datumHH = datumTotal % 24;
-  const totalSpanHours = datumTotal - distressTotal;
-
-  // Find all observation windows that overlap with [distressTime, datumTime]
-  const result: ASWObservation[] = [];
-  let cursor = distressHH; // current position in 24h clock
-  let hoursAccounted = 0;
-
-  // Build a timeline of observation windows covering the span
-  // We iterate through windows cyclically until we've covered distress→datum
-  let safetyCounter = 0;
-  while (hoursAccounted < totalSpanHours && safetyCounter < 20) {
-    safetyCounter++;
-
-    // Find which window contains 'cursor'
-    let foundWindow: { obsHour: number; startHour: number; endHour: number } | null = null;
-    for (const w of windows) {
-      let ws = w.startHour;
-      let we = w.endHour;
-      // Handle wrap-around (e.g., 21.00 – 03.00)
-      if (ws > we) {
-        // Window wraps midnight
-        if (cursor >= ws || cursor < we) {
-          foundWindow = w;
-          break;
-        }
-      } else {
-        if (cursor >= ws && cursor < we) {
-          foundWindow = w;
-          break;
-        }
-      }
-    }
-
-    if (!foundWindow) {
-      // Fallback: advance cursor slightly
-      cursor = (cursor + 0.5) % 24;
-      continue;
-    }
-
-    const windowEnd = foundWindow.endHour;
-    const remainingSpan = totalSpanHours - hoursAccounted;
-
-    // Interval start = cursor, interval end = min(windowEnd, datumTime)
-    const intervalStart = cursor;
-    let intervalEnd: number;
-    let intervalHours: number;
-
-    if (windowEnd > intervalStart) {
-      intervalHours = Math.min(windowEnd - intervalStart, remainingSpan);
-    } else {
-      // Wraps midnight
-      intervalHours = Math.min((24 - intervalStart) + windowEnd, remainingSpan);
-    }
-    intervalEnd = (intervalStart + intervalHours) % 24;
-
-    result.push({
-      timeObs: formatHHMM(foundWindow.obsHour),
-      timeStart: formatHHMM(intervalStart),
-      timeEnd: formatHHMM(intervalEnd),
-      hours: Math.round(intervalHours * 10) / 10,
-      windDirFrom: 0,
-      windSpeed: 0,
-    });
-
-    hoursAccounted += intervalHours;
-    cursor = intervalEnd;
-  }
-
-  return result;
-}
+// Parser waktu liberal + generator jendela observasi pindah ke lib bersama
+// src/lib/sar/aswTime.ts (dipakai juga oleh handleApplyASW di page.tsx agar
+// baris hasil AI terisi waktu meski format soal bukan MMDD.HHMM, mis.
+// "07.00 UTC" pada soal EXE FAKFAK 2026).
 
 export default function ASWWorksheet({
   onDataChange,
@@ -183,12 +59,15 @@ export default function ASWWorksheet({
     if (!distressTime.trim() || !datumTime.trim()) {
       return;
     }
-    const generated = generateObservations(distressTime, datumTime, obsIntervalMode);
+    const generated = generateAswObservationTimes(distressTime, datumTime, obsIntervalMode);
     if (generated.length > 0) {
       // Preserve existing wind data
       setObservations(prev => {
         return generated.map((g, i) => ({
-          ...g,
+          timeObs: g.timeObs,
+          timeStart: g.timeStart,
+          timeEnd: g.timeEnd,
+          hours: g.hours,
           windDirFrom: prev[i]?.windDirFrom ?? 0,
           windSpeed: prev[i]?.windSpeed ?? 0,
         }));

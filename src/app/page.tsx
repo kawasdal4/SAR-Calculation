@@ -41,6 +41,7 @@ import ASWWorksheet, {
   type ASWInitialState,
   type ASWObservation,
 } from '@/components/sar/ASWWorksheet';
+import { buildAswObservationsFromCase } from '@/lib/sar/aswTime';
 import DatumWorksheet, {
   type DatumData,
   type DatumResults,
@@ -567,14 +568,16 @@ export default function Home() {
     windData: { windDirFrom: number; windSpeed: number }[];
     caseTitle?: string;
   }) => {
-    const obsWithWind = data.windData?.map((w) => ({
-      timeObs: '',
-      timeStart: '',
-      timeEnd: '',
-      hours: 0,
-      windDirFrom: w.windDirFrom,
-      windSpeed: w.windSpeed,
-    })) || [];
+    // Waktu baris dihitung langsung di sini (parser liberal: "07.00 UTC",
+    // "17 Nov 2026 07.00 UTC", "1117.0700 Z", ...). Jangan mengandalkan
+    // regenerasi worksheet saja — kolom waktu ASW read-only, kalau kosong
+    // pengguna tidak bisa memperbaikinya manual (bug kasus EXE FAKFAK 2026).
+    const obsWithWind = buildAswObservationsFromCase(
+      data.distressTime,
+      data.datumTime,
+      data.intervalMode,
+      data.windData,
+    );
 
     setLoadedInitialState((prev) => ({
       ...prev,

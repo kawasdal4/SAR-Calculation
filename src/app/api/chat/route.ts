@@ -129,11 +129,11 @@ const tools: FunctionDeclaration[] = [
       properties: {
         distressTime: {
           type: SchemaType.STRING,
-          description: 'Waktu distress dalam format Basarnas, contoh: "1122.1600 Z"',
+          description: 'Waktu distress (UTC) dari soal, format apa pun yang ada di soal: "1117.0700 Z" (MMDD.HHMM), "07.00 UTC", "17 Nov 2026 07.00 UTC". Jangan konversi ke zona waktu lokal.',
         },
         datumTime: {
           type: SchemaType.STRING,
-          description: 'Waktu datum dalam format Basarnas, contoh: "1123.0700 Z"',
+          description: 'Waktu datum / awal pencarian berikutnya (UTC) dari soal, format apa pun: "1118.0100 Z", "01.00 UTC", "18 Nov 2026 01.00 UTC". Jangan konversi ke zona waktu lokal.',
         },
         intervalMode: {
           type: SchemaType.STRING,
