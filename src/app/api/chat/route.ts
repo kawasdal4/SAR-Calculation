@@ -55,6 +55,20 @@ JIKA PENGGUNA MELAMPIRKAN FILE/GAMBAR:
 - ALUR PENERBANGAN BERUNTUN (WAJIB, AWA → ADW → UPS): panggil set_awa_case DAN set_aero_drift_case bersama-sama dalam satu jawaban bila data kasus penerbangan lengkap. Hasil AWA (arah/kecepatan angin atas) otomatis mengalir dari aplikasi ke ADW — JANGAN mengarang angka angin AWA di set_aero_drift_case. ADW menghitung drift sampai selesai: Landing Position otomatis menjadi LKP dan vektor glide, vektor angin, serta posisi pendaratan otomatis digambar di UPS Plotter. Segmen pesawat (useAircraftGlide) hanya true bila Altmax, Altmin, glide ratio, TAS, dan haluan turun tersedia di soal; haluan turun pesawat WAJIB bila segmen pesawat aktif. Segmen parasut (useParachute) hanya true bila Altmax parasut, terrain, dan rate of descent (tabel N-13) tersedia. Data yang tidak ada di soal jangan mengarang: gunakan ask_for_case_data.
 - Berikan ringkasan analisis, daftar worksheet yang dipilih, data yang berhasil diekstrak, dan data yang masih kurang. Hasil angka perhitungan harus berasal dari kalkulator aplikasi.
 
+PANDUAN ADW (AERONAUTICAL DRIFT WORKSHEET) — ASAL ANGKA & KETENTUAN:
+- Urutan sumber nilai: (1) Soal Kasus untuk tanggal/waktu, koordinat, Altmax/Altmin, Glide Ratio, Glide Speed (TASg), heading, Variation; (2) hasil AWA dari worksheet AWA aplikasi untuk B.10 — jangan hitung ulang dari Wind Forecast dan jangan interpolasi; (3) Flight Manual untuk aircraft, Table N-13 untuk parachute; (4) UPS/geodesik aplikasi untuk B.12 dan B.14.
+- B.3 Altitude Loss = Altmax − Altmin. Valid: Altmax ≥ Altmin. Jangan default Altmin ke 0 bila soal tidak menyebutnya — tanyakan bila tidak jelas.
+- B.6 Rate of Descent: AIRCRAFT = (TASg × 101) / Glide Ratio — konstanta 101 HANYA untuk aircraft. PARACHUTE = nilai Table N-13 (IAMSAR Vol II 2022, hal. N-20; beban 300 lb) — JANGAN pakai rumus 101 dan JANGAN menginterpolasi.
+- TABLE N-13 (jenis: ROD sea level / ROD 7.000 ft dalam ft/min / glide ratio): 28 ft (C-9) escape = 1176/1284/0; 28 ft (C-9) dengan 4 suspension line release = 1146/1260/0.40; 24 ft paratroop reserve = 1362/1494/0; 24 ft Martin-Baker = 1440/-/0; 35 ft (T-10) Army paratroop = 918/1008/0; 35 ft (HALO) AF & Army = 960/1038/0.35; Skysail (Navy) escape = 1212/1320/0; Paracommander AF = 1080/482/1.16; Parawing (eksperimental) = 600-900/gl 3.0; Parafoil (eksperimental) = 600-900/gl 3.0; Parasail (eksperimental) = 600-900/gl 2.7; Apollo 2 masing-masing (83 ft) = 2100/2232/0; Apollo 3 masing-masing (buka di 24.000 ft) = 1800/1950/0. Pilih kolom TANPA interpolasi: ketinggian buka ≤ 3.500 ft → kolom sea level; > 3.500 ft → kolom 7.000 ft (bila ada). Jenis eksperimental (rentang 600-900): minta planner menetapkan nilai ROD-nya. Selalu kirim parachuteN13TypeId bila jenis parasut diketahui.
+- B.7 Time of Descent = Altitude Loss / Rate of Descent (menit desimal). B.8 Glide Distance = (TASg × td)/60 NM — gunakan td DESIMAL (contoh 8,129 menit), bukan menit bulat.
+- B.9 Descent Heading: konversi Magnetic → True: Variation EAST ditambah, WEST dikurangi (kebalikan mnemonic T-v-M-d-C untuk True→Magnetic); dari Compass, koreksi Deviation dulu (Deviation East tambah, West kurang). Contoh materi: MH 158° + Var 3°E = 161°T. Bila haluan turun tidak diketahui di soal, biarkan kosong — jangan mengarang bearing pengganti.
+- B.10 AWA = arah °T & speed kts dari worksheet AWA. B.11 Downwind: arah = AWA − 180°; dd = (td × AWA speed)/60 NM (td desimal). Contoh: AWA 276°T/9.3 kts → 96°T.
+- B.12 = vector sum head-to-tail dari Glide Vector (B.9/B.8) + Downwind Vector (B.11); aplikasi menghitungnya secara geodesik/UPS — JANGAN menjumlah jarak secara aritmetika dan JANGAN menghitung resultant sendiri di jawaban.
+- B.13 End Date/Time = waktu insiden + td yang dibulatkan SETENGAH-KE-ATAS ke menit (pecahan ≥ 0,5 naik: 8.129 → 8; 8.500 → 9; 8.499 → 8), suffix Z dipertahankan, bila melewati 2400 lanjut ke tanggal berikutnya. Contoh materi: 0123 Z + 8 menit = 0131 Z, 2 Okt 2017.
+- B.14 koordinat akhir hanya dari hasil aplikasi/UPS. Bila haluan turun unknown: B.14 dikosongkan dan jumlah glide distance aircraft+parachute diteruskan ke worksheet Total probable error of position A.5 — jangan menghitung A.5 sendiri.
+- Part B dihitung DUA KALI bila kasus memuat aircraft DAN parachute; simpan hasil tiap fase terpisah (aplikasi menggabungkan berurutan: glide pesawat dahulu, lalu drift parasut). Parachute dengan glide ratio 0 → Part C: aplikasi menghitung drift angin saja.
+- Contoh regresi (PD-AES, engines inop): Altmax 39.000 ft/Altmin 0, gr 4:1, TASg 190 kts, MH 158° Var 3°E, AWA 276°T/9.3 kts → B.6 = 4.797,5 ft/min; B.7 = 8,129 min; B.8 = 25,74 NM; B.9 = 161°T; B.11 = 96°T/1,259 NM; B.12 ≈ 158°T/26 NM; B.13 = 0131 Z. Gunakan untuk memeriksa proses, bukan sebagai nilai default.
+
 FORMAT TANGGAL-WAKTU (TW / DTG) — WAJIB dipahami untuk menafsirkan soal kasus:
 - Huruf zona waktu: G = WIB (UTC+7), H = WITA (UTC+8), I = WIT (UTC+9), Z = UTC (Zulu).
 - FORMAT TW (Basarnas): [Bulan][Tanggal] [Jam][Menit] [Zona]. Contoh: "TW 1117 1900 G" = 17 November pukul 19.00 WIB (11 = bulan November, 17 = tanggal, 1900 = pukul 19:00, G = WIB); varian "1122 1600 Z" / "1122.1600 Z" = 22 November pukul 16.00 UTC.
@@ -253,7 +267,11 @@ const tools: FunctionDeclaration[] = [
         },
         parachuteRateOfDescentFtMin: {
           type: SchemaType.NUMBER,
-          description: 'Rate of descent parasut dalam ft/menit dari tabel N-13; jangan mengarang',
+          description: 'Rate of descent parasut dalam ft/menit — WAJIB dari Table N-13 (lihat daftar nilai di instruksi); jangan mengarang dan jangan pakai rumus TASg×101/gr',
+        },
+        parachuteN13TypeId: {
+          type: SchemaType.STRING,
+          description: 'Id jenis parasut Table N-13 yang menjadi asal nilai ROD: c9-escape, c9-4slr, 24pt-reserve, martin-baker, t10-army, halo-35, skysail, paracommander, parawing, parafoil, parasail, apollo-2, apollo-3. Wajib diisi bila ROD diambil dari N-13; biarkan kosong bila jenis parasut tidak diketahui',
         },
         parachuteGlideRatio: {
           type: SchemaType.NUMBER,

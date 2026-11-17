@@ -14,7 +14,8 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset",
-    "test:dtg": "node --test tests/dtg.test.mjs"
+    "test:dtg": "node --test tests/dtg.test.mjs",
+    "test:n13": "node --test tests/tableN13.test.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

@@ -208,6 +208,8 @@ export default function Home() {
   });
   const [datumState, setDatumState] = useState<DatumInitialState | null>(null);
   const [searchState, setSearchState] = useState<SearchPlanInitialState | null>(null);
+  /** Draf edit manual worksheet ADW — dipertahankan antar remount tab agar hitungan tidak hilang. */
+  const [aeroDraft, setAeroDraft] = useState<AeroDriftInitialState | null>(null);
 
   const [loadedInitialState, setLoadedInitialState] = useState<{
     awa?: AWAInitialState;
@@ -540,6 +542,7 @@ export default function Home() {
   // landing position menjadi LKP (sinkron otomatis), lalu hasil digambar di UPS.
   const handleApplyAeroDrift = useCallback((data: AeroDriftInitialState) => {
     setLoadedInitialState((prev) => ({ ...prev, aero: data }));
+    setAeroDraft(null); // data baru dari AI menggantikan draf manual
     if (data.incidentPos && Number.isFinite(data.incidentPos.lat) && Number.isFinite(data.incidentPos.lng)) {
       setLkp({ lat: data.incidentPos.lat, lng: data.incidentPos.lng });
       setIsLkpSet(true);
@@ -1527,8 +1530,9 @@ export default function Home() {
                 awaDirFrom={awa.aswDirFrom}
                 awaSpeedKts={awa.aswSpeed}
                 awaIsValid={awa.isValid}
-                initialState={loadedInitialState?.aero}
+                initialState={aeroDraft ?? loadedInitialState?.aero}
                 onResults={setAeroResults}
+                onStateChange={(s) => setAeroDraft(s)}
               />
               <PrintCompanionMap
                 title="LAMPIRAN: PETA PLOTTING AERONAUTICAL DRIFT & LKP"

@@ -32,6 +32,10 @@ export interface AeroDriftInput {
   parachuteGlideRatio?: number;
   parachuteTASgKts?: number;
   parachuteRateOfDescentFtMin: number;
+  /** Id jenis parasut pada Table N-13 (IAMSAR Vol II N-20) bila dipilih — provenance B.6. */
+  parachuteN13TypeId?: string;
+  /** Kolom/nilai asal ROD: 'sea-level' | '7000ft' | 'range' | 'manual'. */
+  parachuteN13Column?: 'sea-level' | '7000ft' | 'range' | 'manual';
   parachuteDescentHeadingDeg?: number;
   parachuteHeadingReference: HeadingReference;
   magneticVariationDeg?: number;
@@ -130,11 +134,16 @@ export function calculateAeroDrift(input: AeroDriftInput): AeroDriftResult {
   let aircraftHeadingTrue: number | null = null;
 
   if (input.useAircraftGlide) {
-    const altitudeValid = input.aircraftAltMaxFt > input.aircraftAltMinFt && input.aircraftAltMinFt >= 0;
+    // Panduan ADW: Altmax harus >= Altmin; Altmax = 0 berarti data belum diisi (jangan default).
+    const altitudeValid =
+      input.aircraftAltMaxFt > 0 &&
+      input.aircraftAltMaxFt >= input.aircraftAltMinFt &&
+      input.aircraftAltMinFt >= 0;
     const glideValid = input.aircraftGlideRatio > 0 && input.aircraftTASgKts > 0;
-    if (!altitudeValid) errors.push('Validasi B.1-B.3 pesawat: Altmax harus lebih besar dari Altmin.');
-    if (input.aircraftGlideRatio <= 0) errors.push('Validasi B.4 pesawat: glide ratio harus lebih besar dari 0.');
-    if (input.aircraftTASgKts <= 0) errors.push('Validasi B.5 pesawat: Glide TAS harus lebih besar dari 0 kts.');
+    if (input.aircraftAltMaxFt <= 0) errors.push('Validasi B.1 pesawat: Altmax belum diisi (jangan diasumsikan).');
+    else if (!altitudeValid) errors.push('Validasi B.1-B.3 pesawat: Altmax harus lebih besar atau sama dengan Altmin; periksa nilai terrain/bailout.');
+    if (input.aircraftGlideRatio <= 0) errors.push('Validasi B.4 pesawat: glide ratio harus lebih besar dari 0 (sumber: Flight Manual).');
+    if (input.aircraftTASgKts <= 0) errors.push('Validasi B.5 pesawat: Glide TAS harus lebih besar dari 0 kts (Glide Speed, bukan TAS cruise).');
 
     aircraftHeadingTrue = convertHeadingToTrue(
       input.aircraftDescentHeadingDeg,
@@ -177,10 +186,15 @@ export function calculateAeroDrift(input: AeroDriftInput): AeroDriftResult {
   let parachuteReady = !input.useParachute;
 
   if (input.useParachute) {
-    const altitudeValid = input.parachuteAltMaxFt > input.parachuteTerrainAltFt && input.parachuteTerrainAltFt >= 0;
+    // Panduan ADW: Altmax >= terrain; Altmax = 0 berarti data belum diisi.
+    const altitudeValid =
+      input.parachuteAltMaxFt > 0 &&
+      input.parachuteAltMaxFt >= input.parachuteTerrainAltFt &&
+      input.parachuteTerrainAltFt >= 0;
     const rateValid = input.parachuteRateOfDescentFtMin > 0;
-    if (!altitudeValid) errors.push('Validasi B.1-B.3 parasut: Altmax harus lebih besar dari ketinggian terrain.');
-    if (!rateValid) errors.push('B.6 parasut: masukkan laju turun dari tabel N-13; nilai tidak diasumsikan.');
+    if (input.parachuteAltMaxFt <= 0) errors.push('Validasi B.1 parasut: Altmax (opening/bailout altitude) belum diisi (jangan diasumsikan).');
+    else if (!altitudeValid) errors.push('Validasi B.1-B.3 parasut: Altmax harus lebih besar atau sama dengan ketinggian terrain.');
+    if (!rateValid) errors.push('B.6 parasut: masukkan laju turun dari tabel N-13 (IAMSAR Vol II); nilai tidak diasumsikan.');
 
     let glideValid = true;
     if (input.parachuteType === 'steerable') {

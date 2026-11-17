@@ -11,6 +11,12 @@ import {
 } from '@/lib/sar/aeroDriftCalculations';
 import { type LatLng } from '@/lib/sar/sarCalculations';
 import { formatDMS } from '@/lib/sar/coordFormat';
+import {
+  N13_PARACHUTES,
+  TABLE_N13_SOURCE,
+  getN13Parachute,
+  n13RateOfDescent,
+} from '@/lib/sar/tableN13.mjs';
 import CoordinateInput from './CoordinateInput';
 
 interface AeronauticalDriftWorksheetProps {
@@ -161,9 +167,10 @@ function formatUtcEnd(dateValue: string, timeValue: string, minutes: number): st
     if (!textMatch) return null;
     const monthIndex = new Map([
       ['jan', 1], ['january', 1], ['januari', 1], ['feb', 2], ['february', 2], ['februari', 2], ['mar', 3], ['march', 3], ['maret', 3],
-      ['april', 4], ['may', 5], ['mei', 5], ['june', 6], ['juni', 6], ['july', 7], ['juli', 7],
-      ['aug', 8], ['august', 8], ['agustus', 8], ['sep', 9], ['september', 9], ['oct', 10], ['october', 10], ['oktober', 10],
-      ['nov', 11], ['november', 11], ['dec', 12], ['december', 12], ['desember', 12],
+      ['april', 4], ['apr', 4], ['may', 5], ['mei', 5], ['june', 6], ['juni', 6], ['july', 7], ['juli', 7],
+      ['aug', 8], ['august', 8], ['agustus', 8], ['agu', 8], ['agt', 8], ['sep', 9], ['sept', 9], ['september', 9],
+      ['oct', 10], ['october', 10], ['oktober', 10], ['okt', 10],
+      ['nov', 11], ['november', 11], ['dec', 12], ['december', 12], ['desember', 12], ['des', 12],
     ]).get(textMatch[2].toLowerCase());
     if (!monthIndex) return null;
     day = Number(textMatch[1]);
@@ -246,19 +253,21 @@ export default function AeronauticalDriftWorksheet({
   const [viewMode, setViewMode] = useState<'dual' | 'aircraft' | 'parachute'>('dual');
 
   // Keep external AWA in sync, including whether it came from a valid worksheet.
-  useEffect(() => {
-    setFormData((prev) => {
-      if (prev.awaGlideDirFrom === awaDirFrom && prev.awaGlideSpeedKts === awaSpeedKts && prev.awaIsValid === awaIsValid) {
-        return prev;
-      }
-      return {
-        ...prev,
-        awaIsValid,
-        awaGlideDirFrom: awaDirFrom,
-        awaGlideSpeedKts: awaSpeedKts,
-      };
-    });
-  }, [awaDirFrom, awaSpeedKts, awaIsValid]);
+  // (Pola resmi React: menyesuaikan state saat render ketika props berubah — tanpa effect.)
+  const [prevAwa, setPrevAwa] = useState({ awaIsValid, awaDirFrom, awaSpeedKts });
+  if (
+    prevAwa.awaIsValid !== awaIsValid ||
+    prevAwa.awaDirFrom !== awaDirFrom ||
+    prevAwa.awaSpeedKts !== awaSpeedKts
+  ) {
+    setPrevAwa({ awaIsValid, awaDirFrom, awaSpeedKts });
+    setFormData((prev) => ({
+      ...prev,
+      awaIsValid,
+      awaGlideDirFrom: awaDirFrom,
+      awaGlideSpeedKts: awaSpeedKts,
+    }));
+  }
 
   const results: AeroDriftResult = useMemo(() => {
     return calculateAeroDrift(formData);
@@ -276,6 +285,44 @@ export default function AeronauticalDriftWorksheet({
       return next;
     });
   };
+
+  /** Pilih jenis parasut dari Table N-13 → isi ROD (kolom sesuai altitude pembukaan, tanpa interpolasi) + glide ratio. */
+  const applyN13Type = (id?: string) => {
+    setFormData((prev) => {
+      if (!id) {
+        const cleared = { ...prev, parachuteN13TypeId: undefined, parachuteN13Column: undefined };
+        onStateChange?.(cleared);
+        return cleared;
+      }
+      const sel = n13RateOfDescent(id, prev.parachuteAltMaxFt);
+      const row = sel.row;
+      if (!row) return prev;
+      const next: AeroDriftInput = {
+        ...prev,
+        parachuteN13TypeId: id,
+        parachuteN13Column: sel.column ?? 'manual',
+        parachuteRateOfDescentFtMin: sel.rodFtMin ?? prev.parachuteRateOfDescentFtMin,
+      };
+      if (prev.parachuteType === 'steerable' && row.glideRatio > 0) {
+        next.parachuteGlideRatio = row.glideRatio;
+      }
+      onStateChange?.(next);
+      return next;
+    });
+  };
+
+  const n13Row = formData.parachuteN13TypeId ? getN13Parachute(formData.parachuteN13TypeId) : null;
+  const n13Provenance = !n13Row
+    ? 'N-13: pilih jenis parasut di atas'
+    : `N-13: ${n13Row.label.length > 30 ? `${n13Row.label.slice(0, 30)}…` : n13Row.label} — ${
+        formData.parachuteN13Column === '7000ft'
+          ? `kolom 7.000 ft: ${n13Row.rod7000FtMin}`
+          : formData.parachuteN13Column === 'range'
+            ? 'rentang 600–900 ft/min → tentukan manual'
+            : formData.parachuteN13Column === 'manual'
+              ? 'diubah manual oleh planner'
+              : `kolom sea level: ${n13Row.rodSeaLevelFtMin}`
+      }`;
 
   const handlePrint = () => {
     if (typeof window !== 'undefined') window.print();
@@ -508,6 +555,24 @@ export default function AeronauticalDriftWorksheet({
                 </select>
               </label>
             )}
+            {formData.useParachute && (
+              <label className="flex items-center gap-2 text-slate-700">
+                Table N-13
+                <select
+                  aria-label="Jenis parasut Table N-13"
+                  value={formData.parachuteN13TypeId ?? ''}
+                  onChange={(event) => applyN13Type(event.target.value || undefined)}
+                  className="max-w-56 rounded border border-slate-300 bg-white px-1.5 py-0.5"
+                >
+                  <option value="">(input manual / tanpa N-13)</option>
+                  {N13_PARACHUTES.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
           </div>
           {anySegmentActive && results.validationErrors.length > 0 && (
             <div role="status" className="ml-6 space-y-1 rounded border border-amber-300 bg-amber-50 p-2 text-[11px] text-amber-950">
@@ -729,7 +794,7 @@ export default function AeronauticalDriftWorksheet({
                     Rate of descent (rated) ((TASg × 101)/gr for aircraft)
                   </span>
                   <div className="text-[10px] text-slate-500 italic">
-                    (for parachutes, enter value from table N-13)
+                    (aircraft: rumus konstanta 101; parachutes: nilai Table N-13 — pilih jenis di bagian atas, tanpa interpolasi)
                   </div>
                 </div>
               </div>
@@ -743,17 +808,22 @@ export default function AeronauticalDriftWorksheet({
                   </div>
                 )}
                 {(viewMode === 'dual' || viewMode === 'parachute') && (
-                  <div className="flex items-center gap-1 font-mono w-36 justify-end">
-                    <input
-                      type="number"
-                      min="0"
-                      step="1"
-                      value={formData.parachuteRateOfDescentFtMin}
-                      onChange={(e) => updateField('parachuteRateOfDescentFtMin', Number(e.target.value) || 0)}
-                      className="w-20 font-bold text-blue-900 border-b border-dotted border-slate-700 bg-transparent text-right pr-1 focus:outline-none"
-                      aria-label="Parachute rate of descent from table N-13"
-                    />
-                    <span className="text-slate-600 font-sans text-xs">ft/min N-13</span>
+                  <div className="w-36">
+                    <div className="flex items-center gap-1 font-mono justify-end">
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={formData.parachuteRateOfDescentFtMin}
+                        onChange={(e) => updateField('parachuteRateOfDescentFtMin', Number(e.target.value) || 0)}
+                        className="w-20 font-bold text-blue-900 border-b border-dotted border-slate-700 bg-transparent text-right pr-1 focus:outline-none"
+                        aria-label="Parachute rate of descent from table N-13"
+                      />
+                      <span className="text-slate-600 font-sans text-xs">ft/min</span>
+                    </div>
+                    <div className="mt-0.5 text-right text-[9px] leading-tight text-slate-500" title={TABLE_N13_SOURCE}>
+                      {n13Provenance}
+                    </div>
                   </div>
                 )}
               </div>
@@ -967,6 +1037,9 @@ export default function AeronauticalDriftWorksheet({
                 <span className="text-slate-800">
                   Date/time at end of glide (incident date/time + time of descent)
                 </span>
+                <div className="text-[10px] text-slate-500 italic">
+                  (B.8/B.11 memakai td desimal; untuk B.13 td dibulatkan setengah-ke-atas ke menit, suffix Z dipertahankan)
+                </div>
               </div>
               <div className="flex items-center gap-6 font-mono">
                 {(viewMode === 'dual' || viewMode === 'aircraft') && (
@@ -1032,6 +1105,26 @@ export default function AeronauticalDriftWorksheet({
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Panduan ADW — asal angka & ketentuan (number provenance) */}
+        <div className="rounded border border-slate-200 bg-slate-50 p-3 text-[11px]">
+          <div className="mb-1 font-bold text-slate-900">Asal angka &amp; ketentuan (Panduan ADW)</div>
+          <ul className="list-disc space-y-0.5 pl-4 text-slate-600">
+            <li><b>B.1/B.2</b> — Soal Kasus; Altmin jangan di-default 0 bila tidak diketahui; valid: Altmax ≥ Altmin.</li>
+            <li><b>B.4</b> — Aircraft: Flight Manual; Parachute: Table N-13 (IAMSAR Vol II, hal. N-20); rasio aircraft tidak boleh disalin ke parasut.</li>
+            <li><b>B.5</b> — Glide Speed dari soal/Flight Manual, bukan TAS cruise otomatis.</li>
+            <li><b>B.6</b> — Aircraft: (TASg × 101) / gr — konstanta 101 hanya untuk aircraft; Parachute: nilai Table N-13 tanpa interpolasi.</li>
+            <li><b>B.7/B.8/B.11</b> — hitung dengan <b>td desimal</b>; hasil B.8 &amp; B.11 dalam NM.</li>
+            <li><b>B.9</b> — Magnetic → True: Variation East ditambah, West dikurangi (kebalikan mnemonic T-v-M-d-C); dari Compass, koreksi Deviation dulu (Dev East tambah).</li>
+            <li><b>B.10</b> — AWA diambil dari worksheet AWA aplikasi; tidak dihitung ulang dari Wind Forecast dan tidak ditebak.</li>
+            <li><b>B.11</b> — arah downwind = AWA − 180°; dd = (td × AWA speed)/60.</li>
+            <li><b>B.12</b> — vector sum head-to-tail (geodesik, setara plotting UPS); bukan penjumlahan jarak aritmetika.</li>
+            <li><b>B.13</b> — waktu insiden + td; pembulatan setengah-ke-atas (pecahan ≥ 0,5 menit naik); suffix Z dipertahankan; melewati 2400 lanjut tanggal berikutnya.</li>
+            <li><b>B.14</b> — koordinat akhir dari hasil geodesik/UPS; bila haluan turun tidak diketahui: kosongkan dan teruskan jumlah glide distance ke worksheet Total probable error of position A.5.</li>
+            <li>Parachute glide ratio 0 → Part C (drift angin saja); hasil fase Pesawat &amp; Parasut disimpan terpisah.</li>
+          </ul>
+          <div className="mt-1 text-[9px] text-slate-400">{TABLE_N13_SOURCE}</div>
         </div>
 
         {/* Handover & Action Banner */}
