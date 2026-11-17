@@ -1,0 +1,599 @@
+     1→'use client';
+     2→
+     3→import React, { useMemo, useState } from 'react';
+     4→import dynamic from 'next/dynamic';
+     5→import { Card, CardContent } from '@/components/ui/card';
+     6→import type { SearchPlanResults } from '@/components/sar/SearchPlanWorksheet';
+     7→import { Printer } from 'lucide-react';
+     8→import CoordinateInput from '@/components/sar/CoordinateInput';
+     9→import { bearingDeg, distanceNm, project, rectangleCorners, type LatLng } from '@/lib/sar/sarCalculations';
+    10→import type { MapCircle, MapLine, MapMarker, MapPolygon } from '@/components/sar/SeaMap';
+    11→
+    12→const Worksheet4Map = dynamic(() => import('@/components/sar/worksheets/Worksheet4MapLibre'), { ssr: false });
+    13→
+    14→export type Worksheet4TrStartMode = 'manual' | 'elapsed-time';
+    15→export type Worksheet4TargetNavigation = 'self-contained' | 'other-aircraft' | 'dead-reckoning' | 'custom';
+    16→export interface Worksheet4Waypoint {
+    17→  name: string;
+    18→  lat: number;
+    19→  lng: number;
+    20→  active: boolean;
+    21→}
+    22→
+    23→export interface Worksheet4InitialState {
+    24→  caseTitle?: string;
+    25→  searchDate?: string;
+    26→  callsign?: string;
+    27→  searchNo?: string;
+    28→  commenceUtc?: string;
+    29→  latitude?: number;
+    30→  longitude?: number;
+    31→  distressTimeUtc?: string;
+    32→  trStartMode?: Worksheet4TrStartMode;
+    33→  initialTrNm?: number;
+    34→  elapsedMinutesSinceLastFix?: number;
+    35→  targetTasKts?: number;
+    36→  routeLegDistancesNm?: [number, number, number];
+    37→  routePoints?: [Worksheet4Waypoint, Worksheet4Waypoint, Worksheet4Waypoint, Worksheet4Waypoint];
+    38→  trList?: [number, number, number, number];
+    39→  fixErrors?: [number, number, number, number];
+    40→  targetNavigationType?: Worksheet4TargetNavigation;
+    41→  applyDre?: boolean;
+    42→  yNavError?: number;
+    43→  safetyFactor?: 1.1 | 1.6 | 2 | 2.3 | 2.5;
+    44→}
+    45→
+    46→interface Worksheet4Props {
+    47→  searchResults?: SearchPlanResults | null;
+    48→  E?: number;
+    49→  divergenceDistance?: number;
+    50→  readOnly?: boolean;
+    51→  initialState?: Worksheet4InitialState;
+    52→}
+    53→
+    54→export default function Worksheet4({
+    55→  searchResults,
+    56→  E = 0,
+    57→  divergenceDistance = 0,
+    58→  readOnly = false,
+    59→  initialState,
+    60→}: Worksheet4Props) {
+    61→  // Case & Metadata state
+    62→  const [caseTitle, setCaseTitle] = useState(initialState?.caseTitle ?? '-');
+    63→  const [plannerName, setPlannerName] = useState('-');
+    64→  const [searchDate, setSearchDate] = useState(initialState?.searchDate ?? '-');
+    65→  const [callsign, setCallsign] = useState(initialState?.callsign ?? '-');
+    66→  const [searchNo, setSearchNo] = useState(initialState?.searchNo ?? '0');
+    67→  const [commenceUtc, setCommenceUtc] = useState(initialState?.commenceUtc ?? '-');
+    68→  const [prevSearchNo, setPrevSearchNo] = useState('-');
+    69→  const [prevCommenceUtc, setPrevCommenceUtc] = useState('-');
+    70→
+    71→  // Position fixes / reports
+    72→  const [latitude, setLatitude] = useState(initialState?.latitude ?? 0);
+    73→  const [longitude, setLongitude] = useState(initialState?.longitude ?? 0);
+    74→  const [distressTimeUtc, setDistressTimeUtc] = useState(initialState?.distressTimeUtc ?? '-');
+    75→  const [trStartMode, setTrStartMode] = useState<Worksheet4TrStartMode>(initialState?.trStartMode ?? 'manual');
+    76→  const [initialTrNm, setInitialTrNm] = useState(initialState?.initialTrNm ?? initialState?.trList?.[0] ?? 0);
+    77→  const [elapsedMinutesSinceLastFix, setElapsedMinutesSinceLastFix] = useState(initialState?.elapsedMinutesSinceLastFix ?? 0);
+    78→  const [targetTasKts, setTargetTasKts] = useState(initialState?.targetTasKts ?? 0);
+    79→  const legacyRouteLegs: [number, number, number] | undefined = initialState?.trList
+    80→    ? [initialState.trList[1] - initialState.trList[0], initialState.trList[2] - initialState.trList[1], initialState.trList[3] - initialState.trList[2]]
+    81→    : undefined;
+    82→  const initialRouteLegs: [number, number, number] = initialState?.routeLegDistancesNm?.some((distance) => distance > 0)
+    83→    ? initialState.routeLegDistancesNm
+    84→    : legacyRouteLegs ?? initialState?.routeLegDistancesNm ?? [0, 0, 0];
+    85→  const [routeLegDistancesNm, setRouteLegDistancesNm] = useState<[number, number, number]>(initialRouteLegs);
+    86→  const [routePoints, setRoutePoints] = useState<[Worksheet4Waypoint, Worksheet4Waypoint, Worksheet4Waypoint, Worksheet4Waypoint]>(initialState?.routePoints ?? [
+    87→    { name: 'Titik awal / lost contact', lat: 0, lng: 0, active: false },
+    88→    { name: 'Last Reported Position', lat: 0, lng: 0, active: false },
+    89→    { name: 'Missed Position', lat: 0, lng: 0, active: false },
+    90→    { name: 'Next Position / Destination', lat: 0, lng: 0, active: false },
+    91→  ]);
+    92→  const [fixErrors, setFixErrors] = useState<[number, number, number, number]>(initialState?.fixErrors ?? [0, 0, 0, 0]);
+    93→  const [targetNavigationType, setTargetNavigationType] = useState<Worksheet4TargetNavigation | null>(initialState?.targetNavigationType ?? null);
+    94→  const [applyDre, setApplyDre] = useState(initialState?.applyDre ?? false);
+    95→  const [yNavError, setYNavError] = useState(initialState?.yNavError ?? 0);
+    96→  const [safetyFactor, setSafetyFactor] = useState(initialState?.safetyFactor ?? 0);
+    97→
+    98→  const pointDerivedLegs = routePoints.slice(0, 3).map((point, index) => {
+    99→    const next = routePoints[index + 1];
+   100→    return point.active && next.active ? distanceNm(point, next) : 0;
+   101→  }) as [number, number, number];
+   102→  const effectiveLegDistances = routeLegDistancesNm.map((distance, index) => distance > 0 ? distance : pointDerivedLegs[index]) as [number, number, number];
+   103→  const trA = trStartMode === 'elapsed-time'
+   104→    ? Number((targetTasKts * elapsedMinutesSinceLastFix / 60).toFixed(2))
+   105→    : initialTrNm;
+   106→  const trList: [number, number, number, number] = [
+   107→    trA,
+   108→    trA + effectiveLegDistances[0],
+   109→    trA + effectiveLegDistances[0] + effectiveLegDistances[1],
+   110→    trA + effectiveLegDistances[0] + effectiveLegDistances[1] + effectiveLegDistances[2],
+   111→  ].map((value) => Number(value.toFixed(2))) as [number, number, number, number];
+   112→  const fixBaseline = targetNavigationType === 'self-contained' ? 5 : targetNavigationType === 'other-aircraft' ? 10 : null;
+   113→  const xValues = trList.map((tr, i) => {
+   114→    const x = fixBaseline ?? (targetNavigationType === 'dead-reckoning' ? fixErrors[i] + 0.1 * tr : targetNavigationType === 'custom' ? fixErrors[i] : 0);
+   115→    return Number(x.toFixed(2));
+   116→  });
+   117→  // e = sqrt(x^2 + y^2)
+   118→  const eValues = xValues.map((x) => Number(Math.sqrt(x * x + yNavError * yNavError).toFixed(2)));
+   119→  // R = e * fs
+   120→  const rValues = eValues.map((e) => Number((e * safetyFactor).toFixed(2)));
+   121→  // Rounded up radius
+   122→  const roundedRValues = rValues.map((r) => Math.ceil(r));
+   123→
+   124→  const mappedPoints = routePoints.map((point, index) => point.active && Math.abs(point.lat) <= 90 && Math.abs(point.lng) <= 180
+   125→    ? { point: { lat: point.lat, lng: point.lng }, index, name: point.name }
+   126→    : null);
+   127→  const activeMappedPoints = mappedPoints.filter((item) => item !== null) as Array<{ point: LatLng; index: number; name: string }>;
+   128→  const dreGeometryEnabled = applyDre && targetNavigationType === 'dead-reckoning';
+   129→  const mapSpanNm = activeMappedPoints.reduce((maxDistance, item, index) => Math.max(
+   130→    maxDistance,
+   131→    ...activeMappedPoints.slice(index + 1).map((next) => distanceNm(item.point, next.point)),
+   132→  ), 0);
+   133→  const mapCenter = activeMappedPoints.length
+   134→    ? {
+   135→      lat: activeMappedPoints.reduce((sum, item) => sum + item.point.lat, 0) / activeMappedPoints.length,
+   136→      lng: activeMappedPoints.reduce((sum, item) => sum + item.point.lng, 0) / activeMappedPoints.length,
+   137→    }
+   138→    : { lat: -2.5, lng: 118 };
+   139→  const mapZoom = mapSpanNm <= 45 ? 10 : mapSpanNm <= 180 ? 8 : mapSpanNm <= 500 ? 6 : 4;
+   140→  const ws4Markers: MapMarker[] = activeMappedPoints.map(({ point, index, name }) => ({
+   141→    position: point, label: `${String.fromCharCode(65 + index)} · ${name}`, showLabel: true,
+   142→    color: ['#dc2626', '#ea580c', '#7c3aed', '#2563eb'][index], sequence: index + 1,
+   143→  }));
+   144→  const ws4Circles: MapCircle[] = activeMappedPoints.filter(({ index }) => roundedRValues[index] > 0).map(({ point, index }) => ({
+   145→    center: point, radiusNm: roundedRValues[index], color: ['#dc2626', '#ea580c', '#7c3aed', '#2563eb'][index],
+   146→    fillColor: ['#dc2626', '#ea580c', '#7c3aed', '#2563eb'][index], fillOpacity: 0.08,
+   147→    label: `${String.fromCharCode(65 + index)} · Rounded Radius ${roundedRValues[index]} NM`,
+   148→  }));
+   149→  const ws4Lines: MapLine[] = activeMappedPoints.slice(1).map((item, i) => ({
+   150→    from: activeMappedPoints[i].point, to: item.point, color: '#334155', label: `Route ${String.fromCharCode(65 + activeMappedPoints[i].index)}–${String.fromCharCode(65 + item.index)}`,
+   151→  }));
+   152→  const ws4Polygons: MapPolygon[] = useMemo(() => {
+   153→    if (activeMappedPoints.length === 1) {
+   154→      const { point, index } = activeMappedPoints[0];
+   155→      const radius = roundedRValues[index];
+   156→      return radius > 0 ? [{ points: rectangleCorners(point, radius * 2, radius * 2, 0), color: '#0f766e', fillColor: '#0f766e', fillOpacity: 0.04, label: `Kemungkinan Area ${String.fromCharCode(65 + index)} · square ${radius * 2} NM` }] : [];
+   157→    }
+   158→    const polygons: MapPolygon[] = [];
+   159→    for (let i = 0; i < activeMappedPoints.length - 1; i++) {
+   160→      const a = activeMappedPoints[i];
+   161→      const b = activeMappedPoints[i + 1];
+   162→      const rA = roundedRValues[a.index];
+   163→      const rB = roundedRValues[b.index];
+   164→      if (rA <= 0 || rB <= 0) continue;
+   165→      const course = bearingDeg(a.point, b.point);
+   166→      const centerA = dreGeometryEnabled ? a.point : project(a.point, (course + 180) % 360, rA);
+   167→      const centerB = dreGeometryEnabled ? b.point : project(b.point, course, rB);
+   168→      const halfWidthA = dreGeometryEnabled ? rA : Math.max(rA, rB);
+   169→      const halfWidthB = dreGeometryEnabled ? rB : Math.max(rA, rB);
+   170→      polygons.push({
+   171→        points: [
+   172→          project(centerA, (course + 270) % 360, halfWidthA),
+   173→          project(centerB, (course + 270) % 360, halfWidthB),
+   174→          project(centerB, (course + 90) % 360, halfWidthB),
+   175→          project(centerA, (course + 90) % 360, halfWidthA),
+   176→        ],
+   177→        color: dreGeometryEnabled ? '#7c3aed' : '#0f766e', fillColor: dreGeometryEnabled ? '#7c3aed' : '#0f766e', fillOpacity: 0.06,
+   178→        label: dreGeometryEnabled ? `Trapezium DRe ${String.fromCharCode(65 + a.index)}–${String.fromCharCode(65 + b.index)}` : `Koridor pencarian ${String.fromCharCode(65 + a.index)}–${String.fromCharCode(65 + b.index)}`,
+   179→      });
+   180→    }
+   181→    return polygons;
+   182→  }, [activeMappedPoints, dreGeometryEnabled, roundedRValues]);
+   183→
+   184→  const handlePrint = () => {
+   185→    if (typeof window !== 'undefined') window.print();
+   186→  };
+   187→
+   188→  return (
+   189→    <Card className="border-slate-800 shadow-sm bg-white overflow-hidden text-slate-900 font-sans print:border-none">
+   190→      <CardContent className="p-4 sm:p-6 space-y-4">
+   191→        {/* Printable / Viewable Official Appendix K Header */}
+   192→        <div className="flex items-center justify-between border-b-2 border-slate-800 pb-1 text-[11px] font-bold text-slate-700">
+   193→          <span>Appendix K – Worksheets</span>
+   194→          <button
+   195→            type="button"
+   196→            onClick={handlePrint}
+   197→            className="flex items-center gap-1 text-[11px] bg-slate-100 hover:bg-slate-200 text-slate-800 px-2 py-0.5 rounded border border-slate-300 print:hidden transition-colors"
+   198→          >
+   199→            <Printer className="h-3 w-3" /> Cetak Lembar Ini
+   200→          </button>
+   201→        </div>
+   202→
+   203→        {/* Outer Authentic Form Border */}
+   204→        <div className="border-2 border-slate-900 rounded bg-white text-xs">
+   205→          {/* Top Title Grid */}
+   206→          <div className="grid grid-cols-12 border-b-2 border-slate-900">
+   207→            {/* Left: Incident Reference */}
+   208→            <div className="col-span-3 p-2.5 border-r border-slate-800 flex flex-col justify-between">
+   209→              <span className="font-bold text-slate-700 uppercase tracking-wide text-[11px]">
+   210→                Incident Reference
+   211→              </span>
+   212→              <input
+   213→                type="text"
+   214→                value={caseTitle}
+   215→                disabled={readOnly}
+   216→                suppressHydrationWarning
+   217→                onChange={(e) => setCaseTitle(e.target.value)}
+   218→                className="font-bold text-blue-900 bg-blue-50/50 border-b border-dotted border-slate-500 px-1 py-0.5 text-xs w-full mt-1"
+   219→              />
+   220→            </div>
+   221→
+   222→            {/* Center: Search and Rescue - Worksheet No. 4 (Search Radius) */}
+   223→            <div className="col-span-5 p-2.5 text-center flex flex-col items-center justify-center border-r border-slate-800 bg-slate-50/70">
+   224→              <div className="text-base font-black tracking-wide text-slate-950 uppercase">
+   225→                Search and Rescue
+   226→              </div>
+   227→              <div className="text-xs font-bold text-slate-800 uppercase mt-0.5">
+   228→                Worksheet No. 4 (Search Radius)
+   229→              </div>
+   230→            </div>
+   231→
+   232→            {/* Right: Compiled By & Date */}
+   233→            <div className="col-span-4 p-2.5 flex flex-col justify-between text-[11px] space-y-1">
+   234→              <div>
+   235→                <span className="text-slate-600">Compiled By: </span>
+   236→                <input
+   237→                  type="text"
+   238→                  value={plannerName}
+   239→                  disabled={readOnly}
+   240→                  suppressHydrationWarning
+   241→                  onChange={(e) => setPlannerName(e.target.value)}
+   242→                  className="font-bold text-blue-900 bg-blue-50/50 border-b border-dotted border-slate-500 px-1 py-0.5 text-xs w-2/3"
+   243→                />
+   244→              </div>
+   245→              <div>
+   246→                <span className="text-slate-600">Date: </span>
+   247→                <input
+   248→                  type="text"
+   249→                  value={searchDate}
+   250→                  disabled={readOnly}
+   251→                  suppressHydrationWarning
+   252→                  onChange={(e) => setSearchDate(e.target.value)}
+   253→                  className="font-bold text-blue-900 bg-blue-50/50 border-b border-dotted border-slate-500 px-1 py-0.5 text-xs w-2/3 font-mono"
+   254→                />
+   255→              </div>
+   256→            </div>
+   257→          </div>
+   258→
+   259→          {/* Top 4-Column Box: Distress Position & Search Identification */}
+   260→          <div className="grid grid-cols-1 md:grid-cols-4 border-b-2 border-slate-900 text-[11px]">
+   261→            {/* Box 1: Reported Distress Position */}
+   262→            <div className="p-2.5 border-r border-slate-800 space-y-1 bg-slate-50/30">
+   263→              <span className="font-bold text-slate-800 block">Reported Distress Position:</span>
+   264→              <div className="font-mono">
+   265→                <CoordinateInput axis="lat" value={latitude} onChange={setLatitude} disabled={readOnly} aria-label="Latitude distress" className="font-bold text-blue-900 bg-white border-b border-dotted border-slate-500 px-1 w-full" />
+   266→              </div>
+   267→              <div className="font-mono">
+   268→                <CoordinateInput axis="lng" value={longitude} onChange={setLongitude} disabled={readOnly} aria-label="Longitude distress" className="font-bold text-blue-900 bg-white border-b border-dotted border-slate-500 px-1 w-full" />
+   269→              </div>
+   270→              <div>
+   271→                <span className="text-slate-500 font-sans">Time: </span>
+   272→                <input
+   273→                  type="text"
+   274→                  value={distressTimeUtc}
+   275→                  disabled={readOnly}
+   276→                  suppressHydrationWarning
+   277→                  onChange={(e) => setDistressTimeUtc(e.target.value)}
+   278→                  className="font-bold text-blue-900 bg-white border-b border-dotted border-slate-500 px-1 w-24 font-mono"
+   279→                />
+   280→              </div>
+   281→            </div>
+   282→
+   283→            {/* Box 2: [or] Fix Positions 1, 2, 3, 4 */}
+   284→            <div className="p-2.5 border-r border-slate-800 space-y-1 bg-white">
+   285→              <span className="text-[10px] text-slate-500 font-bold block">[ or Positions ]</span>
+   286→              <div className="truncate">
+   287→                <span className="text-slate-600">A. Titik awal: </span>
+   288→                <span className="font-bold text-blue-900 font-mono text-[10px]">{routePoints[0].name}</span>
+   289→              </div>
+   290→              <div className="truncate">
+   291→                <span className="text-slate-600">B. Last Reported Posn: </span>
+   292→                <span className="font-bold text-blue-900 font-mono text-[10px]">{routePoints[1].name}</span>
+   293→              </div>
+   294→              <div className="truncate">
+   295→                <span className="text-slate-600">C. Missed position: </span>
+   296→                <span className="font-bold text-blue-900 font-mono text-[10px]">{routePoints[2].name}</span>
+   297→              </div>
+   298→              <div className="truncate">
+   299→                <span className="text-slate-600">D. Next Posn / Destination: </span>
+   300→                <span className="font-bold text-blue-900 font-mono text-[10px]">{routePoints[3].name}</span>
+   301→              </div>
+   302→            </div>
+   303→
+   304→            {/* Box 3: Search No. & Commencing Times */}
+   305→            <div className="p-2.5 border-r border-slate-800 space-y-1 bg-slate-50/30">
+   306→              <div>
+   307→                <span className="text-slate-600">Search No. </span>
+   308→                <input
+   309→                  type="text"
+   310→                  value={searchNo}
+   311→                  disabled={readOnly}
+   312→                  suppressHydrationWarning
+   313→                  onChange={(e) => setSearchNo(e.target.value)}
+   314→                  className="font-bold text-blue-900 bg-white border-b border-dotted border-slate-500 px-1 w-12 text-center"
+   315→                />
+   316→              </div>
+   317→              <div>
+   318→                <span className="text-slate-600">Radius Computed: </span>
+   319→                <span className="font-bold text-blue-900 font-mono">{roundedRValues[0]} NM</span>
+   320→              </div>
+   321→              <div>
+   322→                <span className="text-slate-600">For Search Commencing: </span>
+   323→                <input
+   324→                  type="text"
+   325→                  value={commenceUtc}
+   326→                  disabled={readOnly}
+   327→                  suppressHydrationWarning
+   328→                  onChange={(e) => setCommenceUtc(e.target.value)}
+   329→                  className="font-bold text-blue-900 bg-white border-b border-dotted border-slate-500 px-1 w-20 font-mono"
+   330→                />
+   331→              </div>
+   332→              <div className="text-[10px] text-slate-500 pt-0.5 border-t border-slate-200">
+   333→                <span>Prev Search: </span>
+   334→                <span className="font-mono">{prevSearchNo} ({prevCommenceUtc})</span>
+   335→              </div>
+   336→            </div>
+   337→
+   338→            {/* Box 4: Distress Craft Callsign / Identity */}
+   339→            <div className="p-2.5 flex flex-col justify-between bg-white">
+   340→              <span className="font-bold text-slate-700 block">Distress Craft Callsign / Identity:</span>
+   341→              <input
+   342→                type="text"
+   343→                value={callsign}
+   344→                disabled={readOnly}
+   345→                suppressHydrationWarning
+   346→                onChange={(e) => setCallsign(e.target.value)}
+   347→                className="font-bold text-blue-900 bg-blue-50/60 border border-slate-300 rounded px-2 py-1 text-xs w-full font-mono mt-1"
+   348→              />
+   349→              <label className="text-[10px] text-slate-600 font-mono mt-1 flex items-center gap-1">
+   350→                Nav Error (y):
+   351→                <input type="number" min="0" step="0.1" value={yNavError} disabled={readOnly} onChange={(e) => setYNavError(Number(e.target.value) || 0)} className="w-14 border-b border-dotted border-slate-500 bg-white px-1 text-right font-bold text-blue-900" /> NM
+   352→              </label>
+   353→            </div>
+   354→          </div>
+   355→
+   356→          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 border-b-2 border-slate-900 bg-slate-50/50 p-3 text-[11px]">
+   357→            <section className="space-y-2">
+   358→              <h3 className="font-bold text-slate-800">Perhitungan Tr Kumulatif</h3>
+   359→              <label className="flex flex-wrap items-center gap-2">
+   360→                <span>Sumber Tr A:</span>
+   361→                <select value={trStartMode} disabled={readOnly} onChange={(e) => setTrStartMode(e.target.value as Worksheet4TrStartMode)} className="rounded border border-slate-300 bg-white px-2 py-1 font-semibold text-blue-900">
+   362→                  <option value="manual">Jarak langsung sejak Last Positive Fix</option>
+   363→                  <option value="elapsed-time">TAS × waktu sejak Last Positive Fix</option>
+   364→                </select>
+   365→              </label>
+   366→              {trStartMode === 'elapsed-time' ? (
+   367→                <div className="flex flex-wrap items-center gap-2">
+   368→                  <label>TAS target (kts) <input type="number" min="0" step="1" value={targetTasKts} disabled={readOnly} onChange={(e) => setTargetTasKts(Number(e.target.value) || 0)} className="w-20 rounded border border-slate-300 px-1 py-0.5 text-right font-mono" /></label>
+   369→                  <label>Waktu sejak last fix (menit) <input type="number" min="0" step="1" value={elapsedMinutesSinceLastFix} disabled={readOnly} onChange={(e) => setElapsedMinutesSinceLastFix(Number(e.target.value) || 0)} className="w-16 rounded border border-slate-300 px-1 py-0.5 text-right font-mono" /></label>
+   370→                  <span className="font-bold text-blue-900">Tr A = V × T/60 = {trA.toFixed(2)} NM</span>
+   371→                </div>
+   372→              ) : (
+   373→                <label>Tr A (jarak awal) <input type="number" min="0" step="0.1" value={initialTrNm} disabled={readOnly} onChange={(e) => setInitialTrNm(Number(e.target.value) || 0)} className="w-20 rounded border border-slate-300 px-1 py-0.5 text-right font-mono" /> NM <span className="text-slate-500">(lost contact saat baru take off: 0 NM)</span></label>
+   374→              )}
+   375→              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+   376→                {([0, 1, 2] as const).map((legIndex) => (
+   377→                  <label key={legIndex} className="rounded border border-slate-200 bg-white p-2">
+   378→                    Jarak {String.fromCharCode(65 + legIndex)}→{String.fromCharCode(66 + legIndex)} (NM)
+   379→                    <input type="number" min="0" step="0.1" value={routeLegDistancesNm[legIndex] > 0 ? routeLegDistancesNm[legIndex] : Number(pointDerivedLegs[legIndex].toFixed(2))} disabled={readOnly} onChange={(e) => setRouteLegDistancesNm((prev) => { const next = [...prev] as [number, number, number]; next[legIndex] = Number(e.target.value) || 0; return next; })} className="mt-1 w-full rounded border border-slate-300 px-1 py-0.5 text-right font-mono" />
+   380→                    {routeLegDistancesNm[legIndex] === 0 && pointDerivedLegs[legIndex] > 0 && <span className="text-[9px] text-slate-500">Dihitung dari koordinat waypoint</span>}
+   381→                  </label>
+   382→                ))}
+   383→              </div>
+   384→              <p className="text-[10px] text-slate-500">Tr B = Tr A + jarak A–B; Tr C dan D meneruskan penjumlahan setiap segmen rute.</p>
+   385→            </section>
+   386→
+   387→            <section className="space-y-2">
+   388→              <h3 className="font-bold text-slate-800">Navigational Error Target (x)</h3>
+   389→              <label className="flex flex-wrap items-center gap-2">
+   390→                <span>Metode navigasi target:</span>
+   391→                <select value={targetNavigationType ?? ''} disabled={readOnly} onChange={(e) => setTargetNavigationType((e.target.value || null) as Worksheet4TargetNavigation | null)} className="rounded border border-slate-300 bg-white px-2 py-1 font-semibold text-blue-900">
+   392→                  <option value="">-</option><option value="self-contained">GPS / self-contained (5 NM)</option><option value="other-aircraft">Aircraft other / non-GPS (10 NM)</option><option value="dead-reckoning">Dead Reckoning (base fix + 10% Tr)</option><option value="custom">Nilai custom dari planner</option>
+   393→                </select>
+   394→              </label>
+   395→              {(targetNavigationType === 'dead-reckoning' || targetNavigationType === 'custom') && <div className="text-[10px] text-slate-600">Masukkan base fix error tiap posisi di baris x. Untuk DR, sistem menambahkan 10% dari Tr kumulatif.</div>}
+   396→              {targetNavigationType === 'dead-reckoning' && <label className="flex items-center gap-2 text-[10px] text-slate-700"><input type="checkbox" checked={applyDre} disabled={readOnly} onChange={(e) => setApplyDre(e.target.checked)} /> Gunakan geometri trapezium DRe di peta (hanya jika disetujui planner/SOP)</label>}
+   397→              <p className="text-[10px] text-slate-500">Baseline 5/10 NM mengikuti klasifikasi target pada Appendix J-2. Error navigasi SRU (y) diisi dari kemampuan navigasinya, bukan angka contoh default.</p>
+   398→            </section>
+   399→          </div>
+   400→
+   401→          <section className="border-b-2 border-slate-900 p-3">
+   402→            <h3 className="mb-2 text-[11px] font-bold text-slate-800">Waypoint / posisi kandidat untuk peta ONC</h3>
+   403→            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2">
+   404→              {routePoints.map((waypoint, index) => (
+   405→                <div key={index} className="space-y-1 rounded border border-slate-200 bg-white p-2 text-[10px]">
+   406→                  <label className="block font-semibold text-slate-700">Posisi {String.fromCharCode(65 + index)}
+   407→                    <input type="text" value={waypoint.name} disabled={readOnly} onChange={(e) => setRoutePoints((prev) => { const next = [...prev] as typeof prev; next[index] = { ...next[index], name: e.target.value, active: true }; return next; })} className="ml-1 w-[70%] border-b border-dotted border-slate-400 px-1 text-blue-900" />
+   408→                  </label>
+   409→                  <CoordinateInput axis="lat" value={waypoint.lat} disabled={readOnly} aria-label={`Latitude posisi ${String.fromCharCode(65 + index)}`} onChange={(lat) => setRoutePoints((prev) => { const next = [...prev] as typeof prev; next[index] = { ...next[index], lat, active: true }; return next; })} className="w-full border-b border-dotted border-slate-400 px-1 font-mono text-blue-900" />
+   410→                  <CoordinateInput axis="lng" value={waypoint.lng} disabled={readOnly} aria-label={`Longitude posisi ${String.fromCharCode(65 + index)}`} onChange={(lng) => setRoutePoints((prev) => { const next = [...prev] as typeof prev; next[index] = { ...next[index], lng, active: true }; return next; })} className="w-full border-b border-dotted border-slate-400 px-1 font-mono text-blue-900" />
+   411→                </div>
+   412→              ))}
+   413→            </div>
+   414→          </section>
+   415→
+   416→          {/* Main Calculation Table: Positions A, B, C, D */}
+   417→          <table className="w-full border-collapse text-xs table-fixed">
+   418→            <thead>
+   419→              <tr className="bg-slate-200/90 text-slate-900 font-bold border-b-2 border-slate-800">
+   420→                <th className="py-2 px-3 text-left w-[44%] border-r border-slate-300">
+   421→                  Position / Parameter
+   422→                </th>
+   423→                <th className="py-2 px-2 text-center w-[14%] border-r border-slate-300">
+   424→                  A (Awal)
+   425→                </th>
+   426→                <th className="py-2 px-2 text-center w-[14%] border-r border-slate-300">
+   427→                  B (Last Pos)
+   428→                </th>
+   429→                <th className="py-2 px-2 text-center w-[14%] border-r border-slate-300">
+   430→                  C (Missed)
+   431→                </th>
+   432→                <th className="py-2 px-2 text-center w-[14%] border-r-0">
+   433→                  D (Next/Dest)
+   434→                </th>
+   435→              </tr>
+   436→            </thead>
+   437→            <tbody className="divide-y divide-slate-300 text-[11px]">
+   438→              {/* Row 1: Track distance since last Positive Fix (Tr) */}
+   439→              <tr>
+   440→                <td className="py-2 px-3 font-medium text-slate-800 border-r border-slate-300">
+   441→                  Track distance since last Positive Fix (Tr)
+   442→                </td>
+   443→                {trList.map((tr, i) => (
+   444→                  <td key={i} className="py-2 px-2 text-center border-r border-slate-300 last:border-r-0 font-mono">
+   445→                    <span className="font-bold text-blue-900">{tr.toFixed(2)}</span>{' '}
+   446→                    <span className="text-slate-500 text-[10px]">NM</span>
+   447→                  </td>
+   448→                ))}
+   449→              </tr>
+   450→
+   451→              {/* Row 2: Distress Craft Position Error (Fix+10%Tr) (x) */}
+   452→              <tr>
+   453→                <td className="py-2 px-3 font-medium text-slate-800 border-r border-slate-300">
+   454→                  <div>Target Navigation Error (x)</div>
+   455→                  <div className="text-[10px] text-slate-500 font-mono">
+   456→                    {targetNavigationType === 'dead-reckoning' ? 'x = base fix error + 0.10 × Tr' : targetNavigationType === 'self-contained' ? 'x = 5 NM (Appendix J-2)' : targetNavigationType === 'other-aircraft' ? 'x = 10 NM (Appendix J-2)' : targetNavigationType === 'custom' ? 'x = planner baseline' : 'Pilih metode navigasi target'}
+   457→                  </div>
+   458→                </td>
+   459→                {xValues.map((x, i) => (
+   460→                  <td key={i} className="py-2 px-2 text-center border-r border-slate-300 last:border-r-0 font-mono font-bold text-blue-900">
+   461→                    <div>{x.toFixed(1)} <span className="text-[10px] font-normal text-slate-600">NM</span></div>
+   462→                    {(targetNavigationType === 'dead-reckoning' || targetNavigationType === 'custom') && <label className="mt-1 flex items-center justify-center gap-1 text-[9px] font-normal text-slate-500">
+   463→                      Base Fix Err
+   464→                      <input type="number" min="0" step="0.1" value={fixErrors[i]} disabled={readOnly} onChange={(e) => {
+   465→                        const value = Number(e.target.value) || 0;
+   466→                        setFixErrors((prev) => { const next = [...prev] as [number, number, number, number]; next[i] = value; return next; });
+   467→                      }} className="w-12 border-b border-dotted border-slate-500 bg-white px-1 text-center font-mono font-bold text-blue-900" />
+   468→                    </label>}
+   469→                  </td>
+   470→                ))}
+   471→              </tr>
+   472→
+   473→              {/* Row 3: Search Craft Navigation Error (y) */}
+   474→              <tr>
+   475→                <td className="py-2 px-3 font-medium text-slate-800 border-r border-slate-300">
+   476→                  Search Craft Navigation Error (y)
+   477→                </td>
+   478→                {trList.map((_, i) => (
+   479→                  <td key={i} className="py-2 px-2 text-center border-r border-slate-300 last:border-r-0 font-mono font-bold text-blue-900">
+   480→                    {yNavError.toFixed(1)} <span className="text-[10px] font-normal text-slate-600">NM</span>
+   481→                  </td>
+   482→                ))}
+   483→              </tr>
+   484→
+   485→              {/* Row 4: Probable Error of Position (e = sqrt(x^2 + y^2)) */}
+   486→              <tr className="bg-indigo-50/30">
+   487→                <td className="py-2.5 px-3 font-bold text-indigo-950 border-r border-slate-300">
+   488→                  <div className="flex items-center gap-2">
+   489→                    <span>Probable Error of Position (e)</span>
+   490→                    <span className="text-xs font-mono font-bold bg-white px-2 py-0.5 rounded border border-indigo-200">
+   491→                      e = √(x² + y²)
+   492→                    </span>
+   493→                  </div>
+   494→                </td>
+   495→                {eValues.map((eVal, i) => (
+   496→                  <td key={i} className="py-2.5 px-2 text-center border-r border-slate-300 last:border-r-0 font-mono font-bold text-indigo-900 text-xs">
+   497→                    <div>√({xValues[i]}² + {yNavError}²)</div>
+   498→                    <div className="text-blue-950 font-black mt-0.5">{eVal.toFixed(2)} NM</div>
+   499→                  </td>
+   500→                ))}
+   501→              </tr>
+   502→
+   503→              {/* Row 5: Safety Factor (fs) */}
+   504→              <tr>
+   505→                <td className="py-2 px-3 font-medium text-slate-800 border-r border-slate-300">
+   506→                  Safety Factor for this search (1.1; 1.6; 2.0; 2.3; 2.5) (fs)
+   507→                </td>
+   508→                {trList.map((_, i) => (
+   509→                  <td key={i} className="py-2 px-2 text-center border-r border-slate-300 last:border-r-0">
+   510→                    {i === 0 ? (
+   511→                      <select
+   512→                        value={safetyFactor}
+   513→                        disabled={readOnly}
+   514→                        suppressHydrationWarning
+   515→                        onChange={(e) => setSafetyFactor(Number(e.target.value) || 1.1)}
+   516→                        className="font-bold text-blue-900 bg-white border border-slate-300 rounded px-1 py-0.5 text-xs font-mono"
+   517→                      >
+   518→                        <option value="0">0</option>
+   519→                        <option value="1.1">1.1</option>
+   520→                        <option value="1.6">1.6</option>
+   521→                        <option value="2.0">2.0</option>
+   522→                        <option value="2.3">2.3</option>
+   523→                        <option value="2.5">2.5</option>
+   524→                      </select>
+   525→                    ) : (
+   526→                      <span className="font-bold text-blue-900 font-mono">{safetyFactor}</span>
+   527→                    )}
+   528→                  </td>
+   529→                ))}
+   530→              </tr>
+   531→
+   532→              {/* Row 6: Search Radius (R) = (e) x (fs) */}
+   533→              <tr className="bg-emerald-50/50">
+   534→                <td className="py-2 px-3 font-bold text-emerald-950 border-r border-slate-300">
+   535→                  Search Radius (R) = (e) × (fs) (R)
+   536→                </td>
+   537→                {rValues.map((r, i) => (
+   538→                  <td key={i} className="py-2 px-2 text-center border-r border-slate-300 last:border-r-0 font-mono font-black text-emerald-900 text-xs">
+   539→                    {r.toFixed(2)} <span className="text-[10px] font-normal text-slate-600">NM</span>
+   540→                  </td>
+   541→                ))}
+   542→              </tr>
+   543→
+   544→              {/* Row 7: Rounded up Radius */}
+   545→              <tr className="bg-slate-100 font-bold border-b-2 border-slate-900">
+   546→                <td className="py-2 px-3 text-slate-900 border-r border-slate-300">
+   547→                  Rounded up Radius
+   548→                </td>
+   549→                {roundedRValues.map((rr, i) => (
+   550→                  <td key={i} className="py-2 px-2 text-center border-r border-slate-300 last:border-r-0 font-mono font-black text-blue-950 text-sm">
+   551→                    {rr} <span className="text-[10px] font-normal text-slate-600">NM</span>
+   552→                  </td>
+   553→                ))}
+   554→              </tr>
+   555→            </tbody>
+   556→          </table>
+   557→
+   558→          {(!targetNavigationType || yNavError <= 0 || safetyFactor <= 0 || ((targetNavigationType === 'dead-reckoning' || targetNavigationType === 'custom') && fixErrors.some((value) => value <= 0))) && <div role="status" className="border-b border-amber-300 bg-amber-50 px-3 py-2 text-[10px] text-amber-900">
+   559→            {[
+   560→              !targetNavigationType && 'Pilih metode navigasi target.',
+   561→              (targetNavigationType === 'dead-reckoning' || targetNavigationType === 'custom') && fixErrors.some((value) => value <= 0) && 'Masukkan base fix error yang diketahui pada setiap posisi DR/custom.',
+   562→              yNavError <= 0 && 'Masukkan Search Craft Navigation Error (y) dari data navigasi SRU.',
+   563→              safetyFactor <= 0 && 'Pilih Safety Factor sebelum radius dianggap selesai.',
+   564→            ].filter(Boolean).join(' ')}
+   565→          </div>}
+   566→
+   567→          <section className="border-b-2 border-slate-900 p-3">
+   568→            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+   569→              <div>
+   570→                <h3 className="text-sm font-bold text-slate-900">Peta udara Worksheet 4 · OpenAIP</h3>
+   571→                <p className="text-[10px] text-slate-600">Peta ini berdiri sendiri dan tidak berbagi layer dengan peta Worksheet 1. Lingkaran memakai Rounded up Radius.</p>
+   572→              </div>
+   573→              {dreGeometryEnabled && <span className="rounded bg-violet-100 px-2 py-1 text-[10px] font-semibold text-violet-900">Geometri DRe aktif atas pilihan planner</span>}
+   574→            </div>
+   575→            <Worksheet4Map
+   576→              center={mapCenter}
+   577→              zoom={activeMappedPoints.length ? mapZoom : 4}
+   578→              markers={ws4Markers}
+   579→              lines={ws4Lines}
+   580→              polygons={ws4Polygons}
+   581→              circles={ws4Circles}
+   582→              height="520px"
+   583→            />
+   584→            {activeMappedPoints.length === 0 && <p className="mt-2 text-[10px] text-amber-800">Masukkan koordinat waypoint A–D agar radius dan area koridor dapat ditampilkan.</p>}
+   585→            <p className="mt-2 text-[10px] text-slate-500">Garis dan jarak segmen dapat ditelusuri dari waypoint. Tanpa DRe, peta menampilkan koridor persegi; trapezium hanya muncul saat DRe diaktifkan planner.</p>
+   586→            <p className="mt-1 text-[10px] text-amber-800">OpenAIP dikelola komunitas. Verifikasi data dengan AIP Indonesia; peta ini alat bantu dan tidak menggantikan penilaian SAR Mission Coordinator maupun prosedur resmi.</p>
+   587→          </section>
+   588→
+   589→          {/* Form Footer */}
+   590→          <div className="p-2 bg-slate-100 flex items-center justify-between text-[11px] text-slate-600">
+   591→            <span className="italic">Appendix K-5</span>
+   592→            <span className="font-bold font-mono">K-5</span>
+   593→          </div>
+   594→        </div>
+   595→      </CardContent>
+   596→    </Card>
+   597→  );
+   598→}
+   599→

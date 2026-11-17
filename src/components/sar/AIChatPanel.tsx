@@ -264,7 +264,7 @@ export default function AIChatPanel({
         }
         case 'set_ws4_case': {
           const data = args as Worksheet4InitialState;
-          const validFactors = [1.1, 1.6, 2, 2.3, 2.5];
+          const validFactors = [1.1, 1.8, 2, 2.3, 2.6];
           const validLegs = Array.isArray(data.routeLegDistancesNm) && data.routeLegDistancesNm.length === 3 && data.routeLegDistancesNm.every((value) => Number.isFinite(value) && value >= 0);
           const validLegacyTr = Array.isArray(data.trList) && data.trList.length === 4 && data.trList.every((value) => Number.isFinite(value) && value >= 0);
           const validStart = data.trStartMode === 'manual'
@@ -272,8 +272,8 @@ export default function AIChatPanel({
             : data.trStartMode === 'elapsed-time'
               && Number.isFinite(data.targetTasKts) && (data.targetTasKts ?? 0) > 0
               && Number.isFinite(data.elapsedMinutesSinceLastFix) && (data.elapsedMinutesSinceLastFix ?? -1) >= 0;
-          const validTargetNav = ['self-contained', 'other-aircraft', 'dead-reckoning', 'custom'].includes(data.targetNavigationType ?? '');
-          const requiresBaseErrors = data.targetNavigationType === 'dead-reckoning' || data.targetNavigationType === 'custom';
+          const validTargetNav = ['gps', 'non-gps', 'custom', 'self-contained', 'other-aircraft', 'dead-reckoning'].includes(data.targetNavigationType ?? '');
+          const requiresBaseErrors = data.targetNavigationType === 'custom';
           const validFixErrors = !requiresBaseErrors || (Array.isArray(data.fixErrors) && data.fixErrors.length === 4 && data.fixErrors.every((value) => Number.isFinite(value) && value >= 0));
           const validWaypoints = data.routePoints === undefined || (Array.isArray(data.routePoints) && data.routePoints.length === 4 && data.routePoints.every((point) => point !== null && typeof point === 'object' && typeof point.name === 'string'
             && Number.isFinite(point.lat) && Math.abs(point.lat) <= 90 && Number.isFinite(point.lng) && Math.abs(point.lng) <= 180

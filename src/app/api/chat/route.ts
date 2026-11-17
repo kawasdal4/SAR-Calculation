@@ -303,7 +303,7 @@ const tools: FunctionDeclaration[] = [
   },
   {
     name: 'set_ws4_case',
-    description: 'Mengisi Worksheet 4 Search Radius mandiri. Aplikasi menghitung Tr A langsung atau dari TAS × menit/60, lalu menghitung Tr kumulatif B/C/D dari route distance per leg atau koordinat waypoint. Pilih targetNavigationType: self-contained (x=5 NM dari Appendix J-2), other-aircraft (x=10 NM), dead-reckoning (base fix error + 10% Tr), atau custom. Jangan menambahkan 10% Tr untuk GPS/non-GPS biasa. y harus berasal dari akurasi navigasi SRU/Appendix J-1; Fs wajib dipilih eksplisit. Jika data untuk radius belum ada, tanyakan. Sertakan routePoints bila koordinat posisi tersedia untuk peta ONC terpisah. Aktifkan applyDre hanya atas keputusan planner/SOP.',
+    description: 'Mengisi Worksheet 4 Search Radius (Land Search). Aplikasi menghitung Tr A langsung atau dari TAS × menit/60, lalu Tr kumulatif B/C/D dari route distance per leg atau koordinat waypoint. Rumus per panduan: x = x₀ + 10% × Tr (x₀ dari Tabel J-2: gps = 5 NM, non-gps = 10 NM; DR 10% ditambahkan otomatis oleh aplikasi), y dari Tabel J-1 (GPS 0.1, Radar 1, Visual fix 1, Celestial fix 2, Marine Radio Beacon 4, LORAN C 1), fs pencarian ke-1..5 = 1.1/1.8/2.0/2.3/2.6, R = e × fs dibulatkan ke atas ke bilangan bulat NM. Search area digambar sebagai trapesium garis singgung luar dua lingkaran R bulat. Pilih targetNavigationType: gps atau non-gps (jangan menebak), custom hanya bila planner memberi x₀ manual. Jika data untuk radius belum ada, tanyakan. Sertakan routePoints bila koordinat posisi tersedia untuk peta ONC terpisah.',
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
@@ -327,11 +327,10 @@ const tools: FunctionDeclaration[] = [
           active: { type: SchemaType.BOOLEAN, description: 'True jika posisi ini tercantum/terkonfirmasi dalam kasus.' },
         }, required: ['name', 'lat', 'lng', 'active'] }, description: 'Empat waypoint kandidat A-D untuk peta. Jangan mengarang koordinat.' },
         trList: { type: SchemaType.ARRAY, items: { type: SchemaType.NUMBER }, description: 'Legacy: empat Tr kumulatif A-D jika memang diberikan/dihitung dari soal; aplikasi tetap mengonversinya menjadi jarak awal dan tiap leg.' },
-        targetNavigationType: { type: SchemaType.STRING, description: 'self-contained, other-aircraft, dead-reckoning, atau custom. Jangan menebak klasifikasi.' },
-        fixErrors: { type: SchemaType.ARRAY, items: { type: SchemaType.NUMBER }, description: 'Base fix error NM per A-D; dibutuhkan untuk DR/custom saja. Untuk DR komponen 10% Tr ditambahkan oleh aplikasi.' },
-        yNavError: { type: SchemaType.NUMBER, description: 'Search craft navigation error SRU dalam NM, dari akurasi aktual/Appendix J-1; jangan gunakan contoh 0.1 sebagai default.' },
-        safetyFactor: { type: SchemaType.NUMBER, description: 'Safety factor yang secara eksplisit diberikan/dipilih dalam soal.' },
-        applyDre: { type: SchemaType.BOOLEAN, description: 'True hanya jika DRe diperintahkan planner/SOP; jika tidak, false.' },
+        targetNavigationType: { type: SchemaType.STRING, description: 'gps (x₀ 5 NM) atau non-gps (x₀ 10 NM) sesuai navigasi pesawat target/Tabel J-2; custom hanya bila planner memberi x₀ manual per posisi. Jangan menebak klasifikasi.' },
+        fixErrors: { type: SchemaType.ARRAY, items: { type: SchemaType.NUMBER }, description: 'x₀ manual NM per A-D; hanya dibutuhkan untuk targetNavigationType custom (kebijakan SMC).' },
+        yNavError: { type: SchemaType.NUMBER, description: 'Fix error navigasi SRU dalam NM dari Tabel J-1 (GPS 0.1, Radar 1, Visual 1, Celestial 2, Marine Radio Beacon 4, LORAN C 1); jangan gunakan contoh 0.1 sebagai default.' },
+        safetyFactor: { type: SchemaType.NUMBER, description: 'fs dari nomor pencarian: ke-1 = 1.1, ke-2 = 1.8, ke-3 = 2.0, ke-4 = 2.3, ke-5 = 2.6. Wajib dipilih eksplisit.' },
       },
       required: ['trStartMode', 'initialTrNm', 'elapsedMinutesSinceLastFix', 'targetTasKts', 'routeLegDistancesNm', 'targetNavigationType', 'yNavError', 'safetyFactor'],
     },

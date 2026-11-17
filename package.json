@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "test:graticule": "node --test tests/oncGraticule.test.mjs",
     "test:mef": "node --test tests/oncMef.test.mjs",
+    "test:ws4": "node --test tests/landSearchRadius.test.mjs",
     "db:push": "prisma db push --accept-data-loss",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",

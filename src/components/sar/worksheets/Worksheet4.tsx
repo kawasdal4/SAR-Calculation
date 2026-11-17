@@ -1,18 +1,50 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { Card, CardContent } from '@/components/ui/card';
 import type { SearchPlanResults } from '@/components/sar/SearchPlanWorksheet';
 import { Printer } from 'lucide-react';
 import CoordinateInput from '@/components/sar/CoordinateInput';
-import { bearingDeg, distanceNm, project, rectangleCorners, type LatLng } from '@/lib/sar/sarCalculations';
+import { bearingDeg, distanceNm, project, type LatLng } from '@/lib/sar/sarCalculations';
 import type { MapCircle, MapLine, MapMarker, MapPolygon } from '@/components/sar/SeaMap';
+import {
+  LAND_FS_OPTIONS,
+  LAND_SRU_NAV_OPTIONS,
+  LAND_X0_NM,
+  computeLegTrapezoid,
+  computePointRadius,
+  possibilityCircleAreaSqNm,
+} from '@/lib/sar/landSearchRadius.mjs';
 
 const Worksheet4Map = dynamic(() => import('@/components/sar/worksheets/Worksheet4MapLibre'), { ssr: false });
 
 export type Worksheet4TrStartMode = 'manual' | 'elapsed-time';
-export type Worksheet4TargetNavigation = 'self-contained' | 'other-aircraft' | 'dead-reckoning' | 'custom';
+// Panduan Land Search: navigasi pesawat target hanya GPS (x₀ 5 NM) atau non-GPS
+// (x₀ 10 NM) dari Tabel J-2; 'custom' disediakan untuk kebijakan SMC (Appendix J
+// menyebut nilai minimum boleh dinaikkan). Nilai lama dipetakan otomatis:
+// self-contained → gps, other-aircraft/dead-reckoning → non-gps.
+export type Worksheet4TargetNavigation = 'gps' | 'non-gps' | 'custom' | 'self-contained' | 'other-aircraft' | 'dead-reckoning';
+
+const LEGACY_TARGET_NAV: Partial<Record<Worksheet4TargetNavigation, Worksheet4TargetNavigation>> = {
+  'self-contained': 'gps',
+  'other-aircraft': 'non-gps',
+  'dead-reckoning': 'non-gps',
+};
+
+function normalizeTargetNavigation(value: Worksheet4TargetNavigation | null | undefined): Worksheet4TargetNavigation | null {
+  if (!value) return null;
+  return LEGACY_TARGET_NAV[value] ?? value;
+}
+
+function normalizeSafetyFactor(value: number | undefined): number {
+  if (!value || value <= 0) return 0;
+  if (LAND_FS_OPTIONS.includes(value)) return value;
+  // Nilai lama 1.6/2.5 dipetakan ke daftar fs panduan terdekat.
+  const legacyMap: Record<number, number> = { 1.6: 1.8, 2.5: 2.6 };
+  if (legacyMap[value]) return legacyMap[value];
+  return LAND_FS_OPTIONS.reduce((best, option) => (Math.abs(option - value) < Math.abs(best - value) ? option : best), LAND_FS_OPTIONS[0]);
+}
 export interface Worksheet4Waypoint {
   name: string;
   lat: number;
@@ -38,9 +70,9 @@ export interface Worksheet4InitialState {
   trList?: [number, number, number, number];
   fixErrors?: [number, number, number, number];
   targetNavigationType?: Worksheet4TargetNavigation;
-  applyDre?: boolean;
   yNavError?: number;
-  safetyFactor?: 1.1 | 1.6 | 2 | 2.3 | 2.5;
+  /** fs pencarian ke-1..5 sesuai panduan: 1.1 / 1.8 / 2.0 / 2.3 / 2.6. Nilai lama dipetakan otomatis. */
+  safetyFactor?: number;
 }
 
 interface Worksheet4Props {
@@ -90,10 +122,10 @@ export default function Worksheet4({
     { name: 'Next Position / Destination', lat: 0, lng: 0, active: false },
   ]);
   const [fixErrors, setFixErrors] = useState<[number, number, number, number]>(initialState?.fixErrors ?? [0, 0, 0, 0]);
-  const [targetNavigationType, setTargetNavigationType] = useState<Worksheet4TargetNavigation | null>(initialState?.targetNavigationType ?? null);
-  const [applyDre, setApplyDre] = useState(initialState?.applyDre ?? false);
+  const [targetNavigationType, setTargetNavigationType] = useState<Worksheet4TargetNavigation | null>(normalizeTargetNavigation(initialState?.targetNavigationType));
   const [yNavError, setYNavError] = useState(initialState?.yNavError ?? 0);
-  const [safetyFactor, setSafetyFactor] = useState(initialState?.safetyFactor ?? 0);
+  const [ySource, setYSource] = useState(() => LAND_SRU_NAV_OPTIONS.find((option) => option.value === (initialState?.yNavError ?? 0))?.id ?? 'custom');
+  const [safetyFactor, setSafetyFactor] = useState(normalizeSafetyFactor(initialState?.safetyFactor));
 
   const pointDerivedLegs = routePoints.slice(0, 3).map((point, index) => {
     const next = routePoints[index + 1];
@@ -109,23 +141,27 @@ export default function Worksheet4({
     trA + effectiveLegDistances[0] + effectiveLegDistances[1],
     trA + effectiveLegDistances[0] + effectiveLegDistances[1] + effectiveLegDistances[2],
   ].map((value) => Number(value.toFixed(2))) as [number, number, number, number];
-  const fixBaseline = targetNavigationType === 'self-contained' ? 5 : targetNavigationType === 'other-aircraft' ? 10 : null;
-  const xValues = trList.map((tr, i) => {
-    const x = fixBaseline ?? (targetNavigationType === 'dead-reckoning' ? fixErrors[i] + 0.1 * tr : targetNavigationType === 'custom' ? fixErrors[i] : 0);
-    return Number(x.toFixed(2));
+  // Worksheet No. 4 per titik (panduan Land Search):
+  // x = x₀ + 0.1 × Tr (Tabel J-2 + DR 10% Tabel J-3), y dari Tabel J-1,
+  // e = √(x² + y²), R = e × fs, dibulatkan ke atas ke bilangan bulat NM.
+  const pointResults = trList.map((tr, i) => {
+    if (targetNavigationType === 'gps' || targetNavigationType === 'non-gps') {
+      return computePointRadius({ trNm: tr, x0Nm: LAND_X0_NM[targetNavigationType], yNm: yNavError, fs: safetyFactor || 0 });
+    }
+    if (targetNavigationType === 'custom') {
+      return computePointRadius({ trNm: 0, x0Nm: fixErrors[i], yNm: yNavError, fs: safetyFactor || 0 });
+    }
+    return null;
   });
-  // e = sqrt(x^2 + y^2)
-  const eValues = xValues.map((x) => Number(Math.sqrt(x * x + yNavError * yNavError).toFixed(2)));
-  // R = e * fs
-  const rValues = eValues.map((e) => Number((e * safetyFactor).toFixed(2)));
-  // Rounded up radius
-  const roundedRValues = rValues.map((r) => Math.ceil(r));
+  const xValues = pointResults.map((result) => result?.xNm ?? 0);
+  const eValues = pointResults.map((result) => result?.eNm ?? 0);
+  const rValues = pointResults.map((result) => result?.rNm ?? 0);
+  const roundedRValues = pointResults.map((result) => result?.rRoundedNm ?? 0);
 
   const mappedPoints = routePoints.map((point, index) => point.active && Math.abs(point.lat) <= 90 && Math.abs(point.lng) <= 180
     ? { point: { lat: point.lat, lng: point.lng }, index, name: point.name }
     : null);
   const activeMappedPoints = mappedPoints.filter((item) => item !== null) as Array<{ point: LatLng; index: number; name: string }>;
-  const dreGeometryEnabled = applyDre && targetNavigationType === 'dead-reckoning';
   const mapSpanNm = activeMappedPoints.reduce((maxDistance, item, index) => Math.max(
     maxDistance,
     ...activeMappedPoints.slice(index + 1).map((next) => distanceNm(item.point, next.point)),
@@ -149,37 +185,63 @@ export default function Worksheet4({
   const ws4Lines: MapLine[] = activeMappedPoints.slice(1).map((item, i) => ({
     from: activeMappedPoints[i].point, to: item.point, color: '#334155', label: `Route ${String.fromCharCode(65 + activeMappedPoints[i].index)}–${String.fromCharCode(65 + item.index)}`,
   }));
-  const ws4Polygons: MapPolygon[] = useMemo(() => {
-    if (activeMappedPoints.length === 1) {
-      const { point, index } = activeMappedPoints[0];
-      const radius = roundedRValues[index];
-      return radius > 0 ? [{ points: rectangleCorners(point, radius * 2, radius * 2, 0), color: '#0f766e', fillColor: '#0f766e', fillOpacity: 0.04, label: `Kemungkinan Area ${String.fromCharCode(65 + index)} · square ${radius * 2} NM` }] : [];
-    }
+  // Search area per leg (panduan slide 9/13): dua garis singgung luar lingkaran
+  // A(R_A) dan B(R_B) + dua garis penutup tegak lurus garis rute yang menyinggung
+  // sisi luar lingkaran. Radius memakai nilai R bulat worksheet.
+  interface LegGeometry {
+    labelA: string;
+    labelB: string;
+    dNm: number;
+    rANm: number;
+    rBNm: number;
+    trap: ReturnType<typeof computeLegTrapezoid>;
+    aPoint: LatLng;
+    bPoint: LatLng;
+  }
+  const legGeometries: LegGeometry[] = [];
+  for (let i = 0; i < activeMappedPoints.length - 1; i++) {
+    const a = activeMappedPoints[i];
+    const b = activeMappedPoints[i + 1];
+    const rA = roundedRValues[a.index];
+    const rB = roundedRValues[b.index];
+    if (rA <= 0 || rB <= 0) continue;
+    legGeometries.push({
+      labelA: String.fromCharCode(65 + a.index),
+      labelB: String.fromCharCode(65 + b.index),
+      dNm: distanceNm(a.point, b.point),
+      rANm: rA,
+      rBNm: rB,
+      trap: computeLegTrapezoid(distanceNm(a.point, b.point), rA, rB),
+      aPoint: a.point,
+      bPoint: b.point,
+    });
+  }
+  const singlePointIndex = activeMappedPoints.length === 1 ? activeMappedPoints[0].index : null;
+  const totalSearchAreaSqNm = singlePointIndex !== null
+    ? possibilityCircleAreaSqNm(roundedRValues[singlePointIndex])
+    : legGeometries.reduce((sum, leg) => sum + (leg.trap.valid ? leg.trap.areaSqNm : 0), 0);
+  const ws4Polygons: MapPolygon[] = (() => {
     const polygons: MapPolygon[] = [];
-    for (let i = 0; i < activeMappedPoints.length - 1; i++) {
-      const a = activeMappedPoints[i];
-      const b = activeMappedPoints[i + 1];
-      const rA = roundedRValues[a.index];
-      const rB = roundedRValues[b.index];
-      if (rA <= 0 || rB <= 0) continue;
-      const course = bearingDeg(a.point, b.point);
-      const centerA = dreGeometryEnabled ? a.point : project(a.point, (course + 180) % 360, rA);
-      const centerB = dreGeometryEnabled ? b.point : project(b.point, course, rB);
-      const halfWidthA = dreGeometryEnabled ? rA : Math.max(rA, rB);
-      const halfWidthB = dreGeometryEnabled ? rB : Math.max(rA, rB);
+    for (const leg of legGeometries) {
+      if (!leg.trap.valid) continue;
+      const course = bearingDeg(leg.aPoint, leg.bPoint);
+      const baseA = project(leg.aPoint, (course + 180) % 360, leg.rANm);
+      const baseB = project(leg.bPoint, course, leg.rBNm);
+      const left = (course + 270) % 360;
+      const right = (course + 90) % 360;
       polygons.push({
         points: [
-          project(centerA, (course + 270) % 360, halfWidthA),
-          project(centerB, (course + 270) % 360, halfWidthB),
-          project(centerB, (course + 90) % 360, halfWidthB),
-          project(centerA, (course + 90) % 360, halfWidthA),
+          project(baseA, left, leg.trap.wANm),
+          project(baseB, left, leg.trap.wBNm),
+          project(baseB, right, leg.trap.wBNm),
+          project(baseA, right, leg.trap.wANm),
         ],
-        color: dreGeometryEnabled ? '#7c3aed' : '#0f766e', fillColor: dreGeometryEnabled ? '#7c3aed' : '#0f766e', fillOpacity: 0.06,
-        label: dreGeometryEnabled ? `Trapezium DRe ${String.fromCharCode(65 + a.index)}–${String.fromCharCode(65 + b.index)}` : `Koridor pencarian ${String.fromCharCode(65 + a.index)}–${String.fromCharCode(65 + b.index)}`,
+        color: '#0f766e', fillColor: '#0f766e', fillOpacity: 0.06,
+        label: `Search Area ${leg.labelA}–${leg.labelB} · trapesium ${leg.trap.areaSqNm.toFixed(2)} NM²`,
       });
     }
     return polygons;
-  }, [activeMappedPoints, dreGeometryEnabled, roundedRValues]);
+  })();
 
   const handlePrint = () => {
     if (typeof window !== 'undefined') window.print();
@@ -348,7 +410,28 @@ export default function Worksheet4({
               />
               <label className="text-[10px] text-slate-600 font-mono mt-1 flex items-center gap-1">
                 Nav Error (y):
-                <input type="number" min="0" step="0.1" value={yNavError} disabled={readOnly} onChange={(e) => setYNavError(Number(e.target.value) || 0)} className="w-14 border-b border-dotted border-slate-500 bg-white px-1 text-right font-bold text-blue-900" /> NM
+                <select
+                  value={ySource}
+                  disabled={readOnly}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    setYSource(id);
+                    if (id !== 'custom') {
+                      const option = LAND_SRU_NAV_OPTIONS.find((item) => item.id === id);
+                      if (option) setYNavError(option.value);
+                    }
+                  }}
+                  className="border-b border-dotted border-slate-500 bg-white px-1 text-right font-bold text-blue-900"
+                >
+                  {LAND_SRU_NAV_OPTIONS.map((option) => (
+                    <option key={option.id} value={option.id}>{option.label}</option>
+                  ))}
+                  <option value="custom">Custom (SMC)…</option>
+                </select>
+                {ySource === 'custom' && (
+                  <input type="number" min="0" step="0.1" value={yNavError} disabled={readOnly} onChange={(e) => setYNavError(Number(e.target.value) || 0)} className="w-14 border-b border-dotted border-slate-500 bg-white px-1 text-right font-bold text-blue-900" />
+                )}
+                NM
               </label>
             </div>
           </div>
@@ -385,16 +468,20 @@ export default function Worksheet4({
             </section>
 
             <section className="space-y-2">
-              <h3 className="font-bold text-slate-800">Navigational Error Target (x)</h3>
+              <h3 className="font-bold text-slate-800">Navigational Error Target (x) — Tabel J-2 + J-3</h3>
               <label className="flex flex-wrap items-center gap-2">
-                <span>Metode navigasi target:</span>
+                <span>Navigasi pesawat target:</span>
                 <select value={targetNavigationType ?? ''} disabled={readOnly} onChange={(e) => setTargetNavigationType((e.target.value || null) as Worksheet4TargetNavigation | null)} className="rounded border border-slate-300 bg-white px-2 py-1 font-semibold text-blue-900">
-                  <option value="">-</option><option value="self-contained">GPS / self-contained (5 NM)</option><option value="other-aircraft">Aircraft other / non-GPS (10 NM)</option><option value="dead-reckoning">Dead Reckoning (base fix + 10% Tr)</option><option value="custom">Nilai custom dari planner</option>
+                  <option value="">-</option>
+                  <option value="gps">GPS → x₀ = 5 NM (Tabel J-2)</option>
+                  <option value="non-gps">Non-GPS → x₀ = 10 NM (Tabel J-2)</option>
+                  <option value="custom">Nilai x₀ manual planner (SMC)</option>
                 </select>
               </label>
-              {(targetNavigationType === 'dead-reckoning' || targetNavigationType === 'custom') && <div className="text-[10px] text-slate-600">Masukkan base fix error tiap posisi di baris x. Untuk DR, sistem menambahkan 10% dari Tr kumulatif.</div>}
-              {targetNavigationType === 'dead-reckoning' && <label className="flex items-center gap-2 text-[10px] text-slate-700"><input type="checkbox" checked={applyDre} disabled={readOnly} onChange={(e) => setApplyDre(e.target.checked)} /> Gunakan geometri trapezium DRe di peta (hanya jika disetujui planner/SOP)</label>}
-              <p className="text-[10px] text-slate-500">Baseline 5/10 NM mengikuti klasifikasi target pada Appendix J-2. Error navigasi SRU (y) diisi dari kemampuan navigasinya, bukan angka contoh default.</p>
+              {targetNavigationType === 'custom' && <div className="text-[10px] text-slate-600">Masukkan x₀ tiap posisi di baris x (Appendix J: nilai minimum boleh dinaikkan SMC). DR 10% × Tr tidak ditambahkan otomatis pada mode ini.</div>}
+              {targetNavigationType === 'gps' && <p className="text-[10px] text-slate-600">x = 5 NM + 10% × Tr (DR Tabel J-3 pesawat, tetap diterapkan).</p>}
+              {targetNavigationType === 'non-gps' && <p className="text-[10px] text-slate-600">x = 10 NM + 10% × Tr (DR Tabel J-3 pesawat, tetap diterapkan).</p>}
+              <p className="text-[10px] text-slate-500">x₀ mengikuti Tabel J-2 (pesawat): GPS/self-contained 5 NM, non-GPS 10 NM. Error navigasi SRU (y) diisi dari Tabel J-1.</p>
             </section>
           </div>
 
@@ -448,19 +535,19 @@ export default function Worksheet4({
                 ))}
               </tr>
 
-              {/* Row 2: Distress Craft Position Error (Fix+10%Tr) (x) */}
+              {/* Row 2: Distress Craft Position Error (x₀ + 10%Tr) (x) */}
               <tr>
                 <td className="py-2 px-3 font-medium text-slate-800 border-r border-slate-300">
                   <div>Target Navigation Error (x)</div>
                   <div className="text-[10px] text-slate-500 font-mono">
-                    {targetNavigationType === 'dead-reckoning' ? 'x = base fix error + 0.10 × Tr' : targetNavigationType === 'self-contained' ? 'x = 5 NM (Appendix J-2)' : targetNavigationType === 'other-aircraft' ? 'x = 10 NM (Appendix J-2)' : targetNavigationType === 'custom' ? 'x = planner baseline' : 'Pilih metode navigasi target'}
+                    {targetNavigationType === 'gps' ? 'x = 5 NM + 0.10 × Tr (Tabel J-2 + J-3)' : targetNavigationType === 'non-gps' ? 'x = 10 NM + 0.10 × Tr (Tabel J-2 + J-3)' : targetNavigationType === 'custom' ? 'x = x₀ manual planner (SMC)' : 'Pilih navigasi pesawat target'}
                   </div>
                 </td>
                 {xValues.map((x, i) => (
                   <td key={i} className="py-2 px-2 text-center border-r border-slate-300 last:border-r-0 font-mono font-bold text-blue-900">
                     <div>{x.toFixed(1)} <span className="text-[10px] font-normal text-slate-600">NM</span></div>
-                    {(targetNavigationType === 'dead-reckoning' || targetNavigationType === 'custom') && <label className="mt-1 flex items-center justify-center gap-1 text-[9px] font-normal text-slate-500">
-                      Base Fix Err
+                    {targetNavigationType === 'custom' && <label className="mt-1 flex items-center justify-center gap-1 text-[9px] font-normal text-slate-500">
+                      x₀
                       <input type="number" min="0" step="0.1" value={fixErrors[i]} disabled={readOnly} onChange={(e) => {
                         const value = Number(e.target.value) || 0;
                         setFixErrors((prev) => { const next = [...prev] as [number, number, number, number]; next[i] = value; return next; });
@@ -500,10 +587,11 @@ export default function Worksheet4({
                 ))}
               </tr>
 
-              {/* Row 5: Safety Factor (fs) */}
+              {/* Row 5: Safety Factor (fs) — pencarian ke-n */}
               <tr>
                 <td className="py-2 px-3 font-medium text-slate-800 border-r border-slate-300">
-                  Safety Factor for this search (1.1; 1.6; 2.0; 2.3; 2.5) (fs)
+                  <div>Safety Factor for this search (fs)</div>
+                  <div className="text-[10px] text-slate-500 font-mono">Pencarian ke-1…ke-5: 1.1; 1.8; 2.0; 2.3; 2.6</div>
                 </td>
                 {trList.map((_, i) => (
                   <td key={i} className="py-2 px-2 text-center border-r border-slate-300 last:border-r-0">
@@ -512,18 +600,16 @@ export default function Worksheet4({
                         value={safetyFactor}
                         disabled={readOnly}
                         suppressHydrationWarning
-                        onChange={(e) => setSafetyFactor(Number(e.target.value) || 1.1)}
+                        onChange={(e) => setSafetyFactor(Number(e.target.value) || 0)}
                         className="font-bold text-blue-900 bg-white border border-slate-300 rounded px-1 py-0.5 text-xs font-mono"
                       >
-                        <option value="0">0</option>
-                        <option value="1.1">1.1</option>
-                        <option value="1.6">1.6</option>
-                        <option value="2.0">2.0</option>
-                        <option value="2.3">2.3</option>
-                        <option value="2.5">2.5</option>
+                        <option value="0">-</option>
+                        {LAND_FS_OPTIONS.map((option, index) => (
+                          <option key={option} value={option}>ke-{index + 1} (fs {option.toFixed(1)})</option>
+                        ))}
                       </select>
                     ) : (
-                      <span className="font-bold text-blue-900 font-mono">{safetyFactor}</span>
+                      <span className="font-bold text-blue-900 font-mono">{safetyFactor || '-'}</span>
                     )}
                   </td>
                 ))}
@@ -555,22 +641,68 @@ export default function Worksheet4({
             </tbody>
           </table>
 
-          {(!targetNavigationType || yNavError <= 0 || safetyFactor <= 0 || ((targetNavigationType === 'dead-reckoning' || targetNavigationType === 'custom') && fixErrors.some((value) => value <= 0))) && <div role="status" className="border-b border-amber-300 bg-amber-50 px-3 py-2 text-[10px] text-amber-900">
+          {(!targetNavigationType || yNavError <= 0 || safetyFactor <= 0 || (targetNavigationType === 'custom' && fixErrors.some((value) => value <= 0))) && <div role="status" className="border-b border-amber-300 bg-amber-50 px-3 py-2 text-[10px] text-amber-900">
             {[
-              !targetNavigationType && 'Pilih metode navigasi target.',
-              (targetNavigationType === 'dead-reckoning' || targetNavigationType === 'custom') && fixErrors.some((value) => value <= 0) && 'Masukkan base fix error yang diketahui pada setiap posisi DR/custom.',
-              yNavError <= 0 && 'Masukkan Search Craft Navigation Error (y) dari data navigasi SRU.',
-              safetyFactor <= 0 && 'Pilih Safety Factor sebelum radius dianggap selesai.',
+              !targetNavigationType && 'Pilih navigasi pesawat target (Tabel J-2).',
+              targetNavigationType === 'custom' && fixErrors.some((value) => value <= 0) && 'Masukkan x₀ manual pada setiap posisi untuk mode SMC.',
+              yNavError <= 0 && 'Pilih sarana navigasi SRU (y) dari Tabel J-1 atau isi nilai custom.',
+              safetyFactor <= 0 && 'Pilih nomor pencarian (fs) sebelum radius dianggap selesai.',
             ].filter(Boolean).join(' ')}
           </div>}
 
           <section className="border-b-2 border-slate-900 p-3">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <div>
-                <h3 className="text-sm font-bold text-slate-900">Peta udara Worksheet 4 · OpenAIP</h3>
-                <p className="text-[10px] text-slate-600">Peta ini berdiri sendiri dan tidak berbagi layer dengan peta Worksheet 1. Lingkaran memakai Rounded up Radius.</p>
+                <h3 className="text-sm font-bold text-slate-900">Bentuk &amp; Luas Search Area (Trapesium)</h3>
+                <p className="text-[10px] text-slate-600">Possibility area: lingkaran R di tiap titik. Search area: trapesium dari dua garis singgung luar + dua garis penutup tegak lurus rute (slide 9 &amp; 13), bukan persegi 2R.</p>
               </div>
-              {dreGeometryEnabled && <span className="rounded bg-violet-100 px-2 py-1 text-[10px] font-semibold text-violet-900">Geometri DRe aktif atas pilihan planner</span>}
+              <div className="rounded bg-teal-50 border border-teal-200 px-3 py-1.5 text-right">
+                <div className="text-[10px] font-semibold text-teal-800 uppercase tracking-wide">Total luas search area</div>
+                <div className="text-sm font-black font-mono text-teal-900">{totalSearchAreaSqNm.toFixed(2)} NM²</div>
+              </div>
+            </div>
+            {singlePointIndex !== null && roundedRValues[singlePointIndex] > 0 && (
+              <p className="text-[11px] text-slate-700">Satu titik aktif ({String.fromCharCode(65 + singlePointIndex)}): possibility area = lingkaran R = {roundedRValues[singlePointIndex]} NM, luas = πR² = {possibilityCircleAreaSqNm(roundedRValues[singlePointIndex]).toFixed(2)} NM².</p>
+            )}
+            {legGeometries.length > 0 && (
+              <table className="w-full border-collapse text-[11px] mt-1">
+                <thead>
+                  <tr className="bg-slate-100 text-slate-700">
+                    <th className="border border-slate-300 px-2 py-1 text-left">Leg</th>
+                    <th className="border border-slate-300 px-2 py-1 text-right">d (NM)</th>
+                    <th className="border border-slate-300 px-2 py-1 text-right">R_A (NM)</th>
+                    <th className="border border-slate-300 px-2 py-1 text-right">R_B (NM)</th>
+                    <th className="border border-slate-300 px-2 py-1 text-right">a (NM)</th>
+                    <th className="border border-slate-300 px-2 py-1 text-right">b (NM)</th>
+                    <th className="border border-slate-300 px-2 py-1 text-right">h (NM)</th>
+                    <th className="border border-slate-300 px-2 py-1 text-right">L = (a+b)×h/2 (NM²)</th>
+                  </tr>
+                </thead>
+                <tbody className="font-mono">
+                  {legGeometries.map((leg, i) => (
+                    <tr key={`${leg.labelA}-${leg.labelB}`} className={i % 2 === 1 ? 'bg-slate-50' : ''}>
+                      <td className="border border-slate-300 px-2 py-1 font-bold">{leg.labelA}–{leg.labelB}{leg.trap.degenerate && <span className="ml-1 text-[9px] text-amber-700">(degenerate)</span>}</td>
+                      <td className="border border-slate-300 px-2 py-1 text-right">{leg.dNm.toFixed(2)}</td>
+                      <td className="border border-slate-300 px-2 py-1 text-right">{leg.rANm}</td>
+                      <td className="border border-slate-300 px-2 py-1 text-right">{leg.rBNm}</td>
+                      <td className="border border-slate-300 px-2 py-1 text-right">{leg.trap.valid ? leg.trap.aNm.toFixed(2) : '-'}</td>
+                      <td className="border border-slate-300 px-2 py-1 text-right">{leg.trap.valid ? leg.trap.bNm.toFixed(2) : '-'}</td>
+                      <td className="border border-slate-300 px-2 py-1 text-right">{leg.trap.valid ? leg.trap.hNm.toFixed(2) : '-'}</td>
+                      <td className="border border-slate-300 px-2 py-1 text-right font-bold">{leg.trap.valid ? leg.trap.areaSqNm.toFixed(2) : '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            <p className="mt-2 text-[10px] text-slate-500">a, b, dan h dihitung dari geometri trapesium eksak (setara pengukuran trapesium di peta dengan skala sesuai langkah gambar 1–7 panduan), bukan dari 2R. Rute lebih dari dua titik: luas tiap trapesium dihitung terpisah lalu dijumlahkan.</p>
+          </section>
+
+          <section className="border-b-2 border-slate-900 p-3">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Peta udara Worksheet 4 · OpenAIP</h3>
+                <p className="text-[10px] text-slate-600">Peta ini berdiri sendiri dan tidak berbagi layer dengan peta Worksheet 1. Lingkaran memakai Rounded up Radius; trapesium search area digambar dari garis singgung luar kedua lingkaran.</p>
+              </div>
             </div>
             <Worksheet4Map
               center={mapCenter}
@@ -582,7 +714,7 @@ export default function Worksheet4({
               height="520px"
             />
             {activeMappedPoints.length === 0 && <p className="mt-2 text-[10px] text-amber-800">Masukkan koordinat waypoint A–D agar radius dan area koridor dapat ditampilkan.</p>}
-            <p className="mt-2 text-[10px] text-slate-500">Garis dan jarak segmen dapat ditelusuri dari waypoint. Tanpa DRe, peta menampilkan koridor persegi; trapezium hanya muncul saat DRe diaktifkan planner.</p>
+            <p className="mt-2 text-[10px] text-slate-500">Garis dan jarak segmen dapat ditelusuri dari waypoint. Trapesium search area (hijau) dibentuk dari dua garis singgung luar lingkaran possibility area dan dua garis penutup tegak lurus garis rute.</p>
             <p className="mt-1 text-[10px] text-amber-800">OpenAIP dikelola komunitas. Verifikasi data dengan AIP Indonesia; peta ini alat bantu dan tidak menggantikan penilaian SAR Mission Coordinator maupun prosedur resmi.</p>
           </section>
 
