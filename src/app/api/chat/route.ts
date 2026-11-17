@@ -608,7 +608,11 @@ const tools: FunctionDeclaration[] = [
 
 const GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.5-flash-lite'] as const;
 const MAX_RETRIES_PER_MODEL = 1;
-const GEMINI_REQUEST_TIMEOUT_MS = 45_000;
+// Timeout per percobaan dinaikkan: lampiran besar + prompt panjang dapat melewati 45s
+// (kasus nyata: "Gemini gemini-3.5-flash-lite tidak merespons dalam 45 detik").
+const GEMINI_REQUEST_TIMEOUT_MS = 120_000;
+// Anggaran waktu total SEMUA percobaan (3 model × 2 percobaan) — di bawah maxDuration 300s.
+const GEMINI_TOTAL_BUDGET_MS = 240_000;
 const WORKSHEET_TOOL_NAMES = ['set_asw_case', 'set_awa_case', 'set_aero_drift_case', 'set_lkp', 'set_datum_case', 'set_ws2_case', 'set_ws3_case', 'set_ws4_case', 'set_ws8_case', 'set_search_pattern_case', 'set_intercept_case', 'ask_for_case_data'];
 
 /**
@@ -831,11 +835,20 @@ ATURAN MEMORI WORKSPACE:
       ]));
     };
     const geminiStartedAt = Date.now();
+    // Anggaran waktu total: semua model × semua percobaan dihentikan bila tercapai.
+    const geminiDeadlineMs = geminiStartedAt + GEMINI_TOTAL_BUDGET_MS;
+    const triedModels: string[] = [];
     let result: Record<string, unknown> | undefined;
     let lastError: Error | undefined;
     let usedModel: (typeof GEMINI_MODELS)[number] = GEMINI_MODELS[0];
     for (const model of GEMINI_MODELS) {
+      triedModels.push(model);
       for (let attempt = 0; attempt <= MAX_RETRIES_PER_MODEL; attempt += 1) {
+        if (Date.now() >= geminiDeadlineMs) {
+          lastError = lastError ?? new Error(`Anggaran waktu permintaan Gemini (${GEMINI_TOTAL_BUDGET_MS / 1000} detik) tercapai.`);
+          console.warn(`[AI chat] Anggaran waktu Gemini habis (budgetMs=${GEMINI_TOTAL_BUDGET_MS}); percobaan dihentikan.`);
+          break;
+        }
         console.info(`[AI chat] Gemini request started (model=${model}, attempt=${attempt + 1}, files=${incomingFiles.length}).`);
         try {
           const response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
@@ -880,8 +893,10 @@ ATURAN MEMORI WORKSPACE:
           if (requestError instanceof Error && requestError.message.includes('(model:')) throw requestError;
           if (requestError instanceof Error && (requestError.name === 'TimeoutError' || requestError.name === 'AbortError')) {
             lastError = new Error(`Gemini ${model} tidak merespons dalam ${GEMINI_REQUEST_TIMEOUT_MS / 1000} detik.`);
-            console.warn(`[AI chat] Gemini request timed out (model=${model}, timeoutMs=${GEMINI_REQUEST_TIMEOUT_MS}).`);
-            break;
+            console.warn(`[AI chat] Gemini request timed out (model=${model}, attempt=${attempt + 1}, timeoutMs=${GEMINI_REQUEST_TIMEOUT_MS}).`);
+            // Timeout = galat sementara: lanjut ke percobaan berikutnya (backoff di
+            // bawah) selama anggaran waktu total tersedia — JANGAN langsung pindah
+            // model, sebelumnya `break` di sini membuat percobaan kedua tidak pernah jalan.
           }
           lastError = requestError instanceof Error ? requestError : new Error('Koneksi ke Gemini gagal.');
         }
@@ -891,10 +906,13 @@ ATURAN MEMORI WORKSPACE:
         }
       }
       if (result) break;
+      if (Date.now() >= geminiDeadlineMs) break;
       console.warn(`[AI chat] Model ${model} gagal; mencoba fallback berikutnya jika tersedia.`);
     }
     if (!result) {
-      throw new Error(lastError?.message || 'Gemini sedang sibuk. Silakan coba lagi beberapa saat lagi.');
+      const base = lastError?.message || 'Gemini sedang sibuk. Silakan coba lagi beberapa saat lagi.';
+      const triedNote = triedModels.length > 1 ? ` Model yang sudah dicoba: ${triedModels.join(', ')}.` : '';
+      throw new Error(`${base}${triedNote} Coba kirim ulang pesan Anda; bila terus gagal, periksa koneksi internet atau lampirkan berkas yang lebih kecil.`);
     }
 
     if (!Array.isArray(result.steps)) {
