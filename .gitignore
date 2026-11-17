@@ -57,6 +57,11 @@ server.log
 # Scratch & temporary extraction scripts
 *.py
 !scripts/build_onc_mef.py
+!build_mef.py
+!test_build_mef.py
+.mef_cache/
+.pytest_cache/
+__pycache__/
 check_*.js
 dump_*.js
 fix_*.js

@@ -54,8 +54,52 @@ const MEF_LAYER_IDS = ['worksheet4-mef-fill', 'worksheet4-mef-outline', 'workshe
 const ONC_SCAN_TILE_URL = process.env.NEXT_PUBLIC_ONC_SCAN_TILE_URL?.trim() ?? '';
 const MEF_WARNING = 'MEF turunan DEM, bukan angka resmi ONC. Jangan dijadikan satu-satunya acuan keselamatan penerbangan.';
 type MefGridSize = '1deg' | '30min' | '15min';
+type MefDocument = FeatureCollection<Geometry, GeoJsonProperties> & {
+  metadata?: { cell_arcmin?: number; source?: string; generated_at?: string; disclaimer?: string };
+};
 
 const EMPTY_GEOJSON: FeatureCollection<Geometry, GeoJsonProperties> = { type: 'FeatureCollection', features: [] };
+const GRID_ARCMIN: Record<MefGridSize, number> = { '1deg': 60, '30min': 30, '15min': 15 };
+const SUPER_DIGITS = ['⁰', '¹', '²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹'];
+
+function normalizeMefDocument(document: MefDocument, gridSize: MefGridSize): FeatureCollection<Geometry, GeoJsonProperties> {
+  const cellArcmin = document.metadata?.cell_arcmin ?? GRID_ARCMIN[gridSize];
+  return {
+    ...document,
+    features: document.features.map((feature) => {
+      const properties = (feature.properties ?? {}) as Record<string, unknown>;
+      const mefFeet = Number(properties.mef_ft ?? 0);
+      const formatted = formatMefFeet(mefFeet);
+      const [west, south, east, north] = feature.geometry.type === 'Polygon'
+        ? [
+            feature.geometry.coordinates[0]?.[0]?.[0],
+            feature.geometry.coordinates[0]?.[0]?.[1],
+            feature.geometry.coordinates[0]?.[2]?.[0],
+            feature.geometry.coordinates[0]?.[2]?.[1],
+          ]
+        : [undefined, undefined, undefined, undefined];
+      return {
+        ...feature,
+        properties: {
+          ...properties,
+          max_elev_m: properties.max_elev_m ?? properties.max_m,
+          max_elev_ft: properties.max_elev_ft ?? properties.max_ft,
+          mef_large: properties.mef_large ?? properties.thousands ?? formatted.large,
+          mef_hundreds_superscript: properties.mef_hundreds_superscript
+            ?? SUPER_DIGITS[Number(properties.hundreds ?? formatted.hundreds)],
+          mef_label: properties.mef_label ?? properties.label ?? formatted.label,
+          grid_size_deg: properties.grid_size_deg ?? cellArcmin / 60,
+          west: properties.west ?? west,
+          south: properties.south ?? south,
+          east: properties.east ?? east,
+          north: properties.north ?? north,
+          dem_source: properties.dem_source ?? properties.source ?? document.metadata?.source,
+          dem_date: properties.dem_date ?? document.metadata?.generated_at,
+        },
+      };
+    }),
+  };
+}
 
 function rasterStyle(choice: BasemapChoice): maplibregl.StyleSpecification {
   const isTopo = choice === 'opentopomap';
@@ -80,7 +124,8 @@ function rasterStyle(choice: BasemapChoice): maplibregl.StyleSpecification {
         maxzoom: 17,
       },
     },
-    glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
+    // MapLibre GL JS 5.11+ can use local fonts when `glyphs` is omitted.
+    // Avoid the demo glyph endpoint, which currently returns 404 for these ranges.
     layers: [{ id: 'basemap-raster', type: 'raster', source: 'basemap' }],
   };
 }
@@ -253,10 +298,10 @@ function addGraticuleLayers(map: maplibregl.Map, visible: boolean): void {
   if (!map.getLayer('worksheet4-graticule-ticks')) {
     map.addLayer({
       id: 'worksheet4-graticule-ticks', type: 'line', source: GRATICULE_SOURCE_ID,
-      filter: ['in', ['get', 'kind'], ['literal', ['tick-10', 'tick-5', 'tick-1']]],
+      filter: ['==', ['get', 'kind'], 'tick'],
       paint: {
         'line-color': '#254866',
-        'line-width': ['match', ['get', 'kind'], 'tick-10', 1.4, 'tick-5', 1.1, 0.8],
+        'line-width': ['match', ['get', 'tickMinutes'], 10, 1.4, 5, 1.1, 0.8],
         'line-opacity': 0.8,
       },
       layout: { visibility },
@@ -284,10 +329,10 @@ function addGraticuleLayers(map: maplibregl.Map, visible: boolean): void {
       paint: { 'text-color': '#294e6b', 'text-halo-color': '#fff', 'text-halo-width': 2, 'text-opacity': 0.95 },
     });
   };
-  addLabelLayer('worksheet4-graticule-degree-lon', ['all', ['==', ['get', 'kind'], 'degree-label'], ['==', ['get', 'axis'], 'longitude']], 'top', 11);
-  addLabelLayer('worksheet4-graticule-degree-lat', ['all', ['==', ['get', 'kind'], 'degree-label'], ['==', ['get', 'axis'], 'latitude']], 'left', 11);
-  addLabelLayer('worksheet4-graticule-minute-horizontal', ['all', ['==', ['get', 'kind'], 'minute-label'], ['==', ['get', 'axis'], 'longitude']], 'center', 9);
-  addLabelLayer('worksheet4-graticule-minute-vertical', ['all', ['==', ['get', 'kind'], 'minute-label'], ['==', ['get', 'axis'], 'latitude']], 'center', 9);
+  addLabelLayer('worksheet4-graticule-degree-lon', ['all', ['==', ['get', 'kind'], 'degree-label'], ['==', ['get', 'axis'], 'longitude']], 'center', 10);
+  addLabelLayer('worksheet4-graticule-degree-lat', ['all', ['==', ['get', 'kind'], 'degree-label'], ['==', ['get', 'axis'], 'latitude']], 'center', 10);
+  addLabelLayer('worksheet4-graticule-minute-horizontal', ['all', ['==', ['get', 'kind'], 'minute-label'], ['==', ['get', 'axis'], 'longitude']], 'center', 8);
+  addLabelLayer('worksheet4-graticule-minute-vertical', ['all', ['==', ['get', 'kind'], 'minute-label'], ['==', ['get', 'axis'], 'latitude']], 'center', 8);
 }
 
 function addMefLayers(map: maplibregl.Map, visible: boolean): void {
@@ -380,6 +425,7 @@ export default function Worksheet4MapLibre({
   const [mefStatus, setMefStatus] = useState('');
   const [scanVisible, setScanVisible] = useState(false);
   const [scanOpacity, setScanOpacity] = useState(0.55);
+  const [hideAll, setHideAll] = useState(false);
   const mefVisibleRef = useRef(mefVisible);
   const [cursor, setCursor] = useState('');
   const [tileError, setTileError] = useState('');
@@ -391,6 +437,18 @@ export default function Worksheet4MapLibre({
   useEffect(() => {
     mefVisibleRef.current = mefVisible;
   }, [mefVisible]);
+
+  useEffect(() => {
+    const handleShortcut = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() !== 'h' || event.altKey || event.ctrlKey || event.metaKey) return;
+      const target = event.target;
+      if (target instanceof HTMLElement && (target.isContentEditable || target.matches('input, textarea, select, button'))) return;
+      event.preventDefault();
+      setHideAll((current) => !current);
+    };
+    window.addEventListener('keydown', handleShortcut);
+    return () => window.removeEventListener('keydown', handleShortcut);
+  }, []);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -406,7 +464,7 @@ export default function Worksheet4MapLibre({
     map.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'top-right');
     map.addControl(new maplibregl.FullscreenControl(), 'top-right');
     map.addControl(new maplibregl.ScaleControl({ maxWidth: 140, unit: 'nautical' }), 'bottom-left');
-    map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
+    map.addControl(new maplibregl.AttributionControl({ compact: false }), 'bottom-right');
     let gridTimer: ReturnType<typeof setTimeout> | undefined;
     const updateGraticule = () => {
       if (gridTimer) clearTimeout(gridTimer);
@@ -438,7 +496,8 @@ export default function Worksheet4MapLibre({
     map.on('error', (event) => {
       const detail = event as unknown as { sourceId?: string; error?: Error; url?: string; request?: { url?: string } };
       const message = [detail.error?.message, detail.url, detail.request?.url].filter(Boolean).join(' ');
-      if (detail.sourceId !== AIRPORT_SOURCE_ID && !message.includes('/api/tiles/openaip/')) return;
+      // Glyph/font failures can carry the airport source id too; only report actual proxy tile failures.
+      if (!message.includes('/api/tiles/openaip/')) return;
       setTileError(/429|rate/i.test(message)
         ? 'OpenAIP membatasi permintaan tile. Coba lagi beberapa saat.'
         : 'Layer bandara OpenAIP gagal dimuat. Periksa konfigurasi OPENAIP_API_KEY dan koneksi.');
@@ -482,36 +541,47 @@ export default function Worksheet4MapLibre({
   useEffect(() => {
     if (!mefVisible) return;
     const controller = new AbortController();
-    fetch(`/data/onc/mef/mef-${mefGridSize}.geojson`, { signal: controller.signal })
+    const fileName = `/data/mef_${GRID_ARCMIN[mefGridSize]}min.geojson`;
+    console.info(`[Worksheet 4 MEF] Meminta dataset: ${fileName}`);
+    fetch(fileName, { signal: controller.signal })
       .then(async (response) => {
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return response.json() as Promise<FeatureCollection<Geometry, GeoJsonProperties>>;
+        if (!response.ok) {
+          const error = new Error(`HTTP ${response.status} untuk ${fileName}`);
+          Object.assign(error, { status: response.status });
+          throw error;
+        }
+        return response.json() as Promise<MefDocument>;
       })
-      .then((collection) => {
-        if (collection.type !== 'FeatureCollection' || !Array.isArray(collection.features)) throw new Error('Format GeoJSON tidak valid');
+      .then((document) => {
+        if (document.type !== 'FeatureCollection' || !Array.isArray(document.features)) throw new Error(`Format GeoJSON tidak valid: ${fileName}`);
+        const collection = normalizeMefDocument(document, mefGridSize);
         setMefData(collection);
         setMefStatus(collection.features.length
-          ? `${collection.features.length.toLocaleString('id-ID')} sel MEF dimuat.`
-          : 'File MEF ada, tetapi belum berisi sel. Jalankan skrip pra-proses DEM.');
+          ? `${collection.features.length.toLocaleString('id-ID')} sel MEF dimuat dari ${fileName}.`
+          : `File ${fileName} tersedia, tetapi belum berisi sel daratan.`);
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
         setMefData(null);
-        setMefStatus(`Dataset MEF belum tersedia (${error instanceof Error ? error.message : 'gagal dimuat'}). Pra-proses DEM sesuai dokumentasi.`);
+        const detail = error instanceof Error ? error.message : 'kesalahan tidak diketahui';
+        const status = typeof error === 'object' && error !== null && 'status' in error ? error.status : undefined;
+        setMefStatus(status === 404
+          ? `Dataset MEF belum tersedia: ${fileName}. Buat dengan: python build_mef.py --bbox 117 -4 120 0 --out public/data`
+          : `Gagal memuat ${fileName}: ${detail}`);
       });
     return () => controller.abort();
   }, [mefGridSize, mefVisible]);
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !styleReady) return;
+    if (!map || !styleReady || !map.isStyleLoaded()) return;
     const source = map.getSource(MEF_SOURCE_ID);
     if (source?.type === 'geojson') (source as maplibregl.GeoJSONSource).setData(mefData ?? EMPTY_GEOJSON);
   }, [mefData, styleReady]);
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !styleReady) return;
+    if (!map || !styleReady || !map.isStyleLoaded()) return;
     for (const layerId of GRATICULE_LAYER_IDS) {
       if (map.getLayer(layerId)) map.setLayoutProperty(layerId, 'visibility', graticuleVisible ? 'visible' : 'none');
     }
@@ -548,12 +618,22 @@ export default function Worksheet4MapLibre({
 
   useEffect(() => {
     const map = mapRef.current;
-    if (map) map.easeTo({ center: [center.lng, center.lat], zoom, duration: 350 });
+    if (!map) return;
+    const applyCamera = () => {
+      if (mapRef.current === map && map.isStyleLoaded()) {
+        map.easeTo({ center: [center.lng, center.lat], zoom, duration: 350 });
+      }
+    };
+    if (map.isStyleLoaded()) applyCamera();
+    else map.once('load', applyCamera);
+    return () => {
+      map.off('load', applyCamera);
+    };
   }, [center.lat, center.lng, zoom]);
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !styleReady) return;
+    if (!map || !styleReady || !map.isStyleLoaded()) return;
     const collection = overlaysToGeoJSON(markers, lines, polygons, circles);
     if (map.getLayer('worksheet4-fill')) map.removeLayer('worksheet4-fill');
     if (map.getLayer('worksheet4-outline')) map.removeLayer('worksheet4-outline');
@@ -571,10 +651,10 @@ export default function Worksheet4MapLibre({
   }, [styleReady, markers, lines, polygons, circles, airportsVisible]);
 
   return (
-    <div className="w-full">
+    <div className={`w-full ${hideAll ? 'worksheet4-map-hide-all' : ''}`}>
     <div className="relative overflow-hidden rounded-md border border-slate-300" style={{ height, width: '100%' }}>
       <div ref={containerRef} className="h-full w-full" style={{ height: '100%', width: '100%' }} role="application" aria-label="Peta Worksheet 4 dengan overlay graticule ONC dan MEF turunan DEM" />
-      <div className="absolute left-2 top-2 z-10 flex max-w-[calc(100%-1rem)] flex-wrap items-center gap-1 rounded bg-white/95 p-1.5 shadow">
+      <div className={`worksheet4-overlay-panel absolute left-2 top-2 z-10 flex max-w-[calc(100%-1rem)] flex-wrap items-center gap-1 rounded bg-white/95 p-1.5 shadow transition-opacity duration-200 ${hideAll ? 'pointer-events-none opacity-0' : 'opacity-100'}`}>
         <label className="sr-only" htmlFor="worksheet4-basemap">Basemap</label>
         <select id="worksheet4-basemap" value={basemap} onChange={(event) => setBasemap(event.target.value as BasemapChoice)} className="rounded border border-slate-300 bg-white px-2 py-1 text-xs">
           <option value="osm">OpenStreetMap</option>
@@ -608,15 +688,46 @@ export default function Worksheet4MapLibre({
           </label>
         </> : null}
       </div>
-      <div className="pointer-events-none absolute bottom-8 right-2 z-10 rounded border border-slate-400 bg-white/95 px-2 py-1 text-right font-mono text-[9px] leading-tight text-slate-900 shadow">
+      <div className={`worksheet4-overlay-panel pointer-events-none absolute bottom-8 right-2 z-10 rounded border border-slate-400 bg-white/95 px-2 py-1 text-right font-mono text-[9px] leading-tight text-slate-900 shadow transition-opacity duration-200 ${hideAll ? 'opacity-0' : 'opacity-100'}`}>
         <div className="font-bold">ONC 1:1.000.000</div>
         <div>1 cm = 10 km · rasio cetak</div>
       </div>
-      {cursor && <div className="absolute left-2 bottom-11 z-10 max-w-[calc(100%-1rem)] rounded bg-white/95 px-2 py-1 font-mono text-[10px] text-slate-800 shadow" aria-live="polite">{cursor}</div>}
-      {tileError && <div role="status" className="absolute right-2 top-14 z-10 max-w-xs rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-950 shadow">{tileError}</div>}
+      {cursor && !hideAll && <div className="absolute left-2 bottom-11 z-10 max-w-[calc(100%-1rem)] rounded bg-white/95 px-2 py-1 font-mono text-[10px] text-slate-800 shadow" aria-live="polite">{cursor}</div>}
+      {tileError && !hideAll && <div role="status" className="absolute right-2 top-14 z-10 max-w-xs rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-950 shadow">{tileError}</div>}
+      <button
+        type="button"
+        onClick={() => setHideAll((current) => !current)}
+        aria-pressed={hideAll}
+        aria-label={hideAll ? 'Tampilkan semua panel peta' : 'Sembunyikan semua panel peta'}
+        title={`${hideAll ? 'Tampilkan' : 'Sembunyikan'} semua panel (H)`}
+        className={`absolute right-2 z-20 flex h-9 w-9 items-center justify-center rounded-md border border-slate-400 bg-white/95 text-slate-800 shadow transition-all duration-200 hover:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${hideAll ? 'top-2' : 'top-[100px]'}`}
+      >
+        <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
+          {hideAll ? <><path d="M2.5 12s3.3-6 9.5-6 9.5 6 9.5 6-3.3 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.6"/></> : <><path d="M3 3l18 18M10.6 6.2A9.8 9.8 0 0 1 12 6c6.2 0 9.5 6 9.5 6a15 15 0 0 1-3.1 3.6M6.2 6.3C3.8 7.9 2.5 12 2.5 12s3.3 6 9.5 6a9.7 9.7 0 0 0 3-.5"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></>}
+        </svg>
+      </button>
     </div>
-    {mefVisible && <div role="status" className="mt-1 rounded border border-slate-200 bg-white px-2 py-1 text-[10px] text-slate-700">{mefStatus || 'Memuat data MEF…'} {mefStatus && <span className="font-medium text-amber-900">{MEF_WARNING}</span>}</div>}
-    <p className="mt-1 text-[10px] leading-snug text-amber-800">{MEF_WARNING}</p>
+    {mefVisible && !hideAll && <div role="status" className="mt-1 rounded border border-slate-200 bg-white px-2 py-1 text-[10px] text-slate-700">{mefStatus || 'Memuat data MEF…'} {mefStatus && <span className="font-medium text-amber-900">{MEF_WARNING}</span>}</div>}
+    {!hideAll && <p className="mt-1 text-[10px] leading-snug text-amber-800">{MEF_WARNING}</p>}
+    <style jsx global>{`
+      .worksheet4-map-hide-all .maplibregl-ctrl-top-right,
+      .worksheet4-map-hide-all .maplibregl-ctrl-bottom-left {
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 180ms ease;
+      }
+      .maplibregl-ctrl-top-right,
+      .maplibregl-ctrl-bottom-left {
+        transition: opacity 180ms ease;
+      }
+      .maplibregl-ctrl-bottom-right .maplibregl-ctrl-attrib {
+        max-width: min(72vw, 520px);
+        padding: 2px 5px;
+        background: rgba(255, 255, 255, .88);
+        font-size: 9px;
+        line-height: 1.2;
+      }
+    `}</style>
     </div>
   );
 }

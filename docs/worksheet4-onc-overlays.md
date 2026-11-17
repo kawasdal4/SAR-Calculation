@@ -8,27 +8,29 @@ The viewport GeoJSON is regenerated after the map settles (debounced 120 ms), no
 
 ## Building the MEF data
 
-The repository intentionally contains no fabricated elevation cells. Download an elevation DEM and an Indonesia boundary polygon first. The preprocessor reads GeoTIFF or SRTM HGT tiles in blocks and writes static GeoJSON files to `public/data/onc/mef/`; the browser only loads the selected output. A WGS84 country mask is required so neighboring countries are not included.
+The repository contains `build_mef.py`, which downloads Copernicus COG tiles one at a time, reduces each to 15-minute maxima, deletes the temporary raster, and caches only the small reduced grid. Run a regional bbox first, inspect the resulting cells on the map, then run the default Indonesia bbox. The bbox is a rectangular envelope and can include neighboring countries and ocean-adjacent cells; verify border cells before operational use.
 
 Copernicus DEM GLO-30 is a 30 m **digital surface model** (DSM), not bare-earth terrain. Its source describes TanDEM-X acquisitions from 2011–2015. It is open data, with the Copernicus attribution notice required by its terms. SRTM is an alternative global elevation dataset acquired in 2000 and available through USGS download services. Record the actual product/tile release and acquisition date in `--source` and `--data-date`; do not use the default date label as a substitute for checking tile metadata.
 
-Install the preprocessing dependencies in a Python environment:
+Install the preprocessing dependencies from the repository root:
 
 ```powershell
-python -m pip install rasterio numpy shapely
+python -m pip install -r requirements.txt
 ```
 
-Place DEM rasters in a local folder and provide a WGS84 GeoJSON Feature or FeatureCollection containing the Indonesia boundary:
+Quick regional build for Mamuju / Sulawesi Barat:
 
 ```powershell
-python scripts/build_onc_mef.py `
-  --dem-dir data/dem/copernicus-glo30 `
-  --mask-geojson data/boundaries/indonesia.geojson `
-  --source "Copernicus DEM GLO-30" `
-  --data-date "Copernicus DEM release and tile acquisition dates"
+python build_mef.py --bbox 117 -4 120 0 --out public/data
 ```
 
-The script creates `mef-15min.geojson`, `mef-30min.geojson`, and `mef-1deg.geojson`. It stores maximum elevation in meters and feet, grid bounds, the source/date strings, and MEF rounded upward to the next 100 ft. Zero or negative maxima are displayed as `0⁰`; positive maxima below 100 ft round up to 100 ft (`0¹`). A value of 6,549 ft rounds to 6,600 ft (`6⁶`).
+If the regional output looks right, build the full Indonesia envelope:
+
+```powershell
+python build_mef.py --out public/data
+```
+
+Outputs are `public/data/mef_60min.geojson`, `mef_30min.geojson`, and `mef_15min.geojson`, corresponding to 1°, 30′, and 15′. Each cell stores max elevation in meters and feet, MEF, superscript components, source, and generation timestamp. Positive maxima below 100 ft round up to 100 ft (`0¹`); a value of 6,549 ft rounds to 6,600 ft (`6⁶`). Sea-level and non-land cells are omitted. Successful tile reductions are cached in `.mef_cache/`; temporary downloaded rasters are removed. If an individual tile fails, no output is overwritten; rerun to reuse successful cached cells.
 
 Copernicus GLO-30 attribution (include it when distributing outputs made from this dataset):
 
@@ -49,4 +51,4 @@ Copy the tile tree under `public/data/onc/scan/{z}/{x}/{y}.png`, then set `NEXT_
 
 ## Verification
 
-Run `npm run test:mef` for rounding and label formatting cases. The map reports when the selected GeoJSON file is absent or empty. Deployments need the generated `public/data/onc/mef/*.geojson` files committed or otherwise made available at the documented static paths; do not commit raw DEM downloads.
+Run `python -m pytest -q test_build_mef.py` for raster, tile, aggregation, and end-to-end tests, and `npm run test:mef` for browser label formatting. The map requests `/data/mef_60min.geojson`, `/data/mef_30min.geojson`, or `/data/mef_15min.geojson`; a 404 includes the exact missing URL and a regional build command. Partial outputs are valid and display only cells with land data. Commit the generated GeoJSON outputs if they are intended for deployment; do not commit raw DEM tiles or `.mef_cache/`.
