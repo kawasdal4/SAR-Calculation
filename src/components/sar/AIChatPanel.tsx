@@ -211,7 +211,7 @@ export default function AIChatPanel({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const applyFunctionCalls = useCallback((calls: ChatMessage['functionCalls']) => {
-    if (!calls?.length) return { applied: false, invalidIntercept: false, attempted: false, failedWorksheets: [] as string[], preferredWorksheet: '' };
+    if (!calls?.length) return { applied: false, invalidIntercept: false, attempted: false, appliedWorksheetNames: [] as string[], failedWorksheets: [] as string[], preferredWorksheet: '' };
     let applied = false;
     let invalidIntercept = false;
     let attempted = false;
@@ -311,6 +311,7 @@ export default function AIChatPanel({
         }
         case 'set_ws2_case': {
           const data = args as Worksheet2InitialState;
+          attempted = true;
           if (['fixed-wing', 'helicopter'].includes(data.searchPlatform ?? '')
             && Number.isFinite(data.searchTas) && (data.searchTas ?? 0) > 0
             && Number.isInteger(data.visibilityIndex) && (data.visibilityIndex ?? -1) >= 0 && (data.visibilityIndex ?? 6) <= 5
@@ -328,6 +329,7 @@ export default function AIChatPanel({
         }
         case 'set_ws3_case': {
           const data = args as Worksheet3InitialState;
+          attempted = true;
           if (['person', 'vehicle', 'aircraft-under-5700', 'aircraft-over-5700'].includes(data.searchObject ?? '')
             && [5, 10, 20, 30, 40].includes(data.visibilityKm ?? 0)
             && ['under-15', '15-60', '60-85', 'over-85'].includes(data.vegetationType ?? '')
@@ -347,6 +349,7 @@ export default function AIChatPanel({
         }
         case 'set_ws4_case': {
           const data = args as Worksheet4InitialState;
+          attempted = true;
           const validFactors = [1.1, 1.8, 2, 2.3, 2.6];
           const validLegs = Array.isArray(data.routeLegDistancesNm) && data.routeLegDistancesNm.length === 3 && data.routeLegDistancesNm.every((value) => Number.isFinite(value) && value >= 0);
           const validLegacyTr = Array.isArray(data.trList) && data.trList.length === 4 && data.trList.every((value) => Number.isFinite(value) && value >= 0);
@@ -375,6 +378,7 @@ export default function AIChatPanel({
         }
         case 'set_ws8_case': {
           const data = args as Worksheet8InitialState;
+          attempted = true;
           const validVisibility = data.eyeHeight === 'MERSHIP'
             ? ['5', '10', '20', '30', '40'].includes(data.visibilityKm ?? '')
             : ['2', '5', '10', '15', '20', '>25'].includes(data.visibilityKm ?? '');
@@ -395,6 +399,7 @@ export default function AIChatPanel({
         }
         case 'set_search_pattern_case': {
           const data = args as unknown as SearchPatternPlanInitialState;
+          attempted = true;
           const validType = ['PS', 'CS', 'SS', 'VS', 'TS'].includes(data.patternType);
           const validHeading = Number.isFinite(data.orientationDeg) && data.orientationDeg >= 0 && data.orientationDeg < 360;
           const validTurn = data.turnDirection === 'right' || data.turnDirection === 'left';
@@ -458,7 +463,7 @@ export default function AIChatPanel({
         : appliedWorksheets.includes('awa') ? 'awa'
           : appliedWorksheets.includes('asw') ? 'asw' : '';
     if (preferredWorksheet) onFocusWorksheet?.(preferredWorksheet);
-    return { applied, invalidIntercept, attempted, failedWorksheets, preferredWorksheet };
+    return { applied, invalidIntercept, attempted, appliedWorksheetNames: appliedWorksheets, failedWorksheets, preferredWorksheet };
   }, [onApplyASW, onApplyAWA, onApplyLKP, onApplyAeroDrift, onApplyDatum, onApplyWS2, onApplyWS3, onApplyWS4, onApplyWS8, onApplySearchPattern, onApplyIntercept, onFocusWorksheet]);
 
   // Load API key and chat history from localStorage
@@ -687,7 +692,7 @@ export default function AIChatPanel({
     (msg: ChatMessage, idx: number) => {
       if (!msg.functionCalls) return;
       const result = applyFunctionCalls(msg.functionCalls);
-      if (result.applied) {
+      if (result.applied && result.failedWorksheets.length === 0) {
         setMessages((prev) => prev.map((m, i) => (i === idx ? { ...m, applied: true } : m)));
         // SAR Workflow Memory: konfirmasi pengguna = keputusan tercatat di konteks.
         onLogConversation?.(
@@ -696,10 +701,18 @@ export default function AIChatPanel({
         );
         return;
       }
-      const note = result.invalidIntercept
-        ? '\n\n⚠️ Data Intercept belum lengkap: posisi target dan SRU/pangkalan, kecepatan keduanya, serta haluan target wajib diisi sebelum data bisa diterapkan.'
-        : `\n\n⚠️ Data ${result.failedWorksheets.length ? result.failedWorksheets.join(', ') : 'worksheet'} belum dapat diterapkan karena ada nilai wajib yang kurang atau tidak valid. Lengkapi datanya, lalu minta asisten mengekstrak ulang.`;
-      setMessages((prev) => prev.map((m, i) => (i === idx && !m.content.includes('⚠️ Data') ? { ...m, content: m.content + note } : m)));
+      // Penerapan PARSIAL tidak boleh diam: worksheet yang gagal validasi wajib
+      // dilaporkan secara eksplisit, dan tombol penerapan tetap tersedia agar
+      // pengguna bisa mengulang setelah data dilengkapi.
+      let note: string;
+      if (result.applied) {
+        note = `\n\n⚠️ Sebagian diterapkan (${result.appliedWorksheetNames.join(', ')}). GAGAL diterapkan: ${result.failedWorksheets.join(', ')} — ada nilai wajib yang kurang atau tidak valid. Lengkapi datanya, lalu minta asisten mengekstrak ulang atau konfirmasi lagi.`;
+      } else if (result.invalidIntercept) {
+        note = '\n\n⚠️ Data Intercept belum lengkap: posisi target dan SRU/pangkalan, kecepatan keduanya, serta haluan target wajib diisi sebelum data bisa diterapkan.';
+      } else {
+        note = `\n\n⚠️ Data ${result.failedWorksheets.length ? result.failedWorksheets.join(', ') : 'worksheet'} belum dapat diterapkan karena ada nilai wajib yang kurang atau tidak valid. Lengkapi datanya, lalu minta asisten mengekstrak ulang.`;
+      }
+      setMessages((prev) => prev.map((m, i) => (i === idx && !m.content.includes('⚠️') ? { ...m, content: m.content + note } : m)));
     },
     [applyFunctionCalls, onLogConversation]
   );

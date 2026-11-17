@@ -2,6 +2,7 @@ import { type FunctionDeclaration, SchemaType } from '@google/generative-ai';
 import { NextRequest, NextResponse } from 'next/server';
 import { processUploadedFile } from '@/lib/sar/fileExtractor';
 import type { DataBankField, RawQuestion } from '@/lib/sar/dataBank';
+import { buildChainCompletionInstruction, computeMissingWorksheetTools, parseDeclaredWorksheetTools } from '@/lib/sar/caseChain';
 
 const SYSTEM_PROMPT = `Kamu adalah Asisten SAR Planner AI untuk Badan SAR Nasional (Basarnas) Indonesia.
 Kamu membantu dalam perhitungan dan analisis operasi SAR berdasarkan panduan operasi SAR dan Peraturan No. 3 Tahun 2020.
@@ -632,34 +633,29 @@ async function runForcedWorksheetRetry(
 }
 
 /**
- * Instruksi pass penyambung rantai: dipakai bila kasus penerbangan baru
- * memanggil set_awa_case tetapi belum memanggil set_aero_drift_case (model
- * kadang berhenti setelah tool pertama walau data hilir sudah lengkap).
- */
-const chainCompletionInstruction = (appliedNames: string[]) => `LANJUTKAN RANTAI WORKSHEET: pada respons sebelumnya kamu sudah memanggil ${appliedNames.join(', ')}. Untuk kasus penerbangan ini rantai hulu→hilir belum selesai — kerjakan lanjutan SEKARANG pada respons ini: (1) set_aero_drift_case bila data drift tersedia — untuk kasus DITCHING di laut, Altmin = 0 ft (permukaan laut) boleh dipakai dan dinyatakan sebagai asumsi; konversi haluan turun Magnetic → True memakai variation soal (Var W dikurangi, Var E ditambah) sebelum mengirim aircraftDescentHeadingDeg; (2) set_datum_case dengan lkpSource "adw-landing" dan TANPA koordinat lkp/latitude — aplikasi otomatis memakai posisi ditching hasil ADW sebagai LKP; driftInterval dari waktu ditching/detresfa ke waktu datum/pencarian lanjutan, arus laut dan leewayObjectId dari soal; (3) set_asw_case bila observasi angin permukaan berurut waktu ada di soal. HANYA panggil tool yang fakta wajibnya tersedia di soal atau yang punya default kebijakan planner, dan SESUAI yang diminta soal — bila soal hanya meminta sebagian penghitungan, panggil sesuai permintaan; bila tidak ada yang perlu ditambahkan, jawab teks saja tanpa memanggil tool yang sudah dipanggil sebelumnya.`;
-
-/**
- * Pass lanjutan penyambung rantai worksheet penerbangan (AWA → ADW → Datum).
- * Mengembalikan langkah function_call tambahan, atau null bila pass gagal /
- * model memutuskan tidak ada yang perlu ditambahkan.
+ * Pass lanjutan penyambung rantai worksheet (AWA → ADW → Datum → ASW →
+ * WS2/WS8). Instruksi dibangun di call site dari tool yang terbukti hilang
+ * (lihat computeMissingWorksheetTools). Mengembalikan langkah function_call
+ * tambahan, atau null bila pass gagal / model memutuskan tidak ada yang
+ * perlu ditambahkan.
  */
 async function runChainCompletionPass(
   input: Array<Record<string, string>>,
   apiKey: string,
   primaryModel: string,
   normalizeSchemaFn: (value: unknown) => unknown,
-  appliedNames: string[],
+  instruction: string,
   systemPrompt: string = SYSTEM_PROMPT,
 ): Promise<Array<{ type?: string; name?: string; arguments?: unknown }> | null> {
   try {
-    console.info(`[AI chat] Rantai penerbangan belum lengkap (sudah: ${appliedNames.join(', ')}); jalankan pass penyambung (model=${primaryModel}).`);
+    console.info(`[AI chat] Worksheet kasus belum lengkap; jalankan pass penyambung (model=${primaryModel}).`);
     const response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
       signal: AbortSignal.timeout(GEMINI_REQUEST_TIMEOUT_MS),
       body: JSON.stringify({
         model: primaryModel,
-        input: [...input, { type: 'text', text: chainCompletionInstruction(appliedNames) }],
+        input: [...input, { type: 'text', text: instruction }],
         system_instruction: systemPrompt,
         generation_config: {
           max_output_tokens: 8192,
@@ -905,17 +901,49 @@ ATURAN MEMORI WORKSPACE:
       }
     }
 
-    // Penyambung rantai penerbangan: kasus yang sudah memanggil set_awa_case
-    // tetapi belum memanggil set_aero_drift_case (dan bukan kasus intercept)
-    // diberi SATU pass lanjutan agar AWA → ADW → Datum tidak berhenti di
-    // tengah. Panggilan baru digabung dengan hasil pass pertama (dedupe per
-    // nama tool; versi pass pertama menang).
+    // Penyambung rantai worksheet kasus: model kadang berhenti setelah satu/
+    // dua tool walau bagian "WORKSHEET YANG HARUS DIPAKAI" pada jawabannya
+    // sendiri mendaftar lebih banyak worksheet (mis. kasus EXE FAKFAK: 6
+    // worksheet dianalisis, hanya AWA yang dipanggil). Daftar itu diparse dan
+    // dipakai sebagai jaring pengaman kedua (setelah forced retry kasus nol
+    // panggilan): SATU pass lanjutan menamai tool yang hilang secara eksplisit.
+    // Panggilan baru digabung dengan hasil pass pertama (dedupe per nama tool;
+    // versi pass pertama menang).
     const firstPassNames = new Set(functionCalls.map((fc) => fc.name));
-    const chainIncomplete = firstPassNames.has('set_awa_case')
+    const modelAnswerText = steps
+      .filter((step: { type?: string }) => step.type === 'model_output')
+      .flatMap((step: { content?: Array<{ type?: string; text?: string }> }) => step.content || [])
+      .filter((part: { type?: string }) => part.type === 'text')
+      .map((part: { text?: string }) => part.text || '')
+      .join('');
+    const missingTools = computeMissingWorksheetTools(
+      parseDeclaredWorksheetTools(modelAnswerText),
+      functionCalls.map((fc) => fc.name),
+    );
+    // Rantai penerbangan: AWA dipanggil tetapi ADW belum — model kadang
+    // berhenti di tool pertama walau data hilir lengkap; tanpa daftar pun
+    // rantai AWA → ADW → Datum tetap disambung (perilaku lama dipertahankan).
+    if (
+      firstPassNames.has('set_awa_case')
       && !firstPassNames.has('set_aero_drift_case')
+      && !firstPassNames.has('set_intercept_case')
+    ) {
+      for (const tool of ['set_aero_drift_case', 'set_datum_case'] as const) {
+        if (!missingTools.includes(tool)) missingTools.push(tool);
+      }
+    }
+    const chainIncomplete = missingTools.length > 0
+      && functionCalls.length > 0
       && !firstPassNames.has('set_intercept_case');
     if (chainIncomplete) {
-      const completionSteps = await runChainCompletionPass(input, apiKey, usedModel, normalizeSchema, [...firstPassNames], effectiveSystemPrompt);
+      const completionSteps = await runChainCompletionPass(
+        input,
+        apiKey,
+        usedModel,
+        normalizeSchema,
+        buildChainCompletionInstruction(missingTools, [...firstPassNames]),
+        effectiveSystemPrompt,
+      );
       if (completionSteps) {
         const merged = [...functionCalls];
         for (const step of completionSteps) {
