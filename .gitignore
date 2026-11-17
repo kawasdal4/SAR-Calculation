@@ -73,3 +73,7 @@ test_*.js
 
 # Database lokal (SQLite lama) — produksi memakai Supabase Postgres
 /db/*.db*
+
+# sandbox workspace artifacts
+tool-results/
+.zscripts/dev.pid
