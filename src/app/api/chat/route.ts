@@ -17,7 +17,8 @@ ALUR ANALISIS KASUS:
 - TUGAS PERTAMA untuk setiap soal kasus/lampiran: tentukan WORKSHEET MANA SAJA yang harus dipakai untuk penghitungan sesuai permintaan soal — bukan sekadar mengekstrak fakta.
 - Untuk setiap soal kasus/lampiran, pecah data menjadi fakta terstruktur (waktu, koordinat, objek, angin, arus, ketinggian, kecepatan, haluan, visibilitas, sarana pencari) dan tentukan worksheet yang benar-benar dibutuhkan.
 - Panggil SEMUA tool worksheet yang relevan dalam satu respons. Satu kasus boleh mengisi beberapa worksheet yang saling terkait, misalnya ASW + LKP + Datum untuk menghitung datum dan Worksheet 1; atau Intercept jika kasusnya meminta pintasan.
-- Jangan isi data yang tidak tercantum atau tidak bisa disimpulkan secara aman. Untuk masukan wajib yang hilang, jangan panggil tool worksheet itu; sebutkan data yang masih perlu diminta.
+- FAKTA SOAL (koordinat, tanggal/waktu, data angin/arus, kecepatan, haluan, glide ratio, ketinggian, visibilitas, jenis objek) yang tidak tercantum dan tidak bisa disimpulkan secara aman JANGAN dikarang; bila fakta itu wajib untuk sebuah worksheet, jangan panggil tool worksheet itu dan sebutkan fakta yang perlu diminta.
+- PILIHAN PLANNER (bukan fakta soal) TIDAK BOLEH ditanyakan — langsung isi dengan default sesuai KEBIJAKAN DEFAULT PILIHAN PLANNER di bawah dan nyatakan asumsinya di jawaban.
 - Setelah ekstraksi, jelaskan ringkas worksheet yang dipilih dan data utama yang ditemukan. Aplikasi yang menghitung; jangan menulis hasil kalkulasi yang belum berasal dari hasil aplikasi.
 - Jangan memanggil worksheet yang tidak relevan hanya untuk melengkapi semua tab.
 
@@ -26,14 +27,23 @@ Mulai dengan bagian "WORKSHEET YANG HARUS DIPAKAI" berisi daftar bernomor sesuai
 
 PEMILIHAN WORKSHEET DAN KETERGANTUNGAN:
 - Mandiri (tidak memerlukan hasil worksheet lain): Worksheet 4, Intercept, dan Penghitungan Dasar. Pilih sesuai permintaan/data soal; jangan menunggu Worksheet 1/2/8.
-- Jika target dicari di darat dengan helikopter atau pesawat fixed-wing, wajib arahkan ke Worksheet 3 (Land). Input wajib WS3: kategori objek Table I-9, visibility 5/10/20/30/40 km, kategori vegetasi Table I-10, status fatigue, platform, dan Search Number Figure I-12. Jika ada yang belum diketahui, tanyakan sebelum mengisi. Search Speed V hanya wajib bila pengguna meminta T; jangan menyamakan TAS dan V tanpa keterangan.
+- Jika target dicari di darat dengan helikopter atau pesawat fixed-wing, wajib arahkan ke Worksheet 3 (Land). Input wajib WS3: kategori objek Table I-9, visibility 5/10/20/30/40 km, kategori vegetasi Table I-10, status fatigue, platform, dan Search Number Figure I-12 (default 1 bila soal tidak menyebut). Jika fakta wajib lain belum diketahui, tanyakan sebelum mengisi. Search Speed V hanya wajib bila pengguna meminta T; jangan menyamakan TAS dan V tanpa keterangan.
 - Penentuan sumber Track Spacing untuk gambar pola mengikuti SRU dan lingkungan pada kasus: fixed-wing/heli di laut memakai Worksheet 2; fixed-wing/heli di darat memakai Worksheet 3; kapal/RIB/Sea Rider memakai Worksheet 8. Panggil worksheet yang sesuai dengan analisis kasus agar peta utama menerima S dari hasil worksheet tersebut. Jangan memakai S generik dari Worksheet 1 atau mengarang S.
 - Jika kasus laut tidak menjelaskan SRU yang ditugaskan (kapal, RIB, atau Sea Rider), tanyakan jenis SRU sebelum memilih Worksheet 8 untuk pola peta. Jangan menyimpulkan jenis aset hanya dari jenis target.
 - Saat soal meminta penggambaran search pattern di peta utama, jelaskan SRU dan lingkungan pencariannya agar aplikasi dapat memilih sumber S yang tepat. Heading/panjang/parameter pola yang tidak disebutkan harus ditanyakan atau tetap menunggu input planner; jangan mengarang parameter sektor, flare, contour, homing, atau return offset.
 - Jika jenis pola dan heading True diberikan dalam soal/rencana, gunakan set_search_pattern_case agar aplikasi menggambar dan menghitung jarak lintasan. CSP dan Exit Point dibuat otomatis dari geometri; jangan meminta koordinat keduanya. Jika heading atau parameter minimum pola tidak ada, tanyakan dan jangan mengarang.
 - Worksheet 1/2/8 dan alokasi aset mengikuti alur worksheet hulu sesuai panduan. Jangan menganggap semuanya mandiri.
-- Bila data wajib worksheet yang dipilih kurang, JANGAN mengisi worksheet itu dengan nilai default/contoh. Tanyakan balik sebelum menjalankan perhitungan. Sebutkan per worksheet data apa yang kurang.
+- Bila FAKTA SOAL wajib sebuah worksheet kurang, JANGAN isi worksheet itu dengan nilai contoh/karangan; sebutkan fakta yang kurang, dan TETAP ISI semua worksheet lain yang faktanya sudah lengkap dalam respons yang sama.
 - Jika menemukan prasyarat/data wajib yang kurang, panggil ask_for_case_data berisi nama worksheet dan pertanyaan spesifik; panggilan worksheet lain yang sudah memiliki data lengkap tetap boleh dibuat.
+
+KEBIJAKAN DEFAULT PILIHAN PLANNER (WAJIB — JANGAN DITANYAKAN KEPADA PENGGUNA):
+- EKSEKUSI LANGSUNG: bila soal kasus memuat data cukup, panggil SEMUA tool worksheet terkait SEKARANG pada respons ini. DILARANG hanya menjawab daftar "WORKSHEET YANG HARUS DIPAKAI" + pertanyaan tanpa memanggil satu pun tool worksheet, dan DILARANG menunda worksheet yang datanya sudah lengkap hanya karena worksheet lain masih kurang.
+- intervalMode ASW: simpulkan dari jam observasi di soal — hanya 00/06/12/18 → "6h"; ada 03/09/15/21 → "3h". DILARANG bertanya bila jam observasinya ada di soal.
+- WS2 selectedHeight: bila soal tidak menyebut tinggi pencarian, gunakan 1000 ft dan tulis sebagai asumsi di jawaban.
+- WS8 eyeHeight: kapal patroli/rescue vessel → "14" (Eye height 14 ft, Patrol boat); perahu kecil/RIB/Sea Rider → "8" (Small craft); kapal besar/jembatan tinggi → "MERSHIP". Tulis sebagai asumsi di jawaban.
+- searchNumber (WS2/WS3/WS8): bila soal tidak menyebut nomor pencarian, gunakan 1.
+- Safety Factor WS4 tetap harus dipilih eksplisit dari pengguna (kebijakan SMC), kecuali nomor pencariannya disebut di soal.
+- Contoh alur BENAR kasus pesawat lengkap (SRX48): panggil set_asw_case + set_awa_case + set_aero_drift_case + set_lkp + set_datum_case + set_ws2_case + set_ws8_case bersamaan dalam satu respons; hanya worksheet yang benar-benar kekurangan FAKTA wajib yang ditunda dan ditanyakan via ask_for_case_data.
 - Tombol "Terapkan ke Worksheet" di panel chat HANYA muncul bila Anda memanggil tool set_* pada respons yang sama. JANGAN menulis instruksi "klik Terapkan" bila Anda tidak memanggil tool worksheet di respons itu; cukup sebutkan data yang masih kurang sebagai gantinya.
 
 ATURAN KASUS INTERCEPT:
@@ -373,7 +383,7 @@ const tools: FunctionDeclaration[] = [
   },
   {
     name: 'ask_for_case_data',
-    description: 'Meminta klarifikasi pengguna saat data penting untuk worksheet yang relevan belum ada. Gunakan alih-alih menebak/default. Sebutkan worksheet dan pertanyaan yang benar-benar dibutuhkan.',
+    description: 'Meminta klarifikasi HANYA untuk FAKTA SOAL yang wajib dan benar-benar tidak ada (koordinat, waktu, data angin/arus, kecepatan, haluan, glide ratio, visibilitas). JANGAN dipakai untuk pilihan planner yang sudah punya default (intervalMode dari jam observasi, WS2 selectedHeight 1000 ft, WS8 eyeHeight sesuai jenis SRU, searchNumber 1). Sebutkan worksheet dan pertanyaan yang benar-benar dibutuhkan.',
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
@@ -489,7 +499,7 @@ const tools: FunctionDeclaration[] = [
         isFatigue: { type: SchemaType.STRING, description: 'Yes jika lelah, No jika tidak lelah.' },
         piwFlotationKnown: { type: SchemaType.BOOLEAN, description: 'True hanya bila PIW diketahui memakai alat apung.' },
         searchNumber: { type: SchemaType.NUMBER, description: 'Urutan pencarian Figure I-12, 1 sampai 5; hanya bila disebutkan, selain itu gunakan 1.' },
-        selectedHeight: { type: SchemaType.NUMBER, description: 'Tinggi pencarian yang dipilih, salah satu 500, 1000, 1500, 2000 ft.' },
+        selectedHeight: { type: SchemaType.NUMBER, description: 'Tinggi pencarian yang dipilih, salah satu 500, 1000, 1500, 2000 ft. Bila soal tidak menyebut, gunakan 1000 dan nyatakan sebagai asumsi.' },
       },
       required: ['searchPlatform', 'searchTas', 'searchObject', 'visibilityIndex', 'isFatigue', 'selectedHeight'],
     },
@@ -521,7 +531,7 @@ const tools: FunctionDeclaration[] = [
       properties: {
         caseTitle: { type: SchemaType.STRING },
         sruType: { type: SchemaType.STRING, description: 'Jenis SRU laut dari soal: rescue-vessel, patrol-boat, rib, atau sea-rider.' },
-        eyeHeight: { type: SchemaType.STRING, description: '8, 14, atau MERSHIP.' },
+        eyeHeight: { type: SchemaType.STRING, description: '8, 14, atau MERSHIP. Bila soal tidak menyebut, pakai default sesuai jenis SRU dan nyatakan sebagai asumsi: kapal patroli/rescue vessel → 14, perahu kecil/RIB → 8, kapal besar → MERSHIP.' },
         searchObject: { type: SchemaType.STRING, description: 'ID target WSC8 seperti person, raft1, raft4, raft6, raft8, raft10, raft15, raft20, raft25, boatUnder5, boat5to8, boat8to12, boat12to20, boat20to27, sail5, sail6, sail8, sail9, sail12, sail15, sail20to23, sail23to27.' },
         visibilityKm: { type: SchemaType.STRING, description: 'Visibilitas persis sesuai kolom tabel worksheet.' },
         isFatigue: { type: SchemaType.STRING, description: 'Yes jika lelah, No jika tidak lelah.' },
@@ -557,51 +567,66 @@ const GEMINI_REQUEST_TIMEOUT_MS = 45_000;
 const WORKSHEET_TOOL_NAMES = ['set_asw_case', 'set_awa_case', 'set_aero_drift_case', 'set_lkp', 'set_datum_case', 'set_ws2_case', 'set_ws3_case', 'set_ws4_case', 'set_ws8_case', 'set_search_pattern_case', 'set_intercept_case', 'ask_for_case_data'];
 
 /**
+ * Instruksi tambahan yang disuntikkan pada pass paksa agar model tidak
+ * lagi menjawab teks/list worksheet tanpa memanggil tool.
+ */
+const FORCED_RETRY_INSTRUCTION = 'PENTING: ini soal kasus perhitungan SAR. Panggil SEKARANG, pada respons ini, SEMUA tool worksheet yang relevan dalam SATU respons (set_asw_case, set_awa_case, set_aero_drift_case, set_lkp, set_datum_case, set_ws2_case, set_ws8_case, set_ws3_case, set_ws4_case, set_intercept_case, set_search_pattern_case) dengan data dari soal. Pilihan planner dipakai default tanpa bertanya: intervalMode ASW dari jam observasi (hanya 00/06/12/18 → "6h"; ada 03/09/15/21 → "3h"), WS2 selectedHeight 1000 ft bila tidak disebut, WS8 eyeHeight "14" untuk kapal patroli/rescue, "8" untuk perahu kecil/RIB, "MERSHIP" untuk kapal besar, searchNumber 1. Hanya bila ada FAKTA soal yang wajib dan benar-benar tidak ada, panggil ask_for_case_data untuk fakta itu dan tetap isi worksheet lain yang datanya lengkap.';
+
+/**
  * Coba ulang sekali dengan tool_choice paksa yang hanya mengizinkan tool
  * worksheet/klarifikasi. Dipakai bila permintaan tampak seperti soal kasus
  * tetapi model tidak memanggil satupun tool worksheet (mis. model cadangan
- * hanya memanggil save_case_data_bank atau menjawab teks biasa).
+ * hanya menjawab teks biasa atau menulis daftar worksheet + pertanyaan).
+ * Dicobakan pada model yang baru dipakai, lalu ke semua model lain; berhasil
+ * bila pass tersebut memuat minimal satu function_call.
  */
 async function runForcedWorksheetRetry(
   input: Array<Record<string, string>>,
   apiKey: string,
-  model: string,
+  primaryModel: string,
   normalizeSchemaFn: (value: unknown) => unknown,
 ): Promise<Array<{ type?: string; name?: string; arguments?: unknown }> | null> {
-  try {
-    console.info(`[AI chat] Kasus tanpa panggilan worksheet; ulangi dengan tool_choice paksa (model=${model}).`);
-    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-      signal: AbortSignal.timeout(GEMINI_REQUEST_TIMEOUT_MS),
-      body: JSON.stringify({
-        model,
-        input,
-        system_instruction: SYSTEM_PROMPT,
-        generation_config: {
-          max_output_tokens: 8192,
-          thinking_level: model === 'gemini-3.5-flash-lite' ? 'minimal' : 'low',
-          tool_choice: { allowed_tools: { mode: 'any', tools: WORKSHEET_TOOL_NAMES } },
-        },
-        tools: tools.map((tool) => ({
-          type: 'function',
-          name: tool.name,
-          description: tool.description,
-          parameters: normalizeSchemaFn(tool.parameters),
-        })),
-        store: false,
-      }),
-    });
-    if (!response.ok) {
-      console.warn(`[AI chat] Forced worksheet retry gagal (HTTP ${response.status}).`);
-      return null;
+  const orderedModels = [primaryModel, ...GEMINI_MODELS.filter((model) => model !== primaryModel)];
+  for (const model of orderedModels) {
+    try {
+      console.info(`[AI chat] Kasus tanpa panggilan worksheet; ulangi dengan tool_choice paksa (model=${model}).`);
+      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+        signal: AbortSignal.timeout(GEMINI_REQUEST_TIMEOUT_MS),
+        body: JSON.stringify({
+          model,
+          input: [...input, { type: 'text', text: FORCED_RETRY_INSTRUCTION }],
+          system_instruction: SYSTEM_PROMPT,
+          generation_config: {
+            max_output_tokens: 8192,
+            thinking_level: model === 'gemini-3.5-flash-lite' ? 'minimal' : 'low',
+            tool_choice: { allowed_tools: { mode: 'any', tools: WORKSHEET_TOOL_NAMES } },
+          },
+          tools: tools.map((tool) => ({
+            type: 'function',
+            name: tool.name,
+            description: tool.description,
+            parameters: normalizeSchemaFn(tool.parameters),
+          })),
+          store: false,
+        }),
+      });
+      if (!response.ok) {
+        console.warn(`[AI chat] Forced worksheet retry gagal (HTTP ${response.status}, model=${model}).`);
+        continue;
+      }
+      const payload = await response.json().catch(() => ({}));
+      const retrySteps = Array.isArray(payload?.steps) ? payload.steps as Array<{ type?: string; name?: string; arguments?: unknown }> : [];
+      if (retrySteps.some((step) => step.type === 'function_call' && typeof step.name === 'string')) {
+        return retrySteps;
+      }
+      console.warn(`[AI chat] Forced worksheet retry tanpa panggilan tool (model=${model}).`);
+    } catch (retryErr) {
+      console.warn(`[AI chat] Forced worksheet retry error (model=${model}):`, retryErr instanceof Error ? retryErr.message : retryErr);
     }
-    const payload = await response.json().catch(() => ({}));
-    return Array.isArray(payload?.steps) ? payload.steps as Array<{ type?: string; name?: string; arguments?: unknown }> : [];
-  } catch (retryErr) {
-    console.warn('[AI chat] Forced worksheet retry error:', retryErr instanceof Error ? retryErr.message : retryErr);
-    return null;
   }
+  return null;
 }
 
 // This Vercel project supports 300-second functions; complex SAR case analysis
@@ -754,15 +779,17 @@ export async function POST(req: NextRequest) {
 
     type RawGeminiStep = { type?: string; name?: string; arguments?: unknown; content?: Array<{ type?: string; text?: string }> };
     type GeminiFunctionCallStep = RawGeminiStep & { name: string };
-    const steps = Array.isArray(result.steps) ? result.steps as RawGeminiStep[] : [];
+    const stepsRaw = Array.isArray(result.steps) ? result.steps as RawGeminiStep[] : [];
+    let steps: RawGeminiStep[] = stepsRaw;
     let functionCalls: GeminiFunctionCallStep[] = steps.filter((step): step is GeminiFunctionCallStep =>
       step.type === 'function_call' && typeof step.name === 'string'
     );
 
     // Jaring pengaman: permintaan yang tampak seperti soal kasus tetapi tidak
-    // menghasilkan panggilan worksheet maupun pertanyaan klarifikasi diulang
-    // sekali dengan tool_choice paksa ke tool worksheet (model cadangan kadang
-    // hanya memanggil save_case_data_bank atau menjawab teks biasa).
+    // menghasilkan SATU PUN panggilan worksheet diulang dengan tool_choice
+    // paksa ke tool worksheet (model cadangan kadang hanya menjawab teks
+    // berisi daftar worksheet + pertanyaan, atau memanggil ask_for_case_data
+    // untuk pilihan planner yang sebenarnya sudah punya default).
     const hasInlineAttachment = input.some((part) => part.type === 'document' || part.type === 'image');
     const caseStructureHits = [
       /(detresfa|distress)/i,
@@ -772,20 +799,21 @@ export async function POST(req: NextRequest) {
       /(angin|wind)\b.{0,60}\b(kts|knot|knots|derajat)/i,
       /(derajat|°)/,
     ].filter((re) => re.test(interceptSourceText)).length;
+    const caseVerbPresent = /(buat|hitung|tentukan|analisis|kerjakan|isi|telaah|eksekusi|exercise|latihan|tugas|soal)/i.test(userPrompt);
     const caseLikeRequest = hasInlineAttachment
-      ? caseStructureHits >= 3
-      : caseStructureHits >= 4 && /(buat|hitung|tentukan|analisis|kerjakan|isi|telaah)/i.test(userPrompt);
+      ? caseStructureHits >= 3 || caseVerbPresent
+      : caseStructureHits >= 4 && caseVerbPresent;
     const firstPassBankCalls: Array<{ name: string; args: unknown }> = functionCalls
       .filter((fc) => fc.name === 'save_case_data_bank')
       .map((fc) => ({ name: fc.name, args: fc.arguments || {} }));
-    const firstPassClarification = functionCalls.filter((fc) => fc.name === 'ask_for_case_data');
     const firstPassWorksheet = functionCalls.filter((fc) => fc.name !== 'ask_for_case_data' && fc.name !== 'save_case_data_bank');
-    if (caseLikeRequest && firstPassWorksheet.length === 0 && firstPassClarification.length === 0) {
+    if (caseLikeRequest && firstPassWorksheet.length === 0) {
       const forcedRetrySteps = await runForcedWorksheetRetry(input, apiKey, usedModel, normalizeSchema);
       const retryWorksheet = forcedRetrySteps?.filter((step) => step.type === 'function_call' && typeof step.name === 'string'
         && step.name !== 'save_case_data_bank') ?? [];
       if (retryWorksheet.length > 0) {
         console.info(`[AI chat] Forced worksheet retry menghasilkan ${retryWorksheet.length} panggilan worksheet.`);
+        steps = forcedRetrySteps!;
         functionCalls = forcedRetrySteps!.filter((step): step is GeminiFunctionCallStep =>
           step.type === 'function_call' && typeof step.name === 'string'
         );
