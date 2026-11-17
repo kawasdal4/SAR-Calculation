@@ -1,0 +1,93 @@
+From cc6eed4c7de6d11cbae2e8489fbb3c6a85608ee9 Mon Sep 17 00:00:00 2001
+From: Z User <z@container>
+Date: Tue, 17 Nov 2026 07:27:45 +0000
+Subject: [PATCH 1/2] e3efced5-de2d-4dbc-aab5-9c586f40e9a7
+
+---
+ .zscripts/database-runtime-build.sh | 14 --------------
+ .zscripts/dev.pid                   |  2 +-
+ prisma/schema.prisma                | 30 +++++++++++++++++------------
+ 3 files changed, 19 insertions(+), 27 deletions(-)
+
+diff --git a/.zscripts/database-runtime-build.sh b/.zscripts/database-runtime-build.sh
+index 4d51a05..02eaa7e 100755
+--- a/.zscripts/database-runtime-build.sh
++++ b/.zscripts/database-runtime-build.sh
+@@ -4,20 +4,6 @@ set -euo pipefail
+ 
+ PROJECT_DIR="${PROJECT_DIR:-/home/z/my-project}"
+ BUILD_DIR="${BUILD_DIR:?BUILD_DIR is required}"
+-
+-# Bila DATABASE_URL bukan SQLite (mis. Supabase Postgres untuk Vercel),
+-# cukup sinkronkan schema langsung ke database remote — tidak ada berkas DB
+-# yang perlu dibundel ke build output.
+-if [ -n "${DATABASE_URL:-}" ] && [[ "${DATABASE_URL}" != file:* ]]; then
+-    echo "🗄️  DATABASE_URL bukan SQLite — sinkronisasi schema ke database remote..."
+-    (
+-        cd "$PROJECT_DIR"
+-        bun run db:push
+-    )
+-    echo "✅ Schema database remote siap"
+-    exit 0
+-fi
+-
+ SOURCE_DB_DIR="$PROJECT_DIR/db"
+ SOURCE_DB_PATH="$SOURCE_DB_DIR/custom.db"
+ TARGET_DB_DIR="$BUILD_DIR/db"
+diff --git a/.zscripts/dev.pid b/.zscripts/dev.pid
+index d7b35ae..e576ab3 100644
+--- a/.zscripts/dev.pid
++++ b/.zscripts/dev.pid
+@@ -1 +1 @@
+-4152
++2432
+diff --git a/prisma/schema.prisma b/prisma/schema.prisma
+index 93a660a..8d5a2ca 100644
+--- a/prisma/schema.prisma
++++ b/prisma/schema.prisma
+@@ -4,24 +4,30 @@
+ // Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+ // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+ 
+-// Supabase Postgres + Prisma:
+-// - DATABASE_URL → connection pooler Supabase (port 6543, transaction mode)
+-//   untuk runtime serverless (Vercel). pgbouncer=true menonaktifkan prepared
+-//   statement agar kompatibel dengan transaction pooling.
+-// - DIRECT_URL → koneksi langsung (port 5432) untuk migrasi/db push.
+-// - binaryTargets rhel-openssl-3.0.x → runtime Vercel (Amazon Linux 2023).
++// Lokal (sandbox/dev): SQLite file DB — cepat & tanpa kredensial eksternal.
++// Untuk deploy Vercel/Supabase, aktifkan kembali blok postgresql di bawah.
+ generator client {
+-  provider      = "prisma-client-js"
+-  pgbouncer     = true
+-  binaryTargets = ["native", "rhel-openssl-3.0.x"]
++  provider = "prisma-client-js"
+ }
+ 
+ datasource db {
+-  provider  = "postgresql"
+-  url       = env("DATABASE_URL")
+-  directUrl = env("DIRECT_URL")
++  provider = "sqlite"
++  url      = env("DATABASE_URL")
+ }
+ 
++// === Konfigurasi Supabase PostgreSQL (untuk deploy Vercel) ===
++// generator client {
++//   provider      = "prisma-client-js"
++//   pgbouncer     = true
++//   binaryTargets = ["native", "rhel-openssl-3.0.x"]
++// }
++//
++// datasource db {
++//   provider  = "postgresql"
++//   url       = env("DATABASE_URL")
++//   directUrl = env("DIRECT_URL")
++// }
++
+ /// A saved SAR mission case — captures all worksheet inputs as JSON.
+ model SarCase {
+   id          String   @id @default(cuid())
+-- 
+2.47.3
+
