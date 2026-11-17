@@ -4,23 +4,29 @@
 // Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
-// Supabase Postgres + Prisma:
-// - DATABASE_URL → connection pooler Supabase (port 6543, transaction mode)
-//   untuk runtime serverless (Vercel). pgbouncer=true menonaktifkan prepared
-//   statement agar kompatibel dengan transaction pooling.
-// - DIRECT_URL → koneksi langsung (port 5432) untuk migrasi/db push.
-// - binaryTargets rhel-openssl-3.0.x → runtime Vercel (Amazon Linux 2023).
+// Lokal (sandbox/dev): SQLite file DB — cepat & tanpa kredensial eksternal.
+// Untuk deploy Vercel/Supabase, aktifkan kembali blok postgresql di bawah.
 generator client {
-  provider      = "prisma-client-js"
-  pgbouncer     = true
-  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
+
+// === Konfigurasi Supabase PostgreSQL (untuk deploy Vercel) ===
+// generator client {
+//   provider      = "prisma-client-js"
+//   pgbouncer     = true
+//   binaryTargets = ["native", "rhel-openssl-3.0.x"]
+// }
+//
+// datasource db {
+//   provider  = "postgresql"
+//   url       = env("DATABASE_URL")
+//   directUrl = env("DIRECT_URL")
+// }
 
 /// A saved SAR mission case — captures all worksheet inputs as JSON.
 model SarCase {
