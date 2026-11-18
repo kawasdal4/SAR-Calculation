@@ -202,6 +202,52 @@ export default function AdwUpsSheet({
   const latCenterDeg = scale.latCenterDeg!;
   const lngCenterDeg = scale.lngCenterDeg!;
 
+  // ---- Karva graticule: garis kecil-kecil di sepanjang SEMUA garis lintang & bujur ----
+  // Seperti lembar UPS asli: setiap garis lintang diukir tick subdivisi menit bujur
+  // (garis besar tiap S/6′, garis kecil tiap S/60′), dan setiap garis bujur diukir
+  // tick subdivisi menit lintang (garis besar tiap S/6 NM, garis kecil tiap S/60 NM).
+  // Dua sumbu skala utama melalui C dilewati karena sudah diukir + berlabel.
+  const graticuleTicks = (() => {
+    const latMinor: string[] = [];
+    const latMajor: string[] = [];
+    const lngMinor: string[] = [];
+    const lngMajor: string[] = [];
+    // Tick sepanjang garis lintang (horizontal): subdivisi menit bujur
+    for (const line of latLines) {
+      if (Math.abs(line.y - cy) < 0.5) continue; // sumbu skala bujur utama
+      for (let k = Math.floor((xC - lngHalf) / (S * cosM)); k <= Math.ceil((xC + lngHalf) / (S * cosM)); k++) {
+        for (let q = 0; q <= 60; q++) {
+          const xNm = k * S * cosM + (q * S * cosM) / 60;
+          const x = cx + (xNm - xC) * pxPerNm;
+          if (x < 10 || x > SHEET_W - 10) continue;
+          const major = q % 10 === 0;
+          const half = major ? 11 : 4;
+          (major ? latMajor : latMinor).push(`M ${x.toFixed(1)} ${(line.y - half).toFixed(1)} L ${x.toFixed(1)} ${(line.y + half).toFixed(1)}`);
+        }
+      }
+    }
+    // Tick sepanjang garis bujur (vertikal): subdivisi menit lintang
+    for (const line of lngLines) {
+      if (Math.abs(line.x - cx) < 0.5) continue; // sumbu skala lintang utama
+      for (let m2 = Math.floor((yC - latHalf) / S); m2 <= Math.ceil((yC + latHalf) / S); m2++) {
+        for (let q = 0; q <= 60; q++) {
+          const yNm = m2 * S + (q * S) / 60;
+          const y = cy - (yNm - yC) * pxPerNm;
+          if (y < 10 || y > SHEET_H - 10) continue;
+          const major = q % 10 === 0;
+          const half = major ? 11 : 4;
+          (major ? lngMajor : lngMinor).push(`M ${(line.x - half).toFixed(1)} ${y.toFixed(1)} L ${(line.x + half).toFixed(1)} ${y.toFixed(1)}`);
+        }
+      }
+    }
+    return {
+      latMinor: latMinor.join(' '),
+      latMajor: latMajor.join(' '),
+      lngMinor: lngMinor.join(' '),
+      lngMajor: lngMajor.join(' '),
+    };
+  })();
+
   // ---- Skala lintang: sumbu vertikal melalui C, dari tepi ke tepi lembar ----
   // Satu interval grid (S′) dibagi 6 garis besar (S/6 … S), tiap garis besar
   // dibagi 10 garis kecil (S/60). Panjang interval = R (S NM).
@@ -326,10 +372,10 @@ export default function AdwUpsSheet({
               <g key={`lat-${m}`}>
                 <line x1="0" y1={y} x2={SHEET_W} y2={y} stroke="#2563eb" strokeWidth="1.2" opacity="0.75" />
                 <text x="14" y={y - 6} fontSize="18" fontWeight="600" fill="#1d4ed8" paintOrder="stroke" stroke="#ffffff" strokeWidth="4" style={{ paintOrder: 'stroke' }}>
-                  {formatDMS(latCenterDeg + (m * S) / 60, false)}
+                  {formatDMS(datum.lat + (m * S) / 60, false)}
                 </text>
                 <text x={SHEET_W - 14} y={y - 6} fontSize="15" fill="#64748b" textAnchor="end" paintOrder="stroke" stroke="#ffffff" strokeWidth="4" style={{ paintOrder: 'stroke' }}>
-                  {formatDMS(latCenterDeg + (m * S) / 60, false)}
+                  {formatDMS(datum.lat + (m * S) / 60, false)}
                 </text>
               </g>
             ))}
@@ -339,13 +385,19 @@ export default function AdwUpsSheet({
               <g key={`lng-${m}`}>
                 <line x1={x} y1="0" x2={x} y2={SHEET_H} stroke="#2563eb" strokeWidth="1.2" opacity="0.75" />
                 <text x={x + 5} y="32" fontSize="18" fontWeight="600" fill="#1d4ed8" paintOrder="stroke" stroke="#ffffff" strokeWidth="4" style={{ paintOrder: 'stroke' }}>
-                  {formatDMS(lngCenterDeg + (m * S) / 60, true)}
+                  {formatDMS(datum.lng + (m * S) / 60, true)}
                 </text>
                 <text x={x + 5} y={SHEET_H - 12} fontSize="15" fill="#64748b" paintOrder="stroke" stroke="#ffffff" strokeWidth="4" style={{ paintOrder: 'stroke' }}>
-                  {formatDMS(lngCenterDeg + (m * S) / 60, true)}
+                  {formatDMS(datum.lng + (m * S) / 60, true)}
                 </text>
               </g>
             ))}
+
+            {/* Karva graticule: tick garis kecil-kecil di sepanjang semua garis */}
+            <path d={graticuleTicks.latMinor} stroke="#64748b" strokeWidth="0.9" fill="none" opacity="0.9" />
+            <path d={graticuleTicks.latMajor} stroke="#334155" strokeWidth="1.8" fill="none" />
+            <path d={graticuleTicks.lngMinor} stroke="#64748b" strokeWidth="0.9" fill="none" opacity="0.9" />
+            <path d={graticuleTicks.lngMajor} stroke="#334155" strokeWidth="1.8" fill="none" />
 
             {/* Rose kompas: lingkaran, graduasi 000°–360°, utara di atas */}
             <circle cx={cx} cy={cy} r={ROSE_R} fill="none" stroke="#0f172a" strokeWidth="2.5" />
@@ -485,9 +537,9 @@ export default function AdwUpsSheet({
 
               {/* Label vektor: d_g, d_d, d_a (subscript gaya panduan) */}
               {plot.segments.filter((s) => ['dg', 'dd', 'pg', 'pw'].includes(s.id)).map((seg) => {
-                const t = seg.id === 'dd' || seg.id === 'pw' ? 0.5 : 0.42;
+                const t = seg.id === 'dd' || seg.id === 'pw' ? 0.4 : 0.42;
                 const side = seg.id === 'dg' || seg.id === 'pg' ? -1 : 1;
-                const pos = segMid(seg, t, 18, side);
+                const pos = segMid(seg, t, seg.id === 'dd' || seg.id === 'pw' ? 24 : 18, side);
                 const sub = seg.id.slice(-1);
                 return (
                   <text
@@ -548,8 +600,8 @@ export default function AdwUpsSheet({
                   <g>
                     <circle cx={p.x} cy={p.y} r="6" fill={COLORS.da} stroke="#ffffff" strokeWidth="2" />
                     <text
-                      x={p.x + 12}
-                      y={p.y + 26}
+                      x={p.x + 16}
+                      y={p.y + 32}
                       fontSize="17"
                       fontWeight="700"
                       fill="#1d4ed8"
