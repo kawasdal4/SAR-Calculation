@@ -4,29 +4,26 @@
 // Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
-// Lokal (sandbox/dev): SQLite file DB — cepat & tanpa kredensial eksternal.
-// Untuk deploy Vercel/Supabase, aktifkan kembali blok postgresql di bawah.
+// === DEPLOY (Vercel + Supabase PostgreSQL) — AKTIF ===
+// Client untuk production dibangun dari schema ini saat build di Vercel.
+// binaryTargets: runtime Vercel = rhel-openssl-3.0.x; native = dev di Linux.
+// Catatan pooler Supabase: prepared statement dinonaktifkan lewat parameter
+// URL DATABASE_URL (?pgbouncer=true pada port 6543) — bukan properti schema
+// (properti `pgbouncer` sudah dihapus sejak Prisma 5).
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
-// === Konfigurasi Supabase PostgreSQL (untuk deploy Vercel) ===
-// generator client {
-//   provider      = "prisma-client-js"
-//   pgbouncer     = true
-//   binaryTargets = ["native", "rhel-openssl-3.0.x"]
-// }
-//
-// datasource db {
-//   provider  = "postgresql"
-//   url       = env("DATABASE_URL")
-//   directUrl = env("DIRECT_URL")
-// }
+// === LOKAL (sandbox/dev) — SQLite ===
+// Skema SQLite dipindah ke prisma/schema.sqlite.prisma agar dev lokal tidak
+// butuh kredensial eksternal. Script db:* di package.json menunjuk ke sana.
 
 /// A saved SAR mission case — captures all worksheet inputs as JSON.
 model SarCase {

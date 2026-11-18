@@ -1,0 +1,127 @@
+// === LOKAL (sandbox/dev) — SQLite ===
+// Dipakai lewat script db:* di package.json: prisma db push --schema prisma/schema.sqlite.prisma
+// Skema deploy (Supabase PostgreSQL) ada di prisma/schema.prisma.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// A saved SAR mission case — captures all worksheet inputs as JSON.
+model SarCase {
+  id          String   @id @default(cuid())
+  /// Human-friendly case title (e.g., "M/V NEVERSEEN — Java Sea").
+  title       String
+  /// Optional case number for cross-reference with RCC files.
+  caseNumber  String?
+  /// Search object description (e.g., "8-person orange liferaft with canopy").
+  searchObject String?
+  /// Emergency phase: UNCERTAINTY | ALERT | DISTRESS
+  phase       String  @default("DISTRESS")
+  /// Serialized full worksheet state (JSON).
+  /// Shape: { awa, asw, datum (start, env, lw, X, Y), search (facilities, sweep, datumType, conditions) }
+  state       String
+  /// Optional notes for the SMC.
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([createdAt])
+}
+
+/// Bank Data kasus — fakta terstruktur hasil analisis AI atas Soal Kasus
+/// dan input manual petugas, lengkap dengan provenance per field.
+/// Merujuk Panduan Agent RENOPS/Briefing/De-Briefing (Perban 3/2020).
+model CaseDataBank {
+  id        String   @id @default(cuid())
+  /// Optional link ke SarCase.id bila kasus sudah disimpan.
+  caseId    String?
+  caseTitle String?
+  /// Jenis kejadian hasil analisis: ACCIDENT (kapal/pesawat) | DISASTER (bencana/KKM).
+  incidentType String @default("ACCIDENT")
+  /// Teks Soal Kasus asli yang dianalisis.
+  rawText   String
+  /// JSON array of DataBankField: { key, label, value, unit, sourceType, sourceRef, status, plannedActual, question }
+  fields    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([caseId])
+}
+
+/// Draft dokumen resmi (RENOPS Format I/II, Briefing, De-Briefing)
+/// hasil generator dengan resolusi sumber worksheet → peta → bank data.
+model DocumentDraft {
+  id        String   @id @default(cuid())
+  caseId    String?
+  bankId    String?
+  /// RENOPS_I | RENOPS_II | BRIEFING | DEBRIEFING
+  docType   String
+  /// DRAFT | APPROVED
+  status    String   @default("DRAFT")
+  /// JSON: { sections, validation, questions, meta }
+  payload   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([caseId, docType])
+}
+
+/// SAR Workflow Memory — konteks terstruktur per workspace (SarCase).
+/// Append-only: versi baru = baris baru; hasil lama TIDAK pernah dihapus
+/// (status jadi ARCHIVED dengan supersededBy) sesuai kebijakan retensi &
+/// versioning (audit trail). Workspace = SarCase existing — bukan entitas baru.
+model WorkspaceContext {
+  id        String   @id @default(cuid())
+  /// Link ke SarCase.id — workspace identifier (wajib, isolation antar workspace).
+  caseId    String
+  /// Slot stabil: 'calc:awa' | 'calc:ws1-datum' | 'map:features' | 'conv:<ts>' | 'doc:renops' …
+  entryKey  String
+  /// A: scenario | B: calculation | C: map | D: operational | E: conversation
+  category  String
+  /// Capability registry id sumber (env-awa, ws1-datum, map-sea-render, …).
+  capabilityId String?
+  /// Referensi hasil kalkulasi/objek (mis. id pola, id dokumen).
+  calculationId String?
+  /// 'user-input' | 'ai-extraction' | 'worksheet' | 'map' | 'document' | 'conversation'
+  source    String   @default("user-input")
+  /// JSON data entry (snapshot nilai + ringkasan) — tanpa API key/secret.
+  data      String
+  /// CURRENT | STALE | PENDING | NEEDS_REVIEW | INVALID | ARCHIVED
+  status    String   @default("CURRENT")
+  /// Ringkasan satu baris untuk retrieval selektif AI.
+  summary   String?
+  /// Versi monoton per entryKey.
+  version   Int      @default(1)
+  /// Hash input sumber — dasar deteksi STALE.
+  inputsHash String?
+  /// JSON array: entryKey dependency (relasi aktual, bukan tebakan).
+  dependencies String @default("[]")
+  /// entryKey versi yang digantikan oleh baris ini (untuk histori).
+  supersededBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([caseId, entryKey])
+  @@index([caseId, status])
+}
+
+/// Akun pengguna portal — dibuat oleh role developer.
+/// `identifier` berisi Email ATAU NIP (unik), dipakai untuk login.
+model Account {
+  id           String   @id @default(cuid())
+  /// Email atau NIP — satu field unik untuk keduanya.
+  identifier   String   @unique
+  /// Nama lengkap petugas (opsional).
+  name         String?
+  /// Role akses: developer | operator. Akun baru default operator.
+  role         String   @default("operator")
+  /// Hash password (scrypt, format "salt:hash" hex).
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
