@@ -1443,6 +1443,10 @@ export default function SeaMap({
     const labelCandidates: Array<{ marker: L.Marker; tooltip: L.Tooltip; text: string; preferred?: MapMarker['labelDirection'] }> = [];
     layer.clearLayers();
     markers.forEach((m) => {
+      // Lewati marker dengan posisi tak valid — satu data rusak tidak boleh
+      // mematikan seluruh peta (dulu: Leaflet lempar "reading 'lat'" di dalam
+      // project() dan SeaMapErrorBoundary menampilkan "peta gagal dimuat").
+      if (!m.position || !Number.isFinite(m.position.lat) || !Number.isFinite(m.position.lng)) return;
       const color = m.color ?? '#ef4444';
       const marker = L.marker([m.position.lat, m.position.lng], {
         icon: makeColoredIcon(color, m.isStart, m.isDatum, m.sequence),
@@ -1454,7 +1458,11 @@ export default function SeaMap({
           className: 'sar-point-label',
           opacity: 1,
           interactive: false,
-        }).setContent(escapeHtml(m.label));
+        })
+          // Tooltip wajib punya latlng sebelum addTo — tanpa ini DivOverlay
+          // memproyeksikan _latlng undefined dan merusak peta.
+          .setLatLng(m.position)
+          .setContent(escapeHtml(m.label));
         tooltip.addTo(map);
         pointLabels.push(tooltip);
         labelCandidates.push({ marker, tooltip, text: m.label, preferred: m.labelDirection });
@@ -1536,6 +1544,7 @@ export default function SeaMap({
     const layer = layersRef.current.lines;
     layer.clearLayers();
     lines.forEach((l) => {
+      if (!Number.isFinite(l.from?.lat) || !Number.isFinite(l.from?.lng) || !Number.isFinite(l.to?.lat) || !Number.isFinite(l.to?.lng)) return;
       const polyline = L.polyline(
         [
           [l.from.lat, l.from.lng],
@@ -1593,6 +1602,7 @@ export default function SeaMap({
     const layer = layersRef.current.polygons;
     layer.clearLayers();
     polygons.forEach((p) => {
+      if (!p.points?.length || p.points.some((pt) => !Number.isFinite(pt?.lat) || !Number.isFinite(pt?.lng))) return;
       const latlngs = p.points.map((pt) => [pt.lat, pt.lng] as [number, number]);
       const poly = L.polygon(latlngs, {
         color: p.color,
@@ -1618,6 +1628,7 @@ export default function SeaMap({
     const layer = layersRef.current.circles;
     layer.clearLayers();
     circles.forEach((c) => {
+      if (!Number.isFinite(c.center?.lat) || !Number.isFinite(c.center?.lng) || !Number.isFinite(c.radiusNm)) return;
       const radiusMeters = c.radiusNm * 1852;
       const circle = L.circle([c.center.lat, c.center.lng], {
         radius: radiusMeters,
