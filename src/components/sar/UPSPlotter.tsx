@@ -22,6 +22,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Map as MapIcon,
   Maximize2,
+  Minimize2,
   RotateCcw,
   ZoomIn,
   ZoomOut,
@@ -509,8 +510,8 @@ export default function UPSPlotter({
         ref={fsRef}
         className={`fs-target ${isFullscreen ? 'flex flex-col' : ''} ${className}`}
       >
-      <Card className={`border-slate-300 shadow-sm bg-white overflow-hidden ${isFullscreen ? 'flex-1 min-h-0 py-2 gap-2' : ''}`}>
-        <CardHeader className="bg-slate-100/90 border-b border-slate-300 py-3 px-4 print:hidden">
+      <Card className={`border-slate-300 shadow-sm bg-white overflow-hidden ${isFullscreen ? 'flex-1 min-h-0 py-0 gap-0' : ''}`}>
+        <CardHeader className={`bg-slate-100/90 border-b border-slate-300 py-3 px-4 print:hidden ${isFullscreen ? 'hidden' : ''}`}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <CardTitle className="text-sm sm:text-base font-bold flex items-center gap-2 text-slate-900">
@@ -608,18 +609,22 @@ export default function UPSPlotter({
           </div>
         </CardHeader>
 
-        <CardContent className={`p-4 flex flex-col xl:flex-row items-center gap-6 justify-center ${isFullscreen ? 'flex-1 min-h-0 w-full' : ''}`}>
-          {/* Lembar UPS interaktif (screen) */}
+        <CardContent className={`flex flex-col xl:flex-row items-center gap-6 justify-center ${isFullscreen ? 'flex-1 min-h-0 w-full p-0' : 'p-4'}`}>
+          {/* Lembar UPS interaktif (screen) — saat layar penuh memenuhi viewport
+              tanpa rasio terkunci; SVG viewBox (xMidYMid meet) menjaga proporsi
+              lembar sehingga selalu maksimal dan tidak gepeng. */}
           <div
             ref={sheetRef}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
-            className={`screen-only relative bg-white rounded-xl overflow-hidden border border-slate-400 shadow-inner select-none cursor-grab active:cursor-grabbing flex items-center justify-center ${
-              isFullscreen ? 'w-auto h-full max-w-none' : 'w-full max-w-[620px]'
+            className={`screen-only relative bg-white overflow-hidden select-none cursor-grab active:cursor-grabbing flex items-center justify-center ${
+              isFullscreen
+                ? 'w-full h-full flex-1 min-h-0 max-w-none rounded-none'
+                : 'rounded-xl border border-slate-400 shadow-inner w-full max-w-[620px]'
             }`}
-            style={{ aspectRatio: `${VB_WIDTH} / ${VB_HEIGHT}` }}
+            style={isFullscreen ? undefined : { aspectRatio: `${VB_WIDTH} / ${VB_HEIGHT}` }}
           >
             <div
               className="sheet-zoom-wrap relative w-full h-full"
@@ -652,7 +657,9 @@ export default function UPSPlotter({
               </span>
             </div>
 
-            {/* Kontrol zoom mengambang: zoom in/out langsung di lembar (roda mouse juga didukung) */}
+            {/* Kontrol zoom mengambang: zoom in/out langsung di lembar (roda mouse
+                juga didukung). Saat layar penuh ditambah Reset + Keluar karena
+                header toolbar disembunyikan. */}
             <div className="absolute bottom-2 right-2 print:hidden flex items-center gap-0.5 bg-white/95 border border-slate-300 rounded shadow-sm overflow-hidden">
               <button
                 type="button"
@@ -675,11 +682,34 @@ export default function UPSPlotter({
               >
                 <ZoomOut className="h-3.5 w-3.5" />
               </button>
+              {isFullscreen && (
+                <>
+                  <button
+                    type="button"
+                    onClick={resetView}
+                    title="Reset zoom & geseran"
+                    aria-label="Reset tampilan lembar UPS"
+                    className="p-1.5 text-slate-700 hover:bg-slate-100 border-l border-slate-200"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={toggleFullscreen}
+                    title="Keluar layar penuh (Esc)"
+                    aria-label="Keluar layar penuh"
+                    className="p-1.5 text-slate-700 hover:bg-slate-100 border-l border-slate-200 flex items-center gap-1 text-xs font-semibold"
+                  >
+                    <Minimize2 className="h-3.5 w-3.5" /> Keluar
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
-          {/* Positions List & Coordinates */}
-          <div className="screen-only w-full xl:w-80 space-y-4">
+          {/* Positions List & Coordinates — disembunyikan saat layar penuh:
+              hanya lembar UPS beserta vektornya yang tampil. */}
+          <div className={`screen-only w-full xl:w-80 space-y-4 ${isFullscreen ? 'hidden' : ''}`}>
             <div className="bg-white p-3.5 rounded-lg border border-slate-200 space-y-3">
               <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Plot titik dan rute UPS</h4>
               <div className="rounded border border-slate-200 bg-slate-50 p-2">

@@ -738,12 +738,14 @@
 
 /* ===== Layar penuh peta & lembar (Peta Laut, Peta ONC, MOBO, UPS) =====
    Tanpa ini, elemen :fullscreen memakai latar hitam bawaan UA dan konten
-   tidak memenuhi viewport. Keluar dengan Esc atau tombol "Keluar". */
+   tidak memenuhi viewport. Keluar dengan Esc atau tombol "Keluar" mengambang.
+   Padding 0 + overflow hidden: konten (papan/lembar/peta) memenuhi layar penuh
+   tanpa bingkai dan tanpa scrollbar. */
 .fs-target:fullscreen,
 .fs-target:-webkit-full-screen {
   width: 100%;
   height: 100%;
-  background: #f8fafc;
-  overflow: auto;
-  padding: 12px;
+  background: #ffffff;
+  overflow: hidden;
+  padding: 0;
 }

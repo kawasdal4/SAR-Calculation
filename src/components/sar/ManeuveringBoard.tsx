@@ -23,6 +23,7 @@ import {
   ZoomIn,
   ZoomOut,
   Info,
+  Minimize2,
   Play,
   Pause,
   SkipForward,
@@ -63,6 +64,11 @@ export interface ManeuveringBoardProps {
 
 const VB_WIDTH = 2400;
 const VB_HEIGHT = 2618;
+/** Rentang zoom papan (layar normal & layar penuh): 50%–600%. */
+const MOBO_ZOOM_MIN = 0.5;
+const MOBO_ZOOM_MAX = 6;
+const MOBO_ZOOM_STEP_BUTTON = 0.25;
+const MOBO_ZOOM_STEP_WHEEL = 0.15;
 /** Scan asli PDF "Maneuvering Board" (DMA 5090) — versi layar & versi cetak native.
  *  Cache-busting ?v= agar browser tidak memakai template lama dari cache. */
 const TEMPLATE_SCREEN = '/templates/mobo5090_original_web.jpg?v=2';
@@ -167,7 +173,9 @@ export default function ManeuveringBoard({
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
-  // Layar penuh: seluruh kartu papan manuver memenuhi viewport.
+  // Layar penuh: hanya papan + vektor yang tampil (header, toolbar, dan panel
+  // penghitungan disembunyikan — lihat kelas `isFullscreen` di bawah), dengan
+  // kontrol zoom/pan/keluar mengambang di atas papan.
   const { ref: fsRef, isFullscreen, toggle: toggleFullscreen } = useFullscreen<HTMLDivElement>();
 
 
@@ -313,8 +321,24 @@ export default function ManeuveringBoard({
   };
 
   const handleZoom = (delta: number) => {
-    setZoom((prev) => Math.min(3, Math.max(0.6, prev + delta)));
+    setZoom((prev) => Math.min(MOBO_ZOOM_MAX, Math.max(MOBO_ZOOM_MIN, prev + delta)));
   };
+
+  // Zoom roda mouse langsung di atas papan. Listener native (bukan React
+  // onWheel) karena React memasang wheel sebagai passive — preventDefault
+  // akan diabaikan dan halaman ikut tergulir.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      setZoom((prev) =>
+        Math.min(MOBO_ZOOM_MAX, Math.max(MOBO_ZOOM_MIN, prev + (event.deltaY < 0 ? MOBO_ZOOM_STEP_WHEEL : -MOBO_ZOOM_STEP_WHEEL))),
+      );
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
 
   const startAnimation = () => {
     setActiveStep(1);
@@ -329,9 +353,9 @@ export default function ManeuveringBoard({
         ref={fsRef}
         className={`fs-target ${isFullscreen ? 'flex flex-col' : ''} ${className}`}
       >
-      <Card className={`border-slate-300 shadow-sm bg-white overflow-hidden ${isFullscreen ? 'flex-1 min-h-0 py-2 gap-2' : ''}`}>
-        {/* Header Bar */}
-        <CardHeader className="bg-slate-100/95 border-b border-slate-300 py-3 px-4 print:hidden">
+      <Card className={`border-slate-300 shadow-sm bg-white overflow-hidden ${isFullscreen ? 'flex-1 min-h-0 py-0 gap-0' : ''}`}>
+        {/* Header Bar — disembunyikan saat layar penuh (hanya papan yang tampil) */}
+        <CardHeader className={`bg-slate-100/95 border-b border-slate-300 py-3 px-4 print:hidden ${isFullscreen ? 'hidden' : ''}`}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <CardTitle className="text-sm sm:text-base font-bold flex items-center gap-2 text-slate-900">
@@ -447,18 +471,22 @@ export default function ManeuveringBoard({
           </div>
         </CardHeader>
 
-        <CardContent className={`p-3 sm:p-5 flex flex-col xl:flex-row items-center gap-6 justify-center ${isFullscreen ? 'flex-1 min-h-0 w-full' : ''}`}>
-          {/* Maneuvering Board interaktif (screen) */}
+        <CardContent className={`flex flex-col xl:flex-row items-center gap-6 justify-center ${isFullscreen ? 'flex-1 min-h-0 w-full p-0' : 'p-3 sm:p-5'}`}>
+          {/* Maneuvering Board interaktif (screen) — saat layar penuh memenuhi
+              viewport tanpa rasio terkunci; SVG viewBox (xMidYMid meet) yang
+              menjaga proporsi papan sehingga selalu maksimal dan tidak gepeng. */}
           <div
             ref={containerRef}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
-            className={`screen-only relative bg-white rounded-xl overflow-hidden border border-slate-400 shadow-inner select-none cursor-grab active:cursor-grabbing flex items-center justify-center ${
-              isFullscreen ? 'w-auto h-full max-w-none' : 'w-full max-w-[640px]'
+            className={`screen-only relative bg-white overflow-hidden select-none cursor-grab active:cursor-grabbing flex items-center justify-center ${
+              isFullscreen
+                ? 'w-full h-full flex-1 min-h-0 max-w-none rounded-none'
+                : 'rounded-xl border border-slate-400 shadow-inner w-full max-w-[640px]'
             }`}
-            style={{ aspectRatio: `${VB_WIDTH} / ${VB_HEIGHT}` }}
+            style={isFullscreen ? undefined : { aspectRatio: `${VB_WIDTH} / ${VB_HEIGHT}` }}
           >
             <div
               className="sheet-zoom-wrap relative w-full h-full bg-white"
@@ -490,6 +518,52 @@ export default function ManeuveringBoard({
               </span>
             </div>
 
+            {/* Kontrol mengambang layar penuh: zoom in/out, reset, dan keluar
+                (header toolbar disembunyikan saat layar penuh). */}
+            {isFullscreen && (
+              <div className="absolute bottom-2 right-2 z-20 print:hidden flex items-center gap-0.5 bg-white/95 border border-slate-300 rounded shadow-lg overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => handleZoom(MOBO_ZOOM_STEP_BUTTON)}
+                  title="Perbesar (roda mouse ke atas di atas papan)"
+                  aria-label="Perbesar papan manuver"
+                  className="p-1.5 text-slate-700 hover:bg-slate-100"
+                >
+                  <ZoomIn className="h-3.5 w-3.5" />
+                </button>
+                <span className="text-[11px] font-mono px-1.5 text-slate-600 font-semibold select-none">
+                  {Math.round(zoom * 100)}%
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleZoom(-MOBO_ZOOM_STEP_BUTTON)}
+                  title="Perkecil (roda mouse ke bawah di atas papan)"
+                  aria-label="Perkecil papan manuver"
+                  className="p-1.5 text-slate-700 hover:bg-slate-100"
+                >
+                  <ZoomOut className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={resetView}
+                  title="Reset zoom & geseran"
+                  aria-label="Reset tampilan papan"
+                  className="p-1.5 text-slate-700 hover:bg-slate-100 border-l border-slate-200"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={toggleFullscreen}
+                  title="Keluar layar penuh (Esc)"
+                  aria-label="Keluar layar penuh"
+                  className="p-1.5 text-slate-700 hover:bg-slate-100 border-l border-slate-200 flex items-center gap-1 text-xs font-semibold"
+                >
+                  <Minimize2 className="h-3.5 w-3.5" /> Keluar
+                </button>
+              </div>
+            )}
+
             {/* Step Indicator during Animation */}
             {activeStep < vectors.length && (
               <div className="absolute top-2 left-2 bg-emerald-950/90 text-emerald-200 text-xs px-3 py-1 rounded-full border border-emerald-500 shadow-md flex items-center gap-1.5 font-bold animate-pulse">
@@ -498,8 +572,9 @@ export default function ManeuveringBoard({
             )}
           </div>
 
-          {/* Vector Table & Legend (Responsive, no horizontal scroll needed) */}
-          <div className="screen-only w-full xl:w-80 space-y-4">
+          {/* Vector Table & Legend (Responsive, no horizontal scroll needed) —
+              disembunyikan saat layar penuh: hanya papan yang tampil. */}
+          <div className={`screen-only w-full xl:w-80 space-y-4 ${isFullscreen ? 'hidden' : ''}`}>
             <div className="bg-slate-50 p-3.5 rounded-lg border border-slate-200">
               <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2.5 flex items-center justify-between">
                 <span>Daftar Vektor (Saling Nyambung)</span>

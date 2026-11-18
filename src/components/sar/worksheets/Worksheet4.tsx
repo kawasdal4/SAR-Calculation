@@ -725,7 +725,7 @@ export default function Worksheet4({
                   type="button"
                   onClick={toggleOncFullscreen}
                   title="Keluar layar penuh (Esc)"
-                  className="print:hidden absolute top-2 right-14 z-20 inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow hover:bg-slate-100"
+                  className="print:hidden absolute top-2 right-14 z-[1300] inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow hover:bg-slate-100"
                 >
                   <Minimize2 className="h-3.5 w-3.5" /> Keluar layar penuh
                 </button>
@@ -739,8 +739,8 @@ export default function Worksheet4({
                 circles={ws4Circles}
                 // Saat fullscreen: tinggi persentase (100%) tidak dihitung ulang
                 // pada elemen :fullscreen di Chromium — pakai tinggi eksplisit
-                // (24px = padding wrapper .fs-target).
-                height={oncFullscreen ? 'calc(100vh - 24px)' : '520px'}
+                // 100vh (padding .fs-target sudah 0).
+                height={oncFullscreen ? '100vh' : '520px'}
               />
             </div>
             {activeMappedPoints.length === 0 && <p className="mt-2 text-[10px] text-amber-800">Masukkan koordinat waypoint A–D agar radius dan area koridor dapat ditampilkan.</p>}

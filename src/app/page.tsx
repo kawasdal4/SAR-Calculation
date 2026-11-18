@@ -29,6 +29,8 @@ import {
   MousePointer2,
   Ruler,
   Undo2,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react';
 import AWAWorksheet, {
   type AWAData,
@@ -2212,13 +2214,15 @@ export default function Home() {
             }
           />}
 
-          {/* Interactive Sea Chart Card */}
+          {/* Interactive Sea Chart Card — layar penuh hanya menampilkan peta
+              beserta fitur & vektornya (header, alat, chip titik, banner mode,
+              legenda, dan koordinat sudut disembunyikan). */}
           <div
             ref={petaLautFsRef}
             className={`fs-target ${petaLautFullscreen ? 'flex flex-col' : ''}`}
           >
-          <Card className={`overflow-hidden border-slate-200 shadow-sm ${petaLautFullscreen ? 'flex-1 min-h-0 py-2 gap-0' : ''}`}>
-            <CardHeader className="bg-slate-50 pb-3">
+          <Card className={`overflow-hidden border-slate-200 shadow-sm ${petaLautFullscreen ? 'flex-1 min-h-0 py-0 gap-0' : ''}`}>
+            <CardHeader className={`bg-slate-50 pb-3 ${petaLautFullscreen ? 'hidden' : ''}`}>
               <div className="flex items-center justify-between gap-2">
                 <CardTitle className="text-base flex items-center gap-2">
                   <MapIcon className="h-4 w-4 text-slate-600" /> Peta Laut & Alokasi Vektor
@@ -2256,7 +2260,7 @@ export default function Home() {
               </div>
             </CardHeader>
             <CardContent className={`p-0 ${petaLautFullscreen ? 'flex-1 min-h-0 flex flex-col' : ''}`}>
-              <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-white p-2.5" aria-label="Alat peta Worksheet 1">
+              <div className={`flex flex-wrap items-center gap-2 border-b border-slate-200 bg-white p-2.5 ${petaLautFullscreen ? 'hidden' : ''}`} aria-label="Alat peta Worksheet 1">
                 <span className="mr-1 text-[11px] font-bold text-slate-700">Alat Peta Worksheet 1</span>
                 <button type="button" disabled={pickMode || pickSruMode} onClick={() => setMainMapToolMode('pan')} aria-pressed={mainMapToolMode === 'pan'} className={`inline-flex items-center gap-1 rounded border px-2.5 py-1.5 text-xs disabled:opacity-40 ${mainMapToolMode === 'pan' ? 'border-slate-700 bg-slate-700 text-white' : 'border-slate-300 bg-white text-slate-700'}`}>
                   <MousePointer2 className="h-3.5 w-3.5" /> Geser / pilih
@@ -2286,7 +2290,7 @@ export default function Home() {
                 }} className="rounded border border-rose-300 bg-white px-2.5 py-1.5 text-xs text-rose-700 disabled:opacity-40">Bersihkan titik tambahan</button>
                 <span className="ml-auto text-[10px] text-slate-500">{mainMapDroppedPoints.length} titik tambahan · {pickMode ? 'pilih LKP' : pickSruMode ? 'pilih pangkalan SRU' : mainMapToolMode === 'drop' ? 'klik peta untuk menaruh titik' : mainMapToolMode === 'measure' ? 'klik titik; klik ganda untuk hapus pengukuran' : 'mode geser aktif'}</span>
               </div>
-              {mainMapDroppedPoints.length > 0 && <div className="flex flex-wrap gap-1.5 border-b border-slate-200 bg-white px-2.5 py-2">
+              {mainMapDroppedPoints.length > 0 && <div className={`flex flex-wrap gap-1.5 border-b border-slate-200 bg-white px-2.5 py-2 ${petaLautFullscreen ? 'hidden' : ''}`}>
                 {mainMapDroppedPoints.map((point, index) => (
                   <button key={point.id} type="button" onClick={() => setSelectedMainMapPointId(point.id)} aria-pressed={selectedMainMapPointId === point.id} className={`rounded border px-2 py-1 text-[10px] ${selectedMainMapPointId === point.id ? 'border-rose-500 bg-rose-50 text-rose-800' : 'border-slate-200 bg-white text-slate-600'}`}>
                     Titik {index + 1}: {formatDMS(point.position.lat, false)} · {formatDMS(point.position.lng, true)}
@@ -2294,7 +2298,7 @@ export default function Home() {
                 ))}
               </div>}
               {pickMode && (
-                <div className="px-3 py-2 bg-emerald-600 text-white text-xs font-medium flex items-center justify-between">
+                <div className={`px-3 py-2 bg-emerald-600 text-white text-xs font-medium flex items-center justify-between ${petaLautFullscreen ? 'hidden' : ''}`}>
                   <span>◉ Mode pilih LKP aktif — klik pada peta laut untuk menetapkan titik LKP</span>
                   <button
                     type="button"
@@ -2306,7 +2310,7 @@ export default function Home() {
                 </div>
               )}
               {pickSruMode && (
-                <div className="px-3 py-2 bg-purple-600 text-white text-xs font-medium flex items-center justify-between">
+                <div className={`px-3 py-2 bg-purple-600 text-white text-xs font-medium flex items-center justify-between ${petaLautFullscreen ? 'hidden' : ''}`}>
                   <span>◉ Mode pilih Pangkalan SRU — klik pada peta untuk menetapkan posisi pangkalan</span>
                   <button
                     type="button"
@@ -2318,7 +2322,21 @@ export default function Home() {
                 </div>
               )}
 
-              <div className={`${pickMode ? 'ring-2 ring-emerald-500 ring-inset' : pickSruMode ? 'ring-2 ring-purple-500 ring-inset' : ''} ${petaLautFullscreen ? 'flex-1 min-h-0' : ''}`}>
+              <div className={`relative ${pickMode ? 'ring-2 ring-emerald-500 ring-inset' : pickSruMode ? 'ring-2 ring-purple-500 ring-inset' : ''} ${petaLautFullscreen ? 'flex-1 min-h-0' : ''}`}>
+                {/* Tombol layar penuh melayang di atas peta (tengah atas) —
+                    selalu terlihat, tidak bertabrakan dengan kontrol Leaflet
+                    (layer kanan-atas, koordinat kiri-atas, Tampilan kanan-bawah).
+                    Saat layar penuh menjadi tombol "Keluar". */}
+                <button
+                  type="button"
+                  onClick={togglePetaLautFullscreen}
+                  title={petaLautFullscreen ? 'Keluar layar penuh (Esc)' : 'Tampilkan layar penuh'}
+                  aria-pressed={petaLautFullscreen}
+                  className="absolute left-1/2 top-2 z-[1300] -translate-x-1/2 print:hidden inline-flex items-center gap-1.5 rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-md hover:bg-slate-100"
+                >
+                  {petaLautFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+                  {petaLautFullscreen ? 'Keluar layar penuh' : 'Layar Penuh'}
+                </button>
                 <SeaMapMount
                   center={mapCenter}
                   zoom={8}
@@ -2334,8 +2352,8 @@ export default function Home() {
                 />
               </div>
 
-              {/* Map Legend */}
-              <div className="px-3 py-2 bg-slate-50 border-t border-slate-200 text-[11px] text-slate-600 flex flex-wrap gap-x-3 gap-y-1">
+              {/* Map Legend — disembunyikan saat layar penuh (hanya peta) */}
+              <div className={`px-3 py-2 bg-slate-50 border-t border-slate-200 text-[11px] text-slate-600 flex flex-wrap gap-x-3 gap-y-1 ${petaLautFullscreen ? 'hidden' : ''}`}>
                 <span className="font-semibold text-slate-800">Legenda:</span>
                 <span className="inline-flex items-center gap-1">
                   <span className="w-2.5 h-2.5 rounded-full bg-sky-500 inline-block" /> LKP
@@ -2361,7 +2379,7 @@ export default function Home() {
                 </span>
               </div>
               {searchAreaCornerDescriptions.length > 0 && (
-                <div className="px-3 py-2 bg-white border-t border-slate-200 text-[10px] leading-relaxed text-slate-700">
+                <div className={`px-3 py-2 bg-white border-t border-slate-200 text-[10px] leading-relaxed text-slate-700 ${petaLautFullscreen ? 'hidden' : ''}`}>
                   <strong className="text-slate-900">Koordinat sudut Search Area (A → B → C → D searah jarum jam):</strong>
                   {searchAreaCornerDescriptions.map((description) => <div key={description} className="font-mono">{description}</div>)}
                 </div>
