@@ -307,6 +307,8 @@ export default function AIChatPanel({
   const [clarifyAnswers, setClarifyAnswers] = useState<Record<string, string>>({});
   const [attachedFiles, setAttachedFiles] = useState<UploadedAttachment[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  // Catatan auto-retry sisi klien saat Gemini high-demand (tampil di indikator loading).
+  const [autoRetryNote, setAutoRetryNote] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [snapshotSaving, setSnapshotSaving] = useState(false);
   const [showWorkspace, setShowWorkspace] = useState(true);
@@ -719,76 +721,101 @@ export default function AIChatPanel({
           );
         }
 
-        const res = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: requestBody,
-        });
-
-        const responseBody = await res.text();
-        let data: {
-          error?: string;
-          text?: string;
-          functionCalls?: ChatMessage['functionCalls'];
-          bankFallback?: Array<{ caseTitle?: string | null; incidentType?: string; rawText?: string; fields?: unknown[] }>;
-        };
-        try {
-          data = JSON.parse(responseBody);
-        } catch {
-          const detail = responseBody.trim().slice(0, 600);
-          throw new Error(
-            `Server mengembalikan respons non-JSON (HTTP ${res.status}). ${detail || 'Isi respons kosong.'}`
-          );
-        }
-
-        if (!res.ok) {
-          throw new Error(data.error || 'API Error');
-        }
-
-        // Bank Data lokal (fallback serverless): simpan hasil analisis ke localStorage
-        // agar tetap bisa dipakai di panel Bank Data & Dokumen (tab Briefing/Renops).
-        if (Array.isArray(data.bankFallback) && data.bankFallback.length > 0) {
+        // Auto-retry sisi klien: server tidak bisa menunggu lonjakan high-demand
+        // Google melewati anggarannya (batas function Vercel 300s), tapi klien
+        // bisa. Error transient (high demand/overloaded/timeout/anggaran waktu)
+        // dicoba ulang OTOMATIS maksimal 3 percobaan dengan jeda 20 detik
+        // berhitung mundur, sehingga pengguna tidak perlu mengirim ulang manual.
+        // Error non-transient (kunci salah, lampiran oversize, respons rusak)
+        // langsung ditampilkan tanpa retry.
+        const TRANSIENT_ERROR_RE = /high demand|resource_exhausted|overloaded|unavailable|lonjakan|sedang sibuk|tidak merespons|anggaran waktu/i;
+        const MAX_CHAT_ATTEMPTS = 3;
+        for (let chatAttempt = 1; chatAttempt <= MAX_CHAT_ATTEMPTS; chatAttempt += 1) {
           try {
-            const LOCAL_BANKS_KEY = 'sar-data-bank-local';
-            const stored = JSON.parse(localStorage.getItem(LOCAL_BANKS_KEY) ?? '[]') as Array<Record<string, unknown>>;
-            const nowIso = new Date().toISOString();
-            for (const rec of data.bankFallback) {
-              if (!Array.isArray(rec.fields)) continue;
-              stored.unshift({
-                id: `local_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
-                caseTitle: rec.caseTitle ?? null,
-                incidentType: rec.incidentType === 'DISASTER' ? 'DISASTER' : 'ACCIDENT',
-                rawText: typeof rec.rawText === 'string' ? rec.rawText : '',
-                fields: rec.fields,
-                createdAt: nowIso,
-                updatedAt: nowIso,
-              });
-            }
-            localStorage.setItem(LOCAL_BANKS_KEY, JSON.stringify(stored.slice(0, 50)));
-          } catch { /* penyimpanan lokal gagal — abaikan */ }
-        }
+            const res = await fetch('/api/chat', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: requestBody,
+            });
 
-        // PHASE 5: TIDAK auto-apply — semua tool-call yang mengubah
-        // peta/state/dokumen lewat kontrak preview/konfirmasi seragam
-        // (chatPreview.ts). Pengguna meninjau pratinjau di kartu pesan lalu
-        // menekan "Konfirmasi & Terapkan" (handleApply yang sama).
-        const mutating = (data.functionCalls ?? []).filter(
-          (c: { name: string }) => !CHAT_NON_MUTATING_TOOLS.has(c.name),
-        );
-        const assistantMsg: ChatMessage = {
-          role: 'assistant',
-          content: data.text || 'Server tidak mengirim teks jawaban.',
-          functionCalls: data.functionCalls,
-        };
-        if (mutating.length > 0) {
-          const targets = [...new Set(buildChatPreviewContracts(mutating).map((c) => c.target))];
-          const targetText = targets.map((t) => TARGET_LABELS[t] ?? t).join(', ');
-          assistantMsg.content +=
-            targets.length > 0
-              ? `\n\n📋 Pratinjau ${mutating.length} operasi siap diterapkan (${targetText}). Tinjau di bawah, lalu konfirmasi untuk menerapkan — tidak ada data yang berubah sebelum Anda konfirmasi.`
-              : '\n\n📋 Pratinjau operasi siap diterapkan. Tinjau di bawah, lalu konfirmasi untuk menerapkan.';
+            const responseBody = await res.text();
+            let data: {
+              error?: string;
+              text?: string;
+              functionCalls?: ChatMessage['functionCalls'];
+              bankFallback?: Array<{ caseTitle?: string | null; incidentType?: string; rawText?: string; fields?: unknown[] }>;
+            };
+            try {
+              data = JSON.parse(responseBody);
+            } catch {
+              const detail = responseBody.trim().slice(0, 600);
+              throw new Error(
+                `Server mengembalikan respons non-JSON (HTTP ${res.status}). ${detail || 'Isi respons kosong.'}`
+              );
+            }
+
+            if (!res.ok) {
+              throw new Error(data.error || 'API Error');
+            }
+
+            // Bank Data lokal (fallback serverless): simpan hasil analisis ke localStorage
+            // agar tetap bisa dipakai di panel Bank Data & Dokumen (tab Briefing/Renops).
+            if (Array.isArray(data.bankFallback) && data.bankFallback.length > 0) {
+              try {
+                const LOCAL_BANKS_KEY = 'sar-data-bank-local';
+                const stored = JSON.parse(localStorage.getItem(LOCAL_BANKS_KEY) ?? '[]') as Array<Record<string, unknown>>;
+                const nowIso = new Date().toISOString();
+                for (const rec of data.bankFallback) {
+                  if (!Array.isArray(rec.fields)) continue;
+                  stored.unshift({
+                    id: `local_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
+                    caseTitle: rec.caseTitle ?? null,
+                    incidentType: rec.incidentType === 'DISASTER' ? 'DISASTER' : 'ACCIDENT',
+                    rawText: typeof rec.rawText === 'string' ? rec.rawText : '',
+                    fields: rec.fields,
+                    createdAt: nowIso,
+                    updatedAt: nowIso,
+                  });
+                }
+                localStorage.setItem(LOCAL_BANKS_KEY, JSON.stringify(stored.slice(0, 50)));
+              } catch { /* penyimpanan lokal gagal — abaikan */ }
+            }
+
+            // PHASE 5: TIDAK auto-apply — semua tool-call yang mengubah
+            // peta/state/dokumen lewat kontrak preview/konfirmasi seragam
+            // (chatPreview.ts). Pengguna meninjau pratinjau di kartu pesan lalu
+            // menekan "Konfirmasi & Terapkan" (handleApply yang sama).
+            const mutating = (data.functionCalls ?? []).filter(
+              (c: { name: string }) => !CHAT_NON_MUTATING_TOOLS.has(c.name),
+            );
+            const assistantMsg: ChatMessage = {
+              role: 'assistant',
+              content: data.text || 'Server tidak mengirim teks jawaban.',
+              functionCalls: data.functionCalls,
+            };
+            if (mutating.length > 0) {
+              const targets = [...new Set(buildChatPreviewContracts(mutating).map((c) => c.target))];
+              const targetText = targets.map((t) => TARGET_LABELS[t] ?? t).join(', ');
+              assistantMsg.content +=
+                targets.length > 0
+                  ? `\n\n📋 Pratinjau ${mutating.length} operasi siap diterapkan (${targetText}). Tinjau di bawah, lalu konfirmasi untuk menerapkan — tidak ada data yang berubah sebelum Anda konfirmasi.`
+                  : '\n\n📋 Pratinjau operasi siap diterapkan. Tinjau di bawah, lalu konfirmasi untuk menerapkan.';
+            }
+            setMessages([...newMessages, assistantMsg]);
+            break;
+          } catch (attemptErr) {
+            const attemptMsg = attemptErr instanceof Error ? attemptErr.message : 'Unknown error';
+            if (chatAttempt >= MAX_CHAT_ATTEMPTS || !TRANSIENT_ERROR_RE.test(attemptMsg)) {
+              throw attemptErr;
+            }
+            // Jeda berhitung mundur; catatan tampil di indikator loading.
+            for (let remainS = 20; remainS > 0; remainS -= 1) {
+              setAutoRetryNote(`Gemini sedang sibuk — mencoba ulang otomatis dalam ${remainS} detik (percobaan ${chatAttempt + 1}/${MAX_CHAT_ATTEMPTS})…`);
+              await new Promise((resolve) => setTimeout(resolve, 1000));
+            }
+            setAutoRetryNote(null);
+          }
         }
-        setMessages([...newMessages, assistantMsg]);
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : 'Unknown error';
         setMessages([
@@ -797,6 +824,7 @@ export default function AIChatPanel({
         ]);
       } finally {
         setIsLoading(false);
+        setAutoRetryNote(null);
       }
     },
     [apiKey, attachedFiles, isLoading, messages, applyFunctionCalls]
@@ -1318,14 +1346,21 @@ export default function AIChatPanel({
             ))}
 
             {isLoading && (
-              <div className="flex gap-2 justify-start">
-                <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-                  <Bot className="h-3.5 w-3.5 text-emerald-700" />
+              <div className="flex flex-col gap-1 items-start">
+                <div className="flex gap-2 justify-start">
+                  <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                    <Bot className="h-3.5 w-3.5 text-emerald-700" />
+                  </div>
+                  <div className="bg-slate-100 rounded-xl px-3 py-2 text-xs text-slate-600 flex items-center gap-2">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-600" />
+                    Membaca dokumen & menganalisis kasus...
+                  </div>
                 </div>
-                <div className="bg-slate-100 rounded-xl px-3 py-2 text-xs text-slate-600 flex items-center gap-2">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-600" />
-                  Membaca dokumen & menganalisis kasus...
-                </div>
+                {autoRetryNote && (
+                  <div className="ml-8 text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 max-w-md">
+                    {autoRetryNote}
+                  </div>
+                )}
               </div>
             )}
 

@@ -666,16 +666,28 @@ const tools: FunctionDeclaration[] = [
   },
 ];
 
-const GEMINI_MODELS_DEFAULT = ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.5-flash-lite'] as const;
-// Rantai model fallback bisa digeser tanpa mengubah kode lewat env
-// GEMINI_MODEL_FALLBACKS (dipisah koma) — berguna saat kapasitas Google
-// berpindah antar model; nama divalidasi karakter aman saja dan env kosong/
-// tak valid kembali ke daftar default.
+// Rantai fallback default (Nov 2026, daftar resmi Gemini API — semuanya
+// mendukung function calling dan tanpa syarat billing): model utama yang
+// terkurasi dulu, lalu model dengan pool kapasitas TERPISAH. gemini-3.7-flash
+// sengaja dibuang: Dev API kini mengalihkannya ke gemini-3.8-flash, jadi
+// mencobanya setelah 3.8 gagal hanya mengulang pool yang sama.
+// gemini-4-hydrogen (rilis 12 Nov 2026, fokus agentic, kapasitas baru) menjadi
+// fallback kedua; gemini-3.6-flash & 3.1-flash-lite (GA, masih dilayani) jadi
+// cadangan lanjutan. Override lewat env GEMINI_MODEL_FALLBACKS (dipisah koma;
+// nama divalidasi karakter aman; env kosong/tak valid kembali ke default).
+const GEMINI_MODELS_DEFAULT = ['gemini-3.8-flash', 'gemini-4-hydrogen', 'gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.1-flash-lite'] as const;
 const envModelFallbacks = (process.env.GEMINI_MODEL_FALLBACKS ?? '')
   .split(',')
   .map((name) => name.trim())
   .filter((name) => /^[\w.\-]+$/.test(name));
 const GEMINI_MODELS: readonly string[] = envModelFallbacks.length > 0 ? envModelFallbacks : GEMINI_MODELS_DEFAULT;
+// thinking_level hanya dikirim untuk model yang terdokumentasi menerimanya;
+// model lain memakai default model agar permintaan tidak ditolak (HTTP 400) —
+// penting sejak rantai memuat gemini-4-* yang konvensi API-nya bisa berbeda.
+const MODEL_THINKING_LEVEL: Record<string, 'minimal' | 'low'> = {
+  'gemini-3.5-flash-lite': 'minimal',
+  'gemini-3.8-flash': 'low',
+};
 // 2 retry per model (total 3 percobaan): 429 "high demand" kembali cepat
 // (~1–3 detik) dan Google menyertakan retryDelay yang dihormati backoff di
 // bawah — percobaan ketiga sering lolos begitu lonjakan mereda. Percobaan
@@ -692,6 +704,49 @@ const GEMINI_REQUEST_TIMEOUT_MS = Number.isFinite(envTimeoutMs) && envTimeoutMs 
 const envBudgetMs = Number(process.env.GEMINI_TOTAL_BUDGET_MS);
 const GEMINI_TOTAL_BUDGET_MS = Number.isFinite(envBudgetMs) && envBudgetMs >= 15_000 ? envBudgetMs : 260_000;
 const WORKSHEET_TOOL_NAMES = ['set_asw_case', 'set_awa_case', 'set_aero_drift_case', 'set_lkp', 'set_datum_case', 'set_ws2_case', 'set_ws3_case', 'set_ws4_case', 'set_ws8_case', 'set_search_pattern_case', 'set_intercept_case', 'ask_for_case_data'];
+
+// Penemuan model dinamis: models.list memuat model yang bisa dilihat kunci —
+// sinyal kandidat saja (troubleshooting resmi: tidak menjamin inferensi aktif).
+// Cache 5 menit di level modul agar latensi request tidak bertambah; gagal =
+// rantai statis dipakai apa adanya. Model gambar/TTS/embedding/live dibuang
+// (bukan kandidat pemanggilan teks + function calling di Interactions API).
+let cachedAvailableGeminiModels: { names: string[]; fetchedAt: number } | null = null;
+async function fetchAvailableGeminiModels(apiKey: string): Promise<string[]> {
+  if (cachedAvailableGeminiModels && Date.now() - cachedAvailableGeminiModels.fetchedAt < 300_000) {
+    return cachedAvailableGeminiModels.names;
+  }
+  try {
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models', {
+      headers: { 'x-goog-api-key': apiKey },
+      signal: AbortSignal.timeout(5_000),
+    });
+    if (!response.ok) return [];
+    const payload = await response.json().catch(() => ({}));
+    const rawModels = Array.isArray((payload as { models?: unknown })?.models)
+      ? (payload as { models: Array<{ name?: unknown }> }).models
+      : [];
+    const names = rawModels
+      .map((m) => (typeof m?.name === 'string' ? m.name.replace(/^models\//, '') : ''))
+      .filter((name) => /^gemini[\w.\-]*$/.test(name)
+        && !/(embedding|imagen|veo|tts|image|live|native-audio|aqa|robotics)/i.test(name));
+    cachedAvailableGeminiModels = { names, fetchedAt: Date.now() };
+    console.info(`[AI chat] models.list: ${names.length} model gemini tersedia (cache 5 menit).`);
+    return names;
+  } catch {
+    return [];
+  }
+}
+
+// Rantai efektif = rantai terkurasi dulu (urutan dirancang manual), lalu model
+// gemini lain yang tersedia di akun sebagai kandidat tambahan (versi terbaru
+// dulu) — model baru yang Google rilis ke depan otomatis masuk fallback tanpa
+// perlu deploy ulang.
+function buildModelChain(availableModels: string[]): readonly string[] {
+  const extras = availableModels
+    .filter((name) => !GEMINI_MODELS.includes(name))
+    .sort((a, b) => b.localeCompare(a, 'en', { numeric: true }));
+  return extras.length > 0 ? [...GEMINI_MODELS, ...extras] : GEMINI_MODELS;
+}
 
 /**
  * Instruksi tambahan yang disuntikkan pada pass paksa agar model tidak
@@ -711,11 +766,12 @@ async function runForcedWorksheetRetry(
   input: Array<Record<string, string>>,
   apiKey: string,
   primaryModel: string,
+  modelChain: readonly string[],
   normalizeSchemaFn: (value: unknown) => unknown,
   systemPrompt: string = SYSTEM_PROMPT,
   deadlineMs?: number,
 ): Promise<Array<{ type?: string; name?: string; arguments?: unknown }> | null> {
-  const orderedModels = [primaryModel, ...GEMINI_MODELS.filter((model) => model !== primaryModel)];
+  const orderedModels = [primaryModel, ...modelChain.filter((model) => model !== primaryModel)];
   for (const model of orderedModels) {
     // Timeout dinamis: jangan mulai percobaan yang bisa berjalan melewati
     // anggaran total (Vercel mematikan function pada 300s).
@@ -738,7 +794,7 @@ async function runForcedWorksheetRetry(
           system_instruction: systemPrompt,
           generation_config: {
             max_output_tokens: 32768,
-            thinking_level: model === 'gemini-3.5-flash-lite' ? 'minimal' : 'low',
+            ...(MODEL_THINKING_LEVEL[model] ? { thinking_level: MODEL_THINKING_LEVEL[model] } : {}),
             // Paksa function call dengan bentuk TERDOKUMENTASI Interactions API:
             // string "any". Pembatasan tool dilakukan lewat array tools di bawah
             // (bentuk lama { allowed_tools: { mode, tools } } hanya terdokumentasi
@@ -786,6 +842,7 @@ async function runChainCompletionPass(
   input: Array<Record<string, string>>,
   apiKey: string,
   primaryModel: string,
+  modelChain: readonly string[],
   normalizeSchemaFn: (value: unknown) => unknown,
   instruction: string,
   systemPrompt: string = SYSTEM_PROMPT,
@@ -796,7 +853,7 @@ async function runChainCompletionPass(
   // sering 429 "high demand" tepat pada pass kedua ini — tanpa fallback,
   // hasilnya jaring pengaman mati diam-diam dan kasus berhenti di 1 worksheet
   // (mis. hanya AWA diterapkan padahal ADW/ASW/Datum dianalisis).
-  const orderedModels = [primaryModel, ...GEMINI_MODELS.filter((model) => model !== primaryModel)];
+  const orderedModels = [primaryModel, ...modelChain.filter((model) => model !== primaryModel)];
   for (const model of orderedModels) {
     // Timeout dinamis: jangan mulai percobaan yang bisa berjalan melewati
     // anggaran total (Vercel mematikan function pada 300s) — lebih baik kembali
@@ -820,7 +877,7 @@ async function runChainCompletionPass(
           system_instruction: systemPrompt,
           generation_config: {
             max_output_tokens: 32768,
-            thinking_level: model === 'gemini-3.5-flash-lite' ? 'minimal' : 'low',
+            ...(MODEL_THINKING_LEVEL[model] ? { thinking_level: MODEL_THINKING_LEVEL[model] } : {}),
             // Paksa panggilan tool dengan bentuk terdokumentasi "any"
             // (pembatasan tool lewat array tools di bawah — bentuk
             // { allowed_tools: {...} } top-level bisa ditolak/diabaikan API):
@@ -1000,15 +1057,19 @@ ATURAN MEMORI WORKSPACE:
       } catch { /* bentuk detail tidak terduga — abaikan */ }
       return null;
     };
+    // Rantai model efektif untuk permintaan ini: rantai terkurasi + model gemini
+    // lain yang tersedia di akun (penemuan dinamis, cache 5 menit). Digabung
+    // SEBELUM loop agar model yang baru dirilis Google langsung ikut dicoba.
+    const modelChain = buildModelChain(await fetchAvailableGeminiModels(apiKey));
     const geminiStartedAt = Date.now();
     // Anggaran waktu total: semua model × semua percobaan dihentikan bila tercapai.
     const geminiDeadlineMs = geminiStartedAt + GEMINI_TOTAL_BUDGET_MS;
     const triedModels: string[] = [];
     let result: Record<string, unknown> | undefined;
     let lastError: Error | undefined;
-    let usedModel: (typeof GEMINI_MODELS)[number] = GEMINI_MODELS[0];
-    for (let modelIdx = 0; modelIdx < GEMINI_MODELS.length; modelIdx += 1) {
-      const model = GEMINI_MODELS[modelIdx];
+    let usedModel: string = modelChain[0];
+    for (let modelIdx = 0; modelIdx < modelChain.length; modelIdx += 1) {
+      const model = modelChain[modelIdx];
       triedModels.push(model);
       for (let attempt = 0; attempt <= MAX_RETRIES_PER_MODEL; attempt += 1) {
         // Timeout dinamis per percobaan: sisa anggaran dikurangi (a) cadangan
@@ -1019,10 +1080,14 @@ ATURAN MEMORI WORKSPACE:
         // ruang untuk membuat respons JSON (Vercel mematikan function pada
         // 300s). Sebelumnya AbortSignal.timeout memakai nilai tetap 120s, jadi
         // percobaan yang mulai dekat deadline bisa berjalan MELEWATI anggaran.
-        const modelsLeftAfter = GEMINI_MODELS.length - 1 - modelIdx;
+        const modelsLeftAfter = modelChain.length - 1 - modelIdx;
+        // Cadangan per model yang belum dicoba dibatasi total 100s — dengan
+        // 5+ model di rantai, cadangan penuh 50s×N menghabiskan anggaran dan
+        // membuat percobaan pertama langsung ditolak (< 25s).
+        const reserveMs = Math.min(modelsLeftAfter * 50_000, 100_000);
         const attemptTimeoutMs = Math.min(
           GEMINI_REQUEST_TIMEOUT_MS,
-          geminiDeadlineMs - Date.now() - modelsLeftAfter * 50_000 - safetyNetReserveMs - 8_000,
+          geminiDeadlineMs - Date.now() - reserveMs - safetyNetReserveMs - 8_000,
         );
         if (attemptTimeoutMs < 25_000) {
           lastError = lastError ?? new Error(`Anggaran waktu permintaan Gemini (${GEMINI_TOTAL_BUDGET_MS / 1000} detik) tercapai.`);
@@ -1042,7 +1107,7 @@ ATURAN MEMORI WORKSPACE:
               system_instruction: effectiveSystemPrompt,
               generation_config: {
                 max_output_tokens: 32768,
-                thinking_level: model === 'gemini-3.5-flash-lite' ? 'minimal' : 'low',
+                ...(MODEL_THINKING_LEVEL[model] ? { thinking_level: MODEL_THINKING_LEVEL[model] } : {}),
                 // Kasus Intercept: paksa function call dengan bentuk
                 // terdokumentasi "any"; pembatasan ke satu tool lewat array
                 // tools di bawah (bentuk { allowed_tools: {...} } top-level
@@ -1073,7 +1138,15 @@ ATURAN MEMORI WORKSPACE:
           lastError = new Error(`${detail} (model: ${model}, Interactions API)`);
           const transient = response.status === 429 || response.status >= 500;
           if (transient) suggestedRetryDelayMs = extractRetryDelayMs(payload);
-          if (!transient) throw lastError;
+          if (!transient) {
+            // 401/403 = masalah kunci/akun yang sama untuk semua model — gagal
+            // cepat. 404/400 = masalah model/parameter ini saja (model pensiun,
+            // parameter ditolak model baru) — lanjut ke model berikutnya, jangan
+            // bunuh seluruh rantai fallback.
+            if (response.status === 401 || response.status === 403) throw lastError;
+            console.warn(`[AI chat] Model ${model} menolak permintaan (HTTP ${response.status}); lanjut ke model berikutnya.`);
+            break;
+          }
         } catch (requestError) {
           if (requestError instanceof Error && requestError.message.includes('(model:')) throw requestError;
           if (requestError instanceof Error && (requestError.name === 'TimeoutError' || requestError.name === 'AbortError')) {
@@ -1090,8 +1163,9 @@ ATURAN MEMORI WORKSPACE:
 
         if (attempt < MAX_RETRIES_PER_MODEL) {
           // Hormati retryDelay yang disarankan Google bila ada; fallback backoff
-          // eksponensial. Dibatasi 45s dan sisa anggaran waktu total.
-          const wantedMs = suggestedRetryDelayMs ?? 1000 * (2 ** attempt);
+          // eksponensial. Jitter ±15% (panduan resmi: hindari banyak klien
+          // mengulang serempak). Dibatasi 45s dan sisa anggaran waktu total.
+          const wantedMs = Math.round((suggestedRetryDelayMs ?? 1000 * (2 ** attempt)) * (0.85 + Math.random() * 0.3));
           const remainingBudgetMs = geminiDeadlineMs - Date.now();
           const waitMs = Math.max(0, Math.min(wantedMs, 45_000, remainingBudgetMs - 1000));
           if (waitMs > 0) {
@@ -1140,7 +1214,7 @@ ATURAN MEMORI WORKSPACE:
       .map((fc) => ({ name: fc.name, args: fc.arguments || {} }));
     const firstPassWorksheet = functionCalls.filter((fc) => fc.name !== 'ask_for_case_data' && fc.name !== 'save_case_data_bank');
     if (caseLikeRequest && firstPassWorksheet.length === 0) {
-      const forcedRetrySteps = await runForcedWorksheetRetry(input, apiKey, usedModel, normalizeSchema, effectiveSystemPrompt, geminiDeadlineMs);
+      const forcedRetrySteps = await runForcedWorksheetRetry(input, apiKey, usedModel, modelChain, normalizeSchema, effectiveSystemPrompt, geminiDeadlineMs);
       const retryWorksheet = forcedRetrySteps?.filter((step) => step.type === 'function_call' && typeof step.name === 'string'
         && step.name !== 'save_case_data_bank') ?? [];
       if (retryWorksheet.length > 0) {
@@ -1222,6 +1296,7 @@ ATURAN MEMORI WORKSPACE:
           input,
           apiKey,
           usedModel,
+          modelChain,
           normalizeSchema,
           buildChainCompletionInstruction(missingTools, [...firstPassNames]),
           effectiveSystemPrompt,
@@ -1321,7 +1396,7 @@ ATURAN MEMORI WORKSPACE:
             // jaring pengaman pass paksa hanya bisa dicoba pada respons baru.
             'Analisis kasus gagal menghasilkan data worksheet yang bisa diterapkan — kemungkinan model sedang sibuk sehingga jawaban tidak memuat data terstruktur. Silakan kirim ulang pesan + lampiran soal kasus Anda; bila tetap sama, tunggu 1–2 menit lalu coba lagi.');
       return NextResponse.json({
-        text: `${usedModel !== GEMINI_MODELS[0] ? 'Model utama sedang sibuk; jawaban diproses dengan model cadangan.\n\n' : ''}${responseText}${bankSavedText}${clarificationText}`,
+        text: `${usedModel !== modelChain[0] ? 'Model utama sedang sibuk; jawaban diproses dengan model cadangan.\n\n' : ''}${responseText}${bankSavedText}${clarificationText}`,
         functionCalls: worksheetCalls.length ? worksheetCalls : null,
         ...(bankFallback ? { bankFallback } : {}),
       });
@@ -1341,7 +1416,7 @@ ATURAN MEMORI WORKSPACE:
       .map((part: { text?: string }) => part.text || '')
       .join('');
     return NextResponse.json({
-      text: `${usedModel !== GEMINI_MODELS[0] ? 'Model utama sedang sibuk; jawaban diproses dengan model cadangan.\n\n' : ''}${responseText || 'Model Gemini tidak mengembalikan teks jawaban.'}${bankSavedText}`,
+      text: `${usedModel !== modelChain[0] ? 'Model utama sedang sibuk; jawaban diproses dengan model cadangan.\n\n' : ''}${responseText || 'Model Gemini tidak mengembalikan teks jawaban.'}${bankSavedText}`,
       functionCalls: null,
       ...(bankFallback ? { bankFallback } : {}),
     });
