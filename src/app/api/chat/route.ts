@@ -2,7 +2,7 @@ import { type FunctionDeclaration, SchemaType } from '@google/generative-ai';
 import { NextRequest, NextResponse } from 'next/server';
 import { processUploadedFile } from '@/lib/sar/fileExtractor';
 import type { DataBankField, RawQuestion } from '@/lib/sar/dataBank';
-import { buildChainCompletionInstruction, computeMissingWorksheetTools, parseDeclaredWorksheetTools } from '@/lib/sar/caseChain';
+import { buildChainCompletionInstruction, computeMissingWorksheetTools, parseDeclaredWorksheetTools, type WorksheetToolName } from '@/lib/sar/caseChain';
 
 const SYSTEM_PROMPT = `Kamu adalah Asisten SAR Planner AI untuk Badan SAR Nasional (Basarnas) Indonesia.
 Kamu membantu dalam perhitungan dan analisis operasi SAR berdasarkan panduan operasi SAR dan Peraturan No. 3 Tahun 2020.
@@ -38,7 +38,7 @@ PEMILIHAN WORKSHEET DAN KETERGANTUNGAN:
 - Jika menemukan prasyarat/data wajib yang kurang, panggil ask_for_case_data berisi nama worksheet dan pertanyaan spesifik; panggilan worksheet lain yang sudah memiliki data lengkap tetap boleh dibuat.
 
 KEBIJAKAN DEFAULT PILIHAN PLANNER (WAJIB — JANGAN DITANYAKAN KEPADA PENGGUNA):
-- EKSEKUSI LANGSUNG: bila soal kasus memuat data cukup, panggil SEMUA tool worksheet terkait SEKARANG pada respons ini. DILARANG hanya menjawab daftar "WORKSHEET YANG HARUS DIPAKAI" + pertanyaan tanpa memanggil satu pun tool worksheet, dan DILARANG menunda worksheet yang datanya sudah lengkap hanya karena worksheet lain masih kurang.
+- EKSEKUSI LANGSUNG: bila soal kasus memuat data cukup, panggil SEMUA tool worksheet terkait SEKARANG pada respons ini. DILARANG hanya menjawab daftar "WORKSHEET YANG HARUS DIPAKAI" + pertanyaan tanpa memanggil satu pun tool worksheet, dan DILARANG menunda worksheet yang datanya sudah lengkap hanya karena worksheet lain masih kurang. Jangan berhenti setelah satu atau dua tool: SEBELUM respons ditutup, SEMUA tool pada daftar "WORKSHEET YANG HARUS DIPAKAI" wajib sudah dipanggil pada respons yang sama. Tulis ringkasan analisis secara ringkas agar respons punya ruang untuk semua panggilan tool.
 - intervalMode ASW: simpulkan dari jam observasi di soal — hanya 00/06/12/18 → "6h"; ada 03/09/15/21 → "3h". DILARANG bertanya bila jam observasinya ada di soal.
 - WS2 selectedHeight: bila soal tidak menyebut tinggi pencarian, gunakan 1000 ft dan tulis sebagai asumsi di jawaban.
 - WS8 eyeHeight: kapal patroli/rescue vessel → "14" (Eye height 14 ft, Patrol boat); perahu kecil/RIB/Sea Rider → "8" (Small craft); kapal besar/jembatan tinggi → "MERSHIP". Tulis sebagai asumsi di jawaban.
@@ -629,7 +629,7 @@ const GEMINI_REQUEST_TIMEOUT_MS = Number.isFinite(envTimeoutMs) && envTimeoutMs 
 // Anggaran waktu total SEMUA percobaan (3 model × 2 percobaan) — di bawah batas Fluid
 // compute Vercel Hobby/Pro (default & maksimum 300s). Override: env GEMINI_TOTAL_BUDGET_MS (min 15s).
 const envBudgetMs = Number(process.env.GEMINI_TOTAL_BUDGET_MS);
-const GEMINI_TOTAL_BUDGET_MS = Number.isFinite(envBudgetMs) && envBudgetMs >= 15_000 ? envBudgetMs : 240_000;
+const GEMINI_TOTAL_BUDGET_MS = Number.isFinite(envBudgetMs) && envBudgetMs >= 15_000 ? envBudgetMs : 260_000;
 const WORKSHEET_TOOL_NAMES = ['set_asw_case', 'set_awa_case', 'set_aero_drift_case', 'set_lkp', 'set_datum_case', 'set_ws2_case', 'set_ws3_case', 'set_ws4_case', 'set_ws8_case', 'set_search_pattern_case', 'set_intercept_case', 'ask_for_case_data'];
 
 /**
@@ -652,21 +652,31 @@ async function runForcedWorksheetRetry(
   primaryModel: string,
   normalizeSchemaFn: (value: unknown) => unknown,
   systemPrompt: string = SYSTEM_PROMPT,
+  deadlineMs?: number,
 ): Promise<Array<{ type?: string; name?: string; arguments?: unknown }> | null> {
   const orderedModels = [primaryModel, ...GEMINI_MODELS.filter((model) => model !== primaryModel)];
   for (const model of orderedModels) {
+    // Timeout dinamis: jangan mulai percobaan yang bisa berjalan melewati
+    // anggaran total (Vercel mematikan function pada 300s).
+    const attemptTimeoutMs = deadlineMs
+      ? Math.min(GEMINI_REQUEST_TIMEOUT_MS, deadlineMs - Date.now() - 5_000)
+      : GEMINI_REQUEST_TIMEOUT_MS;
+    if (attemptTimeoutMs < 20_000) {
+      console.warn(`[AI chat] Forced worksheet retry dihentikan: anggaran waktu hampir habis (model berikutnya=${model}).`);
+      break;
+    }
     try {
-      console.info(`[AI chat] Kasus tanpa panggilan worksheet; ulangi dengan tool_choice paksa (model=${model}).`);
+      console.info(`[AI chat] Kasus tanpa panggilan worksheet; ulangi dengan tool_choice paksa (model=${model}, timeoutMs=${Math.round(attemptTimeoutMs / 1000)}s).`);
       const response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-        signal: AbortSignal.timeout(GEMINI_REQUEST_TIMEOUT_MS),
+        signal: AbortSignal.timeout(attemptTimeoutMs),
         body: JSON.stringify({
           model,
           input: [...input, { type: 'text', text: FORCED_RETRY_INSTRUCTION }],
           system_instruction: systemPrompt,
           generation_config: {
-            max_output_tokens: 8192,
+            max_output_tokens: 32768,
             thinking_level: model === 'gemini-3.5-flash-lite' ? 'minimal' : 'low',
             tool_choice: { allowed_tools: { mode: 'any', tools: WORKSHEET_TOOL_NAMES } },
           },
@@ -719,25 +729,28 @@ async function runChainCompletionPass(
   // (mis. hanya AWA diterapkan padahal ADW/ASW/Datum dianalisis).
   const orderedModels = [primaryModel, ...GEMINI_MODELS.filter((model) => model !== primaryModel)];
   for (const model of orderedModels) {
-    // Jaga anggaran total permintaan (Vercel 300s): jangan mulai percobaan baru
-    // bila sisa waktu < 15s — lebih baik kembali dengan hasil parsial daripada
-    // function-nya dimatikan platform dan pengguna mendapat error non-JSON.
-    if (deadlineMs && Date.now() >= deadlineMs - 15_000) {
-      console.warn(`[AI chat] Chain completion dihentikan: anggaran waktu hampir habis (model berikutnya=${model}).`);
+    // Timeout dinamis: jangan mulai percobaan yang bisa berjalan melewati
+    // anggaran total (Vercel mematikan function pada 300s) — lebih baik kembali
+    // dengan hasil parsial daripada function-nya dimatikan platform.
+    const attemptTimeoutMs = deadlineMs
+      ? Math.min(GEMINI_REQUEST_TIMEOUT_MS, deadlineMs - Date.now() - 5_000)
+      : GEMINI_REQUEST_TIMEOUT_MS;
+    if (attemptTimeoutMs < 20_000) {
+      console.warn(`[AI chat] Chain completion dihentikan: anggaran waktu hampir habis (sisa=${deadlineMs ? Math.round((deadlineMs - Date.now()) / 1000) : '?'}s, model berikutnya=${model}).`);
       break;
     }
     try {
-      console.info(`[AI chat] Worksheet kasus belum lengkap; jalankan pass penyambung (model=${model}).`);
+      console.info(`[AI chat] Worksheet kasus belum lengkap; jalankan pass penyambung (model=${model}, timeoutMs=${Math.round(attemptTimeoutMs / 1000)}s).`);
       const response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-        signal: AbortSignal.timeout(GEMINI_REQUEST_TIMEOUT_MS),
+        signal: AbortSignal.timeout(attemptTimeoutMs),
         body: JSON.stringify({
           model,
           input: [...input, { type: 'text', text: instruction }],
           system_instruction: systemPrompt,
           generation_config: {
-            max_output_tokens: 8192,
+            max_output_tokens: 32768,
             thinking_level: model === 'gemini-3.5-flash-lite' ? 'minimal' : 'low',
             // Paksa panggilan tool: pass sebelumnya sering hanya menjawab teks
             // ("belum ada yang perlu ditambahkan") walau tool masih hilang.
@@ -931,7 +944,7 @@ ATURAN MEMORI WORKSPACE:
               input,
               system_instruction: effectiveSystemPrompt,
               generation_config: {
-                max_output_tokens: 8192,
+                max_output_tokens: 32768,
                 thinking_level: model === 'gemini-3.5-flash-lite' ? 'minimal' : 'low',
                 ...(interceptCaseDetected ? {
                   tool_choice: {
@@ -1032,7 +1045,7 @@ ATURAN MEMORI WORKSPACE:
       .map((fc) => ({ name: fc.name, args: fc.arguments || {} }));
     const firstPassWorksheet = functionCalls.filter((fc) => fc.name !== 'ask_for_case_data' && fc.name !== 'save_case_data_bank');
     if (caseLikeRequest && firstPassWorksheet.length === 0) {
-      const forcedRetrySteps = await runForcedWorksheetRetry(input, apiKey, usedModel, normalizeSchema, effectiveSystemPrompt);
+      const forcedRetrySteps = await runForcedWorksheetRetry(input, apiKey, usedModel, normalizeSchema, effectiveSystemPrompt, geminiDeadlineMs);
       const retryWorksheet = forcedRetrySteps?.filter((step) => step.type === 'function_call' && typeof step.name === 'string'
         && step.name !== 'save_case_data_bank') ?? [];
       if (retryWorksheet.length > 0) {
@@ -1044,14 +1057,16 @@ ATURAN MEMORI WORKSPACE:
       }
     }
 
-    // Penyambung rantai worksheet kasus: model kadang berhenti setelah satu/
+    // Penyambung rantai worksheet kasus: model kerap berhenti setelah satu/
     // dua tool walau bagian "WORKSHEET YANG HARUS DIPAKAI" pada jawabannya
-    // sendiri mendaftar lebih banyak worksheet (mis. kasus EXE FAKFAK: 6
-    // worksheet dianalisis, hanya AWA yang dipanggil). Daftar itu diparse dan
+    // sendiri mendaftar lebih banyak worksheet (kasus nyata: EXE FAKFAK — 6
+    // worksheet dianalisis, hanya AWA yang dipanggil; PK-XYZ — pass pertama
+    // hanya menambah ASW, ADW/Datum tetap hilang). Daftar itu diparse dan
     // dipakai sebagai jaring pengaman kedua (setelah forced retry kasus nol
-    // panggilan): SATU pass lanjutan menamai tool yang hilang secara eksplisit.
-    // Panggilan baru digabung dengan hasil pass pertama (dedupe per nama tool;
-    // versi pass pertama menang).
+    // panggilan). Karena model sering hanya memanggil SATU tool per respons,
+    // pass penyambung DIULANGI (maks 3) sampai tidak ada yang hilang, tidak
+    // ada progres, atau anggaran waktu habis. Panggilan baru digabung dengan
+    // hasil pass sebelumnya (dedupe per nama tool; versi lebih awal menang).
     const firstPassNames = new Set(functionCalls.map((fc) => fc.name));
     const modelAnswerText = steps
       .filter((step: { type?: string }) => step.type === 'model_output')
@@ -1059,54 +1074,60 @@ ATURAN MEMORI WORKSPACE:
       .filter((part: { type?: string }) => part.type === 'text')
       .map((part: { text?: string }) => part.text || '')
       .join('');
-    const missingTools = computeMissingWorksheetTools(
-      parseDeclaredWorksheetTools(modelAnswerText),
-      functionCalls.map((fc) => fc.name),
-    );
-    // Rantai penerbangan: AWA dipanggil tetapi ADW belum — model kadang
-    // berhenti di tool pertama walau data hilir lengkap; tanpa daftar pun
-    // rantai AWA → ADW → Datum tetap disambung (perilaku lama dipertahankan).
-    if (
-      firstPassNames.has('set_awa_case')
-      && !firstPassNames.has('set_aero_drift_case')
-      && !firstPassNames.has('set_intercept_case')
-    ) {
-      for (const tool of ['set_aero_drift_case', 'set_datum_case'] as const) {
-        if (!missingTools.includes(tool)) missingTools.push(tool);
+    const declaredTools = parseDeclaredWorksheetTools(modelAnswerText);
+    // Tool yang masih hilang — dihitung ULANG pada tiap pass: daftar worksheet
+    // yang dinyatakan model + rantai penerbangan AWA → ADW → Datum, dikurangi
+    // tool yang sudah dipanggil sejauh ini.
+    const computeMissingNow = (): WorksheetToolName[] => {
+      const missing = [...computeMissingWorksheetTools(declaredTools, functionCalls.map((fc) => fc.name))];
+      // Rantai penerbangan: AWA dipanggil tetapi ADW belum — model kadang
+      // berhenti di tool pertama walau data hilir lengkap; tanpa daftar pun
+      // rantai AWA → ADW → Datum tetap disambung (perilaku lama dipertahankan).
+      if (
+        functionCalls.some((fc) => fc.name === 'set_awa_case')
+        && !functionCalls.some((fc) => fc.name === 'set_aero_drift_case')
+        && !functionCalls.some((fc) => fc.name === 'set_intercept_case')
+      ) {
+        for (const tool of ['set_aero_drift_case', 'set_datum_case'] as const) {
+          if (!missing.includes(tool)) missing.push(tool);
+        }
       }
-    }
-    const chainIncomplete = missingTools.length > 0
+      return missing;
+    };
+    const chainIncomplete = computeMissingNow().length > 0
       && functionCalls.length > 0
       && !firstPassNames.has('set_intercept_case');
     if (chainIncomplete) {
-      const completionSteps = await runChainCompletionPass(
-        input,
-        apiKey,
-        usedModel,
-        normalizeSchema,
-        buildChainCompletionInstruction(missingTools, [...firstPassNames]),
-        effectiveSystemPrompt,
-        // tool_choice paksa: model harus memanggil tool yang hilang (atau
-        // ask_for_case_data bila memang ada fakta wajib yang tak ada di soal).
-        [...missingTools, 'ask_for_case_data'],
-        geminiDeadlineMs,
-      );
-      if (completionSteps) {
-        const merged = [...functionCalls];
+      for (let chainPass = 1; chainPass <= 3; chainPass += 1) {
+        const missingTools = computeMissingNow();
+        if (missingTools.length === 0) break;
+        const completionSteps = await runChainCompletionPass(
+          input,
+          apiKey,
+          usedModel,
+          normalizeSchema,
+          buildChainCompletionInstruction(missingTools, [...firstPassNames]),
+          effectiveSystemPrompt,
+          // tool_choice paksa: model harus memanggil tool yang hilang (atau
+          // ask_for_case_data bila memang ada fakta wajib yang tak ada di soal).
+          [...missingTools, 'ask_for_case_data'],
+          geminiDeadlineMs,
+        );
+        if (!completionSteps) break;
+        let addedWorksheet = 0;
         for (const step of completionSteps) {
           // Terima HANYA tool yang terbukti hilang (+ klarifikasi): panggilan
           // lain dari pass penyambung (mis. set_lkp pada kasus ditching yang
           // wajib pakai lkpSource "adw-landing") bisa merusak rantai hilir.
           if (step.type === 'function_call' && typeof step.name === 'string' && !firstPassNames.has(step.name)
             && ((missingTools as readonly string[]).includes(step.name) || step.name === 'ask_for_case_data')) {
-            merged.push(step as GeminiFunctionCallStep);
+            functionCalls.push(step as GeminiFunctionCallStep);
             firstPassNames.add(step.name);
+            if (step.name !== 'ask_for_case_data') addedWorksheet += 1;
           }
         }
-        if (merged.length > functionCalls.length) {
-          console.info(`[AI chat] Chain completion menambah ${merged.length - functionCalls.length} panggilan worksheet.`);
-          functionCalls = merged;
-        }
+        console.info(`[AI chat] Chain pass ${chainPass} menambah ${addedWorksheet} panggilan worksheet (masih hilang: ${computeMissingNow().length}).`);
+        if (addedWorksheet === 0) break; // hanya klarifikasi — user harus menjawab dulu
       }
     }
 
