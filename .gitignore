@@ -80,3 +80,6 @@ tool-results/
 
 # SQLite dev database (lokal, berisi data smoke test)
 prisma/*.db*
+
+# SQLite dev database bersarang (lokal saja)
+prisma/prisma/

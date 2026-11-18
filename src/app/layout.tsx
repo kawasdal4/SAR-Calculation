@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
+import TabTitleMarquee from "@/components/TabTitleMarquee";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SAR Mission Planning Workbench — SAR Worksheet Calculator",
+  title: "SAR Calculator",
   description: "Calculate SAR worksheets (AWA, ASW, Wind Current, Leeway, Datum, Sweep Width, Effort Allocation) and plot the resulting search area on an interactive OpenSeaMap sea chart.",
   keywords: ["SAR", "search and rescue", "sea map", "AWA", "ASW", "leeway", "datum", "search planning", "OpenSeaMap"],
   authors: [{ name: "SAR Mission Planning Workbench" }],
@@ -45,6 +46,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
         {children}
+        <TabTitleMarquee />
         <Toaster />
         <SonnerToaster richColors position="top-right" />
       </body>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
+import Image from 'next/image';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -24,6 +25,8 @@ import {
   Anchor,
   Clock,
   Sparkles,
+  LogOut,
+  Users,
   Trash2,
   MapPinPlus,
   MousePointer2,
@@ -49,6 +52,7 @@ import DatumWorksheet, {
   type DatumResults,
   type DatumInitialState,
 } from '@/components/sar/DatumWorksheet';
+import DatumPositionCard from '@/components/sar/DatumPositionCard';
 import SearchPlanWorksheet, {
   type SearchPlanResults,
   type SearchPlanInitialState,
@@ -56,6 +60,7 @@ import SearchPlanWorksheet, {
 import type { Ws1Derived } from '@/components/sar/worksheets/Worksheet1';
 import CaseManager from '@/components/sar/CaseManager';
 import ExportButtons from '@/components/sar/ExportButtons';
+import CopyrightFooter from '@/components/sar/CopyrightFooter';
 import WeatherPanel from '@/components/sar/WeatherPanel';
 import { toast } from 'sonner';
 import { buildSearchActionPlanData } from '@/lib/sar/searchActionPlan';
@@ -143,6 +148,8 @@ export default function Home() {
   // Marine Datum & Search results
   const [datumData, setDatumData] = useState<DatumData | null>(null);
   const [datumResults, setDatumResults] = useState<DatumResults | null>(null);
+  /** Hasil internal DatumWorksheet untuk tampilan kartu Datum di luar worksheet. */
+  const [datumDisplay, setDatumDisplay] = useState<DatumResults | null>(null);
   const [searchResults, setSearchResults] = useState<SearchPlanResults | null>(null);
   const [worksheet1Ao, setWorksheet1Ao] = useState(0);
   const [worksheet1Fs, setWorksheet1Fs] = useState(1.1);
@@ -220,6 +227,15 @@ export default function Home() {
   const [isPrintA3Open, setIsPrintA3Open] = useState<boolean>(false);
   const [isAiChatOpen, setIsAiChatOpen] = useState<boolean>(false);
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState<boolean>(false);
+
+  // Role pengguna portal (dari cookie sesi, via /api/auth/me)
+  const [userRole, setUserRole] = useState<string | null>(null);
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setUserRole(d?.r ?? null))
+      .catch(() => setUserRole(null));
+  }, []);
   const [aiInterceptInput, setAiInterceptInput] = useState<InterceptInput | null>(null);
   const [interceptCaseVersion, setInterceptCaseVersion] = useState(0);
 
@@ -1513,12 +1529,16 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-md bg-emerald-500 flex items-center justify-center shadow">
-                <Compass className="h-6 w-6 text-white" />
-              </div>
+              <Image
+                src="/images/logo-sar-basarnas.png"
+                alt="Logo SAR Calculator Basarnas"
+                width={72}
+                height={72}
+                className="w-18 h-18 object-contain logo-glow-pulse"
+              />
               <div>
                 <h1 className="text-base sm:text-lg font-bold tracking-tight">
-                  Sistem Kalkulasi & Operasional SAR Terpadu
+                  Sistem Kalkulasi Search Area - SAR Planning
                 </h1>
                 <p className="text-xs text-slate-300">
                   Alur: AWA → ADW (LKP) → ASW → WS 1 (Ao) → WS 2 & 8 → Alokasi Aset SRU & Pola Pencarian
@@ -1526,6 +1546,35 @@ export default function Home() {
               </div>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
+              {/* Tombol Kelola Akun (khusus role developer) */}
+              {userRole === 'developer' && (
+                <a
+                  href="/akun"
+                  title="Tambah / kelola akun portal"
+                  className="flex items-center gap-1.5 text-xs bg-orange-500/15 text-orange-300 hover:bg-orange-500/30 hover:text-orange-200 font-bold px-3 py-1.5 rounded-lg shadow transition-all border border-orange-400/30"
+                >
+                  <Users className="h-3.5 w-3.5" /> Kelola Akun
+                </a>
+              )}
+              {/* Badge role pengguna (portal login) */}
+              <span
+                title="Masuk sebagai developer"
+                className="flex items-center gap-1.5 text-xs bg-emerald-500/10 text-emerald-300 font-bold px-2.5 py-1.5 rounded-lg border border-emerald-400/30"
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Developer
+              </span>
+              {/* Tombol Keluar (logout) */}
+              <button
+                type="button"
+                onClick={async () => {
+                  await fetch('/api/auth/logout', { method: 'POST' });
+                  window.location.href = '/login';
+                }}
+                title="Keluar dari portal"
+                className="flex items-center gap-1.5 text-xs bg-slate-700/60 hover:bg-red-600 text-slate-200 hover:text-white font-bold px-3 py-1.5 rounded-lg shadow transition-all border border-slate-500/40"
+              >
+                <LogOut className="h-3.5 w-3.5" /> Keluar
+              </button>
               {/* Tombol AI Assistant */}
               <button
                 type="button"
@@ -1566,9 +1615,8 @@ export default function Home() {
                 activeCaseId={activeSarCase?.id ?? null}
               />
               <ExportButtons data={searchActionPlanData} caseTitle="SAR_Search_Action_Plan" />
-              <Badge variant="secondary" className="bg-slate-800 text-slate-200 border-slate-700">
-                SAR Planning
-              </Badge>
+              {/* Copyright pojok kanan bawah header (klik → modal hak cipta) */}
+              <CopyrightFooter align="right" className="ml-auto py-0" />
             </div>
           </div>
         </div>
@@ -1839,6 +1887,7 @@ export default function Home() {
                 pickMode={pickMode}
                 seaCurrentOverride={seaCurrentOverride}
                 onResults={setDatumResults}
+                onDisplayResults={setDatumDisplay}
                 onDataChange={setDatumData}
                 onStateChange={setDatumState}
                 initialState={loadedInitialState?.datum}
@@ -1860,6 +1909,10 @@ export default function Home() {
                 driftDistance={datumResults?.driftDistance}
                 E={datumResults?.E}
               />
+              {/* Penjabaran hitungan Datum Position & Search Area lingkaran (π × R²) —
+                  DIKELUARKAN dari worksheet (form asli tidak memuatnya); hitungan
+                  berjalan di belakang layar untuk peta laut, penjabaran di bawah ini. */}
+              <DatumPositionCard datum={datumResults ?? datumDisplay} derived={ws1Derived} />
             </TabsContent>
 
             {/* TAB 5: WORKSHEET 2 (LEEWAY DIVERGENCE & SUB-AREA DECISION USING AO) */}

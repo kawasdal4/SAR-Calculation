@@ -749,3 +749,28 @@
   overflow: hidden;
   padding: 0;
 }
+
+/* ===== Glow kuning pulse untuk logo header =====
+   drop-shadow dipakai (bukan box-shadow) agar cahaya mengikuti
+   bentuk logo transparan, bukan bingkai kotak.
+   Pinggir putih: 4 drop-shadow putih (kiri/kanan/atas/bawah) membentuk
+   outline 2px yang mengikuti siluet logo agar bentuknya terbaca di
+   header gelap — outline konstan, hanya glow kuningnya yang berdenyut. */
+@keyframes logo-glow-pulse {
+  0%, 100% {
+    filter: drop-shadow(2px 0 0 #fff) drop-shadow(-2px 0 0 #fff)
+      drop-shadow(0 2px 0 #fff) drop-shadow(0 -2px 0 #fff)
+      drop-shadow(0 0 5px rgba(250, 204, 21, 0.55))
+      drop-shadow(0 0 12px rgba(250, 204, 21, 0.3));
+  }
+  50% {
+    filter: drop-shadow(2px 0 0 #fff) drop-shadow(-2px 0 0 #fff)
+      drop-shadow(0 2px 0 #fff) drop-shadow(0 -2px 0 #fff)
+      drop-shadow(0 0 12px rgba(250, 204, 21, 1))
+      drop-shadow(0 0 28px rgba(250, 204, 21, 0.75));
+  }
+}
+
+.logo-glow-pulse {
+  animation: logo-glow-pulse 1.8s ease-in-out infinite;
+}

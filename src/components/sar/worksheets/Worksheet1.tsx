@@ -614,57 +614,6 @@ export default function Worksheet1({
                 </td>
               </tr>
 
-              {/* SECTION: DATUM POSITION (Panduan bagian 3.5 & 5) */}
-              <tr className="bg-slate-200 border-b-2 border-slate-700">
-                <td colSpan={4} className="py-1.5 px-3 font-bold text-slate-900 tracking-wide uppercase">
-                  Datum position — plot titik datum (Panduan §4.7.60/§4.7.67)
-                </td>
-              </tr>
-              <tr className="border-b border-slate-300">
-                <td className="py-2 px-3 font-medium text-slate-700 border-r border-slate-300">
-                  Titik ujung rantai vektor (derajat-menit · desimal)
-                </td>
-                <td colSpan={3} className="py-2 px-3 font-mono space-y-1">
-                  <div>P1 (arus laut): <span className="font-bold text-blue-900">{formatDM(ws1.P1.lat, true)} {formatDM(ws1.P1.lng, false)}</span> <span className="text-slate-500">({ws1.P1.lat.toFixed(5)}, {ws1.P1.lng.toFixed(5)})</span></div>
-                  <div>P2 (arus angin): <span className="font-bold text-blue-900">{formatDM(ws1.P2.lat, true)} {formatDM(ws1.P2.lng, false)}</span> <span className="text-slate-500">({ws1.P2.lat.toFixed(5)}, {ws1.P2.lng.toFixed(5)})</span></div>
-                  <div>L (leeway kiri): <span className="font-bold text-blue-900">{formatDM(ws1.L.lat, true)} {formatDM(ws1.L.lng, false)}</span> <span className="text-slate-500">({ws1.L.lat.toFixed(5)}, {ws1.L.lng.toFixed(5)})</span></div>
-                  <div>R (leeway kanan): <span className="font-bold text-blue-900">{formatDM(ws1.R.lat, true)} {formatDM(ws1.R.lng, false)}</span> <span className="text-slate-500">({ws1.R.lat.toFixed(5)}, {ws1.R.lng.toFixed(5)})</span></div>
-                </td>
-              </tr>
-              <tr className="border-b border-slate-300 bg-emerald-50/60">
-                <td className="py-2 px-3 font-bold text-emerald-950 border-r border-slate-300">
-                  DATUM B (titik tengah garis L–R)
-                </td>
-                <td colSpan={3} className="py-2 px-3 font-mono">
-                  <span className="font-black text-emerald-900 bg-emerald-100 px-2.5 py-1 rounded border-2 border-emerald-400 text-sm inline-block">
-                    {formatDM(ws1.datumB.lat, true)} {formatDM(ws1.datumB.lng, false)}
-                  </span>
-                  <span className="text-slate-600 ml-2">({ws1.datumB.lat.toFixed(5)}, {ws1.datumB.lng.toFixed(5)})</span>
-                  {datumDtg && (
-                    <span className="text-[10px] text-slate-500 ml-2">DTG datum (perkiraan): <span className="font-bold font-mono text-slate-700">{datumDtg}</span></span>
-                  )}
-                  <div className="mt-1 text-[10px] text-slate-500">
-                    Penamaan datum §4.7.67: LKP = A, datum berikutnya B, C, D, …
-                  </div>
-                </td>
-              </tr>
-              <tr className="border-b-2 border-slate-700">
-                <td className="py-2 px-3 font-medium text-slate-700 border-r border-slate-300">
-                  Bearing & jarak dari LKP (A) ke datum (B)
-                </td>
-                <td colSpan={3} className="py-2 px-3 font-mono">
-                  <span className="font-bold text-blue-900 bg-blue-50/80 px-2 py-0.5 rounded border border-blue-200">
-                    {ws1.bearingAB.toFixed(1)}
-                  </span>{' '}
-                  <span className="text-slate-600 font-sans">°(T)</span>{' '}
-                  <span className="text-slate-600 font-sans ml-3">jarak</span>{' '}
-                  <span className="font-bold text-emerald-900 bg-emerald-50 px-2.5 py-0.5 rounded border border-emerald-300">
-                    {ws1.distanceAB.toFixed(2)}
-                  </span>{' '}
-                  <span className="text-slate-600 font-sans">nm</span>
-                </td>
-              </tr>
-
               {/* SECTION: DRIFT ERROR */}
               <tr className="bg-slate-200 border-b-2 border-slate-700">
                 <td colSpan={4} className="py-1.5 px-3 font-bold text-slate-900 tracking-wide uppercase">
@@ -840,20 +789,6 @@ export default function Worksheet1({
                     {R_round}
                   </span>{' '}
                   <span className="text-slate-600 font-sans">NM (Radius R)</span>
-                </td>
-              </tr>
-              <tr className="border-b-2 border-slate-700 bg-emerald-50/50">
-                <td className="py-3 px-3 font-bold text-emerald-950 border-r border-slate-300 text-sm">
-                  Search Area (Panduan §3.8: lingkaran π × R²)
-                </td>
-                <td colSpan={3} className="py-3 px-3 font-mono">
-                  <span className="text-slate-700 font-sans">π × {R_round}² =</span>{' '}
-                  <span className="font-black text-emerald-900 bg-emerald-100 text-base px-3.5 py-1 rounded border-2 border-emerald-500 shadow-2xs">
-                    {areaCircle.toLocaleString(undefined, { maximumFractionDigits: 2 })} NM²
-                  </span>
-                  <span className="text-slate-600 font-sans text-[11px] ml-3 italic">
-                    (Lingkaran radius {R_round} NM di datum B — digambar di peta laut)
-                  </span>
                 </td>
               </tr>
               <tr className="bg-slate-50/50">

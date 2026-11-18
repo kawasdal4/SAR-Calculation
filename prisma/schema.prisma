@@ -126,3 +126,19 @@ model WorkspaceContext {
   @@index([caseId, entryKey])
   @@index([caseId, status])
 }
+
+/// Akun pengguna portal — dibuat oleh role developer.
+/// `identifier` berisi Email ATAU NIP (unik), dipakai untuk login.
+model Account {
+  id           String   @id @default(cuid())
+  /// Email atau NIP — satu field unik untuk keduanya.
+  identifier   String   @unique
+  /// Nama lengkap petugas (opsional).
+  name         String?
+  /// Role akses: developer | operator. Akun baru default operator.
+  role         String   @default("operator")
+  /// Hash password (scrypt, format "salt:hash" hex).
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}

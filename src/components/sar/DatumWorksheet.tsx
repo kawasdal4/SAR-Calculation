@@ -20,7 +20,6 @@ import {
   dirToCompass,
 } from '@/lib/sar/sarCalculations';
 import { cn } from '@/lib/utils';
-import { formatDMS } from '@/lib/sar/coordFormat';
 
 export interface DatumData {
   start: LatLng;
@@ -44,6 +43,10 @@ export interface DatumResults {
   datumRight: LatLng;
   divergenceDistance: number;
   driftDistance: number;
+  /** Arah & laju drift total (TWC + Leeway) — utk tampilan kartu Datum. */
+  driftLeftDir: number;
+  driftRightDir: number;
+  driftSpeed: number;
   dve: number;
   De: number;
   E: number;
@@ -85,6 +88,9 @@ interface DatumWorksheetProps {
   /** External override for sea current (e.g. from WeatherPanel "Apply Sea Current"). */
   seaCurrentOverride?: { dir: number; speed: number; ts: number } | null;
   onResults: (results: DatumResults | null) => void;
+  /** Hasil internal untuk TAMPILAN kartu Datum di luar worksheet —
+   *  selalu terisi (tidak terpengaruh status bersih aswSpeed=0). */
+  onDisplayResults?: (results: DatumResults) => void;
   onDataChange: (data: DatumData | null) => void;
   /** Fired whenever any internal state changes — used by parent to save state. */
   onStateChange?: (state: DatumInitialState) => void;
@@ -104,6 +110,7 @@ export default function DatumWorksheet({
   pickMode,
   seaCurrentOverride,
   onResults,
+  onDisplayResults,
   onDataChange,
   onStateChange,
   initialState,
@@ -192,6 +199,24 @@ export default function DatumWorksheet({
     [X, datum.De, Y],
   );
 
+  const buildResults = (): DatumResults => ({
+    datumLeft: datum.datumLeft,
+    datumRight: datum.datumRight,
+    divergenceDistance: datum.divergenceDistance,
+    driftDistance: datum.driftDistance,
+    driftLeftDir: datum.driftLeftDir,
+    driftRightDir: datum.driftRightDir,
+    driftSpeed: datum.driftSpeed,
+    dve: datum.dve,
+    De: datum.De,
+    E: e.E,
+    X: e.X,
+    Y: e.Y,
+    wc,
+    lw,
+    twc,
+  });
+
   useEffect(() => {
     // If ASW speed is 0 and no initial state, datum calculation is in clean/reset state
     if (aswSpeed === 0 && (!initialState || Object.keys(initialState).length === 0)) {
@@ -216,21 +241,15 @@ export default function DatumWorksheet({
       useWindCurrent,
     };
     onDataChange(data);
-    onResults({
-      datumLeft: datum.datumLeft,
-      datumRight: datum.datumRight,
-      divergenceDistance: datum.divergenceDistance,
-      driftDistance: datum.driftDistance,
-      dve: datum.dve,
-      De: datum.De,
-      E: e.E,
-      X: e.X,
-      Y: e.Y,
-      wc,
-      lw,
-      twc,
-    });
+    onResults(buildResults());
   }, [start, driftInterval, aswDirFrom, aswSpeed, aswdve, twc, lw, datum, e, wc, useWindCurrent, initialState]);
+
+  // Selalu laporkan hasil internal untuk tampilan kartu Datum di luar worksheet —
+  // tidak terpengaruh status bersih (aswSpeed=0) yang memanggil onResults(null).
+  useEffect(() => {
+    onDisplayResults?.(buildResults());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [datum, e, wc, lw, twc, onDisplayResults]);
 
   // Emit DatumInitialState snapshot up to parent for state-saving
   useEffect(() => {
@@ -395,27 +414,6 @@ export default function DatumWorksheet({
         <div className="grid grid-cols-2 gap-3 mt-3">
           <StatBox label="Leeway Right" value={`${lw.lwRightDir.toFixed(1)}°T`} accent />
           <StatBox label="Probable Leeway Error (LWe)" value={`${lw.lwError.toFixed(3)} kts`} />
-        </div>
-      </WorksheetCard>
-
-      <WorksheetCard
-        title="Datum Position (Marine Environment)"
-        description="Combine TWC + Leeway vectors to compute datum positions (Appendix K-13)"
-        badge="K-13"
-      >
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
-          <StatBox label="Drift Direction (Left)" value={`${datum.driftLeftDir.toFixed(1)}°T`} accent />
-          <StatBox label="Drift Direction (Right)" value={`${datum.driftRightDir.toFixed(1)}°T`} accent />
-          <StatBox label="Drift Speed" value={`${datum.driftSpeed.toFixed(3)} kts`} />
-          <StatBox label="Drift Distance" value={`${datum.driftDistance.toFixed(2)} NM`} accent />
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-          <StatBox label="Datum (Left of Downwind)" value={`${formatDMS(datum.datumLeft.lat, false)}, ${formatDMS(datum.datumLeft.lng, true)}`} accent />
-          <StatBox label="Datum (Right of Downwind)" value={`${formatDMS(datum.datumRight.lat, false)}, ${formatDMS(datum.datumRight.lng, true)}`} accent />
-        </div>
-        <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200">
-          <StatBox label="Divergence Distance (DD)" value={`${datum.divergenceDistance.toFixed(2)} NM`} />
-          <StatBox label="DVe (drift velocity error)" value={`${datum.dve.toFixed(3)} kts`} />
         </div>
       </WorksheetCard>
 
