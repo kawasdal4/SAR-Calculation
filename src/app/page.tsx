@@ -77,6 +77,7 @@ import SeaMapMount from '@/components/sar/SeaMapMount';
 import ManeuveringBoard from '@/components/sar/ManeuveringBoard';
 import type { BoardVector } from '@/lib/sar/maneuveringBoard';
 import UPSPlotter from '@/components/sar/UPSPlotter';
+import AdwUpsSheet from '@/components/sar/AdwUpsSheet';
 import AeronauticalDriftWorksheet from '@/components/sar/AeronauticalDriftWorksheet';
 import type { AeroDriftResult } from '@/lib/sar/aeroDriftCalculations';
 import InterceptWorksheet from '@/components/sar/InterceptWorksheet';
@@ -1647,7 +1648,19 @@ export default function Home() {
             </TabsContent>
 
             {/* TAB: UNIVERSAL PLOTTING SHEET (UPS) */}
-            <TabsContent value="ups" key={`ups-tab-${caseVersion}-${tabClearVersions.ups ?? 0}`} className="mt-0">
+            <TabsContent value="ups" key={`ups-tab-${caseVersion}-${tabClearVersions.ups ?? 0}`} className="mt-0 space-y-4">
+              {aeroResults?.positionValid && (aeroResults.aircraftActive || aeroResults.parachuteActive) && (
+                <div className="print-companion-page">
+                  <AdwUpsSheet
+                    datum={aeroResults.incidentPos}
+                    dg={aeroResults.aircraftActive ? aeroResults.aircraftGlideVector : undefined}
+                    dd={aeroResults.aircraftActive ? aeroResults.aircraftWindVector : undefined}
+                    pg={aeroResults.parachuteActive ? aeroResults.parachuteGlideVector : undefined}
+                    pw={aeroResults.parachuteActive ? aeroResults.parachuteWindVector : undefined}
+                    pp={aeroResults.parachuteActive ? aeroResults.parachuteDisplacementVector : undefined}
+                  />
+                </div>
+              )}
               <UPSPlotter
                 key={`ups-${caseVersion}`}
                 lkp={lkp}
