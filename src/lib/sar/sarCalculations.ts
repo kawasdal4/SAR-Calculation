@@ -356,13 +356,19 @@ export function computeASW(observations: ASWObservation[]): ASWResult {
 }
 
 // WIND CURRENT (WC) WORKSHEET — Figure I-1 (Appendix I, AL1/04)
-// Ketentuan Worksheet 1: kecepatan wind current memakai rumus = ASW / 28 kts
-// (garis linear Figure I-1), divergensi dari downwind mengikuti tabel Figure I-1:
-// 10°N–10°S → 0°, di utara 10°N → 30° ke kanan, di selatan 10°S → 30° ke kiri
-// (sisi kiri/kanan ditangani hemisphere di computeWC).
+// Ketentuan Worksheet 1 (Panduan Datum Worksheet 1, bagian 3.3): kecepatan
+// wind current = WC_COEF × kecepatan angin (garis lurus Fig. I-1: 10 kn → 0,36,
+// 24 kn → 0,87, 34 kn → 1,25 kn ≈ 0,036 × angin), divergensi dari downwind
+// mengikuti kotak Figure I-1: 10°N–10°S → 0°, di utara 10°N → 30° ke kanan,
+// di selatan 10°S → 30° ke kiri (sisi kiri/kanan ditangani hemisphere di
+// computeWC). Koefisien adalah ASUMSI yang mudah diubah (bagian 10 no. 1
+// panduan) — implementasi lengkap rantai datum ada di src/lib/sar/datumWs1.ts.
+
+/** Koefisien arus angin Figure I-1 (≈ 0,036 × kecepatan angin) — mudah diubah. */
+export const WC_COEF = 0.036;
 
 export function windCurrentDrift(aswSpeed: number): number {
-  return aswSpeed / 28;
+  return aswSpeed * WC_COEF;
 }
 
 export function windCurrentDivergence(absLat: number): number {
@@ -995,14 +1001,45 @@ export interface TableJ1Entry {
  * Table J-1 (Appendix J): estimated navigational position errors.
  * Dipakai untuk x (distress craft error) dan y (search craft error) Worksheet 1
  * sesuai alat navigasi yang disebut dalam soal kasus.
+ * (Panduan Datum Worksheet 1 bagian 3.7 — Tabel J-1.)
  */
 export const TABLE_J1_NAV_ERRORS: TableJ1Entry[] = [
   { id: 'gps', label: 'GPS', errorNm: 0.1 },
   { id: 'radar', label: 'Radar', errorNm: 1.0 },
-  { id: 'visual', label: 'Visual', errorNm: 1.0 },
-  { id: 'celestial', label: 'Celestial (astronomi)', errorNm: 2.0 },
-  { id: 'marine-radio-beacon', label: 'Marine Radio Beacon', errorNm: 4.0 },
+  { id: 'visual', label: 'Visual fix (3 garis)', errorNm: 1.0 },
+  { id: 'celestial', label: 'Celestial fix (3 garis)', errorNm: 2.0 },
+  { id: 'marine-radio-beacon', label: 'Marine Radio Beacon (fix 3 beacon)', errorNm: 4.0 },
   { id: 'loran-c', label: 'LORAN C', errorNm: 1.0 },
+  { id: 'ins', label: 'INS (0,5 NM per jam tanpa update)', errorNm: 0.5 },
+  { id: 'vor-tacan', label: 'VOR/TACAN (min radius 0,5 NM)', errorNm: 0.5 },
+];
+
+/**
+ * Table J-2 (Appendix J): galat posisi bila navigasi tidak diketahui /
+ * untuk area praktis (Panduan Datum Worksheet 1 bagian 3.7).
+ */
+export const TABLE_J2_NAV_ERRORS: TableJ1Entry[] = [
+  { id: 'j2-ship', label: 'J-2: Kapal / kapal selam militer', errorNm: 5.0 },
+  { id: 'j2-aircraft-self', label: 'J-2: Pesawat dgn sistem navigasi mandiri', errorNm: 5.0 },
+  { id: 'j2-aircraft-other', label: 'J-2: Pesawat (lainnya)', errorNm: 10.0 },
+  { id: 'j2-small-craft', label: 'J-2: Kapal kecil / submersible', errorNm: 15.0 },
+];
+
+/**
+ * Table J-3 (Appendix J): galat dead reckoning (DRe) — galat fix positif
+ * terakhir + persentase jarak dari fix tersebut. Nilai `errorNm` di sini
+ * adalah persentase jarak (%), bukan NM, karena DRe tergantung jarak DR.
+ */
+export const TABLE_J3_DR_ERRORS: TableJ1Entry[] = [
+  { id: 'j3-ship', label: 'J-3 DR: Kapal / kapal selam militer (+5% jarak)', errorNm: 5.0 },
+  { id: 'j3-aircraft', label: 'J-3 DR: Pesawat (+10% jarak)', errorNm: 10.0 },
+  { id: 'j3-small-craft', label: 'J-3 DR: Kapal kecil / submersible (+15% jarak)', errorNm: 15.0 },
+];
+
+/** Gabungan Tabel J-1 + J-2 untuk pemilih x/y di UI (area praktis: J-2). */
+export const TABLE_J_ALL_NAV_ERRORS: TableJ1Entry[] = [
+  ...TABLE_J1_NAV_ERRORS,
+  ...TABLE_J2_NAV_ERRORS,
 ];
 
 export function getTableJ1ErrorById(id: string): number | undefined {

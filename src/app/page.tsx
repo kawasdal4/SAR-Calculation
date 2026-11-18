@@ -53,6 +53,7 @@ import SearchPlanWorksheet, {
   type SearchPlanResults,
   type SearchPlanInitialState,
 } from '@/components/sar/SearchPlanWorksheet';
+import type { Ws1Derived } from '@/components/sar/worksheets/Worksheet1';
 import CaseManager from '@/components/sar/CaseManager';
 import ExportButtons from '@/components/sar/ExportButtons';
 import WeatherPanel from '@/components/sar/WeatherPanel';
@@ -69,6 +70,7 @@ import {
   WS1_FS_OPTIONS,
 } from '@/lib/sar/sarCalculations';
 import { formatDMS } from '@/lib/sar/coordFormat';
+import { computeDatumWs1 } from '@/lib/sar/datumWs1';
 import type { MapMarker, MapLine, MapPolygon, MapCircle } from '@/components/sar/SeaMap';
 import BasicCalculation from '@/components/sar/BasicCalculation';
 import ChartDistanceGuide from '@/components/sar/chart-distance/ChartDistanceGuide';
@@ -145,6 +147,8 @@ export default function Home() {
   const [searchResults, setSearchResults] = useState<SearchPlanResults | null>(null);
   const [worksheet1Ao, setWorksheet1Ao] = useState(0);
   const [worksheet1Fs, setWorksheet1Fs] = useState(1.1);
+  /** Hasil turunan Worksheet 1 (rantai titik datum Panduan) untuk penggambaran peta. */
+  const [ws1Derived, setWs1Derived] = useState<Ws1Derived | null>(null);
   const [ws2TrackSpacing, setWs2TrackSpacing] = useState<{ platform: 'fixed-wing' | 'helicopter' | null; spacingNm: number; selection: string } | null>(null);
   const [ws3TrackSpacing, setWs3TrackSpacing] = useState<{ platform: 'fixed-wing' | 'helicopter' | null; heights: readonly number[]; spacingByHeight: Array<number | null> } | null>(null);
   const [ws8TrackSpacing, setWs8TrackSpacing] = useState<{ spacingNm: number; selection: string } | null>(null);
@@ -152,6 +156,55 @@ export default function Home() {
   // Controlled LKP
   const [lkp, setLkp] = useState<LatLng>({ lat: 0, lng: 0 });
   const [isLkpSet, setIsLkpSet] = useState(false);
+
+  // Fallback: hitung rantai Panduan langsung dari state halaman (dipakai bila
+  // tab Worksheet 1 belum pernah dibuka; Worksheet 1 meng-override lewat
+  // onDerivedChange bila terpasang, termasuk hasil ukur peta bila diisi).
+  const ws1Computed = useMemo<Ws1Derived>(() => {
+    const r = computeDatumWs1({
+      lkp,
+      hours: asw.totalHours && asw.totalHours > 0 ? asw.totalHours : (datumData?.driftInterval ?? 0),
+      seaCurrentDir: datumData?.seaCurrent.dir ?? 0,
+      seaCurrentSpeed: datumData?.seaCurrent.mag ?? 0,
+      windFrom: asw.aswSpeed > 0 ? asw.aswDirFrom : 0,
+      windSpeed: asw.aswSpeed,
+      leewayRate: datumResults?.lw?.objectType?.leewayRate ?? 0,
+      leewayModifier: datumResults?.lw?.objectType?.leewayModifier ?? 0,
+      leewayDivergenceDeg: datumResults?.lw?.divergenceAngle ?? 0,
+      x: datumResults?.X ?? 0,
+      y: datumResults?.Y ?? 0,
+      fs: worksheet1Fs > 0 ? worksheet1Fs : undefined,
+      searchNumber: 1,
+      useWindCurrent: datumData?.useWindCurrent !== false,
+    });
+    return {
+      P1: r.P1,
+      P2: r.P2,
+      L: r.L,
+      R: r.R,
+      datumB: r.datumB,
+      bearingAB: r.bearingAB,
+      distanceAB: r.distanceAB,
+      dL: r.dL,
+      dR: r.dR,
+      LR: r.LR,
+      deL: r.deL,
+      deR: r.deR,
+      De: r.De,
+      E: r.E,
+      fs: r.fs,
+      RUp: r.RUp,
+      areaCircleNM2: r.areaCircleNM2,
+      areaSquareNM2: r.areaSquareNM2,
+      hours: r.hours,
+      datumDtg: null,
+      useWindCurrent: datumData?.useWindCurrent !== false,
+      lwClampedToZero: r.lwClampedToZero,
+      warnings: r.warnings,
+      assumptions: r.assumptions,
+    };
+  }, [lkp, asw, datumData, datumResults, worksheet1Fs]);
+  const ws1Map: Ws1Derived = ws1Derived ?? ws1Computed;
   const [pickMode, setPickMode] = useState<boolean>(false);
   const [pickSruMode, setPickSruMode] = useState<boolean>(false);
   const [mainMapToolMode, setMainMapToolMode] = useState<'pan' | 'drop' | 'measure'>('pan');
@@ -782,14 +835,16 @@ export default function Home() {
   // Luas Search Area dari Worksheet 1 (Ao)
   const ws1Ao = worksheet1Ao;
 
-  // Titik Datum (Pusat Search Area): Midpoint antara Datum Left & Right
+  // Titik Datum B (Panduan Datum Worksheet 1 §4.7.60): midpoint geodesik garis
+  // L–R dari Worksheet 1; fallback ke rata-rata Datum Left/Right (K-13).
   const datumCenterPoint: LatLng = useMemo(() => {
+    if (ws1Map) return ws1Map.datumB;
     if (!datumResults) return lkp;
     return {
       lat: (datumResults.datumLeft.lat + datumResults.datumRight.lat) / 2,
       lng: (datumResults.datumLeft.lng + datumResults.datumRight.lng) / 2,
     };
-  }, [datumResults, lkp]);
+  }, [datumResults, lkp, ws1Map]);
 
   // Arah drift dari LKP ke titik Datum (°T)
   const driftOrientationDeg = useMemo(() => {
@@ -937,12 +992,12 @@ export default function Home() {
   const mapCenter: LatLng = useMemo(() => {
     if (datumData && datumResults) {
       return {
-        lat: (datumData.start.lat + datumResults.datumLeft.lat + datumResults.datumRight.lat) / 3,
-        lng: (datumData.start.lng + datumResults.datumLeft.lng + datumResults.datumRight.lng) / 3,
+        lat: (datumData.start.lat + datumCenterPoint.lat * 2) / 3,
+        lng: (datumData.start.lng + datumCenterPoint.lng * 2) / 3,
       };
     }
     return lkp;
-  }, [datumData, datumResults, lkp]);
+  }, [datumData, datumResults, lkp, datumCenterPoint]);
 
   // Click on map to set LKP or SRU Base
   const handleMapClick = useCallback(
@@ -972,12 +1027,13 @@ export default function Home() {
     handleMapClick(latlng);
   }, [mainMapToolMode, handleMapClick]);
 
-  // Map markers: LKP, Datums, CSP, Exit Point, and SRU Home Bases
+  // Map markers: LKP (A), Titik L/R, Datum B, CSP, Exit Point, dan SRU Home Bases
+  // (Panduan Datum Worksheet 1 bagian 5: LKP = A, datum berikutnya B, C, D, …)
   const markers: MapMarker[] = useMemo(() => {
     const list: MapMarker[] = [
       {
         position: lkp,
-        label: `LKP: ${formatDMS(lkp.lat, false)}, ${formatDMS(lkp.lng, true)}`,
+        label: `A – LKP: ${formatDMS(lkp.lat, false)}, ${formatDMS(lkp.lng, true)}`,
         color: '#0ea5e9',
         isStart: true,
       },
@@ -986,15 +1042,29 @@ export default function Home() {
     if (datumResults) {
       list.push({
         position: datumResults.datumLeft,
-        label: `Datum Kiri (Left): ${formatDMS(datumResults.datumLeft.lat, false)}, ${formatDMS(datumResults.datumLeft.lng, true)}`,
-        color: '#dc2626',
+        label: `L (datum kiri): ${formatDMS(datumResults.datumLeft.lat, false)}, ${formatDMS(datumResults.datumLeft.lng, true)}`,
+        color: '#f97316',
         isDatum: true,
       });
       list.push({
         position: datumResults.datumRight,
-        label: `Datum Kanan (Right): ${formatDMS(datumResults.datumRight.lat, false)}, ${formatDMS(datumResults.datumRight.lng, true)}`,
+        label: `R (datum kanan): ${formatDMS(datumResults.datumRight.lat, false)}, ${formatDMS(datumResults.datumRight.lng, true)}`,
+        color: '#f97316',
+        isDatum: true,
+      });
+    }
+
+    // Datum B — penanda silang merah menonjol di titik tengah garis L–R
+    if (ws1Map) {
+      list.push({
+        position: ws1Map.datumB,
+        label: `Datum B: ${formatDMS(ws1Map.datumB.lat, false)}, ${formatDMS(ws1Map.datumB.lng, true)}` +
+          (ws1Map.datumDtg ? ` · DTG ${ws1Map.datumDtg}` : '') +
+          ` · ${ws1Map.bearingAB.toFixed(0)}°T / ${ws1Map.distanceAB.toFixed(1)} NM dari A`,
         color: '#dc2626',
         isDatum: true,
+        cross: true,
+        showLabel: true,
       });
     }
 
@@ -1031,7 +1101,7 @@ export default function Home() {
     }
 
     return list;
-  }, [lkp, datumResults, assets, csp, exitPoint, searchPatternResult.waypoints, searchPatternResult.segments.length, patternType]);
+  }, [lkp, datumResults, ws1Map, assets, csp, exitPoint, searchPatternResult.waypoints, searchPatternResult.segments.length, patternType]);
 
   const interactiveMapMarkers: MapMarker[] = useMemo(() => [
     ...markers,
@@ -1105,6 +1175,9 @@ export default function Home() {
     if (datumData && datumResults) {
       const lkpPoint = datumData.start;
       const driftHours = Math.max(0, datumData.driftInterval);
+      // Rantai Panduan Datum Worksheet 1 (bagian 5): A → P1 (arus laut, biru,
+      // tebal) → P2 (arus angin, hijau, tebal) → L / R (leeway, oranye,
+      // berpanah) + garis L–R (abu-abu) + d(L)/d(R) dari LKP (putus-putus).
       const seaCurrentEnd = project(
         lkpPoint,
         datumData.seaCurrent.dir,
@@ -1123,51 +1196,72 @@ export default function Home() {
         datumData.twc.dir,
         datumData.twc.mag * driftHours,
       );
+      // Titik rantai resmi dari Worksheet 1 (Panduan) bila tersedia.
+      const p1 = ws1Map.P1;
+      const p2 = ws1Map.P2;
+      const pointL = ws1Map.L;
+      const pointR = ws1Map.R;
 
       list.push({
         from: lkpPoint,
-        to: seaCurrentEnd,
+        to: p1,
         color: '#2563eb',
-        label: `SC - ${datumData.seaCurrent.dir.toFixed(0)}°/${(datumData.seaCurrent.mag * driftHours).toFixed(1)} NM`,
+        weight: 3,
+        arrow: true,
+        label: `Arus laut (SC) - ${(datumData.seaCurrent.mag * driftHours).toFixed(1)} NM / ${datumData.seaCurrent.dir.toFixed(0)}°`,
       });
       list.push({
         from: lkpPoint,
         to: surfaceWindEnd,
         color: '#0ea5e9',
         dashed: true,
-        label: `ASW - ${downwindDir.toFixed(0)}°/${(datumData.aswSpeed * driftHours).toFixed(1)} NM`,
+        label: `ASW (downwind) - ${downwindDir.toFixed(0)}°/${(datumData.aswSpeed * driftHours).toFixed(1)} NM`,
       });
       list.push({
-        from: seaCurrentEnd,
-        to: waterEnd,
-        color: '#f97316',
-        label: `WC - ${datumResults.wc.wcSet.toFixed(0)}°/${(datumResults.wc.wcDrift * driftHours).toFixed(1)} NM`,
-      });
-      list.push({
-        from: waterEnd,
-        to: datumResults.datumLeft,
+        from: p1,
+        to: p2,
         color: '#16a34a',
-        label: `LWL - ${datumData.lwLeftDir.toFixed(0)}°/${(datumData.lwSpeed * driftHours).toFixed(1)} NM`,
+        weight: 3,
+        arrow: true,
+        label: `Arus angin (WC) - ${(ws1Map ? distanceNm(ws1Map.P1, ws1Map.P2) : datumResults.wc.wcDrift * driftHours).toFixed(1)} NM / ${(datumData.useWindCurrent === false ? downwindDir : datumResults.wc.wcSet).toFixed(0)}°`,
       });
       list.push({
-        from: waterEnd,
-        to: datumResults.datumRight,
-        color: '#db2777',
-        label: `LWR - ${datumData.lwRightDir.toFixed(0)}°/${(datumData.lwSpeed * driftHours).toFixed(1)} NM`,
+        from: p2,
+        to: pointL,
+        color: '#f97316',
+        weight: 3,
+        arrow: true,
+        label: `Leeway kiri (LW-L) - ${(datumData.lwSpeed * driftHours).toFixed(1)} NM / ${datumData.lwLeftDir.toFixed(0)}°`,
       });
       list.push({
-        from: lkpPoint,
-        to: datumResults.datumLeft,
-        color: '#111827',
-        dashed: true,
-        label: `TD-L - ${bearingDeg(lkpPoint, datumResults.datumLeft).toFixed(0)}°/${datumResults.driftDistance.toFixed(1)} NM`,
+        from: p2,
+        to: pointR,
+        color: '#ea580c',
+        weight: 3,
+        arrow: true,
+        label: `Leeway kanan (LW-R) - ${(datumData.lwSpeed * driftHours).toFixed(1)} NM / ${datumData.lwRightDir.toFixed(0)}°`,
       });
       list.push({
-        from: lkpPoint,
-        to: datumResults.datumRight,
+        from: pointL,
+        to: pointR,
         color: '#64748b',
         dashed: true,
-        label: `TD-R - ${bearingDeg(lkpPoint, datumResults.datumRight).toFixed(0)}°/${datumResults.driftDistance.toFixed(1)} NM`,
+        weight: 2,
+        label: `Garis L–R - ${distanceNm(pointL, pointR).toFixed(2)} NM`,
+      });
+      list.push({
+        from: lkpPoint,
+        to: pointL,
+        color: '#111827',
+        dashed: true,
+        label: `d(L) - ${bearingDeg(lkpPoint, pointL).toFixed(0)}°/${distanceNm(lkpPoint, pointL).toFixed(1)} NM`,
+      });
+      list.push({
+        from: lkpPoint,
+        to: pointR,
+        color: '#64748b',
+        dashed: true,
+        label: `d(R) - ${bearingDeg(lkpPoint, pointR).toFixed(0)}°/${distanceNm(lkpPoint, pointR).toFixed(1)} NM`,
       });
     }
 
@@ -1178,6 +1272,7 @@ export default function Home() {
   }, [
     datumData,
     datumResults,
+    ws1Map,
     searchPatternResult.segments,
     patternType,
     trackSpacing,
@@ -1186,58 +1281,69 @@ export default function Home() {
     assetTransitLines,
   ]);
 
-  // Circles
+  // Circles — sesuai tabel elemen Panduan Datum Worksheet 1 (bagian 5):
+  //   • lingkaran de(L) & de(R) di titik L/R, radius de(L)/de(R) — oranye
+  //     putus-putus, tipis (tooltip)
+  //   • lingkaran De di datum B, radius De — abu titik-titik (tooltip)
+  //   • lingkaran radius pencarian di datum B, radius R bulat — merah solid,
+  //     isi transparan ±10%, label "R = n NM (fs = x,x)"
   const circles: MapCircle[] = useMemo(() => {
     if (!datumResults) return [];
-    const list: MapCircle[] = [
-      {
-        center: datumResults.datumLeft,
-        radiusNm: datumResults.E,
-        color: '#dc2626',
-        fillColor: '#dc2626',
-        fillOpacity: 0.05,
-        label: `E = ${datumResults.E.toFixed(1)} NM`,
-      },
-    ];
-    if (datumResults.De > 0) {
-      list.push({
-        center: datumResults.datumLeft,
-        radiusNm: datumResults.De,
-        color: '#d97706',
-        fillColor: '#d97706',
-        fillOpacity: 0.015,
-        label: `Worksheet 1 Drift Error De = ${datumResults.De.toFixed(2)} NM`,
-      });
-      list.push({
-        center: datumResults.datumRight,
-        radiusNm: datumResults.De,
-        color: '#d97706',
-        fillColor: '#d97706',
-        fillOpacity: 0.015,
-      });
-    }
-    const fixErrorRadius = Math.hypot(datumResults.X, datumResults.Y);
-    if (fixErrorRadius > 0) {
-      list.push({
-        center: datumCenterPoint,
-        radiusNm: fixErrorRadius,
-        color: '#7c3aed',
-        fillColor: '#7c3aed',
-        fillOpacity: 0.015,
-        label: `Worksheet 1 Fix Error √(X² + Y²) = ${fixErrorRadius.toFixed(2)} NM`,
-      });
-    }
-    if (distanceNm(datumResults.datumLeft, datumResults.datumRight) > 0.001) {
-      list.push({
-        center: datumResults.datumRight,
-        radiusNm: datumResults.E,
-        color: '#dc2626',
-        fillColor: '#dc2626',
-        fillOpacity: 0.05,
-      });
+    const list: MapCircle[] = [];
+
+    if (ws1Map) {
+      const { L, R, datumB, deL, deR, De, RUp, fs } = ws1Map;
+      if (deL > 0) {
+        list.push({
+          center: L,
+          radiusNm: deL,
+          color: '#f97316',
+          fillColor: '#f97316',
+          fillOpacity: 0.02,
+          weight: 1,
+          dashArray: '6 5',
+          label: `de(L) = ${deL.toFixed(2)} NM`,
+        });
+      }
+      if (deR > 0) {
+        list.push({
+          center: R,
+          radiusNm: deR,
+          color: '#f97316',
+          fillColor: '#f97316',
+          fillOpacity: 0.02,
+          weight: 1,
+          dashArray: '6 5',
+          label: `de(R) = ${deR.toFixed(2)} NM`,
+        });
+      }
+      if (De > 0) {
+        list.push({
+          center: datumB,
+          radiusNm: De,
+          color: '#6b7280',
+          fillColor: '#6b7280',
+          fillOpacity: 0.015,
+          weight: 1.5,
+          dashArray: '1.5 5',
+          label: `De = ${De.toFixed(2)} NM`,
+        });
+      }
+      if (RUp > 0) {
+        list.push({
+          center: datumB,
+          radiusNm: RUp,
+          color: '#dc2626',
+          fillColor: '#dc2626',
+          fillOpacity: 0.1,
+          weight: 2.5,
+          dashArray: null,
+          label: `R = ${RUp} NM (fs = ${fs})`,
+        });
+      }
     }
     return list;
-  }, [datumResults, datumCenterPoint]);
+  }, [datumResults, ws1Map]);
 
   // Worksheet 1 area and the separate Worksheet 3 planning area are both squares,
   // oriented along the bearing from LKP to the datum midpoint.
@@ -1730,6 +1836,7 @@ export default function Home() {
                 aswDistressTime={asw.distressTime}
                 aswTotalHours={asw.totalHours}
                 onAoChange={setWorksheet1Ao}
+                onDerivedChange={setWs1Derived}
                 selectedFs={worksheet1Fs}
                 onFsChange={setWorksheet1Fs}
               />
@@ -2349,6 +2456,11 @@ export default function Home() {
                   measureMode={mainMapToolMode === 'measure'}
                   preferenceKey="worksheet-main"
                   onMapClick={handleInteractiveMapClick}
+                  autoFitTo={{
+                    points: [lkp, ws1Map.datumB],
+                    radiusNm: ws1Map.RUp,
+                    key: `${ws1Map.datumB.lat.toFixed(5)},${ws1Map.datumB.lng.toFixed(5)},${ws1Map.RUp}`,
+                  }}
                 />
               </div>
 

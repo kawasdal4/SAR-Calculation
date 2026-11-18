@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { type LatLng, distanceNm } from '@/lib/sar/sarCalculations';
+import { type LatLng, distanceNm, project } from '@/lib/sar/sarCalculations';
 import { formatDegMinSec, type CoordAxis } from '@/lib/sar/coordFormat';
 import {
   placeAlongLineLabels,
@@ -41,6 +41,8 @@ export interface MapMarker {
   color?: string;
   isStart?: boolean;
   isDatum?: boolean;
+  /** Tampilkan sebagai penanda silang (✕) — mis. titik DATUM B (Panduan §5). */
+  cross?: boolean;
   sequence?: number;
   onClick?: () => void;
 }
@@ -72,6 +74,10 @@ export interface MapCircle {
   fillColor?: string;
   fillOpacity?: number;
   label?: string;
+  /** Pola dash SVG; null = garis solid. Default '3 3' (putus-putus tipis). */
+  dashArray?: string | null;
+  /** Ketebalan garis; default 1.5. */
+  weight?: number;
 }
 
 export interface SeaMapProps {
@@ -91,6 +97,9 @@ export interface SeaMapProps {
   preferenceKey?: string;
   /** Isolated chart style for specialized worksheets. */
   basemap?: 'nautical' | 'onc';
+  /** Zoom otomatis (Panduan Datum §5): ketika `key` berubah, peta fit ke
+   *  bounds gabungan `points` + lingkaran `radiusNm` di sekitar datum. */
+  autoFitTo?: { points: LatLng[]; radiusNm?: number; key: string };
 }
 
 function escapeHtml(value: string): string {
@@ -115,22 +124,31 @@ const DefaultIcon = L.icon({
 
 L.Marker.prototype.options.icon = DefaultIcon;
 
-function makeColoredIcon(color: string, isStart?: boolean, isDatum?: boolean, sequence?: number) {
-  const shape = sequence !== undefined ? String(sequence) : isStart ? '◆' : isDatum ? '◉' : '●';
+function makeColoredIcon(color: string, isStart?: boolean, isDatum?: boolean, sequence?: number, cross?: boolean) {
+  const shape = sequence !== undefined
+    ? String(sequence)
+    : cross
+      ? '✕'
+      : isStart
+        ? '◆'
+        : isDatum
+          ? '◉'
+          : '●';
+  const size = cross ? 26 : isStart ? 22 : 18;
   return L.divIcon({
     className: 'sar-marker',
     html: `<div style="
       background:${color};
-      width:${isStart ? 22 : 18}px;
-      height:${isStart ? 22 : 18}px;
+      width:${size}px;
+      height:${size}px;
       border-radius:50%;
-      border: 2px solid #fff;
-      box-shadow: 0 0 4px rgba(0,0,0,.6);
+      border: ${cross ? 3 : 2}px solid #fff;
+      box-shadow: 0 0 ${cross ? 7 : 4}px rgba(0,0,0,${cross ? 0.75 : 0.6});
       display:flex;align-items:center;justify-content:center;
-      color:#fff;font-size:${sequence !== undefined ? 9 : 11}px;font-weight:bold;
+      color:#fff;font-size:${cross ? 14 : sequence !== undefined ? 9 : 11}px;font-weight:bold;
     ">${shape}</div>`,
-    iconSize: [isStart ? 22 : 18, isStart ? 22 : 18],
-    iconAnchor: [isStart ? 11 : 9, isStart ? 11 : 9],
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
     popupAnchor: [0, -10],
   });
 }
@@ -273,6 +291,7 @@ export default function SeaMap({
   measureMode = false,
   preferenceKey,
   basemap = 'nautical',
+  autoFitTo,
 }: SeaMapProps) {
   const mapDisclaimer = basemap === 'onc'
     ? 'Peta ONC referensi; bukan pengganti chart/produk aeronautika resmi.'
@@ -1438,6 +1457,40 @@ export default function SeaMap({
     mapRef.current.setView([center.lat, center.lng], zoom);
   }, [center.lat, center.lng, zoom]);
 
+  // ---- Zoom otomatis ke bounds lingkaran radius + titik A (Panduan Datum §5) ----
+  const autoFitKey = autoFitTo?.key;
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !autoFitTo || !autoFitKey) return;
+    const pts = (autoFitTo.points ?? []).filter(
+      (p) => p && Number.isFinite(p.lat) && Number.isFinite(p.lng),
+    );
+    if (pts.length === 0) return;
+    const bounds = L.latLngBounds(pts.map((p) => [p.lat, p.lng] as [number, number]));
+    const radiusNm = autoFitTo.radiusNm;
+    if (radiusNm && radiusNm > 0) {
+      // Perluas bounds dengan lingkaran radius (proyeksi geodesik 4 arah).
+      const c = pts[pts.length - 1];
+      const edge = {
+        north: project(c, 0, radiusNm),
+        south: project(c, 180, radiusNm),
+        east: project(c, 90, radiusNm),
+        west: project(c, 270, radiusNm),
+      };
+      bounds.extend([
+        [edge.north.lat, edge.north.lng],
+        [edge.south.lat, edge.south.lng],
+        [edge.east.lat, edge.east.lng],
+        [edge.west.lat, edge.west.lng],
+      ]);
+    }
+    try {
+      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 13 });
+    } catch {
+      // bounds tidak valid — abaikan, jangan matikan peta
+    }
+  }, [autoFitKey]);
+
   // ---- Toggle measure mode: clear measurement when leaving measure mode ----
   useEffect(() => {
     const layers = layersRef.current;
@@ -1468,7 +1521,7 @@ export default function SeaMap({
       if (!m.position || !Number.isFinite(m.position.lat) || !Number.isFinite(m.position.lng)) return;
       const color = m.color ?? '#ef4444';
       const marker = L.marker([m.position.lat, m.position.lng], {
-        icon: makeColoredIcon(color, m.isStart, m.isDatum, m.sequence),
+        icon: makeColoredIcon(color, m.isStart, m.isDatum, m.sequence, m.cross),
       }).addTo(layer);
       if (m.showLabel) {
         const tooltip = L.tooltip({
@@ -1714,10 +1767,10 @@ export default function SeaMap({
       const circle = L.circle([c.center.lat, c.center.lng], {
         radius: radiusMeters,
         color: c.color,
-        weight: 1.5,
+        weight: c.weight ?? 1.5,
         fillColor: c.fillColor ?? c.color,
         fillOpacity: c.fillOpacity ?? 0.08,
-        dashArray: '3 3',
+        dashArray: c.dashArray === null ? undefined : (c.dashArray ?? '3 3'),
       }).addTo(layer);
       if (c.label) {
         L.tooltip({ permanent: false, direction: 'top', className: 'sar-circle-label' })

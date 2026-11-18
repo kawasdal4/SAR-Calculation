@@ -1,10 +1,12 @@
 /**
- * Tests untuk ketentuan perhitungan Worksheet 1 (ketentuan pengguna):
- * 1. Wind current (Fig I-1) = ASW / 28, divergensi 30° per zona lintang.
+ * Tests untuk ketentuan perhitungan Worksheet 1.
+ * UPDATE Panduan Datum Worksheet 1 (bagian 3.3): kecepatan wind current
+ * memakai koefisien 0,036 × angin (menggantikan rumus lama ASW ÷ 28).
+ * 1. Wind current (Fig I-1) = 0,036 × ASW, divergensi 30° per zona lintang.
  * 2. Leeway dari Table I-1/I-2 sesuai Search target (description).
  * 3. de default 12.5%, de(L) = Distance(L) × de, de(R) = Distance(R) × de,
  *    De = [de(L) + de(R) + Distance L/R] / 2.
- * 4. x/y dari Table J-1 (GPS → 0.1 dst.).
+ * 4. x/y dari Table J-1/J-2 (GPS → 0.1 dst.).
  * 5. fs: pencarian ke-1 → 1.1, ke-2 → 1.6, dst.
  */
 import { describe, test, expect } from 'bun:test';
@@ -22,10 +24,11 @@ import {
   getTableJ1ErrorById,
 } from '../src/lib/sar/sarCalculations';
 
-describe('Ketentuan 3 — Wind current Figure I-1 (ASW ÷ 28)', () => {
-  test('windCurrentDrift = ASW / 28', () => {
-    expect(windCurrentDrift(14)).toBeCloseTo(0.5, 10);
-    expect(windCurrentDrift(28)).toBeCloseTo(1.0, 10);
+describe('Ketentuan 3 — Wind current Figure I-1 (0,036 × ASW, Panduan bagian 3.3)', () => {
+  test('windCurrentDrift = 0,036 × ASW', () => {
+    expect(windCurrentDrift(14)).toBeCloseTo(0.504, 10);
+    expect(windCurrentDrift(28)).toBeCloseTo(1.008, 10);
+    expect(windCurrentDrift(10)).toBeCloseTo(0.36, 10); // titik grafik Fig. I-1
     expect(windCurrentDrift(0)).toBe(0);
   });
 
@@ -41,7 +44,7 @@ describe('Ketentuan 3 — Wind current Figure I-1 (ASW ÷ 28)', () => {
   test('arah wind current = reciprocal ± divergensi (kanan di N, kiri di S)', () => {
     // Wind FROM 090 → downwind 270; lintang 20°N → divergensi ke kanan (+30)
     const north = computeWC(90, 14, 20);
-    expect(north.windCurrentDrift).toBeCloseTo(0.5, 10);
+    expect(north.windCurrentDrift).toBeCloseTo(0.504, 10);
     expect(north.divergence).toBe(30);
     expect(north.wcSet).toBe(300);
     // Lintang 20°S → divergensi ke kiri (−30)
