@@ -13,6 +13,7 @@ import { type LatLng } from '@/lib/sar/sarCalculations';
 import { formatDMS } from '@/lib/sar/coordFormat';
 import {
   addMinutesBasarnas,
+  describeBasarnasUtcConversion,
   parseDateParts,
   parseSarTimeToHours,
   roundHalfUpToMinute,
@@ -307,6 +308,15 @@ export default function AeronauticalDriftWorksheet({
     results.parachuteTimeOfDescentMin,
   ]);
 
+  // Pratinjau langsung konversi zona A.1 → UTC (Z) selagi pengguna mengetik:
+  // bila soal masih memakai zona lain (WIB/WITA/WIT, huruf G/H/I, "UTC+9"),
+  // konversi otomatis memakai logika tab Penghitungan Dasar. Hanya ditampilkan
+  // saat konversi benar-benar terjadi (zona non-UTC terdeteksi).
+  const a1UtcInfo = useMemo(
+    () => describeBasarnasUtcConversion(formData.incidentTime, formData.date),
+    [formData.incidentTime, formData.date],
+  );
+
   useEffect(() => {
     onDerivedDistressTime?.(derivedDistressTime);
   }, [derivedDistressTime, onDerivedDistressTime]);
@@ -533,7 +543,7 @@ export default function AeronauticalDriftWorksheet({
               <div className="w-36 text-slate-700">
                 Date/time (UTC)
                 <div className="text-[9px] text-slate-500 italic">
-                  format apa pun → Basarnas MMDD.HHMM
+                  format &amp; zona apa pun → Basarnas MMDD.HHMM Z (UTC)
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -550,12 +560,26 @@ export default function AeronauticalDriftWorksheet({
                       return norm && norm !== prev.incidentTime ? { ...prev, incidentTime: norm } : prev;
                     });
                   }}
-                  title="Format bebas (mis. '17 Nov 2026 07.00 UTC' atau '1117.0700'); dikonversi otomatis ke Basarnas MMDD.HHMM"
+                  title="Format bebas, zona apa pun (mis. '17 Nov 2026 15.56 WIT', '17 Nov 2026 07.00 UTC', '171847G NOV 2026'); dikonversi otomatis ke UTC lalu diformat Basarnas MMDD.HHMM (15.56 WIT → 06.56 Z)"
                   className="font-bold text-blue-900 font-mono border-b border-dotted border-slate-700 bg-transparent px-2 w-28 text-center focus:outline-none"
                 />
                 <span className="font-bold text-slate-900">Z</span>
               </div>
             </div>
+            {a1UtcInfo?.converted && (
+              <div className="pl-6 text-[9px] italic text-emerald-700">
+                Konversi otomatis (tab Penghitungan Dasar): {a1UtcInfo.localTimeText}{' '}
+                {a1UtcInfo.fromZone} = UTC+
+                {a1UtcInfo.offsetHours} → {a1UtcInfo.utcTimeText} Z — disimpan{' '}
+                <span className="font-mono font-bold">{a1UtcInfo.value} Z</span>
+                {typeof a1UtcInfo.dayShift === 'number' && a1UtcInfo.dayShift !== 0 && (
+                  <span>
+                    {' '}(tanggal menyesuaikan {a1UtcInfo.dayShift > 0 ? '+' : '-'}
+                    {Math.abs(a1UtcInfo.dayShift)} hari)
+                  </span>
+                )}
+              </div>
+            )}
 
             <div className="flex flex-wrap items-center gap-2">
               <span className="w-4 font-bold text-slate-900">2</span>

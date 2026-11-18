@@ -14,6 +14,8 @@
  */
 
 import { type ASWObservation } from './sarCalculations';
+import { TIMEZONES, type TzZone } from './basicCalculations';
+import { dtgToZones, parseDtg } from './dtg.mjs';
 
 export interface ParsedSarTime {
   /** Total jam: day*24 + jam + menit/60 bila ada info hari; tanpa info hari hanya jam+menit/60. */
@@ -325,17 +327,239 @@ export function formatBasarnasTime(
   return `${pad2(month)}${pad2(day)}.${pad2(hh)}${pad2(mm)}`;
 }
 
+// ─── Konversi zona waktu → UTC (Z) — selaras dengan tab Penghitungan Dasar ─
+// Point A.1 worksheet ADW wajib ditampilkan dalam format Basarnas MMDD.HHMM
+// pada zona UTC (Z). Bila soal kasus masih memakai zona lain (WIB/WITA/WIT,
+// huruf zona G/H/I, atau offset "UTC+9"), konversi ke UTC dilakukan otomatis
+// memakai konstanta zona + parser TW/DTG yang sama dengan tab Penghitungan
+// Dasar (basicCalculations.TIMEZONES + dtg.mjs: parseDtg & dtgToZones).
+
+export interface DetectedSourceZone {
+  zone: TzZone;
+  /** Offset terhadap UTC dalam jam (bisa pecahan, mis. 9,5 untuk +09:30). */
+  offsetHours: number;
+  /** Posisi token zona pada string uppercase. */
+  index: number;
+  raw: string;
+}
+
+export interface BasarnasUtcConversion {
+  /** Hasil akhir format Basarnas "MMDD.HHMM" dalam UTC. */
+  value: string;
+  /** true bila input memakai zona non-UTC sehingga waktunya digeser. */
+  converted: boolean;
+  fromZone?: TzZone;
+  offsetHours?: number;
+  /** Teks waktu lokal sumber, mis. "15.56". */
+  localTimeText?: string;
+  /** Teks waktu UTC hasil, mis. "06.56". */
+  utcTimeText?: string;
+  /** Pergeseran tanggal UTC terhadap tanggal lokal: -1 / 0 / +1. */
+  dayShift?: number;
+}
+
+const LETTER_ZONE_OF: Record<string, TzZone> = { G: 'WIB', H: 'WITA', I: 'WIT', Z: 'UTC' };
+
+/** Parse offset numerik "±H" / "±HH" / "±HH:MM" → jam desimal bertanda. */
+function parseOffsetHours(sign: string, h: string, m?: string): number {
+  const value = parseInt(h, 10) + (m ? parseInt(m, 10) / 60 : 0);
+  return sign === '-' ? -value : value;
+}
+
 /**
- * Konversi string waktu apa pun (dari soal/AI/manual) menjadi "MMDD.HHMM".
- * Bila input tidak mencantumkan tanggal, bulan/tanggal diambil dari
- * fallbackDate (field tanggal worksheet). Mengembalikan null bila waktu
- * tidak bisa diparse atau bulan/tanggal tetap tidak diketahui.
+ * Deteksi token zona sumber pada string waktu: kata WIB/WITA/WIT, UTC/GMT
+ * (± offset numerik opsional), huruf zona menempel 6 digit DTG ("171847G"),
+ * atau HHMM + huruf zona ("1900 G", "0700Z", "1122.1600 Z"). Token terawal
+ * pada string yang menang. null bila tidak ada zona dicantumkan.
  */
-export function toBasarnasTimeFormat(input: string, fallbackDate?: string): string | null {
+export function detectSourceZone(input: string): DetectedSourceZone | null {
+  const s = input.trim().toUpperCase();
+  if (!s) return null;
+  const found: DetectedSourceZone[] = [];
+
+  // Kata zona Indonesia: WIB / WITA / WIT.
+  for (const m of s.matchAll(/(?<![A-Z])(WIB|WITA|WIT)(?![A-Z])/g)) {
+    const zone = m[1] as TzZone;
+    found.push({ zone, offsetHours: TIMEZONES[zone].offset, index: m.index ?? 0, raw: m[0] });
+  }
+  // UTC/GMT dengan offset numerik opsional ("UTC+9", "GMT+09:30", "UTC").
+  for (const m of s.matchAll(/(?<![A-Z])(UTC|GMT)(?![A-Z])\s*(?:([+\-])\s*(\d{1,2})(?::(\d{2}))?)?/g)) {
+    const offsetHours = m[2] ? parseOffsetHours(m[2], m[3], m[4]) : 0;
+    found.push({ zone: 'UTC', offsetHours, index: m.index ?? 0, raw: m[0].trim() });
+  }
+  // DTG militer tanpa spasi: "171847G" → huruf zona menempel pada 6 digit.
+  for (const m of s.matchAll(/(?<!\d)(\d{2})(\d{2})(\d{2})\s*([GHIZ])(?![A-Z])/g)) {
+    const zone = LETTER_ZONE_OF[m[4]];
+    found.push({ zone, offsetHours: TIMEZONES[zone].offset, index: m.index ?? 0, raw: m[4] });
+  }
+  // HHMM + huruf zona: "1900 G", "0700Z", "1122.1600 Z".
+  for (const m of s.matchAll(/(?<!\d)(\d{2})(\d{2})\s*([GHIZ])(?![A-Z])/g)) {
+    const zone = LETTER_ZONE_OF[m[3]];
+    found.push({ zone, offsetHours: TIMEZONES[zone].offset, index: m.index ?? 0, raw: m[3] });
+  }
+  if (found.length === 0) return null;
+  found.sort((a, b) => a.index - b.index);
+  return found[0];
+}
+
+interface TimeCandidate {
+  hour: number;
+  minute: number;
+  start: number;
+  end: number;
+}
+
+/** Semua kandidat jam:menit pada string (tanpa preferensi UTC), dengan posisi. */
+function extractTimeCandidates(s: string): TimeCandidate[] {
+  const out: TimeCandidate[] = [];
+  const push = (m: RegExpMatchArray, gh: number, gm: number) => {
+    const hour = parseInt(m[gh], 10);
+    const minute = parseInt(m[gm], 10);
+    if (hour > 23 || minute > 59) return;
+    out.push({ hour, minute, start: m.index ?? 0, end: (m.index ?? 0) + m[0].length });
+  };
+  // "07.00", "07:00", "15.56" — pemisah titik/due-dua-titik wajib.
+  for (const m of s.matchAll(/(\d{1,2})[.:](\d{2})(?!\d)/g)) push(m, 1, 2);
+  // "0700", "1900" — empat digit berdiri sendiri.
+  for (const m of s.matchAll(/(?<!\d)(\d{2})(\d{2})(?!\d)/g)) push(m, 1, 2);
+  out.sort((a, b) => a.start - b.start);
+  return out;
+}
+
+/** true bila ada kandidat waktu yang eksplisit menyebut UTC/Z/GMT (tanpa offset) di belakangnya. */
+function hasExplicitUtcTime(s: string): boolean {
+  for (const c of extractTimeCandidates(s)) {
+    // "UTC+9" BUKAN penanda sudah-UTC — offsetnya harus ikut dikonversi.
+    if (/^\s*(?:Z(?![A-Z])|(?:UTC|GMT)(?![A-Z])\s*(?![+\-]\d))/.test(s.slice(c.end, c.end + 10))) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Geser tanggal-waktu lokal (zona offsetHours) ke UTC, termasuk penggulungan hari/bulan. */
+function shiftToUtc(
+  day: number,
+  month: number,
+  year: number,
+  hour: number,
+  minute: number,
+  offsetHours: number,
+): { month: number; day: number; hour: number; minute: number; dayShift: number } {
+  const ms = Date.UTC(year, month - 1, day, hour, minute) - Math.round(offsetHours * 60) * 60_000;
+  const d = new Date(ms);
+  const baseDayMs = Date.UTC(year, month - 1, day);
+  const dayShift = Math.round(
+    (Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) - baseDayMs) / 86_400_000,
+  );
+  return {
+    month: d.getUTCMonth() + 1,
+    day: d.getUTCDate(),
+    hour: d.getUTCHours(),
+    minute: d.getUTCMinutes(),
+    dayShift,
+  };
+}
+
+/**
+ * Konversi narasi dengan zona non-UTC eksplisit ("17 Nov 2026 15.56 WIT") ke
+ * format Basarnas MMDD.HHMM UTC. Waktu yang dipakai = kandidat jam terdekat di
+ * depan token zona. null bila tidak ada zona non-UTC, bila UTC sudah
+ * dicantumkan eksplisit (pasangan lokal + UTC), atau bila tanggal tak diketahui.
+ */
+function convertNarrativeToUtc(input: string, fallbackDate?: string): BasarnasUtcConversion | null {
+  const s = input.trim().toUpperCase();
+  if (!s) return null;
+  const zone = detectSourceZone(s);
+  if (!zone || zone.offsetHours === 0) return null;
+  if (hasExplicitUtcTime(s)) return null;
+  const candidates = extractTimeCandidates(s);
+  if (candidates.length === 0) return null;
+  // Kandidat jam terdekat SEBELUM token zona (zona mendifinisikan jam di depannya).
+  const before = candidates.filter((c) => c.end <= zone.index);
+  const chosen = before.length > 0 ? before[before.length - 1] : candidates[0];
+  const dateParts = extractDateParts(s) ?? (fallbackDate ? parseDateParts(fallbackDate) : null);
+  if (!dateParts) return null;
+  const utc = shiftToUtc(
+    dateParts.day,
+    dateParts.month,
+    dateParts.year ?? 2000,
+    chosen.hour,
+    chosen.minute,
+    zone.offsetHours,
+  );
+  return {
+    value: `${pad2(utc.month)}${pad2(utc.day)}.${pad2(utc.hour)}${pad2(utc.minute)}`,
+    converted: true,
+    fromZone: zone.zone,
+    offsetHours: zone.offsetHours,
+    localTimeText: `${pad2(chosen.hour)}.${pad2(chosen.minute)}`,
+    utcTimeText: `${pad2(utc.hour)}.${pad2(utc.minute)}`,
+    dayShift: utc.dayShift,
+  };
+}
+
+/** Jalur lama: tanpa konversi zona (input dianggap sudah UTC). */
+function legacyBasarnas(input: string, fallbackDate?: string): string | null {
   const parsed = parseSarTimeToHours(input);
   if (!parsed) return null;
   const fallback = fallbackDate ? parseDateParts(fallbackDate) : null;
   return formatBasarnasTime(parsed, fallback);
+}
+
+/**
+ * Konversi string waktu apa pun → format Basarnas MMDD.HHMM dalam UTC (Z)
+ * beserta metadata konversi zona untuk hint UI. Aturan (urut prioritas):
+ *  1) TW/DTG dengan huruf zona eksplisit (G/H/I/Z) → parser tab Penghitungan
+ *     Dasar (dtg.mjs); zona non-UTC digeser ke UTC lewat dtgToZones.
+ *  2) Narasi dengan zona eksplisit non-UTC (WIB/WITA/WIT, "UTC+9") → geser ke
+ *     UTC; bila soal mencantumkan pasangan lokal + UTC sekaligus, nilai UTC
+ *     yang dipakai (tanpa konversi ulang).
+ *  3) Sudah UTC (Z/UTC/GMT) atau tanpa zona → dianggap sudah UTC (perilaku lama).
+ */
+export function describeBasarnasUtcConversion(
+  input: string,
+  fallbackDate?: string,
+): BasarnasUtcConversion | null {
+  if (!input || !input.trim()) return null;
+  const s = input.trim().toUpperCase();
+
+  // 1) Format TW/DTG dengan huruf zona eksplisit.
+  const dtg = parseDtg(input);
+  if (dtg && !dtg.zoneAssumed) {
+    const utcRow = dtgToZones(dtg).find((r) => r.zone === 'UTC');
+    if (utcRow) {
+      return {
+        value: `${pad2(utcRow.month)}${pad2(utcRow.day)}.${utcRow.hhmm}`,
+        converted: dtg.zone !== 'UTC',
+        fromZone: dtg.zone,
+        offsetHours: TIMEZONES[dtg.zone].offset,
+        localTimeText: `${pad2(dtg.hour)}.${pad2(dtg.minute)}`,
+        utcTimeText: `${pad2(utcRow.hour)}.${pad2(utcRow.minute)}`,
+        dayShift: utcRow.dayShift,
+      };
+    }
+  }
+
+  // 2) Narasi dengan zona non-UTC eksplisit → konversi otomatis.
+  const narrative = convertNarrativeToUtc(s, fallbackDate);
+  if (narrative) return narrative;
+
+  // 3) Tanpa zona / sudah UTC → perilaku lama.
+  const legacy = legacyBasarnas(s, fallbackDate);
+  return legacy ? { value: legacy, converted: false } : null;
+}
+
+/**
+ * Konversi string waktu apa pun (dari soal/AI/manual) menjadi "MMDD.HHMM"
+ * dalam zona UTC (Z). Bila input memakai zona lain (WIB/WITA/WIT, huruf
+ * G/H/I, "UTC±offset"), konversi ke UTC dilakukan otomatis — selaras dengan
+ * tab Penghitungan Dasar. Bila input tidak mencantumkan tanggal, bulan/
+ * tanggal diambil dari fallbackDate (field tanggal worksheet). Mengembalikan
+ * null bila waktu tidak bisa diparse atau bulan/tanggal tetap tidak diketahui.
+ */
+export function toBasarnasTimeFormat(input: string, fallbackDate?: string): string | null {
+  return describeBasarnasUtcConversion(input, fallbackDate)?.value ?? null;
 }
 
 /**
