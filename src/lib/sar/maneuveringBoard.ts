@@ -43,13 +43,37 @@ export function polarToCartesian(
 }
 
 /**
- * Tentukan skala ring terbaik secara otomatis agar seluruh vektor muat di dalam 10 ring
+ * Skala "cantik" yang lazim di papan manuver (satuan per ring).
+ * Daftar lebih rapat agar hasil skala otomatis selalu terasa pas.
+ */
+export const NICE_SCALES = [
+  1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6, 7, 8, 9, 10, 12, 15, 17.5, 20, 25, 30,
+  35, 40, 45, 50, 60, 70, 80, 90, 100, 120, 150, 175, 200, 250, 300, 350, 400,
+  450, 500, 600, 800, 1000,
+];
+
+/** Bulatkan skala ke atas supaya plot tetap muat di dalam lingkaran. */
+function roundUpScale(scale: number): number {
+  if (scale >= 100) return Math.ceil(scale / 2.5) * 2.5;
+  if (scale >= 20) return Math.ceil(scale * 2) / 2; // langkah 0.5
+  if (scale >= 1) return Math.ceil(scale * 10) / 10; // langkah 0.1
+  return Math.max(0.05, Math.ceil(scale * 20) / 20); // langkah 0.05
+}
+
+/**
+ * Tentukan skala ring terbaik secara otomatis.
+ *
+ * Prinsip (permintaan pengguna): gambar TIDAK boleh terlalu kecil dan harus
+ * pas di dalam lingkaran plotting → skala dipilih agar jarak terjauh titik
+ * terplot memanfaatkan ±9.5 dari 10 ring (margin kecil untuk panah/label).
+ * Skala "cantik" dipakai bila selisihnya ≤ 12% dari skala eksak; jika tidak,
+ * skala dibulatkan ke atas agar plot tetap muat (tidak pernah keluar ring).
  */
 export function autoScaleBoard(magnitudes: number[]): number {
-  const maxMag = Math.max(1, ...magnitudes);
-  // Keep the plotted extent inside roughly 8 of the board's 10 rings.
-  const idealPerRing = maxMag / 8;
-  const preferredScales = [1, 2, 3, 4, 5, 10, 20, 30, 40, 50, 60, 80, 100, 150, 200, 300, 400, 500, 1000];
-  const fitScale = preferredScales.find((scale) => scale >= idealPerRing);
-  return fitScale ?? Math.ceil(idealPerRing / 100) * 100;
+  const maxMag = magnitudes.length ? Math.max(...magnitudes) : 0;
+  if (!Number.isFinite(maxMag) || maxMag <= 0) return 1;
+  const exactScale = maxMag / 9.5;
+  const niceScale = NICE_SCALES.find((scale) => scale >= exactScale);
+  if (niceScale && niceScale / exactScale <= 1.12) return niceScale;
+  return roundUpScale(exactScale);
 }

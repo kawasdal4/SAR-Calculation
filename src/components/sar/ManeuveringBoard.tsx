@@ -27,11 +27,13 @@ import {
   Pause,
   SkipForward,
   Link as LinkIcon,
+  Wand2,
 } from 'lucide-react';
 import {
   type BoardVector,
   polarToCartesian,
   autoScaleBoard,
+  NICE_SCALES,
 } from '@/lib/sar/maneuveringBoard';
 import {
   placeAlongLineLabels,
@@ -122,18 +124,34 @@ export default function ManeuveringBoard({
       : 0;
     const fitCenter = autoOrigin ? pathPoints[anchorIndex] : { x: 0, y: 0 };
     const extent = Math.max(...points.map((point) => Math.hypot(point.x - fitCenter.x, point.y - fitCenter.y)), 1);
+    // Jarak terjauh titik terplot dari pusat PAPAN setelah penempatan final.
+    // Saat O digeser (autoFitOrigin), pusat papan = pusat bbox rantai, bukan O —
+    // inilah dasar pemilihan skala agar plot pas di dalam lingkaran.
+    const radiusCenter = autoOrigin ? center : fitCenter;
+    const boardRadius = Math.max(
+      ...points.map((point) => Math.hypot(point.x - radiusCenter.x, point.y - radiusCenter.y)),
+      1,
+    );
     const originOffset = autoOrigin ? { x: -center.x, y: -center.y } : { x: 0, y: 0 };
     const zeroOffset = autoOrigin ? fitCenter : { x: 0, y: 0 };
-    return { extent, originOffset, zeroOffset, anchorIndex, autoOrigin };
+    return { extent, boardRadius, originOffset, zeroOffset, anchorIndex, autoOrigin };
   }, [vectors, autoFitOrigin, isChainedMode]);
 
-  const calculatedAutoScale = useMemo(() => autoScaleBoard([chainGeometry.extent]), [chainGeometry.extent]);
-  const scaleChoices = useMemo(() => {
-    const presets = [1, 2, 3, 4, 5, 10, 20, 30, 40, 50, 60, 80, 100, 150, 200, 300, 400, 500, 1000];
-    return [...new Set([...presets, calculatedAutoScale])].sort((a, b) => a - b);
-  }, [calculatedAutoScale]);
+  const calculatedAutoScale = useMemo(
+    () => autoScaleBoard([chainGeometry.boardRadius]),
+    [chainGeometry.boardRadius],
+  );
+  const scaleChoices = useMemo(
+    () => [...new Set([...NICE_SCALES, calculatedAutoScale])].sort((a, b) => a - b),
+    [calculatedAutoScale],
+  );
 
-  const [scale, setScale] = useState<number>(defaultScale ?? calculatedAutoScale);
+  // Skala = derived state: pilihan manual pengguna > defaultScale prop > auto.
+  // Mode auto selalu mengikuti data terbaru (calculatedAutoScale) sehingga plot
+  // tetap pas di dalam lingkaran setiap vektor berubah — tanpa useEffect.
+  const [manualScale, setManualScale] = useState<number | null>(null);
+  const scale = manualScale ?? defaultScale ?? calculatedAutoScale;
+  const isAutoScale = manualScale == null;
   const plotOrigin = {
     x: cx + (chainGeometry.originOffset.x / scale) * ringSpacing,
     y: cy + (chainGeometry.originOffset.y / scale) * ringSpacing,
@@ -153,15 +171,6 @@ export default function ManeuveringBoard({
   const [activeStep, setActiveStep] = useState<number>(vectors.length);
 
   const containerRef = useRef<HTMLDivElement>(null);
-
-  // Sync if defaultScale or vectors change
-  useEffect(() => {
-    if (defaultScale) {
-      setScale(defaultScale);
-    } else {
-      setScale(calculatedAutoScale);
-    }
-  }, [defaultScale, calculatedAutoScale]);
 
   useEffect(() => {
     setActiveStep(vectors.length);
@@ -295,7 +304,7 @@ export default function ManeuveringBoard({
   const resetView = () => {
     setZoom(1);
     setPan({ x: 0, y: 0 });
-    setScale(calculatedAutoScale);
+    setManualScale(null);
   };
 
   const handleZoom = (delta: number) => {
@@ -364,13 +373,26 @@ export default function ManeuveringBoard({
                 <span className="text-slate-600 font-medium">Skala Mobo =</span>
                 <select
                   value={scale}
-                  onChange={(e) => setScale(Number(e.target.value))}
+                  onChange={(e) => setManualScale(Number(e.target.value))}
                   className="font-bold text-slate-900 bg-transparent focus:outline-none cursor-pointer"
                 >
                   {scaleChoices.map((choice) => (
                     <option key={choice} value={choice}>{choice}:1 ({choice} {unitLabel}/ring)</option>
                   ))}
                 </select>
+                <button
+                  type="button"
+                  onClick={() => setManualScale(null)}
+                  title="Skala otomatis: gambar pas di dalam lingkaran, tidak terlalu kecil"
+                  className={`ml-0.5 flex items-center gap-1 px-1.5 py-0.5 rounded border text-[11px] font-bold transition-colors ${
+                    isAutoScale
+                      ? 'bg-emerald-700 text-white border-emerald-800 shadow-2xs'
+                      : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
+                  }`}
+                >
+                  <Wand2 className="h-3 w-3" />
+                  Auto
+                </button>
               </div>
 
               {/* Zoom Controls */}
@@ -444,7 +466,7 @@ export default function ManeuveringBoard({
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               <span className="font-semibold">DMAHTC 5090 Original Sheet</span>
               <span className="text-slate-200 font-mono font-bold">
-                Skala: {scale}:1 · 1 ring = {scale} {unitLabel}
+                Skala: {scale}:1 · 1 ring = {scale} {unitLabel}{isAutoScale ? ' (Auto)' : ''}
               </span>
               <span className="text-slate-400 font-mono">
                 {isChainedMode ? 'Mode: Head-to-Tail' : 'Mode: Radial'}{chainGeometry.autoOrigin ? ' · O (0) pada titik vektor agar plot muat' : ''}
@@ -593,9 +615,9 @@ function MoboBoardView({
   const isPrint = variant === 'print';
   const k = isPrint ? 2 : 1; // pengali ukuran cetak
 
-  // ---- Badge vektor: cukup arah dan nilai (contoh 35°/125 kt) ----
+  // ---- Badge vektor: format arah/jarak (contoh 50°/60 nm) ----
   // Nama lengkap vektor tetap tampil di tabel "Daftar Vektor" di samping papan.
-  const badgeUnit = unitLabel === 'kts' ? 'kt' : unitLabel;
+  const badgeUnit = unitLabel === 'kts' ? 'kt' : unitLabel.toLowerCase();
   const fmtBadgeMag = (m: number) => (Math.abs(m - Math.round(m)) < 0.05 ? String(Math.round(m)) : m.toFixed(1));
   const badgeOf = (v: MoboPlottedVector) =>
     v.badge ?? `${Math.round(v.dirDeg) % 360}°/${fmtBadgeMag(v.mag)} ${badgeUnit}`;
