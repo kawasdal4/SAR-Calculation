@@ -18,6 +18,7 @@
  */
 
 import React, { useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Compass, AlertTriangle, CheckCircle2, Ruler } from 'lucide-react';
 import { type LatLng, type Vector } from '@/lib/sar/sarCalculations';
@@ -28,6 +29,8 @@ import {
   UPS_SHEET_HR,
 } from '@/lib/sar/upsAdw.mjs';
 import { formatDMS } from '@/lib/sar/coordFormat';
+import SheetPrintMenu from './SheetPrintMenu';
+import { usePrintScope, paperContentMm } from '@/lib/sar/printSheets';
 
 interface AdwUpsSheetProps {
   /** Datum X — posisi insiden (A2 ADW). */
@@ -43,6 +46,12 @@ interface AdwUpsSheetProps {
   /** Resultan parasut. */
   pp?: Vector;
   className?: string;
+  /**
+   * Mode render: 'card' = kartu interaktif layar; 'print-block' = blok cetak
+   * fluid (Ctrl+P bawaan); 'print-portal' = blok cetak portal (Print Mode).
+   */
+  variant?: 'card' | 'print-block' | 'print-portal';
+  paper?: 'a3' | 'a4';
 }
 
 const SHEET_W = 1180;
@@ -100,6 +109,8 @@ export default function AdwUpsSheet({
   pw,
   pp,
   className = '',
+  variant = 'card',
+  paper = 'a4',
 }: AdwUpsSheetProps) {
   const plot = useMemo(
     () =>
@@ -118,6 +129,7 @@ export default function AdwUpsSheet({
   );
 
   if (!datum || !plot?.ready) {
+    if (variant !== 'card') return null;
     return (
       <Card className={`border-slate-300 shadow-sm bg-white ${className}`}>
         <CardHeader className="bg-slate-100/90 border-b border-slate-300 py-3 px-4">
@@ -138,6 +150,7 @@ export default function AdwUpsSheet({
   }
 
   if (!plot.scale.fits) {
+    if (variant !== 'card') return null;
     const s60 = plot.scale;
     return (
       <Card className={`border-amber-300 shadow-sm bg-white ${className}`}>
@@ -166,6 +179,8 @@ export default function AdwUpsSheet({
     );
   }
 
+  const printScope = usePrintScope('adw-ups');
+
   const scale = plot.scale;
   const S = scale.scaleMin; // menit busur
   const pxPerNm = ROSE_R / S; // 1 menit lintang = 1 NM
@@ -174,6 +189,8 @@ export default function AdwUpsSheet({
   const cy = SHEET_H / 2;
   const xC = scale.roseCenterNm.xNm;
   const yC = scale.roseCenterNm.yNm;
+  // Suffix id defs SVG agar instansi screen & print tidak berbenturan
+  const idSuf = variant === 'card' ? 'scr' : variant === 'print-block' ? 'prt' : 'prp';
 
   /** Titik NM relatif datum → piksel lembar. */
   const toPx = (xNm: number, yNm: number) => ({
@@ -308,49 +325,21 @@ export default function AdwUpsSheet({
     return { x: px + nx * off, y: py + ny * off };
   };
 
-  return (
-    <Card className={`border-slate-300 shadow-sm bg-white overflow-hidden ${className}`}>
-      <CardHeader className="bg-slate-100/90 border-b border-slate-300 py-3 px-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <CardTitle className="text-sm sm:text-base font-bold flex items-center gap-2 text-slate-900">
-              <Compass className="h-4 w-4 text-emerald-700" />
-              UPS Digital — Penggambaran Hasil Worksheet ADW
-            </CardTitle>
-            <p className="text-xs text-slate-500 font-mono mt-0.5">
-              Pusat rose: {formatDMS(latCenterDeg, false)}{' '}
-              {formatDMS(lngCenterDeg, true)} | Datum X:{' '}
-              {formatDMS(datum.lat, false)} {formatDMS(datum.lng, true)}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-900">
-              <Ruler className="h-3.5 w-3.5" />
-              Skala: {S}′ · garis besar {majorMin % 1 === 0 ? `${majorMin}′` : fmtMajorTick(majorMin)} ·
-              garis kecil {scaleTickInfo(S).minorSec}″
-            </span>
-            <span className="inline-flex items-center gap-1.5 rounded border border-emerald-300 bg-white px-2.5 py-1 text-xs font-semibold text-emerald-800">
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              Vektor aman di lembar
-            </span>
-          </div>
-        </div>
-      </CardHeader>
 
-      <CardContent className="p-4 flex flex-col xl:flex-row items-center gap-6 justify-center">
-        {/* Lembar UPS digital */}
-        <div className="relative w-full max-w-[720px] overflow-hidden rounded-xl border border-slate-400 shadow-inner bg-white">
-          <svg
-            viewBox={`0 0 ${SHEET_W} ${SHEET_H}`}
-            className="w-full h-auto"
-            role="img"
+  /** Lembar UPS digital SVG — dipakai ulang untuk layar, blok cetak fluid, dan portal cetak. */
+  const renderSheet = (containerClass: string, svgStyle: React.CSSProperties) => (
+    <div className={containerClass}>
+        <svg
+          viewBox={`0 0 ${SHEET_W} ${SHEET_H}`}
+          style={svgStyle}
+          role="img"
             aria-label={`Lembar UPS digital skala ${S} menit dengan vektor ADW dg, dd, dan da`}
           >
             <defs>
               {Object.entries(COLORS).map(([key, color]) => (
                 <marker
                   key={key}
-                  id={`adw-arrow-${key}`}
+                  id={`adw-arrow-${key}-${idSuf}`}
                   viewBox="0 0 10 10"
                   refX="7"
                   refY="5"
@@ -513,7 +502,7 @@ export default function AdwUpsSheet({
                     y2={b.y}
                     stroke={COLORS[seg.id]}
                     strokeWidth={seg.id === 'dg' || seg.id === 'da' || seg.id === 'pp' ? 4.5 : 4}
-                    markerEnd={`url(#adw-arrow-${seg.id})`}
+                    markerEnd={`url(#adw-arrow-${seg.id}-${idSuf})`}
                   />
                 );
               })}
@@ -530,7 +519,7 @@ export default function AdwUpsSheet({
                     y2={b.y}
                     stroke={COLORS.da}
                     strokeWidth="4.5"
-                    markerEnd="url(#adw-arrow-da)"
+                    markerEnd={`url(#adw-arrow-da-${idSuf})`}
                   />
                 );
               })()}
@@ -659,8 +648,155 @@ export default function AdwUpsSheet({
                 </text>
               </g>
             </g>
-          </svg>
+        </svg>
+    </div>
+  );
+
+  if (variant === 'print-block') {
+    return (
+      <div className="print-only print-companion-page w-full">
+        <div className="mb-2 border-b-2 border-slate-800 pb-1.5 flex items-end justify-between gap-4">
+          <div>
+            <p className="text-[13pt] font-bold text-slate-900 leading-tight">UPS Digital — Penggambaran Hasil Worksheet ADW</p>
+            <p className="text-[8pt] text-slate-600 font-mono">
+              Pusat rose: {formatDMS(latCenterDeg, false)} {formatDMS(lngCenterDeg, true)} · Datum X: {formatDMS(datum.lat, false)} {formatDMS(datum.lng, true)}
+            </p>
+          </div>
+          <p className="text-[8pt] font-mono text-slate-700 text-right">
+            Skala S = {S}′ · garis besar {fmtMajorTick(majorMin)} · garis kecil {scaleTickInfo(S).minorSec}″
+          </p>
         </div>
+        {renderSheet('w-full', { width: '100%', height: 'auto' })}
+        <p className="text-[7.5pt] text-slate-600 mt-1">
+          Vektor d_g / d_d / d_a (dan seri parasut bila ada) digambar otomatis dari hasil ADW dengan
+          skala terkecil (3′–60′) yang memuat seluruh vektor di dalam lembar — tidak ada vektor yang
+          keluar batas lembar.
+        </p>
+      </div>
+    );
+  }
+
+  if (variant === 'print-portal') {
+    const [wmm, hmm] = paperContentMm(paper);
+    const PAD_TB = 8, PAD_LR = 10, GAP = 5, ASIDE_W = 58, HEADER_H = 16;
+    const cellW = wmm - PAD_LR - GAP - ASIDE_W;
+    const cellH = hmm - PAD_TB - HEADER_H;
+    const aspect = SHEET_W / SHEET_H;
+    let sheetH = cellH;
+    let sheetW = sheetH * aspect;
+    if (sheetW > cellW) {
+      sheetW = cellW;
+      sheetH = sheetW / aspect;
+    }
+    return (
+      <div
+        className="portal-print-sheet print-avoid-break bg-white text-slate-900"
+        style={{ width: `${wmm}mm`, height: `${hmm}mm`, padding: '4mm 5mm', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+      >
+        <div style={{ height: `${HEADER_H}mm`, overflow: 'hidden' }}>
+          <div className="mb-1 border-b-2 border-slate-800 pb-1.5 flex items-end justify-between gap-4">
+            <div>
+              <p className="text-[13pt] font-bold text-slate-900 leading-tight">UPS Digital — Penggambaran Hasil Worksheet ADW</p>
+              <p className="text-[8pt] text-slate-600 font-mono">
+                Pusat rose: {formatDMS(latCenterDeg, false)} {formatDMS(lngCenterDeg, true)} · Datum X: {formatDMS(datum.lat, false)} {formatDMS(datum.lng, true)}
+              </p>
+            </div>
+            <p className="text-[8pt] font-mono text-slate-700 text-right">
+              Skala S = {S}′ · garis besar {fmtMajorTick(majorMin)} · garis kecil {scaleTickInfo(S).minorSec}″
+            </p>
+          </div>
+        </div>
+        <div className="flex items-stretch" style={{ gap: `${GAP}mm`, height: `${cellH}mm`, minHeight: 0 }}>
+          <div className="flex items-center justify-center" style={{ width: `${sheetW}mm`, height: `${cellH}mm` }}>
+            {renderSheet('flex items-center justify-center w-full h-full', { width: `${sheetW}mm`, height: `${sheetH}mm` })}
+          </div>
+          <div className="border-l border-slate-300 pl-[3mm] overflow-hidden" style={{ width: `${ASIDE_W}mm`, minWidth: 0 }}>
+            <p className="font-bold text-[8.5pt] uppercase tracking-wide border-b border-slate-300 pb-1 mb-1.5">Nilai yang digambar (panduan bagian 3)</p>
+            <dl className="space-y-1 text-[8pt]">
+              {plot.segments.some((s) => s.id === 'dg') && (
+                <div className="flex justify-between gap-2">
+                  <dt className="font-semibold" style={{ color: COLORS.dg }}>d_g (B.8/B.9)</dt>
+                  <dd className="font-mono">{(() => { const s = plot.segments.find((x) => x.id === 'dg')!; return `${fmtDir(s.dir)}T / ${fmtNm(s.nm)} NM`; })()}</dd>
+                </div>
+              )}
+              {plot.segments.some((s) => s.id === 'dd') && (
+                <div className="flex justify-between gap-2">
+                  <dt className="font-semibold" style={{ color: COLORS.dd }}>d_d (B.11)</dt>
+                  <dd className="font-mono">{(() => { const s = plot.segments.find((x) => x.id === 'dd')!; return `${fmtDir(s.dir)}T / ${fmtNm(s.nm, 3)} NM`; })()}</dd>
+                </div>
+              )}
+              {plot.daInfo && (
+                <div className="flex justify-between gap-2">
+                  <dt className="font-semibold" style={{ color: COLORS.da }}>d_a (B.12)</dt>
+                  <dd className="font-mono">{fmtDir(plot.daInfo.dir)}T / {fmtNm(plot.daInfo.nm, 1)} NM</dd>
+                </div>
+              )}
+              {plot.daInfo && (
+                <div className="flex justify-between gap-2">
+                  <dt className="text-slate-600 font-semibold font-sans">B14 — akhir glide</dt>
+                  <dd className="font-mono text-right">{formatDMS(plot.daInfo.endLat, false)}<br />{formatDMS(plot.daInfo.endLng, true)}</dd>
+                </div>
+              )}
+            </dl>
+            <p className="font-bold text-[8.5pt] uppercase tracking-wide border-b border-slate-300 pb-1 mb-1.5 mt-2">Skala lembar (panduan bagian 5)</p>
+            <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[7.5pt] font-mono">
+              <span>Skala S</span><span className="text-right font-bold">{S}′</span>
+              <span>Garis besar (S/6)</span><span className="text-right">{fmtMajorTick(majorMin)}</span>
+              <span>Garis kecil (S/60)</span><span className="text-right">{scaleTickInfo(S).minorSec}″</span>
+              <span>Pusat rose φC</span><span className="text-right">{formatDMS(latCenterDeg, false)}</span>
+              <span>Pusat rose λC</span><span className="text-right">{formatDMS(lngCenterDeg, true)}</span>
+              <span>Jarak antar garis bujur</span><span className="text-right">{fmtNm(S * cosM, 2)} NM</span>
+              <span>Simpang maks x / batas</span><span className="text-right">{fmtNm(scale.maxDevXNm, 1)} / {fmtNm(scale.xLimitNm, 1)} NM</span>
+              <span>Simpang maks y / batas</span><span className="text-right">{fmtNm(scale.maxDevYNm, 1)} / {fmtNm(scale.yLimitNm, 1)} NM</span>
+            </div>
+            <p className="mt-2 text-[6.5pt] text-slate-500 leading-snug">
+              Seluruh elemen lembar berupa SVG vektor. Skala terkecil yang memuat semua titik dipilih
+              otomatis (lebar 4,7 R · tinggi 3,4 R · margin 0,2 R) sehingga vektor ADW tidak keluar
+              batas lembar.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <Card className={`border-slate-300 shadow-sm bg-white overflow-hidden ${className}`}>
+      <CardHeader className="bg-slate-100/90 border-b border-slate-300 py-3 px-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <CardTitle className="text-sm sm:text-base font-bold flex items-center gap-2 text-slate-900">
+              <Compass className="h-4 w-4 text-emerald-700" />
+              UPS Digital — Penggambaran Hasil Worksheet ADW
+            </CardTitle>
+            <p className="text-xs text-slate-500 font-mono mt-0.5">
+              Pusat rose: {formatDMS(latCenterDeg, false)}{' '}
+              {formatDMS(lngCenterDeg, true)} | Datum X:{' '}
+              {formatDMS(datum.lat, false)} {formatDMS(datum.lng, true)}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-900">
+              <Ruler className="h-3.5 w-3.5" />
+              Skala: {S}′ · garis besar {majorMin % 1 === 0 ? `${majorMin}′` : fmtMajorTick(majorMin)} ·
+              garis kecil {scaleTickInfo(S).minorSec}″
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded border border-emerald-300 bg-white px-2.5 py-1 text-xs font-semibold text-emerald-800">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Vektor aman di lembar
+            </span>
+            <SheetPrintMenu targetId="adw-ups" docTitle="UPS Digital ADW" />
+          </div>
+        </div>
+      </CardHeader>
+
+      <CardContent className="p-4 flex flex-col xl:flex-row items-center gap-6 justify-center">
+        {/* Lembar UPS digital */}
+        {renderSheet(
+          'relative w-full max-w-[720px] overflow-hidden rounded-xl border border-slate-400 shadow-inner bg-white',
+          { width: '100%', height: 'auto' },
+        )}
 
         {/* Panel nilai dan legenda */}
         <div className="w-full xl:w-80 space-y-4">
@@ -766,7 +902,26 @@ export default function AdwUpsSheet({
             </div>
           </div>
         </div>
+
+        {variant === 'card' && (
+          <AdwUpsSheet datum={datum} dg={dg} dd={dd} pg={pg} pw={pw} pp={pp} variant="print-block" />
+        )}
       </CardContent>
-    </Card>
+      </Card>
+
+      {printScope && createPortal(
+        <AdwUpsSheet
+          datum={datum}
+          dg={dg}
+          dd={dd}
+          pg={pg}
+          pw={pw}
+          pp={pp}
+          variant="print-portal"
+          paper={printScope.paper}
+        />,
+        document.body,
+      )}
+    </>
   );
 }

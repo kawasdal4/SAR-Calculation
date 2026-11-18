@@ -610,4 +610,86 @@
   }
 }
 
+/* ==========================================================================
+   PRINT MODE TERPISAH - LEMBAR PLOTTING (UPS / MOBO / UPS DIGITAL ADW)
+   Blok cetak di-portal ke <body> (class portal-print-sheet). Saat scope aktif,
+   hanya blok target yang tercetak pada @page A3/A4 Landscape yang disuntikkan
+   printSheets.ts. Template = scan asli resolusi native; overlay = SVG vektor.
+   ========================================================================== */
+
+/* Di layar: elemen khusus cetak tidak pernah tampil */
+.portal-print-sheet,
+.print-only {
+  display: none !important;
+}
+
+/* Versi resolusi cetak dari template hanya dipakai saat mencetak */
+.sheet-img-print {
+  display: none;
+}
+
+@media print {
+  /* Elemen khusus layar disembunyikan pada semua mode cetak */
+  .screen-only {
+    display: none !important;
+  }
+
+  /* Reset transform zoom/pan wrapper agar lembar tercetak dalam proporsi netral */
+  .sheet-zoom-wrap {
+    transform: none !important;
+    transition: none !important;
+  }
+
+  /* Blok cetak portal: selalu tampil saat mencetak */
+  .portal-print-sheet,
+  .print-only.print-companion-page {
+    display: block !important;
+    color: #0f172a;
+    background: #ffffff;
+  }
+
+  /* Print Mode terpisah: saat scope aktif, hanya portal target yang tercetak.
+     Anak langsung <body> lainnya (akar aplikasi) di-display:none sehingga
+     tinggi dokumen = satu halaman -> tidak ada halaman kosong. */
+  html[data-print-scope='sheet'] body > *:not(.portal-print-sheet) {
+    display: none !important;
+  }
+
+  /* Cegah terpotong antar halaman pada blok lembar */
+  .portal-print-sheet,
+  .print-only.print-companion-page {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Hilangkan kontrol form di dalam blok lembar (tidak ada panel input saat cetak) */
+  .portal-print-sheet input,
+  .portal-print-sheet select,
+  .portal-print-sheet textarea,
+  .portal-print-sheet button,
+  .print-only input,
+  .print-only select,
+  .print-only textarea,
+  .print-only button {
+    display: none !important;
+  }
+
+  /* Jaga ketebalan & warna: garis hitam pekat, warna persis seperti layar */
+  .portal-print-sheet *,
+  .print-only * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Gambar template scan asli: hanya versi resolusi cetak (native >=300 DPI) yang tampil */
+  .portal-print-sheet .sheet-img-screen,
+  .print-only .sheet-img-screen {
+    display: none !important;
+  }
+  .portal-print-sheet .sheet-img-print,
+  .print-only .sheet-img-print {
+    display: block !important;
+  }
+}
+
 

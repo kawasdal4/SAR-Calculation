@@ -78,6 +78,7 @@ import ManeuveringBoard from '@/components/sar/ManeuveringBoard';
 import type { BoardVector } from '@/lib/sar/maneuveringBoard';
 import UPSPlotter from '@/components/sar/UPSPlotter';
 import AdwUpsSheet from '@/components/sar/AdwUpsSheet';
+import { PrintScopeController } from '@/components/sar/SheetPrintMenu';
 import AeronauticalDriftWorksheet from '@/components/sar/AeronauticalDriftWorksheet';
 import type { AeroDriftResult } from '@/lib/sar/aeroDriftCalculations';
 import InterceptWorksheet from '@/components/sar/InterceptWorksheet';
@@ -151,6 +152,12 @@ export default function Home() {
   const [mainMapDroppedPoints, setMainMapDroppedPoints] = useState<Array<{ id: string; position: LatLng }>>([]);
   const [selectedMainMapPointId, setSelectedMainMapPointId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>('all-worksheets');
+  // Deep-link pengujian/deep-link cetak: ?printTarget=...&printTab=ups
+  // (di useEffect agar SSR & render pertama klien identik — bebas hydration mismatch)
+  useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get('printTab');
+    if (requested) setActiveTab(requested);
+  }, []);
   const [tabClearVersions, setTabClearVersions] = useState<Record<string, number>>({});
   const [isPrintA3Open, setIsPrintA3Open] = useState<boolean>(false);
   const [isAiChatOpen, setIsAiChatOpen] = useState<boolean>(false);
@@ -1478,6 +1485,9 @@ export default function Home() {
         </div>
       </header>
 
+      {/* Controller Print Mode lembar plotting (dukungan deep-link ?printTarget=...) */}
+      <PrintScopeController />
+
       {/* Main Container */}
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-5 grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Left Column: Worksheets & Tools */}
@@ -1576,6 +1586,7 @@ export default function Home() {
               <div className="print-companion-page">
                 <ManeuveringBoard
                   key={`awa-mobo-${caseVersion}`}
+                  printTargetId="mobo-awa"
                   title="Papan Manuver Angin Atas (AWA Maneuvering Board)"
                   subtitle="Plotting Vektor Angin pada Berbagai Ketinggian & Hasil Resultan AWA (Appendix K-10)"
                   vectors={awaBoardVectors}
@@ -1694,6 +1705,7 @@ export default function Home() {
               <div className="print-companion-page">
                 <ManeuveringBoard
                   key={`asw-mobo-${caseVersion}`}
+                  printTargetId="mobo-asw"
                   title="Papan Manuver Vektor Permukaan (ASW & Water Current)"
                   subtitle="Plotting Vektor Angin Permukaan (ASW), Arus Laut (SC), dan Vektor Arus Total (TWC)"
                   vectors={aswBoardVectors}
