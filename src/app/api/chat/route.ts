@@ -710,45 +710,67 @@ async function runChainCompletionPass(
   normalizeSchemaFn: (value: unknown) => unknown,
   instruction: string,
   systemPrompt: string = SYSTEM_PROMPT,
+  allowedToolNames?: ReadonlyArray<string>,
+  deadlineMs?: number,
 ): Promise<Array<{ type?: string; name?: string; arguments?: unknown }> | null> {
-  try {
-    console.info(`[AI chat] Worksheet kasus belum lengkap; jalankan pass penyambung (model=${primaryModel}).`);
-    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-      signal: AbortSignal.timeout(GEMINI_REQUEST_TIMEOUT_MS),
-      body: JSON.stringify({
-        model: primaryModel,
-        input: [...input, { type: 'text', text: instruction }],
-        system_instruction: systemPrompt,
-        generation_config: {
-          max_output_tokens: 8192,
-          thinking_level: primaryModel === 'gemini-3.5-flash-lite' ? 'minimal' : 'low',
-        },
-        tools: tools.map((tool) => ({
-          type: 'function',
-          name: tool.name,
-          description: tool.description,
-          parameters: normalizeSchemaFn(tool.parameters),
-        })),
-        store: false,
-      }),
-    });
-    if (!response.ok) {
-      console.warn(`[AI chat] Chain completion pass gagal (HTTP ${response.status}, model=${primaryModel}).`);
-      return null;
+  // Pass penyambung wajib tahan model sibuk: di Vercel nyata, primary model
+  // sering 429 "high demand" tepat pada pass kedua ini — tanpa fallback,
+  // hasilnya jaring pengaman mati diam-diam dan kasus berhenti di 1 worksheet
+  // (mis. hanya AWA diterapkan padahal ADW/ASW/Datum dianalisis).
+  const orderedModels = [primaryModel, ...GEMINI_MODELS.filter((model) => model !== primaryModel)];
+  for (const model of orderedModels) {
+    // Jaga anggaran total permintaan (Vercel 300s): jangan mulai percobaan baru
+    // bila sisa waktu < 15s — lebih baik kembali dengan hasil parsial daripada
+    // function-nya dimatikan platform dan pengguna mendapat error non-JSON.
+    if (deadlineMs && Date.now() >= deadlineMs - 15_000) {
+      console.warn(`[AI chat] Chain completion dihentikan: anggaran waktu hampir habis (model berikutnya=${model}).`);
+      break;
     }
-    const payload = await response.json().catch(() => ({}));
-    const steps = Array.isArray(payload?.steps) ? payload.steps as Array<{ type?: string; name?: string; arguments?: unknown }> : [];
-    if (steps.some((step) => step.type === 'function_call' && typeof step.name === 'string')) {
-      return steps;
+    try {
+      console.info(`[AI chat] Worksheet kasus belum lengkap; jalankan pass penyambung (model=${model}).`);
+      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+        signal: AbortSignal.timeout(GEMINI_REQUEST_TIMEOUT_MS),
+        body: JSON.stringify({
+          model,
+          input: [...input, { type: 'text', text: instruction }],
+          system_instruction: systemPrompt,
+          generation_config: {
+            max_output_tokens: 8192,
+            thinking_level: model === 'gemini-3.5-flash-lite' ? 'minimal' : 'low',
+            // Paksa panggilan tool: pass sebelumnya sering hanya menjawab teks
+            // ("belum ada yang perlu ditambahkan") walau tool masih hilang.
+            // Daftar dibatasi ke tool yang hilang + ask_for_case_data sehingga
+            // model tidak bisa menjawab tanpa tool dan tidak mengulang tool lain.
+            ...(allowedToolNames && allowedToolNames.length > 0
+              ? { tool_choice: { allowed_tools: { mode: 'any', tools: [...allowedToolNames] } } }
+              : {}),
+          },
+          tools: tools.map((tool) => ({
+            type: 'function',
+            name: tool.name,
+            description: tool.description,
+            parameters: normalizeSchemaFn(tool.parameters),
+          })),
+          store: false,
+        }),
+      });
+      if (!response.ok) {
+        console.warn(`[AI chat] Chain completion pass gagal (HTTP ${response.status}, model=${model}).`);
+        continue;
+      }
+      const payload = await response.json().catch(() => ({}));
+      const steps = Array.isArray(payload?.steps) ? payload.steps as Array<{ type?: string; name?: string; arguments?: unknown }> : [];
+      if (steps.some((step) => step.type === 'function_call' && typeof step.name === 'string')) {
+        return steps;
+      }
+      console.warn(`[AI chat] Chain completion pass tanpa panggilan tool baru (model=${model}).`);
+    } catch (err) {
+      console.warn(`[AI chat] Chain completion pass error (model=${model}):`, err instanceof Error ? err.message : err);
     }
-    console.warn('[AI chat] Chain completion pass tanpa panggilan tool baru.');
-    return null;
-  } catch (err) {
-    console.warn('[AI chat] Chain completion pass error:', err instanceof Error ? err.message : err);
-    return null;
   }
+  return null;
 }
 
 // This Vercel project supports 300-second functions; complex SAR case analysis
@@ -1049,11 +1071,19 @@ ATURAN MEMORI WORKSPACE:
         normalizeSchema,
         buildChainCompletionInstruction(missingTools, [...firstPassNames]),
         effectiveSystemPrompt,
+        // tool_choice paksa: model harus memanggil tool yang hilang (atau
+        // ask_for_case_data bila memang ada fakta wajib yang tak ada di soal).
+        [...missingTools, 'ask_for_case_data'],
+        geminiDeadlineMs,
       );
       if (completionSteps) {
         const merged = [...functionCalls];
         for (const step of completionSteps) {
-          if (step.type === 'function_call' && typeof step.name === 'string' && !firstPassNames.has(step.name)) {
+          // Terima HANYA tool yang terbukti hilang (+ klarifikasi): panggilan
+          // lain dari pass penyambung (mis. set_lkp pada kasus ditching yang
+          // wajib pakai lkpSource "adw-landing") bisa merusak rantai hilir.
+          if (step.type === 'function_call' && typeof step.name === 'string' && !firstPassNames.has(step.name)
+            && ((missingTools as readonly string[]).includes(step.name) || step.name === 'ask_for_case_data')) {
             merged.push(step as GeminiFunctionCallStep);
             firstPassNames.add(step.name);
           }
