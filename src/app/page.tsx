@@ -869,6 +869,14 @@ export default function Home() {
     return bearingDeg(lkp, datumCenterPoint);
   }, [lkp, datumCenterPoint, datumResults]);
 
+  // Heading pola (°T) otomatis disamakan dengan kemiringan kotak Search Area
+  // (searah drift LKP → Datum) — pengguna tidak perlu menyalin manual dari
+  // planner; setiap perubahan arah drift langsung mengikuti ke field ini.
+  // Field tetap bisa diisi manual, tapi akan tersinkron ulang saat drift berubah.
+  useEffect(() => {
+    setPatternOrientationText(driftOrientationDeg.toFixed(1));
+  }, [driftOrientationDeg]);
+
   // Ukuran sisi Search Area berbentuk persegi (Square: Panjang = Lebar = Sisi S)
   const searchSquareSide = useMemo(() => {
     if (searchResults?.Ao && searchResults.Ao > 0) {
@@ -926,7 +934,10 @@ export default function Home() {
   };
   const patternSruName = patternSruRecord?.name ?? (patternSruType ? caseSruTypeName[patternSruType] ?? 'SRU dari analisis kasus' : 'SRU dari analisis kasus');
   const patternSpeedKts = patternSruRecord?.transitSpeedKts ?? 0;
-  const patternOrientation = patternOrientationText.trim() === '' ? null : Number(patternOrientationText);
+  // Field kosong (mis. setelah reset kasus tanpa perubahan drift) tetap
+  // mengikuti kemiringan kotak search area — konsisten dengan sinkronisasi
+  // otomatis di atas.
+  const patternOrientation = patternOrientationText.trim() === '' ? driftOrientationDeg : Number(patternOrientationText);
 
   // Search Pattern generation
   const searchPatternResult: SearchPatternResult = useMemo(() => {
@@ -2087,7 +2098,7 @@ export default function Home() {
 
                       <div className="grid grid-cols-2 gap-2">
                         <label className="text-[11px] font-semibold text-slate-700">Heading pola (°T)
-                          <input type="number" min="0" max="359.999" step="0.1" value={patternOrientationText} onChange={(e) => setPatternOrientationText(e.target.value)} placeholder="Dari planner" className="mt-1 w-full rounded border border-slate-300 bg-white px-2 py-1 font-mono" />
+                          <input type="number" min="0" max="359.999" step="0.1" value={patternOrientationText} onChange={(e) => setPatternOrientationText(e.target.value)} placeholder="Mengikuti kemiringan search area" className="mt-1 w-full rounded border border-slate-300 bg-white px-2 py-1 font-mono" />
                         </label>
                       </div>
 
