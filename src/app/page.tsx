@@ -63,7 +63,6 @@ import {
   type LatLng,
   type Vector,
   computeAWA,
-  project,
   rectangleCorners,
   distanceNm,
   bearingDeg,
@@ -1054,13 +1053,13 @@ export default function Home() {
       });
     }
 
-    // Datum B — penanda silang merah menonjol di titik tengah garis L–R
+    // Datum B — penanda silang merah menonjol di titik tengah garis L–R.
+    // Label permanen di peta cukup "Datum" (permintaan pengguna); rincian
+    // koordinat tetap tersedia pada tooltip saat hover.
     if (ws1Map) {
       list.push({
         position: ws1Map.datumB,
-        label: `Datum B: ${formatDMS(ws1Map.datumB.lat, false)}, ${formatDMS(ws1Map.datumB.lng, true)}` +
-          (ws1Map.datumDtg ? ` · DTG ${ws1Map.datumDtg}` : '') +
-          ` · ${ws1Map.bearingAB.toFixed(0)}°T / ${ws1Map.distanceAB.toFixed(1)} NM dari A`,
+        label: 'Datum',
         color: '#dc2626',
         isDatum: true,
         cross: true,
@@ -1178,25 +1177,10 @@ export default function Home() {
       // Rantai Panduan Datum Worksheet 1 (bagian 5): A → P1 (arus laut, biru,
       // tebal) → P2 (arus angin, hijau, tebal) → L / R (leeway, oranye,
       // berpanah) + garis L–R (abu-abu) + d(L)/d(R) dari LKP (putus-putus).
-      const seaCurrentEnd = project(
-        lkpPoint,
-        datumData.seaCurrent.dir,
-        datumData.seaCurrent.mag * driftHours,
-      );
       const downwindDir = (datumData.aswDirFrom + 180) % 360;
-      const surfaceWindEnd = project(
-        lkpPoint,
-        downwindDir,
-        datumData.aswSpeed * driftHours,
-      );
-      // Sambungan rantai arus: ujung TWC (hasil engine SC + WC) — garisnya
-      // TIDAK digambar, hanya titik potong tempat leeway memulai.
-      const waterEnd = project(
-        lkpPoint,
-        datumData.twc.dir,
-        datumData.twc.mag * driftHours,
-      );
       // Titik rantai resmi dari Worksheet 1 (Panduan) bila tersedia.
+      // Garis bantu ASW (downwind) dari LKP sengaja TIDAK digambar — bukan
+      // bagian dari penggambaran peta (permintaan pengguna).
       const p1 = ws1Map.P1;
       const p2 = ws1Map.P2;
       const pointL = ws1Map.L;
@@ -1209,13 +1193,6 @@ export default function Home() {
         weight: 3,
         arrow: true,
         label: `Arus laut (SC) - ${(datumData.seaCurrent.mag * driftHours).toFixed(1)} NM / ${datumData.seaCurrent.dir.toFixed(0)}°`,
-      });
-      list.push({
-        from: lkpPoint,
-        to: surfaceWindEnd,
-        color: '#0ea5e9',
-        dashed: true,
-        label: `ASW (downwind) - ${downwindDir.toFixed(0)}°/${(datumData.aswSpeed * driftHours).toFixed(1)} NM`,
       });
       list.push({
         from: p1,
@@ -1351,12 +1328,13 @@ export default function Home() {
     const list: MapPolygon[] = [];
     if (datumResults && ws1Ao > 0) {
       const side = Math.sqrt(ws1Ao);
+      // Label teks "Worksheet 1 Search Area …" di tengah kotak dihapus
+      // (permintaan pengguna) — kotaknya tetap digambar.
       list.push({
         points: rectangleCorners(datumCenterPoint, side, side, driftOrientationDeg),
         color: '#16a34a',
         fillColor: '#16a34a',
         fillOpacity: 0.12,
-        label: `Worksheet 1 Search Area · persegi ${side.toFixed(2)} × ${side.toFixed(2)} NM\nAo = ${ws1Ao.toFixed(2)} NM² | Arah LKP → Datum = ${driftOrientationDeg.toFixed(1)}°T`,
       });
     }
     if (searchResults?.Ao && searchResults.Ao > 0) {
@@ -1400,7 +1378,9 @@ export default function Home() {
       return score > bestScore ? index : best;
     }, 0);
     const cornerOrder = [...clockwise.slice(startIndex), ...clockwise.slice(0, startIndex)];
-    const areaName = area.label?.startsWith('Worksheet 1') ? 'WS1' : area.label?.startsWith('Worksheet 3') ? 'WS3' : `Area ${areaIndex + 1}`;
+    // Nama area diambil dari warna garis karena label teks polygon WS1
+    // sudah dihapus (permintaan pengguna): hijau = WS1, cyan = WS3.
+    const areaName = area.color === '#16a34a' ? 'WS1' : area.color === '#0891b2' ? 'WS3' : `Area ${areaIndex + 1}`;
     return cornerOrder.map(({ position }, index): MapMarker => ({
       position,
       label: `${String.fromCharCode(65 + index)} · ${areaName}`,

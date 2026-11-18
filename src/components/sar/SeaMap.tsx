@@ -1738,12 +1738,13 @@ export default function SeaMap({
     polygons.forEach((p) => {
       if (!p.points?.length || p.points.some((pt) => !Number.isFinite(pt?.lat) || !Number.isFinite(pt?.lng))) return;
       const latlngs = p.points.map((pt) => [pt.lat, pt.lng] as [number, number]);
+      // Garis kotak search area digambar SOLID — putus-putus tidak sesuai
+      // penggambaran peta SAR (permintaan pengguna).
       const poly = L.polygon(latlngs, {
         color: p.color,
         weight: 2,
         fillColor: p.fillColor ?? p.color,
         fillOpacity: p.fillOpacity ?? 0.15,
-        dashArray: '4 4',
       }).addTo(layer);
       if (p.label) {
         const bounds = L.latLngBounds(latlngs);
