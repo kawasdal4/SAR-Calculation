@@ -12,6 +12,10 @@ export interface ASWData {
   aswSpeed: number;
   aswErr: number;
   aswdve: number;
+  /** Total Hours (D) worksheet ASW — sumber wajib Hours of drift (a) Worksheet 1. */
+  totalHours: number;
+  /** Waktu distress dalam format Basarnas (mis. "1118.0700 Z") untuk baris @ Time (UTC). */
+  distressTime: string;
 }
 
 export interface ASWInitialState {
@@ -198,8 +202,10 @@ export default function ASWWorksheet({
       aswSpeed: summary.aswSpeed,
       aswErr,
       aswdve,
+      totalHours: summary.totalHours,
+      distressTime,
     });
-  }, [summary.aswDirFrom, summary.aswSpeed, aswErr, aswdve, onDataChange]);
+  }, [summary.aswDirFrom, summary.aswSpeed, summary.totalHours, aswErr, aswdve, distressTime, onDataChange]);
 
   const updateRow = (index: number, field: keyof ASWObservation, value: any) => {
     const next = [...observations];
@@ -490,7 +496,7 @@ export default function ASWWorksheet({
                       setDistressTime('');
                       setDatumTime('');
                       setObservations([]);
-                      onDataChange({ aswDirFrom: 0, aswSpeed: 0, aswErr: 0, aswdve: 0 });
+                      onDataChange({ aswDirFrom: 0, aswSpeed: 0, aswErr: 0, aswdve: 0, totalHours: 0, distressTime: '' });
                     }}
                     className="text-[11px] bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold px-2.5 py-1 rounded border border-rose-300 flex items-center gap-1 shadow-2xs transition-colors"
                     title="Kosongkan seluruh baris pengamatan di tab ASW"

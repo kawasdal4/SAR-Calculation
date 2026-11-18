@@ -12,6 +12,7 @@ import {
   computeDatum,
   computeE,
   LEEWAY_OBJECT_TYPES,
+  TABLE_J1_NAV_ERRORS,
   type LeewayObjectType,
   type LatLng,
   type Vector,
@@ -66,6 +67,8 @@ interface DatumWorksheetProps {
   aswSpeed: number;
   aswErr: number;
   aswdve: number;
+  /** Total Hours (D) dari worksheet ASW — drift interval otomatis mengikuti nilai ini (ketentuan: Hours of drift (a) = Total Hours (D) ASW). */
+  aswTotalHours?: number;
   /** Controlled LKP position — set by parent (which can be updated from map clicks). */
   startLat: number;
   startLng: number;
@@ -88,6 +91,7 @@ export default function DatumWorksheet({
   aswSpeed,
   aswErr,
   aswdve,
+  aswTotalHours,
   startLat,
   startLng,
   onLKPChange,
@@ -112,6 +116,14 @@ export default function DatumWorksheet({
   useEffect(() => {
     setLatitude(Math.abs(startLat));
   }, [startLat]);
+
+  // Ketentuan Worksheet 1: Hours of drift (a) = Total Hours (D) worksheet ASW.
+  // Drift interval otomatis mengikuti ASW setiap total hours berubah.
+  useEffect(() => {
+    if (aswTotalHours && aswTotalHours > 0) {
+      setDriftInterval((prev) => (prev === aswTotalHours ? prev : aswTotalHours));
+    }
+  }, [aswTotalHours]);
 
   // Apply sea current override (e.g. from WeatherPanel)
   useEffect(() => {
@@ -251,12 +263,12 @@ export default function DatumWorksheet({
           <div>
             <Label className="text-xs">Drift Interval (hours)</Label>
             <NumberInput value={driftInterval} onChange={setDriftInterval} />
-            <p className="text-[10px] text-slate-400 mt-1">LKP time → commence search time</p>
+            <p className="text-[10px] text-slate-400 mt-1">Otomatis = Total Hours (D) worksheet ASW; LKP time → commence search time</p>
           </div>
           <div>
             <Label className="text-xs">|Latitude| for WC divergence (°)</Label>
             <NumberInput value={latitude} onChange={setLatitude} />
-            <p className="text-[10px] text-slate-400 mt-1">For figure N-1 divergence lookup</p>
+            <p className="text-[10px] text-slate-400 mt-1">Figure I-1: 10°N–10°S → 0°, di luarnya → 30°</p>
           </div>
           {onRequestMapPick && (
             <div className="sm:col-span-1 col-span-2 flex items-end">
@@ -278,8 +290,8 @@ export default function DatumWorksheet({
 
       <WorksheetCard
         title="Wind Current (WC)"
-        description="Local wind-generated surface current (Appendix K-26, fig N-1)"
-        badge="K-26"
+        description="Local wind-generated surface current — Figure I-1: drift = ASW ÷ 28, divergensi menurut zona lintang"
+        badge="Fig I-1"
       >
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
           <StatBox label="ASW Direction" value={`${aswDirFrom.toFixed(1)}°T (${dirToCompass(aswDirFrom)})`} />
@@ -386,14 +398,38 @@ export default function DatumWorksheet({
       >
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
           <div>
-            <Label className="text-xs">X — Distress craft fix error (NM), Table J</Label>
+            <Label className="text-xs">X — Distress craft fix error (NM), Table J-1</Label>
+            <Select value="" onValueChange={(id) => { const err = TABLE_J1_NAV_ERRORS.find((e) => e.id === id)?.errorNm; if (err !== undefined) setX(err); }}>
+              <SelectTrigger className="h-8 mt-1">
+                <SelectValue placeholder="Pilih alat navigasi distress craft…" />
+              </SelectTrigger>
+              <SelectContent>
+                {TABLE_J1_NAV_ERRORS.map((e) => (
+                  <SelectItem key={e.id} value={e.id}>
+                    {e.label} — {e.errorNm} NM
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <NumberInput value={X} onChange={setX} />
-            <p className="mt-1 text-[10px] leading-relaxed text-slate-500">Masukkan sesuai alat/metode fix distress craft pada Table J-1, J-2, atau J-3.</p>
+            <p className="mt-1 text-[10px] leading-relaxed text-slate-500">Nilai dari Table J-1 sesuai alat navigasi objek yang disebut soal (mis. GPS → 0.1); AI mengisi otomatis dari analisis kalimat soal.</p>
           </div>
           <div>
-            <Label className="text-xs">Y — Search craft fix error (NM), Table J</Label>
+            <Label className="text-xs">Y — Search craft fix error (NM), Table J-1</Label>
+            <Select value="" onValueChange={(id) => { const err = TABLE_J1_NAV_ERRORS.find((e) => e.id === id)?.errorNm; if (err !== undefined) setY(err); }}>
+              <SelectTrigger className="h-8 mt-1">
+                <SelectValue placeholder="Pilih alat navigasi SRU…" />
+              </SelectTrigger>
+              <SelectContent>
+                {TABLE_J1_NAV_ERRORS.map((e) => (
+                  <SelectItem key={e.id} value={e.id}>
+                    {e.label} — {e.errorNm} NM
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <NumberInput value={Y} onChange={setY} />
-            <p className="mt-1 text-[10px] leading-relaxed text-slate-500">Masukkan sesuai alat/metode fix sarana pencari pada Table J-1, J-2, atau J-3.</p>
+            <p className="mt-1 text-[10px] leading-relaxed text-slate-500">Nilai dari Table J-1 sesuai alat navigasi SRU pencari yang disebut soal (mis. GPS → 0.1); AI mengisi otomatis dari analisis kalimat soal.</p>
           </div>
           <StatBox label="De — Drift Error" value={`${datum.De.toFixed(2)} NM`} />
         </div>

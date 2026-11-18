@@ -64,6 +64,7 @@ import {
   rectangleCorners,
   distanceNm,
   bearingDeg,
+  WS1_FS_OPTIONS,
 } from '@/lib/sar/sarCalculations';
 import { formatDMS } from '@/lib/sar/coordFormat';
 import type { MapMarker, MapLine, MapPolygon, MapCircle } from '@/components/sar/SeaMap';
@@ -126,6 +127,8 @@ export default function Home() {
     aswSpeed: 0,
     aswErr: 0,
     aswdve: 0,
+    totalHours: 0,
+    distressTime: '',
   });
 
   // Marine Datum & Search results
@@ -396,7 +399,7 @@ export default function Home() {
   const handleClearAll = useCallback(() => {
     // Reset AWA & ASW
     setAwaWorksheet({ aswDirFrom: 0, aswSpeed: 0 });
-    setAsw({ aswDirFrom: 0, aswSpeed: 0, aswErr: 0, aswdve: 0 });
+    setAsw({ aswDirFrom: 0, aswSpeed: 0, aswErr: 0, aswdve: 0, totalHours: 0, distressTime: '' });
     setAwaObservations([]);
     setAwaContext({ distressAltFt: 0 });
     setAswState({ observations: [], aswErr: 0 });
@@ -490,7 +493,7 @@ export default function Home() {
         setIsLkpSet(false);
         break;
       case 'asw':
-        setAsw({ aswDirFrom: 0, aswSpeed: 0, aswErr: 0, aswdve: 0 });
+        setAsw({ aswDirFrom: 0, aswSpeed: 0, aswErr: 0, aswdve: 0, totalHours: 0, distressTime: '' });
         setAswState({ observations: [], aswErr: 0 });
         setLoadedInitialState((prev) => ({ ...(prev ?? {}), asw: { observations: [], distressTime: '', datumTime: '', caseTitle: '-', aswErr: 0 } }));
         break;
@@ -654,6 +657,8 @@ export default function Home() {
     leewayObjectId?: string;
     X?: number;
     Y?: number;
+    /** Safety factor (circle) hasil analisis soal: pencarian ke-1 → 1.1, ke-2 → 1.6, dst. */
+    fs?: number;
   }) => {
     // Rantai penerbangan (ADW → Datum): bila LKP otomatis dari posisi ditching
     // hasil ADW, jangan timpa LKP di sini — sinkronisasi ADW (adwSyncLkp) yang
@@ -661,6 +666,9 @@ export default function Home() {
     if (data.lkpSource !== 'adw-landing' && data.lkp && Number.isFinite(data.lkp.lat) && Number.isFinite(data.lkp.lng)) {
       setLkp(data.lkp);
       setIsLkpSet(true);
+    }
+    if (data.fs !== undefined && (WS1_FS_OPTIONS as readonly number[]).includes(data.fs)) {
+      setWorksheet1Fs(data.fs);
     }
     setLoadedInitialState((prev) => ({
       ...prev,
@@ -1561,6 +1569,8 @@ export default function Home() {
                 selectedFs={worksheet1Fs}
                 aswDirFrom={asw.aswDirFrom}
                 aswSpeed={asw.aswSpeed}
+                aswDistressTime={asw.distressTime}
+                aswTotalHours={asw.totalHours}
                 awaDirFrom={awa.aswDirFrom}
                 awaSpeed={awa.aswSpeed}
                 csp={csp}
@@ -1706,6 +1716,8 @@ export default function Home() {
                 datumResults={datumResults}
                 aswDirFrom={asw.aswDirFrom}
                 aswSpeed={asw.aswSpeed}
+                aswDistressTime={asw.distressTime}
+                aswTotalHours={asw.totalHours}
                 onAoChange={setWorksheet1Ao}
                 selectedFs={worksheet1Fs}
                 onFsChange={setWorksheet1Fs}
@@ -1715,6 +1727,7 @@ export default function Home() {
                 aswSpeed={asw.aswSpeed}
                 aswErr={asw.aswErr}
                 aswdve={asw.aswdve}
+                aswTotalHours={asw.totalHours}
                 startLat={lkp.lat}
                 startLng={lkp.lng}
                 onLKPChange={(lat, lng) => {

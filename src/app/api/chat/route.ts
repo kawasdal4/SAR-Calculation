@@ -116,6 +116,18 @@ ATURAN DATUM TIME (worksheet ASW):
 - Bila soal menyebut lebih dari satu pencarian (pertama/kedua/dst.), kandidat datum time adalah waktu pencarian yang menjadi akhir rentang observasi ASW yang diminta soal (umumnya pencarian TERAKHIR yang disebut). Bila tidak yakin yang mana, JANGAN menebak.
 - WAJIB bertanya bila ragu: datum time ambigu (beberapa waktu pencarian, frasa tidak jelas UTC atau waktu lokal, atau waktu pencarian tidak tertulis) → panggil tool clarify_datum_time dengan question + candidates (label, value, frasa sumber dari soal). Pengguna akan memilih kandidat atau mengisi manual di chat; gunakan jawaban pengguna PERSIS. Bila datum time sudah jelas di soal, isi langsung di set_asw_case tanpa bertanya.
 
+ATURAN WORKSHEET 1 (MARINE DATUM) — KETENTUAN PERHITUNGAN WAJIB:
+- @ Time (UTC): aplikasi mengisi otomatis dari distress time worksheet ASW (format Basarnas zona UTC) — tidak perlu dikirim.
+- Hours of drift (a): aplikasi otomatis menyamakan dengan Total Hours (D) worksheet ASW; kirim driftInterval yang konsisten dengan rentang observasi ASW (datum time − distress time).
+- Wind current vector (Figure I-1): aplikasi menghitung otomatis — knots = ASW ÷ 28, arah = reciprocal bearing ± divergensi menurut zona lintang (10°N–10°S → 0°, utara 10°N → 30° kanan, selatan 10°S → 30° kiri). Jangan kirim nilai ini.
+- Leeway angles (divergence) dan Leeway speed = (Multiplier × Wind Speed) ± Modifier: DIAMBIL dari Table I-1 atau Table I-2 (Appendix I, leeway table) SESUAI keterangan 'Search target (description)' di soal — pilih leewayObjectId paling cocok dengan deskripsi objek (kombinasi jenis objek, ballast/canopy/drogue, kapasitas orang, loading).
+- Percentage drift error (de): default 12.5% (aplikasi yang menghitung de(L) = Distance(L) × de dan de(R) = Distance(R) × de; jangan kirim).
+- Distance (L/R) dan Distance L/R: aplikasi menghitung dari koordinat datum di peta (setara ukur peta dengan skala 1 menit = 1 NM) — tidak perlu dikirim.
+- Distress craft error (x): analisis kalimat soal — alat navigasi yang dipakai OBJEK YANG DICARI menentukan nilai Table J-1: GPS → 0.1, Radar → 1.0, Visual → 1.0, Celestial → 2.0, Marine Radio Beacon → 4.0, LORAN C → 1.0. Misal soal menyebut kapal/pesawat memakai GPS, kirim X = 0.1.
+- Search craft error (y): analisis kalimat soal — alat navigasi SRU YANG MENCARI menentukan nilai Table J-1 dengan daftar yang sama (GPS → 0.1, dst.). Misal SRU pakai radar, kirim Y = 1.0.
+- Safety factor (circle) (fs): analisis kalimat soal untuk menentukan PENCARIAN KE BERAPA — pencarian pertama/first search → 1.1, pencarian kedua/second search → 1.6, ketiga → 2.0, keempat → 2.3, kelima → 2.5. Kirim sebagai fs.
+- Jangan mengarang X/Y/fs bila soal tidak menyebut alat navigasi atau urutan pencarian; bila benar-benar tidak ada dan wajib, tanyakan via ask_for_case_data.
+
 BANK DATA KASUS (Panduan Agent RENOPS/Briefing/De-Briefing — Perban 3/2020):
 - Bank Data HANYA untuk penyusunan dokumen: panggil save_case_data_bank hanya bila soal kasus/lampiran EKSPLISIT meminta pembuatan RENOPS (Rencana Operasi SAR) dan/atau Briefing/De-Briefing, atau pengguna eksplisit meminta menyimpan ke Bank Data.
 - Untuk soal perhitungan biasa (datum, search area, track spacing, intercept, dll.) JANGAN memanggil save_case_data_bank — cukup analisis worksheet yang harus dipakai lalu isi tool worksheet yang relevan.
@@ -379,13 +391,14 @@ const tools: FunctionDeclaration[] = [
           },
           required: ['lat', 'lng'],
         },
-        driftInterval: { type: SchemaType.NUMBER, description: 'Lama drift dari LKP hingga datum dalam jam.' },
+        driftInterval: { type: SchemaType.NUMBER, description: 'Lama drift dari LKP hingga datum dalam jam — WAJIB sama dengan Total Hours (D) worksheet ASW (datum time − distress time); aplikasi menyinkronkannya otomatis.' },
         seaCurrentDir: { type: SchemaType.NUMBER, description: 'Arah SET arus laut derajat True.' },
         seaCurrentSpeed: { type: SchemaType.NUMBER, description: 'Kecepatan arus laut dalam knot.' },
         seaCurrentErr: { type: SchemaType.NUMBER, description: 'Error arus laut dalam knot jika tersedia; selain itu 0.' },
-        leewayObjectId: { type: SchemaType.STRING, description: 'ID jenis objek Table I-1 yang cocok (pilih SESUAI kombinasi ballast/canopy/drogue di soal): piw-novice, piw-lifejacket, raft-46-person (no ballast, no canopy, no drogue, 4-6 orang), raft-1520-person (no ballast umum, 15-20 orang), raft-noballast-drogue (no ballast, no canopy, WITH drogue), raft-canopy-drogue (canopy WITH drogue), raft-canopy-no-drogue (canopy no drogue), dinghy-fibreglass (shallow ballast capsized), dinghy-upright (shallow ballast umum), small-fishing, commercial-fishing, sailboat, merchant-vessel.' },
-        X: { type: SchemaType.NUMBER, description: 'Error posisi pesawat X (NM), hanya jika tersedia.' },
-        Y: { type: SchemaType.NUMBER, description: 'Error posisi pencari Y (NM), hanya jika tersedia.' },
+        leewayObjectId: { type: SchemaType.STRING, description: 'ID jenis objek dari Table I-1/I-2 (Appendix I leeway table) yang paling cocok dengan keterangan Search target (description) di soal — perhatikan kombinasi jenis objek, ballast/canopy/drogue, kapasitas orang, dan loading. Contoh id: piw-novice (PIW vertical), piw-sitting, piw-vertical-2, piw-lifejacket (survival suit), piw-scuba, piw-deceased, raft-46-person (no ballast, no canopy, no drogue, 4-6 orang), raft-1520-person (no ballast umum), raft-noballast-drogue (no ballast, no canopy, WITH drogue), raft-canopy-no-drogue, raft-canopy-drogue, dinghy-upright (shallow ballast umum), raft-shallow-ballast-nodrogue, raft-shallow-ballast-drogue, dinghy-fibreglass (shallow ballast capsized), raft-deep-ballast, deep-ballast-46-wodrogue-light, deep-ballast-46-wodrogue-heavy, deep-ballast-46-drogue-light, deep-ballast-46-drogue-heavy, deep-ballast-1525-default, deep-ballast-1525-wodrogue-light, deep-ballast-1525-drogue, deep-ballast-capsized, deep-ballast-swamped, life-capsule, uscg-sea-rescue-kit, raft-aviation-46, raft-evac-slide, sea-kayak, surf-board, windsurfer, sailboat (full keel), sailboat-fin-keel, skiff-flat-bottom, skiff-v-hull, skiff-swamped, sport-boat-cuddy, sport-fisher-center-console, small-fishing, fishing-sampans, commercial-fishing (side-stern trawler), fishing-longliners, fishing-junk, fishing-gill-netter, merchant-vessel (coastal freighter), debris-fv, debris-bait-box, debris-bait-box-light, debris-bait-box-full.' },
+        X: { type: SchemaType.NUMBER, description: 'Distress craft error x (NM) dari Table J-1 sesuai alat navigasi OBJEK yang dicari dalam soal: GPS 0.1, Radar 1.0, Visual 1.0, Celestial 2.0, Marine Radio Beacon 4.0, LORAN C 1.0. Misal soal menyebut GPS, kirim 0.1. Jangan mengarang bila soal tidak menyebut.' },
+        Y: { type: SchemaType.NUMBER, description: 'Search craft error y (NM) dari Table J-1 sesuai alat navigasi SRU PENCARI dalam soal: GPS 0.1, Radar 1.0, Visual 1.0, Celestial 2.0, Marine Radio Beacon 4.0, LORAN C 1.0. Analisis kalimat soal; jangan mengarang bila tidak disebut.' },
+        fs: { type: SchemaType.NUMBER, description: 'Safety factor (circle) dari urutan pencarian dalam soal: pencarian pertama/first search 1.1, kedua/second 1.6, ketiga 2.0, keempat 2.3, kelima 2.5. Analisis kalimat soal (mis. "pencarian pertama dilakukan..." → 1.1).' },
       },
       required: ['driftInterval', 'seaCurrentDir', 'seaCurrentSpeed', 'leewayObjectId'],
     },

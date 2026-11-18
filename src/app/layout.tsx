@@ -18,10 +18,7 @@ export const metadata: Metadata = {
   title: "SAR Mission Planning Workbench — SAR Worksheet Calculator",
   description: "Calculate SAR worksheets (AWA, ASW, Wind Current, Leeway, Datum, Sweep Width, Effort Allocation) and plot the resulting search area on an interactive OpenSeaMap sea chart.",
   keywords: ["SAR", "search and rescue", "sea map", "AWA", "ASW", "leeway", "datum", "search planning", "OpenSeaMap"],
-  authors: [{ name: "Z.ai" }],
-  icons: {
-    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
-  },
+  authors: [{ name: "SAR Mission Planning Workbench" }],
   openGraph: {
     title: "SAR Mission Planning Workbench",
     description: "SAR worksheet calculator with interactive sea map",

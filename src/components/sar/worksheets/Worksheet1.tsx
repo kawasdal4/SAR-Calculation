@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FileSpreadsheet, Printer } from 'lucide-react';
-import { type LatLng, distanceNm, computeWs1SearchArea } from '@/lib/sar/sarCalculations';
+import { type LatLng, distanceNm, computeWs1SearchArea, WS1_FS_OPTIONS, WS1_DEFAULT_DRIFT_ERROR_PERCENT } from '@/lib/sar/sarCalculations';
 import { formatDMS } from '@/lib/sar/coordFormat';
 import type { DatumData, DatumResults } from '@/components/sar/DatumWorksheet';
 
@@ -13,6 +13,10 @@ interface Worksheet1Props {
   datumResults: DatumResults | null;
   aswDirFrom: number;
   aswSpeed: number;
+  /** Waktu distress dari worksheet ASW (format Basarnas, zona UTC) untuk baris @ Time (UTC). */
+  aswDistressTime?: string;
+  /** Total Hours (D) worksheet ASW — Hours of drift (a) wajib sama dengan nilai ini. */
+  aswTotalHours?: number;
   readOnly?: boolean;
   onAoChange?: (ao: number) => void;
   selectedFs?: number;
@@ -25,6 +29,8 @@ export default function Worksheet1({
   datumResults,
   aswDirFrom,
   aswSpeed,
+  aswDistressTime,
+  aswTotalHours,
   readOnly = false,
   onAoChange,
   selectedFs,
@@ -32,10 +38,18 @@ export default function Worksheet1({
 }: Worksheet1Props) {
   const [localFs, setLocalFs] = useState(0);
   const fsSelected = selectedFs ?? localFs;
-  const [driftErrorPercent, setDriftErrorPercent] = useState(0);
+  const [driftErrorPercent, setDriftErrorPercent] = useState<number>(WS1_DEFAULT_DRIFT_ERROR_PERCENT);
   const [measuredDistances, setMeasuredDistances] = useState({ left: '', right: '', leftRight: '' });
-  // Calculations & parameters with safe defaults
-  const hours = datumData?.driftInterval ?? 0;
+  // Calculations & parameters with safe defaults.
+  // Ketentuan: Hours of drift (a) = Total Hours (D) worksheet ASW; fallback ke
+  // drift interval DatumWorksheet bila ASW belum terisi.
+  const hours = aswTotalHours && aswTotalHours > 0
+    ? aswTotalHours
+    : (datumData?.driftInterval ?? 0);
+  // Baris @ Time (UTC): distress time dalam format Basarnas zona waktu UTC.
+  const distressTimeUtc = aswDistressTime?.trim()
+    ? (/^\d{4}\.\d{4}$/.test(aswDistressTime.trim()) ? `${aswDistressTime.trim()} Z` : aswDistressTime.trim())
+    : '-';
   const targetDesc = datumResults?.lw?.objectType?.label ?? '-';
   const lkpStr = `${formatDMS(lkp.lat, false)} - ${formatDMS(lkp.lng, true)}`;
 
@@ -81,7 +95,8 @@ export default function Worksheet1({
 
   // Total Errors (E) + Search Area — math diekstraksi ke lib (PHASE 3):
   // computeWs1SearchArea = computeE existing + R = ⌈E × fs⌉ + Ao = 4R² (rumus identik).
-  const fsOptions = [1.1, 1.6, 2.0, 2.3, 2.5];
+  // fsOptions: pencarian ke-1 → 1.1, ke-2 → 1.6, ke-3 → 2.0, ke-4 → 2.3, ke-5 → 2.5.
+  const fsOptions: readonly number[] = WS1_FS_OPTIONS;
   const { E, E2: E_squared, R: R_round, Ao } = computeWs1SearchArea({
     De,
     X: distressCraftX,
@@ -169,8 +184,9 @@ export default function Worksheet1({
                 </td>
                 <td colSpan={3} className="py-2 px-3">
                   <span className="font-bold font-mono text-blue-900 bg-blue-50/80 px-2 py-0.5 rounded border border-blue-200 inline-block ">
-                    -
+                    {distressTimeUtc}
                   </span>
+                  <span className="text-[10px] text-slate-500 ml-2">Distress time — format Basarnas zona waktu UTC (dari worksheet ASW)</span>
                 </td>
               </tr>
               <tr className="border-b-2 border-slate-700">
@@ -182,6 +198,9 @@ export default function Worksheet1({
                     {hours}
                   </span>{' '}
                   <span className="text-slate-600 font-medium">hrs</span>
+                  {aswTotalHours && aswTotalHours > 0 && (
+                    <span className="text-[10px] text-slate-500 ml-2">= Total Hours (D) worksheet ASW</span>
+                  )}
                 </td>
               </tr>
 
@@ -278,7 +297,8 @@ export default function Worksheet1({
                   <span className="font-bold text-blue-900 bg-blue-50/80 px-2 py-0.5 rounded border border-blue-200 ml-1">
                     {wcSpeed.toFixed(2)}
                   </span>{' '}
-                  <span className="text-slate-600 font-sans">knots (Fig I-1) =</span>{' '}
+                  <span className="text-slate-600 font-sans">knots (Fig I-1: ASW {windSpeed.toFixed(1)} ÷ 28)</span>{' '}
+                  ={' '}
                   <span className="font-bold text-blue-900 bg-blue-50/80 px-2 py-0.5 rounded border border-blue-200 ml-1">
                     {wcDir.toFixed(0)}
                   </span>{' '}
@@ -287,6 +307,15 @@ export default function Worksheet1({
                     {wcDist.toFixed(2)}
                   </span>{' '}
                   <span className="text-slate-600 font-sans">nm</span>
+                  <div className="mt-1 text-[10px] text-slate-500">
+                    Reciprocal {windRecip.toFixed(0)}°(T) ± divergensi Fig I-1 ({datumResults?.wc?.divergence ?? 0}°
+                    {datumResults?.wc?.divergence === 0
+                      ? ' — dalam 10°N–10°S'
+                      : datumResults?.wc?.hemisphere && datumResults.wc.hemisphere > 0
+                        ? ' — 30° ke kanan, utara 10°N'
+                        : ' — 30° ke kiri, selatan 10°S'}
+                    ) = {wcDir.toFixed(0)}°(T)
+                  </div>
                 </td>
               </tr>
 
@@ -400,19 +429,19 @@ export default function Worksheet1({
                     {distR.toFixed(1)}
                   </span>{' '}
                   <span className="text-slate-600 font-sans">nm</span>
-                  <div className="mt-1 text-[10px] text-slate-500">Kosong = estimasi analitik dari posisi Datum; isi untuk mengganti dengan hasil ukur skala lintang.</div>
+                  <div className="mt-1 text-[10px] text-slate-500">Estimasi analitik = jarak LKP → ujung vektor leeway L/R (datum) di peta, skala lintang 1&apos; = 1 NM. Kosong = pakai estimasi; isi angka untuk mengganti dengan hasil ukur peta.</div>
                 </td>
               </tr>
               <tr className="border-b border-slate-300">
                 <td className="py-2 px-3 font-medium text-slate-700 border-r border-slate-300">Persentase drift error (de)</td>
                 <td colSpan={3} className="py-2 px-3 font-mono">
-                  <input aria-label="Persentase drift error" type="number" min="0" max="33" step="0.5" value={driftErrorPercent} onChange={(event) => { const value = Number(event.target.value) || 0; setDriftErrorPercent(value === 0 ? 0 : Math.min(33, Math.max(12.5, value))); }} disabled={readOnly} className="w-24 rounded border border-slate-300 bg-white px-2 py-1 text-xs" />{' '}
-                  <span className="text-[10px] text-slate-500">% (12.5–33, ikuti instruksi kasus; contoh panduan: 12.5%)</span>
+                  <input aria-label="Persentase drift error" type="number" min="12.5" max="33" step="0.5" value={driftErrorPercent} onChange={(event) => { const value = Number(event.target.value); setDriftErrorPercent(Math.min(33, Math.max(12.5, Number.isFinite(value) && value > 0 ? value : 12.5))); }} disabled={readOnly} className="w-24 rounded border border-slate-300 bg-white px-2 py-1 text-xs" />{' '}
+                  <span className="text-[10px] text-slate-500">% (default 12.5%, rentang 12.5–33)</span>
                 </td>
               </tr>
               <tr className="border-b border-slate-300">
                 <td className="py-2 px-3 font-medium text-slate-700 border-r border-slate-300">
-                  de (L) & de ( R ) (12.5% to 33% of Distance)
+                  de (L) & de ( R ) (Distance × de)
                 </td>
                 <td colSpan={3} className="py-2 px-3 font-mono">
                   <span className="text-slate-600 font-sans">de (L):</span>{' '}
@@ -443,6 +472,7 @@ export default function Worksheet1({
                     {De.toFixed(4)}
                   </span>{' '}
                   <span className="text-slate-600 font-sans">nm</span>
+                  <div className="mt-1 text-[10px] text-slate-500">Distance L/R = jarak ujung vektor leeway L ke ujung vektor leeway R di peta (skala 1&apos; = 1 NM); estimasi analitik dari koordinat datum L → datum R.</div>
                 </td>
               </tr>
 
@@ -525,7 +555,9 @@ export default function Worksheet1({
                         {opt}
                       </button>
                     ))}
-                    <span className="text-slate-500 font-sans text-[11px] ml-2">Safety factor pencarian ke-{fsOptions.indexOf(fsSelected) + 1}; pilih sesuai skenario.</span>
+                    <span className="text-slate-500 font-sans text-[11px] ml-2">
+                      Pencarian ke-{fsOptions.indexOf(fsSelected) + 1}: pertama 1.1, kedua 1.6, ketiga 2.0, keempat 2.3, kelima 2.5 — pilih sesuai skenario soal.
+                    </span>
                   </div>
                 </td>
               </tr>

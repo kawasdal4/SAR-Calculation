@@ -355,19 +355,18 @@ export function computeASW(observations: ASWObservation[]): ASWResult {
   };
 }
 
-// ============================================================================
-// WIND CURRENT (WC) WORKSHEET - Appendix K-26 (figure N-1)
-// ============================================================================
+// WIND CURRENT (WC) WORKSHEET — Figure I-1 (Appendix I, AL1/04)
+// Ketentuan Worksheet 1: kecepatan wind current memakai rumus = ASW / 28 kts
+// (garis linear Figure I-1), divergensi dari downwind mengikuti tabel Figure I-1:
+// 10°N–10°S → 0°, di utara 10°N → 30° ke kanan, di selatan 10°S → 30° ke kiri
+// (sisi kiri/kanan ditangani hemisphere di computeWC).
 
 export function windCurrentDrift(aswSpeed: number): number {
-  return 0.03 * aswSpeed;
+  return aswSpeed / 28;
 }
 
 export function windCurrentDivergence(absLat: number): number {
-  if (absLat < 10) return 0;
-  if (absLat < 25) return 15;
-  if (absLat < 45) return 25;
-  return 40;
+  return absLat <= 10 ? 0 : 30;
 }
 
 export interface WCResult {
@@ -420,80 +419,341 @@ export interface LeewayObjectType {
   probableError: number;
 }
 
+// Nilai multiplier/modifier/divergence didigitasi langsung dari Table I-1 dan
+// Table I-2 (Appendix I AL1/04) — dipilih berdasarkan keterangan
+// 'Search target (description)' pada Worksheet 1. probableError mengikuti
+// nilai kelompok yang sudah ada sebelumnya pada tiap kategori.
 export const LEEWAY_OBJECT_TYPES: LeewayObjectType[] = [
+  // ── PIW (Persons In Water) — Table I-1 ──
   {
     id: 'piw-novice',
-    label: 'Person in water (PIW) – general',
+    label: 'PIW – Vertical (general)',
     leewayRate: 0.011,
     leewayModifier: 0.07,
     divergenceAngle: 30,
     probableError: 0.07,
   },
   {
+    id: 'piw-sitting',
+    label: 'PIW – Sitting (posisi fetal)',
+    leewayRate: 0.005,
+    leewayModifier: 0.07,
+    divergenceAngle: 18,
+    probableError: 0.07,
+  },
+  {
+    id: 'piw-vertical-2',
+    label: 'PIW – Vertical (variant 2)',
+    leewayRate: 0.012,
+    leewayModifier: 0.00,
+    divergenceAngle: 18,
+    probableError: 0.07,
+  },
+  {
     id: 'piw-lifejacket',
-    label: 'Person in water (PIW) – horizontal, survival suit',
+    label: 'PIW – Horizontal, Survival Suit',
     leewayRate: 0.014,
     leewayModifier: 0.10,
     divergenceAngle: 30,
     probableError: 0.07,
   },
   {
-    id: 'raft-46-person',
-    label: '4-6 person liferaft (no canopy, no drogue)',
-    leewayRate: 0.057,
-    leewayModifier: 0.21,
-    divergenceAngle: 24,
-    probableError: 0.18,
+    id: 'piw-scuba',
+    label: 'PIW – Horizontal, Scuba Suit',
+    leewayRate: 0.007,
+    leewayModifier: 0.08,
+    divergenceAngle: 30,
+    probableError: 0.07,
   },
   {
+    id: 'piw-deceased',
+    label: 'PIW – Horizontal, Deceased',
+    leewayRate: 0.015,
+    leewayModifier: 0.08,
+    divergenceAngle: 30,
+    probableError: 0.07,
+  },
+  // ── Survival Craft: Maritime Life Rafts, No Ballast Systems — Table I-1 ──
+  {
     id: 'raft-1520-person',
-    label: '15-20 person liferaft, no ballast system (general)',
+    label: 'Maritime life raft – No ballast systems (general, 15-20 person)',
     leewayRate: 0.042,
     leewayModifier: 0.03,
     divergenceAngle: 28,
     probableError: 0.18,
   },
   {
+    id: 'raft-46-person',
+    label: 'Liferaft no ballast, no canopy, no drogue (4-6 person)',
+    leewayRate: 0.057,
+    leewayModifier: 0.21,
+    divergenceAngle: 24,
+    probableError: 0.18,
+  },
+  {
     id: 'raft-noballast-drogue',
     label: 'Liferaft no ballast, no canopy, with drogue',
-    // Table I-1 (Appendix I): No Ballast Systems — no canopy, w/ drogue.
+    // Table I-1: No Ballast Systems — no canopy, w/ drogue.
     leewayRate: 0.044,
     leewayModifier: -0.2,
     divergenceAngle: 28,
     probableError: 0.18,
   },
   {
-    id: 'raft-canopy-drogue',
-    label: 'Liferaft with canopy and drogue',
-    leewayRate: 0.030,
-    leewayModifier: 0,
-    divergenceAngle: 28,
-    probableError: 0.12,
-  },
-  {
     id: 'raft-canopy-no-drogue',
-    label: 'Liferaft with canopy, no drogue',
+    label: 'Liferaft no ballast, canopy, no drogue',
     leewayRate: 0.037,
     leewayModifier: 0.11,
     divergenceAngle: 24,
     probableError: 0.16,
   },
   {
-    id: 'dinghy-fibreglass',
-    label: 'Maritime life raft – shallow ballast, capsized',
-    leewayRate: 0.017,
-    leewayModifier: -0.10,
-    divergenceAngle: 8,
+    id: 'raft-canopy-drogue',
+    label: 'Liferaft no ballast, canopy, with drogue',
+    leewayRate: 0.030,
+    leewayModifier: 0,
+    divergenceAngle: 28,
     probableError: 0.12,
   },
+  // ── Survival Craft: Shallow Ballast Systems and Canopy — Table I-1 ──
   {
     id: 'dinghy-upright',
-    label: 'Maritime life raft – shallow ballast (general)',
+    label: 'Maritime life raft – Shallow ballast & canopy (general)',
     leewayRate: 0.029,
     leewayModifier: 0,
     divergenceAngle: 22,
     probableError: 0.18,
   },
+  {
+    id: 'raft-shallow-ballast-nodrogue',
+    label: 'Shallow ballast & canopy, no drogue',
+    leewayRate: 0.032,
+    leewayModifier: -0.02,
+    divergenceAngle: 22,
+    probableError: 0.18,
+  },
+  {
+    id: 'raft-shallow-ballast-drogue',
+    label: 'Shallow ballast & canopy, with drogue',
+    leewayRate: 0.025,
+    leewayModifier: 0.01,
+    divergenceAngle: 22,
+    probableError: 0.18,
+  },
+  {
+    id: 'dinghy-fibreglass',
+    label: 'Maritime life raft – Shallow ballast, capsized',
+    leewayRate: 0.017,
+    leewayModifier: -0.10,
+    divergenceAngle: 8,
+    probableError: 0.12,
+  },
+  // ── Survival Craft: Deep Ballast — Table I-1 / Table I-2 ──
+  {
+    id: 'raft-deep-ballast',
+    label: 'Deep ballast systems & canopies (general, Table I-1)',
+    leewayRate: 0.030,
+    leewayModifier: 0.02,
+    divergenceAngle: 13,
+    probableError: 0.12,
+  },
+  {
+    id: 'deep-ballast-raft-default',
+    label: 'Deep ballast life raft (Table I-2 default)',
+    leewayRate: 0.029,
+    leewayModifier: 0.04,
+    divergenceAngle: 15,
+    probableError: 0.12,
+  },
+  {
+    id: 'deep-ballast-46-wodrogue-light',
+    label: 'Deep ballast 4-6 person, w/o drogue, light loading',
+    leewayRate: 0.038,
+    leewayModifier: -0.04,
+    divergenceAngle: 15,
+    probableError: 0.12,
+  },
+  {
+    id: 'deep-ballast-46-wodrogue-heavy',
+    label: 'Deep ballast 4-6 person, w/o drogue, heavy loading',
+    leewayRate: 0.036,
+    leewayModifier: -0.03,
+    divergenceAngle: 15,
+    probableError: 0.12,
+  },
+  {
+    id: 'deep-ballast-46-drogue-light',
+    label: 'Deep ballast 4-6 person, with drogue, light loading',
+    leewayRate: 0.016,
+    leewayModifier: 0.05,
+    divergenceAngle: 24,
+    probableError: 0.12,
+  },
+  {
+    id: 'deep-ballast-46-drogue-heavy',
+    label: 'Deep ballast 4-6 person, with drogue, heavy loading',
+    leewayRate: 0.021,
+    leewayModifier: 0.00,
+    divergenceAngle: 20,
+    probableError: 0.12,
+  },
+  {
+    id: 'deep-ballast-1525-default',
+    label: 'Deep ballast 15-25 person (default)',
+    leewayRate: 0.036,
+    leewayModifier: -0.09,
+    divergenceAngle: 10,
+    probableError: 0.12,
+  },
+  {
+    id: 'deep-ballast-1525-wodrogue-light',
+    label: 'Deep ballast 15-25 person, w/o drogue, light loading',
+    leewayRate: 0.039,
+    leewayModifier: -0.06,
+    divergenceAngle: 9,
+    probableError: 0.12,
+  },
+  {
+    id: 'deep-ballast-1525-drogue',
+    label: 'Deep ballast 15-25 person, with drogue (heavy loading)',
+    leewayRate: 0.031,
+    leewayModifier: -0.07,
+    divergenceAngle: 9,
+    probableError: 0.12,
+  },
+  {
+    id: 'deep-ballast-capsized',
+    label: 'Deep ballast life raft, capsized',
+    leewayRate: 0.009,
+    leewayModifier: 0.00,
+    divergenceAngle: 12,
+    probableError: 0.12,
+  },
+  {
+    id: 'deep-ballast-swamped',
+    label: 'Deep ballast life raft, swamped',
+    leewayRate: 0.010,
+    leewayModifier: -0.04,
+    divergenceAngle: 8,
+    probableError: 0.12,
+  },
+  // ── Other Maritime Survival Craft / Aviation Life Rafts — Table I-1 ──
+  {
+    id: 'life-capsule',
+    label: 'Life capsule',
+    leewayRate: 0.038,
+    leewayModifier: -0.08,
+    divergenceAngle: 22,
+    probableError: 0.12,
+  },
+  {
+    id: 'uscg-sea-rescue-kit',
+    label: 'USCG Sea Rescue Kit',
+    leewayRate: 0.025,
+    leewayModifier: -0.04,
+    divergenceAngle: 7,
+    probableError: 0.12,
+  },
+  {
+    id: 'raft-aviation-46',
+    label: 'Aviation life raft, no ballast w/ canopy, 4-6 person w/o drogue',
+    leewayRate: 0.037,
+    leewayModifier: 0.11,
+    divergenceAngle: 24,
+    probableError: 0.18,
+  },
+  {
+    id: 'raft-evac-slide',
+    label: 'Aviation evac/slide raft, 4-6 person',
+    leewayRate: 0.028,
+    leewayModifier: -0.01,
+    divergenceAngle: 15,
+    probableError: 0.18,
+  },
+  // ── Person-Powered Craft — Table I-1 ──
+  {
+    id: 'sea-kayak',
+    label: 'Sea kayak (w/ person on aft deck)',
+    leewayRate: 0.011,
+    leewayModifier: 0.24,
+    divergenceAngle: 15,
+    probableError: 0.18,
+  },
+  {
+    id: 'surf-board',
+    label: 'Surf board (w/ person)',
+    leewayRate: 0.020,
+    leewayModifier: 0.00,
+    divergenceAngle: 15,
+    probableError: 0.18,
+  },
+  {
+    id: 'windsurfer',
+    label: 'Windsurfer (w/ person and mast & sail in water)',
+    leewayRate: 0.023,
+    leewayModifier: 0.10,
+    divergenceAngle: 12,
+    probableError: 0.18,
+  },
+  // ── Sailing Vessels (Mono-hull) — Table I-1 ──
+  {
+    id: 'sailboat',
+    label: 'Sailing vessel – Mono-hull, Full Keel (deep draft)',
+    leewayRate: 0.030,
+    leewayModifier: 0,
+    divergenceAngle: 48,
+    probableError: 0.18,
+  },
+  {
+    id: 'sailboat-fin-keel',
+    label: 'Sailing vessel – Mono-hull, Fin Keel (shoal draft)',
+    leewayRate: 0.040,
+    leewayModifier: 0.00,
+    divergenceAngle: 48,
+    probableError: 0.18,
+  },
+  // ── Power Vessels: Skiffs / Sport Boats / Sport Fisher — Table I-1 ──
+  {
+    id: 'skiff-flat-bottom',
+    label: 'Skiff, Flat Bottom (Boston whaler)',
+    leewayRate: 0.034,
+    leewayModifier: 0.04,
+    divergenceAngle: 22,
+    probableError: 0.18,
+  },
+  {
+    id: 'skiff-v-hull',
+    label: 'Skiff, V-hull (std. configuration)',
+    leewayRate: 0.030,
+    leewayModifier: 0.08,
+    divergenceAngle: 15,
+    probableError: 0.18,
+  },
+  {
+    id: 'skiff-swamped',
+    label: 'Skiff, swamped',
+    leewayRate: 0.017,
+    leewayModifier: 0.00,
+    divergenceAngle: 15,
+    probableError: 0.18,
+  },
+  {
+    id: 'sport-boat-cuddy',
+    label: 'Sport boat, Cuddy Cabin (modified V-hull)',
+    leewayRate: 0.069,
+    leewayModifier: -0.08,
+    divergenceAngle: 19,
+    probableError: 0.18,
+  },
+  {
+    id: 'sport-fisher-center-console',
+    label: 'Sport fisher, Center Console (open cockpit)',
+    leewayRate: 0.060,
+    leewayModifier: -0.09,
+    divergenceAngle: 22,
+    probableError: 0.18,
+  },
+  // ── Power Vessels: Commercial Fishing Vessels — Table I-1 ──
   {
     id: 'small-fishing',
     label: 'Commercial fishing vessel (general)',
@@ -503,27 +763,85 @@ export const LEEWAY_OBJECT_TYPES: LeewayObjectType[] = [
     probableError: 0.15,
   },
   {
+    id: 'fishing-sampans',
+    label: 'Commercial fishing – Sampans',
+    leewayRate: 0.040,
+    leewayModifier: 0.00,
+    divergenceAngle: 48,
+    probableError: 0.15,
+  },
+  {
     id: 'commercial-fishing',
-    label: 'Commercial fishing vessel – side-stern trawler',
+    label: 'Commercial fishing – Side-stern Trawler',
     leewayRate: 0.042,
     leewayModifier: 0,
     divergenceAngle: 48,
     probableError: 0.12,
   },
   {
-    id: 'sailboat',
-    label: 'Sailing vessel – mono-hull, full keel',
-    leewayRate: 0.030,
-    leewayModifier: 0,
+    id: 'fishing-longliners',
+    label: 'Commercial fishing – Longliners',
+    leewayRate: 0.037,
+    leewayModifier: 0.00,
     divergenceAngle: 48,
-    probableError: 0.18,
+    probableError: 0.15,
   },
+  {
+    id: 'fishing-junk',
+    label: 'Commercial fishing – Junk',
+    leewayRate: 0.027,
+    leewayModifier: 0.10,
+    divergenceAngle: 48,
+    probableError: 0.15,
+  },
+  {
+    id: 'fishing-gill-netter',
+    label: 'Commercial fishing – Gill-netter (w/ rear reel)',
+    leewayRate: 0.040,
+    leewayModifier: 0.01,
+    divergenceAngle: 33,
+    probableError: 0.15,
+  },
+  // ── Coastal Freighter — Table I-1 ──
   {
     id: 'merchant-vessel',
     label: 'Coastal freighter',
     leewayRate: 0.028,
     leewayModifier: 0,
     divergenceAngle: 48,
+    probableError: 0.10,
+  },
+  // ── Boating Debris — Table I-1 ──
+  {
+    id: 'debris-fv',
+    label: 'Boating debris – F/V debris',
+    leewayRate: 0.020,
+    leewayModifier: 0.00,
+    divergenceAngle: 10,
+    probableError: 0.10,
+  },
+  {
+    id: 'debris-bait-box',
+    label: 'Bait/wharf box, cubic meter of ice (general)',
+    leewayRate: 0.013,
+    leewayModifier: 0.27,
+    divergenceAngle: 31,
+    probableError: 0.10,
+  },
+  {
+    id: 'debris-bait-box-light',
+    label: 'Bait/wharf box, lightly loaded (~200 lbs)',
+    leewayRate: 0.026,
+    leewayModifier: 0.18,
+    divergenceAngle: 15,
+    probableError: 0.10,
+  },
+  {
+    id: 'debris-bait-box-full',
+    label: 'Bait/wharf box, fully loaded (~800 lbs)',
+    leewayRate: 0.016,
+    leewayModifier: 0.16,
+    divergenceAngle: 33,
     probableError: 0.10,
   },
 ];
@@ -651,6 +969,44 @@ export function computeWs1SearchArea(input: Ws1SearchAreaInput): Ws1SearchAreaRe
   const { E, E2 } = computeE({ X: input.X, De: input.De, Y: input.Y });
   const R = Math.ceil(E * input.fs);
   return { E, E2, R, Ao: 4 * R * R };
+}
+
+// ============================================================================
+// WORKSHEET 1 - SAFETY FACTOR & TABLE J-1 (nav fix errors)
+// ============================================================================
+
+/**
+ * Safety factor (circle) fs menurut urutan pencarian (ketentuan Basarnas):
+ * pencarian pertama → 1.1, kedua → 1.6, ketiga → 2.0, keempat → 2.3, kelima → 2.5.
+ */
+export const WS1_FS_OPTIONS = [1.1, 1.6, 2.0, 2.3, 2.5] as const;
+
+/** Persentase drift error (de) default Worksheet 1. */
+export const WS1_DEFAULT_DRIFT_ERROR_PERCENT = 12.5;
+
+export interface TableJ1Entry {
+  id: string;
+  label: string;
+  /** Estimated navigational fix error in NM (Table J-1, Appendix J). */
+  errorNm: number;
+}
+
+/**
+ * Table J-1 (Appendix J): estimated navigational position errors.
+ * Dipakai untuk x (distress craft error) dan y (search craft error) Worksheet 1
+ * sesuai alat navigasi yang disebut dalam soal kasus.
+ */
+export const TABLE_J1_NAV_ERRORS: TableJ1Entry[] = [
+  { id: 'gps', label: 'GPS', errorNm: 0.1 },
+  { id: 'radar', label: 'Radar', errorNm: 1.0 },
+  { id: 'visual', label: 'Visual', errorNm: 1.0 },
+  { id: 'celestial', label: 'Celestial (astronomi)', errorNm: 2.0 },
+  { id: 'marine-radio-beacon', label: 'Marine Radio Beacon', errorNm: 4.0 },
+  { id: 'loran-c', label: 'LORAN C', errorNm: 1.0 },
+];
+
+export function getTableJ1ErrorById(id: string): number | undefined {
+  return TABLE_J1_NAV_ERRORS.find((e) => e.id === id)?.errorNm;
 }
 
 // ============================================================================

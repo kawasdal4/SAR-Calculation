@@ -33,6 +33,7 @@ import type { Worksheet8InitialState } from '@/components/sar/worksheets/Workshe
 import { W2_TARGET_OPTIONS, W8_TARGET_OPTIONS } from '@/lib/sar/wscPodTables';
 import type { SearchPatternPlanInitialState } from '@/lib/sar/searchPatterns';
 import type { AeroDriftInitialState } from '@/components/sar/AeronauticalDriftWorksheet';
+import { LEEWAY_OBJECT_TYPES } from '@/lib/sar/sarCalculations';
 
 interface UploadedAttachment {
   name: string;
@@ -77,6 +78,8 @@ interface AIChatPanelProps {
     leewayObjectId?: string;
     X?: number;
     Y?: number;
+    /** Safety factor dari analisis soal: pencarian ke-1 → 1.1, ke-2 → 1.6, dst. */
+    fs?: number;
   }) => void;
   onApplyWS2?: (data: Worksheet2InitialState) => void;
   onApplyWS3?: (data: Worksheet3InitialState) => void;
@@ -387,7 +390,8 @@ export default function AIChatPanel({
         case 'set_datum_case': {
           const data = args as Parameters<NonNullable<typeof onApplyDatum>>[0];
           attempted = true;
-          const leewayIds = ['piw-novice', 'piw-lifejacket', 'raft-46-person', 'raft-1520-person', 'raft-noballast-drogue', 'raft-canopy-drogue', 'raft-canopy-no-drogue', 'dinghy-fibreglass', 'dinghy-upright', 'small-fishing', 'commercial-fishing', 'sailboat', 'merchant-vessel'];
+          // Validasi id leeway langsung dari Table I-1/I-2 di lib (satu sumber kebenaran).
+          const leewayIds = LEEWAY_OBJECT_TYPES.map((t) => t.id);
           const currentsOk = Number.isFinite(data.driftInterval) && data.driftInterval > 0
             && Number.isFinite(data.seaCurrentDir) && data.seaCurrentDir >= 0 && data.seaCurrentDir < 360
             && Number.isFinite(data.seaCurrentSpeed) && data.seaCurrentSpeed >= 0;

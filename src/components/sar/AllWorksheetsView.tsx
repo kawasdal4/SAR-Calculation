@@ -30,6 +30,9 @@ interface AllWorksheetsViewProps {
   selectedFs: number;
   aswDirFrom: number;
   aswSpeed: number;
+  /** Waktu distress (format Basarnas UTC) dan Total Hours (D) ASW untuk Worksheet 1. */
+  aswDistressTime?: string;
+  aswTotalHours?: number;
   awaDirFrom: number;
   awaSpeed: number;
   csp?: LatLng;
@@ -49,6 +52,8 @@ export default function AllWorksheetsView({
   selectedFs,
   aswDirFrom,
   aswSpeed,
+  aswDistressTime,
+  aswTotalHours,
   awaDirFrom,
   awaSpeed,
   csp = { lat: 0, lng: 0 },
@@ -220,6 +225,8 @@ export default function AllWorksheetsView({
             datumResults={datumResults}
             aswDirFrom={aswDirFrom}
             aswSpeed={aswSpeed}
+            aswDistressTime={aswDistressTime}
+            aswTotalHours={aswTotalHours}
             readOnly
             selectedFs={selectedFs}
             onAoChange={onWorksheet1AoChange}
