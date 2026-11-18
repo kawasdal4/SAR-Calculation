@@ -50,7 +50,6 @@ export default function PrintMapA3({
   // Overlay Selection Checklist
   const [overlays, setOverlays] = useState({
     lkp: true,
-    twc: true,
     drift: true,
     datum: true,
     errorCircle: true,
@@ -62,7 +61,6 @@ export default function PrintMapA3({
   const toggleAll = (checked: boolean) => {
     setOverlays({
       lkp: checked,
-      twc: checked,
       drift: checked,
       datum: checked,
       errorCircle: checked,
@@ -94,30 +92,51 @@ export default function PrintMapA3({
     });
   }
 
-  // TWC Vector
-  if (overlays.twc && datumData) {
-    const twcEnd = project(lkp, datumData.twc.dir, Math.max(2, datumData.twc.mag * 8));
+  // Drift Vectors (WS 1) — rantai berurutan head-to-tail dari LKP:
+  // Sea Current → Wind Current → Leeway (Kiri/Kanan) → Datum. Vektor TWC
+  // sengaja TIDAK digambar (permintaan pengguna); ujungnya tetap dipakai
+  // sebagai sambungan rantai (TWC = SC + WC) agar leeway mulai tepat di
+  // ujung rantai arus.
+  if (overlays.drift && datumData && datumResults) {
+    const driftHours = Math.max(0, datumData.driftInterval);
+    const seaCurrentEnd = project(lkp, datumData.seaCurrent.dir, datumData.seaCurrent.mag * driftHours);
+    const waterEnd = project(lkp, datumData.twc.dir, datumData.twc.mag * driftHours);
     lines.push({
       from: lkp,
-      to: twcEnd,
-      color: '#3b82f6',
-      label: `TWC: ${datumData.twc.dir.toFixed(0)}°T / ${datumData.twc.mag.toFixed(2)} kts`,
-      dashed: true,
+      to: seaCurrentEnd,
+      color: '#2563eb',
+      label: `SC: ${datumData.seaCurrent.dir.toFixed(0)}°T / ${(datumData.seaCurrent.mag * driftHours).toFixed(2)} NM`,
     });
-  }
-
-  // Drift Vectors (WS 1)
-  if (overlays.drift && datumResults) {
+    lines.push({
+      from: seaCurrentEnd,
+      to: waterEnd,
+      color: '#f97316',
+      label: `WC: ${datumResults.wc.wcSet.toFixed(0)}°T / ${(datumResults.wc.wcDrift * driftHours).toFixed(2)} NM`,
+    });
+    lines.push({
+      from: waterEnd,
+      to: datumResults.datumLeft,
+      color: '#16a34a',
+      label: `Leeway Kiri: ${datumData.lwLeftDir.toFixed(0)}°T / ${(datumData.lwSpeed * driftHours).toFixed(2)} NM`,
+    });
+    lines.push({
+      from: waterEnd,
+      to: datumResults.datumRight,
+      color: '#db2777',
+      label: `Leeway Kanan: ${datumData.lwRightDir.toFixed(0)}°T / ${(datumData.lwSpeed * driftHours).toFixed(2)} NM`,
+    });
     lines.push({
       from: lkp,
       to: datumResults.datumLeft,
       color: '#f59e0b',
+      dashed: true,
       label: `Drift Kiri (${datumResults.driftDistance.toFixed(1)} NM)`,
     });
     lines.push({
       from: lkp,
       to: datumResults.datumRight,
       color: '#f59e0b',
+      dashed: true,
       label: `Drift Kanan (${datumResults.driftDistance.toFixed(1)} NM)`,
     });
   }
@@ -321,15 +340,6 @@ export default function PrintMapA3({
                   className="rounded text-sky-600" suppressHydrationWarning
                 />
                 LKP
-              </label>
-              <label className="flex items-center gap-1.5 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={overlays.twc}
-                  onChange={() => toggleOverlay('twc')}
-                  className="rounded text-blue-600" suppressHydrationWarning
-                />
-                TWC
               </label>
               <label className="flex items-center gap-1.5 cursor-pointer">
                 <input

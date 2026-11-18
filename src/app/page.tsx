@@ -1087,7 +1087,12 @@ export default function Home() {
       });
     });
 
-    // Worksheet 1 vector components, each plotted in a distinct color.
+    // Worksheet 1 vector components, each plotted in a distinct color. The
+    // drift chain is drawn head-to-tail IN SEQUENCE from LKP: sea current →
+    // wind current → leeway (L/R) → datum. The TWC resultant is intentionally
+    // NOT drawn (permintaan pengguna) — its endpoint is still used as the
+    // chain junction (TWC = SC + WC) so leeway starts exactly where the
+    // water-current chain ends.
     if (datumData && datumResults) {
       const lkpPoint = datumData.start;
       const driftHours = Math.max(0, datumData.driftInterval);
@@ -1102,12 +1107,9 @@ export default function Home() {
         downwindDir,
         datumData.aswSpeed * driftHours,
       );
-      const windCurrentEnd = project(
-        lkpPoint,
-        datumResults.wc.wcSet,
-        datumResults.wc.wcDrift * driftHours,
-      );
-      const twcEnd = project(
+      // Sambungan rantai arus: ujung TWC (hasil engine SC + WC) — garisnya
+      // TIDAK digambar, hanya titik potong tempat leeway memulai.
+      const waterEnd = project(
         lkpPoint,
         datumData.twc.dir,
         datumData.twc.mag * driftHours,
@@ -1117,7 +1119,7 @@ export default function Home() {
         from: lkpPoint,
         to: seaCurrentEnd,
         color: '#2563eb',
-        label: `Worksheet 1 · Sea Current: ${datumData.seaCurrent.dir.toFixed(0)}°T / ${(datumData.seaCurrent.mag * driftHours).toFixed(2)} NM`,
+        label: `Worksheet 1 · Sea Current (SC): ${datumData.seaCurrent.dir.toFixed(0)}°T / ${(datumData.seaCurrent.mag * driftHours).toFixed(2)} NM`,
       });
       list.push({
         from: lkpPoint,
@@ -1127,26 +1129,19 @@ export default function Home() {
         label: `Worksheet 1 · Surface Wind reciprocal: ${downwindDir.toFixed(0)}°T / ${(datumData.aswSpeed * driftHours).toFixed(2)} NM`,
       });
       list.push({
-        from: lkpPoint,
-        to: windCurrentEnd,
+        from: seaCurrentEnd,
+        to: waterEnd,
         color: '#f97316',
-        label: `Worksheet 1 · Wind Current: ${datumResults.wc.wcSet.toFixed(0)}°T / ${(datumResults.wc.wcDrift * driftHours).toFixed(2)} NM`,
+        label: `Worksheet 1 · Wind Current (WC): ${datumResults.wc.wcSet.toFixed(0)}°T / ${(datumResults.wc.wcDrift * driftHours).toFixed(2)} NM`,
       });
       list.push({
-        from: lkpPoint,
-        to: twcEnd,
-        color: '#7c3aed',
-        dashed: true,
-        label: `Worksheet 1 · TWC resultant: ${datumData.twc.dir.toFixed(0)}°T / ${(datumData.twc.mag * driftHours).toFixed(2)} NM`,
-      });
-      list.push({
-        from: twcEnd,
+        from: waterEnd,
         to: datumResults.datumLeft,
         color: '#16a34a',
         label: `Worksheet 1 · Leeway Left: ${datumData.lwLeftDir.toFixed(0)}°T / ${(datumData.lwSpeed * driftHours).toFixed(2)} NM`,
       });
       list.push({
-        from: twcEnd,
+        from: waterEnd,
         to: datumResults.datumRight,
         color: '#db2777',
         label: `Worksheet 1 · Leeway Right: ${datumData.lwRightDir.toFixed(0)}°T / ${(datumData.lwSpeed * driftHours).toFixed(2)} NM`,
@@ -1164,18 +1159,6 @@ export default function Home() {
         color: '#64748b',
         dashed: true,
         label: `Worksheet 1 · Total Drift Right: ${datumResults.driftDistance.toFixed(2)} NM`,
-      });
-    }
-
-    // TWC vector
-    if (datumData) {
-      const twcEnd = project(datumData.start, datumData.twc.dir, Math.max(1, datumData.twc.mag * 8));
-      list.push({
-        from: datumData.start,
-        to: twcEnd,
-        color: '#3b82f6',
-        label: `TWC ${datumData.twc.dir.toFixed(0)}°T / ${datumData.twc.mag.toFixed(2)} kt`,
-        dashed: true,
       });
     }
 
