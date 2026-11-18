@@ -4,8 +4,10 @@ import React, { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { Card, CardContent } from '@/components/ui/card';
 import type { SearchPlanResults } from '@/components/sar/SearchPlanWorksheet';
-import { Printer } from 'lucide-react';
+import { Minimize2, Printer } from 'lucide-react';
 import CoordinateInput from '@/components/sar/CoordinateInput';
+import { FullscreenToggleButton } from '@/components/sar/FullscreenToggleButton';
+import { useFullscreen } from '@/hooks/use-fullscreen';
 import { bearingDeg, distanceNm, project, type LatLng } from '@/lib/sar/sarCalculations';
 import type { MapCircle, MapLine, MapMarker, MapPolygon } from '@/components/sar/SeaMap';
 import {
@@ -99,6 +101,9 @@ export default function Worksheet4({
   const [commenceUtc, setCommenceUtc] = useState(initialState?.commenceUtc ?? '-');
   const [prevSearchNo, setPrevSearchNo] = useState('-');
   const [prevCommenceUtc, setPrevCommenceUtc] = useState('-');
+
+  // Layar penuh Peta ONC (Worksheet 4 · OpenAIP): pembungkus peta memenuhi viewport.
+  const { ref: oncFsRef, isFullscreen: oncFullscreen, toggle: toggleOncFullscreen } = useFullscreen<HTMLDivElement>();
 
   // Position fixes / reports
   const [latitude, setLatitude] = useState(initialState?.latitude ?? 0);
@@ -703,16 +708,41 @@ export default function Worksheet4({
                 <h3 className="text-sm font-bold text-slate-900">Peta udara Worksheet 4 · OpenAIP</h3>
                 <p className="text-[10px] text-slate-600">Peta ini berdiri sendiri dan tidak berbagi layer dengan peta Worksheet 1. Lingkaran memakai Rounded up Radius; trapesium search area digambar dari garis singgung luar kedua lingkaran.</p>
               </div>
+              <div className="flex items-center gap-2 print:hidden">
+                <FullscreenToggleButton
+                  isFullscreen={oncFullscreen}
+                  onToggle={toggleOncFullscreen}
+                  label="Layar Penuh"
+                />
+              </div>
             </div>
-            <Worksheet4Map
-              center={mapCenter}
-              zoom={activeMappedPoints.length ? mapZoom : 4}
-              markers={ws4Markers}
-              lines={ws4Lines}
-              polygons={ws4Polygons}
-              circles={ws4Circles}
-              height="520px"
-            />
+            <div
+              ref={oncFsRef}
+              className={`fs-target relative rounded-md ${oncFullscreen ? 'flex flex-col' : ''}`}
+            >
+              {oncFullscreen && (
+                <button
+                  type="button"
+                  onClick={toggleOncFullscreen}
+                  title="Keluar layar penuh (Esc)"
+                  className="print:hidden absolute top-2 right-14 z-20 inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow hover:bg-slate-100"
+                >
+                  <Minimize2 className="h-3.5 w-3.5" /> Keluar layar penuh
+                </button>
+              )}
+              <Worksheet4Map
+                center={mapCenter}
+                zoom={activeMappedPoints.length ? mapZoom : 4}
+                markers={ws4Markers}
+                lines={ws4Lines}
+                polygons={ws4Polygons}
+                circles={ws4Circles}
+                // Saat fullscreen: tinggi persentase (100%) tidak dihitung ulang
+                // pada elemen :fullscreen di Chromium — pakai tinggi eksplisit
+                // (24px = padding wrapper .fs-target).
+                height={oncFullscreen ? 'calc(100vh - 24px)' : '520px'}
+              />
+            </div>
             {activeMappedPoints.length === 0 && <p className="mt-2 text-[10px] text-amber-800">Masukkan koordinat waypoint A–D agar radius dan area koridor dapat ditampilkan.</p>}
             <p className="mt-2 text-[10px] text-slate-500">Garis dan jarak segmen dapat ditelusuri dari waypoint. Trapesium search area (hijau) dibentuk dari dua garis singgung luar lingkaran possibility area dan dua garis penutup tegak lurus garis rute.</p>
             <p className="mt-1 text-[10px] text-amber-800">OpenAIP dikelola komunitas. Verifikasi data dengan AIP Indonesia; peta ini alat bantu dan tidak menggantikan penilaian SAR Mission Coordinator maupun prosedur resmi.</p>

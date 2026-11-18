@@ -92,7 +92,7 @@ function extractTimeOfDay(s: string): { hour: number; minute: number } | null {
 }
 
 /** Deteksi tanggal+bulan: "17 NOV 2026", "18 NOVEMBER", "17/11", "17-11". */
-function extractDateParts(s: string): { day: number; month: number } | null {
+function extractDateParts(s: string): SarDateParts | null {
   const byName = s.match(/\b(\d{1,2})\s*\.?\s*(JANUARI|FEBRUARI|MARET|APRIL|MEI|MAY|JUNI|JUNE|JULI|JULY|AGUSTUS|AUGUST|SEPTEMBER|OKTOBER|OCTOBER|NOVEMBER|DESEMBER|DECEMBER|JAN|FEB|MAR|APR|JUN|JUL|AGT|AGU|SEP|OKT|OCT|NOV|DES|DEC)\b/);
   if (byName) {
     const day = parseInt(byName[1], 10);

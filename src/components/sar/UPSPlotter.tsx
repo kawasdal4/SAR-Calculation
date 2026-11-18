@@ -16,7 +16,7 @@
  * native (≥300 DPI pada kertas) — tanpa screenshot/rasterisasi overlay.
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -39,6 +39,8 @@ import {
   type LabelPlacement,
 } from '@/lib/sar/labelPlacement';
 import SheetPrintMenu from './SheetPrintMenu';
+import { FullscreenToggleButton } from './FullscreenToggleButton';
+import { useFullscreen } from '@/hooks/use-fullscreen';
 import { usePrintScope, paperContentMm } from '@/lib/sar/printSheets';
 
 /* ===== Kalibrasi scan asli VP-OS (ukuran px pada scan native 4252x3898) ===== */
@@ -56,6 +58,11 @@ const TEMPLATE_PRINT = '/templates/ups_vpos_original_print.jpg?v=2';
 
 /** Preset "rentang skala": menit busur yang dicakup radius rose. 60' = skala asli. */
 const UPS_SPAN_PRESETS = [120, 90, 60, 45, 30, 20, 15, 10];
+/** Batas zoom tampilan lembar (transform scale) — tombol, roda mouse, dan layar penuh. */
+const UPS_ZOOM_MIN = 0.5;
+const UPS_ZOOM_MAX = 6;
+const UPS_ZOOM_STEP_BUTTON = 0.25;
+const UPS_ZOOM_STEP_WHEEL = 0.15;
 /** Target isi rose pada auto skala: konten terjauh menempati ≤ 90% radius rose. */
 const UPS_FIT_TARGET = 0.9;
 
@@ -295,6 +302,10 @@ export default function UPSPlotter({
   const [dragStart, setDragStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [showCoordsBadge, setShowCoordsBadge] = useState(true);
 
+  // Layar penuh: seluruh kartu UPS (header + lembar + panel titik) memenuhi viewport.
+  const { ref: fsRef, isFullscreen, toggle: toggleFullscreen } = useFullscreen<HTMLDivElement>();
+  const sheetRef = useRef<HTMLDivElement | null>(null);
+
   // Segmen vektor (geodetik) — dipetakan ke px oleh UpsSheetView sesuai skala
   const vectorSegs = useMemo<UpsVectorSeg[]>(() => {
     const segs: UpsVectorSeg[] = [];
@@ -448,8 +459,24 @@ export default function UPSPlotter({
   };
 
   const handleZoom = (delta: number) => {
-    setZoom((prev) => Math.min(3, Math.max(0.6, prev + delta)));
+    setZoom((prev) => Math.min(UPS_ZOOM_MAX, Math.max(UPS_ZOOM_MIN, prev + delta)));
   };
+
+  // Zoom roda mouse langsung di atas lembar. Listener native (bukan React
+  // onWheel) karena React memasang wheel sebagai passive — preventDefault
+  // akan diabaikan dan halaman ikut tergulir.
+  useEffect(() => {
+    const el = sheetRef.current;
+    if (!el) return;
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      setZoom((prev) =>
+        Math.min(UPS_ZOOM_MAX, Math.max(UPS_ZOOM_MIN, prev + (event.deltaY < 0 ? UPS_ZOOM_STEP_WHEEL : -UPS_ZOOM_STEP_WHEEL))),
+      );
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
 
   const plotStart = () => {
     const point: UserPlotPoint = { id: `ups-${Date.now()}`, label: `Titik ${manualPoints.length + 1}`, desc: 'Titik awal manual', pos: { lat: startLat, lng: startLng }, color: '#b91c1c', fill: '#fee2e2', source: 'Koordinat manual' };
@@ -478,7 +505,11 @@ export default function UPSPlotter({
 
   return (
     <>
-      <Card className={`border-slate-300 shadow-sm bg-white overflow-hidden ${className}`}>
+      <div
+        ref={fsRef}
+        className={`fs-target ${isFullscreen ? 'flex flex-col' : ''} ${className}`}
+      >
+      <Card className={`border-slate-300 shadow-sm bg-white overflow-hidden ${isFullscreen ? 'flex-1 min-h-0 py-2 gap-2' : ''}`}>
         <CardHeader className="bg-slate-100/90 border-b border-slate-300 py-3 px-4 print:hidden">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -566,19 +597,28 @@ export default function UPSPlotter({
                 <RotateCcw className="h-3.5 w-3.5" />
               </button>
 
+              <FullscreenToggleButton
+                isFullscreen={isFullscreen}
+                onToggle={toggleFullscreen}
+                label="Layar Penuh"
+              />
+
               <SheetPrintMenu targetId="ups-plotter" docTitle="UPS VP-OS" />
             </div>
           </div>
         </CardHeader>
 
-        <CardContent className="p-4 flex flex-col xl:flex-row items-center gap-6 justify-center">
+        <CardContent className={`p-4 flex flex-col xl:flex-row items-center gap-6 justify-center ${isFullscreen ? 'flex-1 min-h-0 w-full' : ''}`}>
           {/* Lembar UPS interaktif (screen) */}
           <div
+            ref={sheetRef}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
-            className="screen-only relative w-full max-w-[620px] bg-white rounded-xl overflow-hidden border border-slate-400 shadow-inner select-none cursor-grab active:cursor-grabbing flex items-center justify-center"
+            className={`screen-only relative bg-white rounded-xl overflow-hidden border border-slate-400 shadow-inner select-none cursor-grab active:cursor-grabbing flex items-center justify-center ${
+              isFullscreen ? 'w-auto h-full max-w-none' : 'w-full max-w-[620px]'
+            }`}
             style={{ aspectRatio: `${VB_WIDTH} / ${VB_HEIGHT}` }}
           >
             <div
@@ -610,6 +650,31 @@ export default function UPSPlotter({
               <span className="text-slate-400 font-mono">
                 {spanNm === UPS_ROSE_SPAN_MIN ? 'skala asli 1′ = 1 NM' : `radius rose ${spanNm}′`}
               </span>
+            </div>
+
+            {/* Kontrol zoom mengambang: zoom in/out langsung di lembar (roda mouse juga didukung) */}
+            <div className="absolute bottom-2 right-2 print:hidden flex items-center gap-0.5 bg-white/95 border border-slate-300 rounded shadow-sm overflow-hidden">
+              <button
+                type="button"
+                onClick={() => handleZoom(UPS_ZOOM_STEP_BUTTON)}
+                title="Perbesar (roda mouse ke atas di atas lembar)"
+                aria-label="Perbesar lembar UPS"
+                className="p-1.5 text-slate-700 hover:bg-slate-100"
+              >
+                <ZoomIn className="h-3.5 w-3.5" />
+              </button>
+              <span className="text-[11px] font-mono px-1.5 text-slate-600 font-semibold select-none">
+                {Math.round(zoom * 100)}%
+              </span>
+              <button
+                type="button"
+                onClick={() => handleZoom(-UPS_ZOOM_STEP_BUTTON)}
+                title="Perkecil (roda mouse ke bawah di atas lembar)"
+                aria-label="Perkecil lembar UPS"
+                className="p-1.5 text-slate-700 hover:bg-slate-100"
+              >
+                <ZoomOut className="h-3.5 w-3.5" />
+              </button>
             </div>
           </div>
 
@@ -786,6 +851,7 @@ export default function UPSPlotter({
           </div>
         </CardContent>
       </Card>
+      </div>
 
       {/* Print Mode terpisah (menu Cetak lembar): portal blok cetak ke <body> */}
       {printScope && createPortal(

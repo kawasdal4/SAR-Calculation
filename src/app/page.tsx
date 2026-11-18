@@ -72,6 +72,8 @@ import BasicCalculation from '@/components/sar/BasicCalculation';
 import ChartDistanceGuide from '@/components/sar/chart-distance/ChartDistanceGuide';
 import { selectiveWorkspaceContext, workflowPlanText, type ContextEntry } from '@/lib/sar/workspaceContext';
 import SeaMapMount from '@/components/sar/SeaMapMount';
+import { FullscreenToggleButton } from '@/components/sar/FullscreenToggleButton';
+import { useFullscreen } from '@/hooks/use-fullscreen';
 
 // Worksheet navigation and training tools
 import ManeuveringBoard from '@/components/sar/ManeuveringBoard';
@@ -121,6 +123,8 @@ const SEARCH_PATTERN_COLORS: Record<SearchPatternType, string> = {
 const SEARCH_CONNECTOR_COLOR = '#a16207';
 
 export default function Home() {
+  // Layar penuh kartu Peta Laut & Alokasi Vektor (kolom kanan).
+  const { ref: petaLautFsRef, isFullscreen: petaLautFullscreen, toggle: togglePetaLautFullscreen } = useFullscreen<HTMLDivElement>();
   // AWA & ASW states
   // Data AWA yang di-report worksheet saat tab AWA aktif (authoritative saat user mengedit).
   const [awaWorksheet, setAwaWorksheet] = useState<AWAData>({ aswDirFrom: 0, aswSpeed: 0, isValid: false });
@@ -2209,7 +2213,11 @@ export default function Home() {
           />}
 
           {/* Interactive Sea Chart Card */}
-          <Card className="overflow-hidden border-slate-200 shadow-sm">
+          <div
+            ref={petaLautFsRef}
+            className={`fs-target ${petaLautFullscreen ? 'flex flex-col' : ''}`}
+          >
+          <Card className={`overflow-hidden border-slate-200 shadow-sm ${petaLautFullscreen ? 'flex-1 min-h-0 py-2 gap-0' : ''}`}>
             <CardHeader className="bg-slate-50 pb-3">
               <div className="flex items-center justify-between gap-2">
                 <CardTitle className="text-base flex items-center gap-2">
@@ -2239,10 +2247,15 @@ export default function Home() {
                   >
                     <Printer className="h-3 w-3" /> Cetak A3
                   </button>
+                  <FullscreenToggleButton
+                    isFullscreen={petaLautFullscreen}
+                    onToggle={togglePetaLautFullscreen}
+                    label="Layar Penuh"
+                  />
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="p-0">
+            <CardContent className={`p-0 ${petaLautFullscreen ? 'flex-1 min-h-0 flex flex-col' : ''}`}>
               <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-white p-2.5" aria-label="Alat peta Worksheet 1">
                 <span className="mr-1 text-[11px] font-bold text-slate-700">Alat Peta Worksheet 1</span>
                 <button type="button" disabled={pickMode || pickSruMode} onClick={() => setMainMapToolMode('pan')} aria-pressed={mainMapToolMode === 'pan'} className={`inline-flex items-center gap-1 rounded border px-2.5 py-1.5 text-xs disabled:opacity-40 ${mainMapToolMode === 'pan' ? 'border-slate-700 bg-slate-700 text-white' : 'border-slate-300 bg-white text-slate-700'}`}>
@@ -2305,7 +2318,7 @@ export default function Home() {
                 </div>
               )}
 
-              <div className={pickMode ? 'ring-2 ring-emerald-500 ring-inset' : pickSruMode ? 'ring-2 ring-purple-500 ring-inset' : ''}>
+              <div className={`${pickMode ? 'ring-2 ring-emerald-500 ring-inset' : pickSruMode ? 'ring-2 ring-purple-500 ring-inset' : ''} ${petaLautFullscreen ? 'flex-1 min-h-0' : ''}`}>
                 <SeaMapMount
                   center={mapCenter}
                   zoom={8}
@@ -2313,7 +2326,7 @@ export default function Home() {
                   lines={lines}
                   polygons={polygons}
                   circles={circles}
-                  height="460px"
+                  height={petaLautFullscreen ? '100%' : '460px'}
                   pickMode={pickMode || pickSruMode || mainMapToolMode === 'drop'}
                   measureMode={mainMapToolMode === 'measure'}
                   preferenceKey="worksheet-main"
@@ -2355,6 +2368,7 @@ export default function Home() {
               )}
             </CardContent>
           </Card>
+          </div>
 
           {/* Mission Summary Panel */}
           <Card className="border-slate-200 shadow-sm">

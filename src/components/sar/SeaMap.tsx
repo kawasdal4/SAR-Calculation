@@ -1379,12 +1379,27 @@ export default function SeaMap({
 
     mapRef.current = map;
 
+    // Layar penuh (tombol "Layar Penuh" kartu Peta Laut): ukuran kontainer
+    // berubah saat fullscreenchange. Leaflet meng-cache ukuran internal —
+    // tanpa invalidateSize tile hanya tergambar pada area lama. Dua tahap:
+    // setelah layout fullscreen settle, lalu sekali lagi untuk aman.
+    const onFullscreenChange = () => {
+      setTimeout(() => {
+        if (isMapActive() && mapRef.current === map) map.invalidateSize();
+      }, 150);
+      setTimeout(() => {
+        if (isMapActive() && mapRef.current === map) map.invalidateSize();
+      }, 450);
+    };
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+
     setTimeout(() => {
       if (isMapActive()) map.invalidateSize();
     }, 200);
 
     return () => {
       disposed = true;
+      document.removeEventListener('fullscreenchange', onFullscreenChange);
       if (scaleBorderRAF !== null) {
         cancelAnimationFrame(scaleBorderRAF);
         scaleBorderRAF = null;

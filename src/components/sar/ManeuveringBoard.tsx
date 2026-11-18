@@ -42,6 +42,8 @@ import {
   type LabelPlacement,
 } from '@/lib/sar/labelPlacement';
 import SheetPrintMenu from './SheetPrintMenu';
+import { FullscreenToggleButton } from './FullscreenToggleButton';
+import { useFullscreen } from '@/hooks/use-fullscreen';
 import { usePrintScope, paperContentMm } from '@/lib/sar/printSheets';
 
 export interface ManeuveringBoardProps {
@@ -164,6 +166,9 @@ export default function ManeuveringBoard({
   const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  // Layar penuh: seluruh kartu papan manuver memenuhi viewport.
+  const { ref: fsRef, isFullscreen, toggle: toggleFullscreen } = useFullscreen<HTMLDivElement>();
 
 
   // Animation states (like in presentation PPT)
@@ -320,7 +325,11 @@ export default function ManeuveringBoard({
 
   return (
     <>
-      <Card className={`border-slate-300 shadow-sm bg-white overflow-hidden ${className}`}>
+      <div
+        ref={fsRef}
+        className={`fs-target ${isFullscreen ? 'flex flex-col' : ''} ${className}`}
+      >
+      <Card className={`border-slate-300 shadow-sm bg-white overflow-hidden ${isFullscreen ? 'flex-1 min-h-0 py-2 gap-2' : ''}`}>
         {/* Header Bar */}
         <CardHeader className="bg-slate-100/95 border-b border-slate-300 py-3 px-4 print:hidden">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -427,12 +436,18 @@ export default function ManeuveringBoard({
                 <RotateCcw className="h-3.5 w-3.5" />
               </button>
 
+              <FullscreenToggleButton
+                isFullscreen={isFullscreen}
+                onToggle={toggleFullscreen}
+                label="Layar Penuh"
+              />
+
               <SheetPrintMenu targetId={printTargetId} docTitle="Maneuvering Board DMA 5090" />
             </div>
           </div>
         </CardHeader>
 
-        <CardContent className="p-3 sm:p-5 flex flex-col xl:flex-row items-center gap-6 justify-center">
+        <CardContent className={`p-3 sm:p-5 flex flex-col xl:flex-row items-center gap-6 justify-center ${isFullscreen ? 'flex-1 min-h-0 w-full' : ''}`}>
           {/* Maneuvering Board interaktif (screen) */}
           <div
             ref={containerRef}
@@ -440,7 +455,9 @@ export default function ManeuveringBoard({
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
-            className="screen-only relative w-full max-w-[640px] bg-white rounded-xl overflow-hidden border border-slate-400 shadow-inner select-none cursor-grab active:cursor-grabbing flex items-center justify-center"
+            className={`screen-only relative bg-white rounded-xl overflow-hidden border border-slate-400 shadow-inner select-none cursor-grab active:cursor-grabbing flex items-center justify-center ${
+              isFullscreen ? 'w-auto h-full max-w-none' : 'w-full max-w-[640px]'
+            }`}
             style={{ aspectRatio: `${VB_WIDTH} / ${VB_HEIGHT}` }}
           >
             <div
@@ -558,6 +575,7 @@ export default function ManeuveringBoard({
           </div>
         </CardContent>
       </Card>
+      </div>
 
       {/* Print Mode terpisah: portal ke <body> */}
       {printScope && createPortal(
