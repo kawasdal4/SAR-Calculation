@@ -898,21 +898,34 @@ ATURAN MEMORI WORKSPACE:
     let result: Record<string, unknown> | undefined;
     let lastError: Error | undefined;
     let usedModel: (typeof GEMINI_MODELS)[number] = GEMINI_MODELS[0];
-    for (const model of GEMINI_MODELS) {
+    for (let modelIdx = 0; modelIdx < GEMINI_MODELS.length; modelIdx += 1) {
+      const model = GEMINI_MODELS[modelIdx];
       triedModels.push(model);
       for (let attempt = 0; attempt <= MAX_RETRIES_PER_MODEL; attempt += 1) {
-        if (Date.now() >= geminiDeadlineMs) {
+        // Timeout dinamis per percobaan: sisa anggaran dikurangi (a) cadangan
+        // 50s per model yang belum dicoba — model lite di urutan akhir paling
+        // sering berhasil saat high-demand, dan dulu tidak pernah mendapat
+        // giliran karena dua model besar menghabiskan 2×120s — serta (b) ruang
+        // untuk membuat respons JSON (Vercel mematikan function pada 300s).
+        // Sebelumnya AbortSignal.timeout memakai nilai tetap 120s, jadi
+        // percobaan yang mulai dekat deadline bisa berjalan MELEWATI anggaran.
+        const modelsLeftAfter = GEMINI_MODELS.length - 1 - modelIdx;
+        const attemptTimeoutMs = Math.min(
+          GEMINI_REQUEST_TIMEOUT_MS,
+          geminiDeadlineMs - Date.now() - modelsLeftAfter * 50_000 - 8_000,
+        );
+        if (attemptTimeoutMs < 25_000) {
           lastError = lastError ?? new Error(`Anggaran waktu permintaan Gemini (${GEMINI_TOTAL_BUDGET_MS / 1000} detik) tercapai.`);
-          console.warn(`[AI chat] Anggaran waktu Gemini habis (budgetMs=${GEMINI_TOTAL_BUDGET_MS}); percobaan dihentikan.`);
+          console.warn(`[AI chat] Anggaran waktu Gemini habis (budgetMs=${GEMINI_TOTAL_BUDGET_MS}, sisa=${geminiDeadlineMs - Date.now()}ms); percobaan dihentikan.`);
           break;
         }
-        console.info(`[AI chat] Gemini request started (model=${model}, attempt=${attempt + 1}, files=${incomingFiles.length}).`);
+        console.info(`[AI chat] Gemini request started (model=${model}, attempt=${attempt + 1}, timeoutMs=${Math.round(attemptTimeoutMs / 1000)}s, files=${incomingFiles.length}).`);
         let suggestedRetryDelayMs: number | null = null;
         try {
           const response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-            signal: AbortSignal.timeout(GEMINI_REQUEST_TIMEOUT_MS),
+            signal: AbortSignal.timeout(attemptTimeoutMs),
             body: JSON.stringify({
               model,
               input,
@@ -951,11 +964,13 @@ ATURAN MEMORI WORKSPACE:
         } catch (requestError) {
           if (requestError instanceof Error && requestError.message.includes('(model:')) throw requestError;
           if (requestError instanceof Error && (requestError.name === 'TimeoutError' || requestError.name === 'AbortError')) {
-            lastError = new Error(`Gemini ${model} tidak merespons dalam ${GEMINI_REQUEST_TIMEOUT_MS / 1000} detik.`);
-            console.warn(`[AI chat] Gemini request timed out (model=${model}, attempt=${attempt + 1}, timeoutMs=${GEMINI_REQUEST_TIMEOUT_MS}).`);
-            // Timeout = galat sementara: lanjut ke percobaan berikutnya (backoff di
-            // bawah) selama anggaran waktu total tersedia — JANGAN langsung pindah
-            // model, sebelumnya `break` di sini membuat percobaan kedua tidak pernah jalan.
+            lastError = new Error(`Gemini ${model} tidak merespons dalam ${Math.round(attemptTimeoutMs / 1000)} detik.`);
+            console.warn(`[AI chat] Gemini request timed out (model=${model}, attempt=${attempt + 1}, timeoutMs=${Math.round(attemptTimeoutMs)}).`);
+            // Timeout = model ini lambat untuk payload ini; mengulang model yang
+            // SAMA biasanya timeout lagi (kasus nyata Vercel: 3.8-flash 2×120s
+            // menghabiskan seluruh anggaran sehingga 3.7 dan lite tidak pernah
+            // dicoba). Langsung pindah ke model berikutnya yang lebih cepat.
+            break;
           }
           lastError = requestError instanceof Error ? requestError : new Error('Koneksi ke Gemini gagal.');
         }
