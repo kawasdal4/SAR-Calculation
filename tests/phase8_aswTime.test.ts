@@ -16,6 +16,7 @@ import {
   roundHalfUpToMinute,
   addMinutesBasarnas,
   generateAswObservationTimes,
+  generateAswObservationWindows,
   buildAswObservationsFromCase,
 } from '../src/lib/sar/aswTime';
 
@@ -170,6 +171,95 @@ test('buildAswObservationsFromCase: angin kurang → baris sisa angin 0, waktu t
 test('buildAswObservationsFromCase: waktu tidak terparse → fallback baris lama (tanpa waktu)', () => {
   const rows = buildAswObservationsFromCase('?', '?', '6h', [{ windDirFrom: 90, windSpeed: 18 }]);
   expect(rows).toEqual([{ timeObs: '', timeStart: '', timeEnd: '', hours: 0, windDirFrom: 90, windSpeed: 18 }]);
+});
+
+// ---------------------------------------------------------------------------
+// Pasangkan angin per WAKTU observasi (obsTime) — bukan per urutan array.
+// Bug nyata: tabel "Data Angin" dua hari (0000 Z, 0600 Z, 1200 Z, 1800 Z per
+// hari) → angin jam 00.00 (127°/14) justru dipakai untuk baris 06.00 karena
+// merge lama per indeks.
+// ---------------------------------------------------------------------------
+
+// Tabel soal pengguna: dua hari, empat observasi per hari (Z).
+const DATA_ANGIN_2_HARI = [
+  { obsTime: '17 November 2026 0000 Z', windDirFrom: 127, windSpeed: 14 },
+  { obsTime: '17 November 2026 0600 Z', windDirFrom: 162, windSpeed: 15 },
+  { obsTime: '17 November 2026 1200 Z', windDirFrom: 150, windSpeed: 18 },
+  { obsTime: '17 November 2026 1800 Z', windDirFrom: 170, windSpeed: 15 },
+  { obsTime: '18 November 2026 0000 Z', windDirFrom: 162, windSpeed: 20 },
+  { obsTime: '18 November 2026 0600 Z', windDirFrom: 154, windSpeed: 15 },
+  { obsTime: '18 November 2026 1200 Z', windDirFrom: 162, windSpeed: 15 },
+  { obsTime: '18 November 2026 1800 Z', windDirFrom: 153, windSpeed: 20 },
+];
+
+test('angin ber-obsTime dua hari dipasangkan per WAKTU: baris 06.00 dapat angin 0600 Z (bukan 0000 Z)', () => {
+  const rows = buildAswObservationsFromCase(
+    '17 Nov 2026 07.00 UTC',
+    '18 November 2026 01.00 UTC',
+    '6h',
+    DATA_ANGIN_2_HARI,
+  );
+  expect(rows.map((r) => r.timeObs)).toEqual(['06.00', '12.00', '18.00', '00.00']);
+  expect(rows.map((r) => `${r.windDirFrom}°/${r.windSpeed}`)).toEqual([
+    '162°/15', // 0600 Z 17 Nov — bukan 127°/14 milik 0000 Z
+    '150°/18', // 1200 Z 17 Nov
+    '170°/15', // 1800 Z 17 Nov
+    '162°/20', // 0000 Z 18 Nov — bukan 170°/15 milik 1800 Z 17 Nov
+  ]);
+});
+
+test('angin ber-obsTime tanpa tanggal: alignment kronologis melewatkan entri sebelum distress', () => {
+  // 0000 Z pertama (sebelum distress 07.00) dilewati; 0000 Z kedua yang
+  // dipakai untuk baris 00.00 — urutan kronologis wajib terjaga.
+  const rows = buildAswObservationsFromCase('07.00 UTC', '01.00 UTC', '6h', [
+    { obsTime: '0000 Z', windDirFrom: 127, windSpeed: 14 },
+    { obsTime: '0600 Z', windDirFrom: 162, windSpeed: 15 },
+    { obsTime: '1200 Z', windDirFrom: 150, windSpeed: 18 },
+    { obsTime: '1800 Z', windDirFrom: 170, windSpeed: 15 },
+    { obsTime: '0000 Z', windDirFrom: 162, windSpeed: 20 },
+  ]);
+  expect(rows.map((r) => `${r.windDirFrom}°/${r.windSpeed}`)).toEqual(['162°/15', '150°/18', '170°/15', '162°/20']);
+});
+
+test('angin ber-obsTime 4 baris persis (sudah sesuai jendela) tetap benar', () => {
+  const rows = buildAswObservationsFromCase('17 Nov 2026 07.00 UTC', '18 November 2026 01.00 UTC', '6h', [
+    { obsTime: '17 November 2026 0600 Z', windDirFrom: 162, windSpeed: 15 },
+    { obsTime: '17 November 2026 1200 Z', windDirFrom: 150, windSpeed: 18 },
+    { obsTime: '17 November 2026 1800 Z', windDirFrom: 170, windSpeed: 15 },
+    { obsTime: '18 November 2026 0000 Z', windDirFrom: 162, windSpeed: 20 },
+  ]);
+  expect(rows.map((r) => `${r.windDirFrom}°/${r.windSpeed}`)).toEqual(['162°/15', '150°/18', '170°/15', '162°/20']);
+});
+
+test('angin hari lain dengan jam sama TIDAK menempel ke baris (0600 Z 18 Nov ≠ baris 06.00 17 Nov)', () => {
+  const rows = buildAswObservationsFromCase('17 Nov 2026 07.00 UTC', '18 November 2026 01.00 UTC', '6h', [
+    { obsTime: '18 November 2026 0600 Z', windDirFrom: 154, windSpeed: 15 },
+    { obsTime: '18 November 2026 1200 Z', windDirFrom: 162, windSpeed: 15 },
+  ]);
+  // Tidak ada entri 17 Nov → semua baris 0 (bukan mengambil angin hari lain).
+  expect(rows.map((r) => r.windSpeed)).toEqual([0, 0, 0, 0]);
+});
+
+test('obsTime ada tetapi tidak satu pun terparse → fallback perilaku lama (per indeks)', () => {
+  const rows = buildAswObservationsFromCase('17 Nov 2026 07.00 UTC', '18 November 2026 01.00 UTC', '6h', [
+    { obsTime: 'n/a', windDirFrom: 90, windSpeed: 18 },
+    { obsTime: '??', windDirFrom: 110, windSpeed: 20 },
+  ]);
+  expect(rows.map((r) => r.windDirFrom)).toEqual([90, 110, 0, 0]);
+});
+
+test('generateAswObservationWindows: jam absolut per baris (FAKFAK dua hari)', () => {
+  const rows = generateAswObservationWindows('17 Nov 2026 07.00 UTC', '18 November 2026 01.00 UTC', '6h');
+  expect(rows.map((r) => [r.absObs, r.absStart, r.absEnd])).toEqual([
+    [17 * 24 + 6, 17 * 24 + 7, 17 * 24 + 9],   // obs 06.00 17 Nov, interval 07.00–09.00
+    [17 * 24 + 12, 17 * 24 + 9, 17 * 24 + 15], // obs 12.00
+    [17 * 24 + 18, 17 * 24 + 15, 17 * 24 + 21], // obs 18.00
+    [18 * 24 + 0, 17 * 24 + 21, 18 * 24 + 1],  // obs 00.00 18 Nov (interval lintas tengah malam)
+  ]);
+  expect(rows.every((r) => r.absAnchored)).toBe(true);
+  // Tanpa tanggal di kedua waktu → abs tidak dijangkar (pencocokan per jam saja).
+  const dayless = generateAswObservationWindows('07.00 UTC', '01.00 UTC', '6h');
+  expect(dayless.every((r) => !r.absAnchored)).toBe(true);
 });
 
 // ---------------------------------------------------------------------------

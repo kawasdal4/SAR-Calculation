@@ -35,6 +35,23 @@ export interface AswTimeRow {
   hours: number;
 }
 
+/**
+ * Baris jendela observasi + jam absolut (day*24 + jam, acuan tanggal distress).
+ * Dipakai untuk mencocokkan angin soal ke baris worksheet berdasarkan WAKTU
+ * observasi — bukan urutan array — sehingga angin jam 00.00 tidak tertukar
+ * dengan baris 06.00 (bug tabel "Data Angin" dua hari).
+ */
+export interface AswWindowRow extends AswTimeRow {
+  /** Jam absolut time of observation (mis. 17 Nov 06.00 → 17*24+6 = 414). */
+  absObs: number;
+  /** Jam absolut mulai interval. */
+  absStart: number;
+  /** Jam absolut akhir interval (bisa melewati 24 hari berikutnya). */
+  absEnd: number;
+  /** true bila distress & datum memuat tanggal sehingga nilai absolut valid lintas hari. */
+  absAnchored: boolean;
+}
+
 export interface SarDateParts {
   year?: number;
   month: number;
@@ -175,17 +192,18 @@ export const OBS_WINDOWS_3H: { obsHour: number; startHour: number; endHour: numb
 ];
 
 /**
- * Potong rentang distress → datum ke jendela observasi BMKG (6h atau 3h).
+ * Potong rentang distress → datum ke jendela observasi BMKG (6h atau 3h)
+ * beserta jam absolut tiap baris untuk pencocokan angin per waktu.
  * Interval pertama mulai tepat di waktu distress, interval terakhir berakhir
  * tepat di waktu datum. Bila kedua waktu tanpa info hari dan datum ≤ distress,
  * datum diasumsikan hari berikutnya (kasus soal: distress sore, datum dini hari).
  * Mengembalikan [] bila waktu tidak bisa diparse atau rentangnya tidak sah.
  */
-export function generateAswObservationTimes(
+export function generateAswObservationWindows(
   distressStr: string,
   datumStr: string,
   mode: '6h' | '3h',
-): AswTimeRow[] {
+): AswWindowRow[] {
   const distress = parseSarTimeToHours(distressStr);
   const datum = parseSarTimeToHours(datumStr);
   if (!distress || !datum) return [];
@@ -199,8 +217,9 @@ export function generateAswObservationTimes(
 
   const windows = mode === '6h' ? OBS_WINDOWS_6H : OBS_WINDOWS_3H;
   const totalSpanHours = datumTotal - distressTotal;
+  const absAnchored = distress.hasDay && datum.hasDay;
 
-  const result: AswTimeRow[] = [];
+  const result: AswWindowRow[] = [];
   let cursor = distressTotal % 24;
   let hoursAccounted = 0;
   let safetyCounter = 0;
@@ -236,11 +255,27 @@ export function generateAswObservationTimes(
     }
     const intervalEnd = (intervalStart + intervalHours) % 24;
 
+    // Jam absolut time of observation: kandidat hari yang sama / ±1 hari,
+    // pilih yang terdekat ke tengah interval (jendela terpotong di distress/
+    // datum membuat jam obs bisa berada di luar intervalnya sendiri).
+    const absStart = distressTotal + hoursAccounted;
+    const absEnd = absStart + intervalHours;
+    const mid = (absStart + absEnd) / 2;
+    const base = absStart - intervalStart + foundWindow.obsHour;
+    let absObs = base;
+    for (const cand of [base - 24, base, base + 24]) {
+      if (Math.abs(cand - mid) < Math.abs(absObs - mid)) absObs = cand;
+    }
+
     result.push({
       timeObs: formatHHMM(foundWindow.obsHour),
       timeStart: formatHHMM(intervalStart),
       timeEnd: formatHHMM(intervalEnd),
       hours: Math.round(intervalHours * 10) / 10,
+      absObs,
+      absStart,
+      absEnd,
+      absAnchored,
     });
 
     hoursAccounted += intervalHours;
@@ -251,19 +286,121 @@ export function generateAswObservationTimes(
 }
 
 /**
- * Bangun baris observasi ASW lengkap dari data kasus AI: waktu dihitung dari
- * rentang distress → datum, angin dari model di-merge per indeks. Bila waktu
- * tidak bisa diparse, fallback ke perilaku lama (baris tanpa waktu, hours 0)
- * supaya worksheet tetap mencoba regenerasi sendiri.
+ * Versi ringkas untuk worksheet: kolom waktu saja (bentuk publik lama yang
+ * dibandingkan strict toEqual oleh pengujian & dirender tabel).
+ */
+export function generateAswObservationTimes(
+  distressStr: string,
+  datumStr: string,
+  mode: '6h' | '3h',
+): AswTimeRow[] {
+  return generateAswObservationWindows(distressStr, datumStr, mode).map((w) => ({
+    timeObs: w.timeObs,
+    timeStart: w.timeStart,
+    timeEnd: w.timeEnd,
+    hours: w.hours,
+  }));
+}
+
+/**
+ * Satu baris angin dari model (set_asw_case). obsTime = waktu observasi baris
+ * ini PERSIS seperti di soal ("17 November 2026 0000 Z", "0600 Z") — kunci
+ * pencocokan angin ke baris worksheet yang benar.
+ */
+export interface AswCaseWindEntry {
+  obsTime?: string;
+  windDirFrom: number;
+  windSpeed: number;
+}
+
+/** Toleransi pencocokan jam observasi: ±15 menit (jarak antar-observasi ≥ 3 jam). */
+const ASW_MATCH_EPS_HOURS = 0.25;
+
+interface AswTimedEntry {
+  /** Jam-of-day (0–24) hasil parse obsTime; null bila tidak ada / tidak sah. */
+  tod: number | null;
+  /** Jam absolut (day*24 + jam) bila obsTime memuat tanggal; null bila tidak. */
+  abs: number | null;
+  windDirFrom: number;
+  windSpeed: number;
+}
+
+/**
+ * Pasangkan baris worksheet (urut waktu) dengan entri angin soal (urut tabel)
+ * memakai alignment monotone (DP): keduanya kronologis, jadi pasangan yang sah
+ * wajib naik bersama — alignment inilah yang membuat entri 0000 Z pertama
+ * (sebelum distress) dilewati alih-alih menempel ke baris 00.00.
+ * Entri tanpa obsTime yang sah tidak pernah dipasangkan.
+ * Mengembalikan indeks entry untuk tiap baris (-1 = tidak ada yang cocok).
+ */
+function matchWindEntriesToWindows(rows: AswWindowRow[], entries: AswTimedEntry[]): number[] {
+  const nR = rows.length;
+  const nE = entries.length;
+  const rowTod = rows.map((r) => parseSarTimeToHours(r.timeObs)?.hours ?? -1);
+
+  const canMatch = (i: number, j: number): boolean => {
+    const e = entries[j];
+    if (e.tod === null) return false;
+    if (rowTod[i] < 0 || Math.abs(e.tod - (rowTod[i] % 24)) > ASW_MATCH_EPS_HOURS) return false;
+    // Entri bertanggal hanya cocok bila jam absolutnya sama — angin 0600 Z hari
+    // lain tidak boleh menempel ke baris 06.00 hari ini.
+    if (e.abs !== null && rows[i].absAnchored && Math.abs(e.abs - rows[i].absObs) > ASW_MATCH_EPS_HOURS) return false;
+    return true;
+  };
+
+  // DP[i][j] = biaya minimum menyelaraskan rows[i..] dengan entries[j..]
+  // (biaya = jumlah baris/entri yang tidak terpasang).
+  const INF = 1e9;
+  const dp: number[][] = Array.from({ length: nR + 1 }, () => new Array<number>(nE + 1).fill(0));
+  for (let j = 0; j <= nE; j += 1) dp[nR][j] = nE - j;
+  for (let i = 0; i <= nR; i += 1) dp[i][nE] = nR - i;
+  for (let i = nR - 1; i >= 0; i -= 1) {
+    for (let j = nE - 1; j >= 0; j -= 1) {
+      let best = Math.min(dp[i][j + 1] + 1, dp[i + 1][j] + 1);
+      if (canMatch(i, j)) best = Math.min(best, dp[i + 1][j + 1]);
+      dp[i][j] = best;
+    }
+  }
+
+  // Rekonstruksi pasangan (prioritas: match > lewati entry > lewati baris).
+  const rowEntry = new Array<number>(nR).fill(-1);
+  let i = 0;
+  let j = 0;
+  while (i < nR && j < nE) {
+    const skipEntry = dp[i][j + 1] + 1;
+    const skipRow = dp[i + 1][j] + 1;
+    const take = canMatch(i, j) ? dp[i + 1][j + 1] : INF;
+    if (take <= skipEntry && take <= skipRow) {
+      rowEntry[i] = j;
+      i += 1;
+      j += 1;
+    } else if (skipEntry <= skipRow) {
+      j += 1;
+    } else {
+      i += 1;
+    }
+  }
+  return rowEntry;
+}
+
+/**
+ * Bangun baris observasi ASW lengkap dari data kasus AI. Waktu baris dihitung
+ * dari rentang distress → datum; angin dipasangkan:
+ *  1) bila entri membawa obsTime yang sah → per WAKTU observasi (alignment
+ *     monotone, entri di luar rentang dilewati) — memperbaiki kasus angin
+ *     jam 00.00 yang tertukar ke baris 06.00;
+ *  2) bila tidak ada obsTime yang sah → perilaku lama (merge per indeks).
+ * Bila waktu distress/datum tidak bisa diparse, fallback baris tanpa waktu
+ * (hours 0) supaya worksheet tetap mencoba regenerasi sendiri.
  */
 export function buildAswObservationsFromCase(
   distressTime: string,
   datumTime: string,
   intervalMode: '6h' | '3h',
-  windData?: ReadonlyArray<{ windDirFrom: number; windSpeed: number }>,
+  windData?: ReadonlyArray<AswCaseWindEntry>,
 ): ASWObservation[] {
-  const times = generateAswObservationTimes(distressTime, datumTime, intervalMode);
-  if (times.length === 0) {
+  const windows = generateAswObservationWindows(distressTime, datumTime, intervalMode);
+  if (windows.length === 0) {
     return (windData ?? []).map((w) => ({
       timeObs: '',
       timeStart: '',
@@ -273,13 +410,38 @@ export function buildAswObservationsFromCase(
       windSpeed: w.windSpeed,
     }));
   }
-  return times.map((t, i) => ({
+
+  const entries: AswTimedEntry[] = (windData ?? []).map((w) => {
+    const parsed = w.obsTime && w.obsTime.trim() ? parseSarTimeToHours(w.obsTime) : null;
+    return {
+      tod: parsed ? parsed.hours % 24 : null,
+      abs: parsed && parsed.hasDay ? parsed.hours : null,
+      windDirFrom: w.windDirFrom,
+      windSpeed: w.windSpeed,
+    };
+  });
+  const anyTimed = entries.some((e) => e.tod !== null);
+
+  if (!anyTimed) {
+    // Perilaku lama (regresi terjaga): tanpa obsTime → merge per indeks.
+    return windows.map((t, i) => ({
+      timeObs: t.timeObs,
+      timeStart: t.timeStart,
+      timeEnd: t.timeEnd,
+      hours: t.hours,
+      windDirFrom: windData?.[i]?.windDirFrom ?? 0,
+      windSpeed: windData?.[i]?.windSpeed ?? 0,
+    }));
+  }
+
+  const rowEntry = matchWindEntriesToWindows(windows, entries);
+  return windows.map((t, i) => ({
     timeObs: t.timeObs,
     timeStart: t.timeStart,
     timeEnd: t.timeEnd,
     hours: t.hours,
-    windDirFrom: windData?.[i]?.windDirFrom ?? 0,
-    windSpeed: windData?.[i]?.windSpeed ?? 0,
+    windDirFrom: rowEntry[i] >= 0 ? entries[rowEntry[i]].windDirFrom : 0,
+    windSpeed: rowEntry[i] >= 0 ? entries[rowEntry[i]].windSpeed : 0,
   }));
 }
 

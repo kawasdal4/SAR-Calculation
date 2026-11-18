@@ -637,7 +637,7 @@ export default function Home() {
     distressTime: string;
     datumTime: string;
     intervalMode: '6h' | '3h';
-    windData: { windDirFrom: number; windSpeed: number }[];
+    windData: { obsTime?: string; windDirFrom: number; windSpeed: number }[];
     caseTitle?: string;
   }) => {
     // Konversi format tanggal/waktu apa pun dari soal → Basarnas MMDD.HHMM Z

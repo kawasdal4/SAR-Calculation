@@ -57,7 +57,7 @@ interface AIChatPanelProps {
     distressTime: string;
     datumTime: string;
     intervalMode: '6h' | '3h';
-    windData: { windDirFrom: number; windSpeed: number }[];
+    windData: { obsTime?: string; windDirFrom: number; windSpeed: number }[];
     caseTitle?: string;
   }) => void;
   onApplyAWA?: (data: {
@@ -897,10 +897,16 @@ export default function AIChatPanel({
           distressTime?: string;
           datumTime?: string;
           intervalMode?: string;
-          windData?: unknown[];
+          windData?: { obsTime?: string; windDirFrom?: number; windSpeed?: number }[];
           caseTitle?: string;
         };
-        return `📋 ASW: ${a.caseTitle || 'Kasus Baru'}\nDistress: ${a.distressTime} → Datum: ${a.datumTime}\nInterval: ${a.intervalMode}, ${a.windData?.length || 0} observasi`;
+        // Pratinjau memuat tiap baris angin beserta obsTime-nya supaya pengguna
+        // bisa memastikan angin jam 00.00 tidak tertukar dengan baris 06.00.
+        const windRows = a.windData ?? [];
+        const windSummary = windRows.length
+          ? windRows.map((w) => `  • ${w.obsTime ? `${w.obsTime}: ` : ''}${w.windDirFrom ?? '?'}° / ${w.windSpeed ?? '?'} kts`).join('\n')
+          : '  (tidak ada)';
+        return `📋 ASW: ${a.caseTitle || 'Kasus Baru'}\nDistress: ${a.distressTime} → Datum: ${a.datumTime}\nInterval: ${a.intervalMode}, ${windRows.length} observasi\n${windSummary}`;
       }
       case 'set_awa_case': {
         const a = fc.args as {
