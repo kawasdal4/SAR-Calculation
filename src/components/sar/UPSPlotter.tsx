@@ -16,11 +16,12 @@
  * native (≥300 DPI pada kertas) — tanpa screenshot/rasterisasi overlay.
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Map as MapIcon,
+  Maximize2,
   RotateCcw,
   ZoomIn,
   ZoomOut,
@@ -54,7 +55,33 @@ const TEMPLATE_SCREEN = '/templates/ups_vpos_original_web.jpg?v=2';
 const TEMPLATE_PRINT = '/templates/ups_vpos_original_print.jpg?v=2';
 
 /** Preset "rentang skala": menit busur yang dicakup radius rose. 60' = skala asli. */
-const UPS_SPAN_PRESETS = [120, 90, 60, 45, 30, 20, 15];
+const UPS_SPAN_PRESETS = [120, 90, 60, 45, 30, 20, 15, 10];
+/** Target isi rose pada auto skala: konten terjauh menempati ≤ 90% radius rose. */
+const UPS_FIT_TARGET = 0.9;
+
+/* ---- Tick skala adaptif: pilihan langkah menit agar tick selalu terbaca ---- */
+const TICK_STEPS = [1, 2, 5, 10, 15, 30, 60];
+const TICK_MAJOR_STEPS = [5, 10, 15, 30, 60, 120];
+
+/** Langkah tick minor terkecil yang jaraknya ≥ minGapPx pada skala terpakai. */
+function pickTickStep(pxPerMin: number, minGapPx: number): number {
+  return TICK_STEPS.find((step) => step * pxPerMin >= minGapPx) ?? 120;
+}
+
+/** Langkah label (tick major) terkecil > minor yang jaraknya ≥ minGapPx. */
+function pickMajorStep(minorStep: number, pxPerMin: number, minGapPx: number): number {
+  return TICK_MAJOR_STEPS.find((step) => step > minorStep && step * pxPerMin >= minGapPx) ?? minorStep * 5;
+}
+
+/**
+ * Auto skala dari analisis soal kasus: preset terkecil yang memuat radius konten
+ * pada ≤ UPS_FIT_TARGET radius rose — pas di lembar, tidak overflow, tidak terlalu kecil.
+ */
+function autoSpanNm(radiusNm: number): number {
+  const ascending = [...UPS_SPAN_PRESETS].sort((a, b) => a - b);
+  const need = radiusNm / UPS_FIT_TARGET;
+  return ascending.find((preset) => preset >= need) ?? ascending[ascending.length - 1];
+}
 
 type UserPlotPoint = {
   id: string;
@@ -262,14 +289,6 @@ export default function UPSPlotter({
     return maxD;
   }, [displayPoints, centerLat, centerLon]);
 
-  // Skala awal: pilih preset terkecil yang menampung semua titik di dalam lembar
-  // (faktor aman 1,7), tetapi tidak pernah lebih rapat dari skala asli lembar (60').
-  const [spanNm, setSpanNm] = useState<number>(() => {
-    const ascending = [...UPS_SPAN_PRESETS].sort((a, b) => a - b);
-    const fit = ascending.find((preset) => preset >= maxDistanceNm / 1.7) ?? 120;
-    return Math.max(UPS_ROSE_SPAN_MIN, fit);
-  });
-
   const [zoom, setZoom] = useState<number>(1);
   const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -353,6 +372,58 @@ export default function UPSPlotter({
     };
   }, [searchAreaCenter, searchAreaLength, searchAreaWidth, searchAreaOrientation]);
 
+  /* ==== Analisis skala dari soal kasus (auto fit pada lembar UPS) ==== */
+  // Radius area pencarian dari pusat rose: jarak pusat SA + setengah diagonal rect.
+  const searchRadiusNm = useMemo(() => {
+    if (!searchArea) return 0;
+    const c = latLonToUPS(searchArea.center, centerLat, centerLon);
+    return Math.hypot(c.xNm, c.yNm) + Math.hypot(searchArea.lengthNm, searchArea.widthNm) / 2;
+  }, [searchArea, centerLat, centerLon]);
+
+  // Radius konten kasus: titik worksheet + area pencarian (titik manual tidak memicu auto).
+  const worksheetRadiusNm = useMemo(() => {
+    let maxD = 6;
+    points.forEach((p) => {
+      const { xNm, yNm } = latLonToUPS(p.pos, centerLat, centerLon);
+      const d = Math.hypot(xNm, yNm);
+      if (d > maxD) maxD = d;
+    });
+    return Math.max(maxD, searchRadiusNm);
+  }, [points, searchRadiusNm, centerLat, centerLon]);
+
+  // Radius seluruh konten (termasuk titik manual) — dipakai tombol Auto & analisis tampilan.
+  const contentRadiusNm = useMemo(
+    () => Math.max(maxDistanceNm, searchRadiusNm),
+    [maxDistanceNm, searchRadiusNm],
+  );
+
+  // Skala awal: preset terkecil yang memuat seluruh konten ≤ 90% radius rose (pas di lembar).
+  const [spanNm, setSpanNm] = useState<number>(() => autoSpanNm(worksheetRadiusNm));
+
+  // Skala selalu dianalisis ulang dari soal kasus saat data worksheet berubah.
+  const worksheetFitSig = useMemo(
+    () => `${points.map((p) => `${p.id}:${p.pos.lat.toFixed(5)},${p.pos.lng.toFixed(5)}`).join('|')}#${
+      searchArea
+        ? `${searchArea.center.lat.toFixed(5)},${searchArea.center.lng.toFixed(5)},${searchArea.lengthNm},${searchArea.widthNm},${searchArea.orientationDeg}`
+        : '-'
+    }`,
+    [points, searchArea],
+  );
+  useEffect(() => {
+    setSpanNm(autoSpanNm(worksheetRadiusNm));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [worksheetFitSig]);
+
+  const applyAutoSpan = () => setSpanNm(autoSpanNm(contentRadiusNm));
+  const isAutoSpan = spanNm === autoSpanNm(contentRadiusNm) || spanNm === autoSpanNm(worksheetRadiusNm);
+
+  // Info skala aktif untuk panel samping (padanan perhitungan tick di UpsSheetView).
+  const pxPerMinScreen = UPS_ROSE_R / spanNm;
+  const pxPerMinLonScreen = pxPerMinScreen * Math.max(0.05, Math.cos((centerLat * Math.PI) / 180));
+  const rulerMinorLat = pickTickStep(pxPerMinScreen, 13);
+  const rulerMajorLat = pickMajorStep(rulerMinorLat, pxPerMinScreen, 52);
+  const rulerMinorLon = pickTickStep(pxPerMinLonScreen, 13);
+
   // Mouse pan handlers (screen)
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
@@ -420,7 +491,7 @@ export default function UPSPlotter({
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              {/* Span NM selector */}
+              {/* Span NM selector + auto fit dari analisis kasus */}
               <div className="flex items-center gap-1.5 bg-white px-2 py-1 rounded border border-slate-300 text-xs shadow-2xs">
                 <span className="text-slate-600 font-medium">Radius rose =</span>
                 <select
@@ -435,6 +506,19 @@ export default function UPSPlotter({
                   ))}
                 </select>
               </div>
+              <button
+                type="button"
+                onClick={applyAutoSpan}
+                title="Skala otomatis: dianalisis dari jarak terjauh soal kasus agar pas di dalam lembar"
+                className={`p-1.5 rounded border text-xs flex items-center gap-1 transition-colors ${
+                  isAutoSpan
+                    ? 'bg-emerald-600 text-white border-emerald-700'
+                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                }`}
+              >
+                <Maximize2 className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Auto</span>
+              </button>
 
               {/* Toggle badges */}
               <button
@@ -535,18 +619,39 @@ export default function UPSPlotter({
               <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Plot titik dan rute UPS</h4>
               <div className="rounded border border-slate-200 bg-slate-50 p-2">
                 <div className="flex justify-between text-[10px] text-slate-600">
-                  <span>Skala lembar asli: 1 tick = 1′ = 1 NM</span>
-                  <span>Rose radius 60 NM</span>
+                  <span>Skala aktif: radius rose {spanNm}′ = {spanNm} NM</span>
+                  <span className={isAutoSpan ? 'font-semibold text-emerald-700' : 'font-semibold text-amber-700'}>
+                    {isAutoSpan ? 'auto · dari kasus' : 'manual'}
+                  </span>
                 </div>
-                <svg viewBox="0 0 240 24" className="mt-1 h-6 w-full" role="img" aria-label="Ruler skala lembar asli: tick tiap 1 menit busur, label tiap 10 menit">
+                <p className="mt-0.5 text-[10px] leading-snug text-slate-500">
+                  Analisis soal kasus: konten terjauh <strong>{contentRadiusNm.toFixed(1)} NM</strong> → rose {spanNm}′
+                  (terisi {Math.min(999, Math.round((contentRadiusNm / spanNm) * 100))}% radius). Tick kecil: lintang
+                  {' '}{rulerMinorLat}′ / bujur {rulerMinorLon}′ · label tiap {rulerMajorLat}′.
+                </p>
+                <svg
+                  viewBox="0 0 240 24"
+                  className="mt-1 h-6 w-full"
+                  role="img"
+                  aria-label={`Ruler skala aktif: tick minor tiap ${rulerMinorLat} menit busur, label tiap ${rulerMajorLat} menit`}
+                >
                   <line x1="4" y1="19" x2="236" y2="19" stroke="#334155" strokeWidth="1" />
-                  {Array.from({ length: 41 }, (_, index) => {
-                    const major = index % 10 === 0;
-                    return <line key={index} x1={4 + index * (232 / 40)} y1={major ? 3 : 12} x2={4 + index * (232 / 40)} y2="20" stroke={major ? '#0f172a' : '#94a3b8'} strokeWidth={major ? 1.5 : 0.75} />;
+                  {Array.from({ length: (rulerMajorLat / rulerMinorLat) * 2 + 1 }, (_, index) => {
+                    const major = index % (rulerMajorLat / rulerMinorLat) === 0;
+                    const x = 4 + index * (232 / ((rulerMajorLat / rulerMinorLat) * 2));
+                    return <line key={index} x1={x} y1={major ? 3 : 12} x2={x} y2="20" stroke={major ? '#9d174d' : '#d946ef'} strokeWidth={major ? 1.5 : 0.75} />;
                   })}
-                  {Array.from({ length: 5 }, (_, index) => (
-                    <text key={`lbl-${index}`} x={4 + index * 5 * (232 / 40)} y="11" fontSize="7" textAnchor="middle" fill="#0f172a" fontWeight="bold">
-                      {index * 10}′
+                  {[0, 1, 2].map((j) => (
+                    <text
+                      key={`lbl-${j}`}
+                      x={j === 0 ? 4 : j === 2 ? 236 : 120}
+                      y="11"
+                      fontSize="7"
+                      textAnchor={j === 0 ? 'start' : j === 2 ? 'end' : 'middle'}
+                      fill="#9d174d"
+                      fontWeight="bold"
+                    >
+                      {j * rulerMajorLat}′
                     </text>
                   ))}
                 </svg>
@@ -652,7 +757,7 @@ export default function UPSPlotter({
               </div>
               <ul className="list-disc list-inside space-y-1 text-slate-700">
                 <li>Scan asli lembar <strong>VP-OS (Celestaire Universal Plotting Sheet)</strong> — landscape, 300 DPI.</li>
-                <li>Skala asli lembar: <strong>1 tick = 1′ = 1 NM</strong>; radius rose 60 NM; fan <strong>Longitude Scale</strong> di kanan bawah untuk skala bujur sesuai mid-latitude.</li>
+                <li>Skala asli lembar: <strong>1 tick = 1′ = 1 NM</strong>; radius rose mengikuti analisis soal kasus (tombol <strong>Auto</strong>). Tick skala adaptif warna <strong>magenta</strong>: lintang di tepi kiri/kanan lembar, bujur di sepanjang paralel — spacing menyesuaikan skala aktif; fan <strong>Longitude Scale</strong> asli tetap tersedia untuk pembanding.</li>
                 <li>Hasil Aeronautical Drift (Glide & Parachute) memplot lintasan ke <strong>LKP</strong>; dari LKP lanjut ke <strong>Datum Left & Right</strong>.</li>
                 <li><strong>Drag/geser</strong> untuk memindah lembar, <strong>zoom</strong> untuk detail kompas, <strong>Cetak lembar</strong> untuk PDF vektor A3/A4.</li>
               </ul>
@@ -823,6 +928,44 @@ function UpsSheetView({
         ? { height: '100%', width: 'auto' }
         : { width: '100%', height: 'auto' };
 
+  /* ---- Tick skala adaptif (magenta): garis kecil-kecil lintang & bujur sesuai skala aktif ----
+     Lintang: kolom tick di tepi kiri & kanan lembar (bukan hanya tengah). Bujur: tick di
+     sepanjang kelima paralel. Spacing dihitung dari effectiveSpan sehingga selalu cocok
+     dengan skala yang dipakai menggambar (hasil analisis soal kasus). */
+  const SCALE_TICK = '#be185d';
+  const SCALE_LABEL = '#9d174d';
+  const SCALE_LABEL_FONT = 36;
+  const pxPerMinLat = pxPerNm; // 1' lintang = 1 NM
+  const pxPerMinLon = pxPerNm * Math.max(0.05, Math.cos((centerLat * Math.PI) / 180));
+  const tickGap = isPrint ? 12 : 13;
+  const latMinor = pickTickStep(pxPerMinLat, tickGap);
+  const latMajor = pickMajorStep(latMinor, pxPerMinLat, tickGap * 4);
+  const lonMinor = pickTickStep(pxPerMinLon, tickGap);
+  // Label bujur berjajar horizontal: jarak antarlabel ≥ lebar teks terpanjang (digit terjauh + tanda menit).
+  const lonLabelGap = SCALE_LABEL_FONT * 0.62 * (String(Math.round(Math.min(UPS_CX - 90, VB_WIDTH - 90 - UPS_CX) / pxPerMinLon)).length + 1) + 16;
+  const lonMajor = pickMajorStep(lonMinor, pxPerMinLon, Math.max(tickGap * 4, lonLabelGap));
+
+  // Lima paralel printed scan (jarak 900 px = 60' skala asli) — dipakai sebagai baris tick bujur.
+  const PARALLEL_YS = [UPS_CY - 1800, UPS_CY - 900, UPS_CY, UPS_CY + 900, UPS_CY + 1800];
+  const latHalfMin = Math.floor(1800 / pxPerMinLat / latMinor) * latMinor;
+  const lonHalfMin = Math.floor(Math.min(UPS_CX - 90, VB_WIDTH - 90 - UPS_CX) / pxPerMinLon / lonMinor) * lonMinor;
+
+  const latTicks: { y: number; min: number; major: boolean }[] = [];
+  for (let m = -latHalfMin; m <= latHalfMin; m += latMinor) {
+    latTicks.push({ y: UPS_CY - m * pxPerMinLat, min: m, major: m % latMajor === 0 });
+  }
+  const lonTicks: { x: number; min: number; major: boolean }[] = [];
+  for (let m = -lonHalfMin; m <= lonHalfMin; m += lonMinor) {
+    lonTicks.push({ x: UPS_CX + m * pxPerMinLon, min: m, major: m % lonMajor === 0 });
+  }
+  // Zona fan Longitude Scale & barcode scan — tick/label tidak digambar di atasnya.
+  const inFanBox = (x: number, y: number) => x > 2850 && y > 2740;
+  const inBarcodeBox = (y: number) => y > 3180 && y < 3560;
+  const LAT_COLS = [
+    { key: 'lat-l', x: 72, labelX: 108, anchor: 'start' as const, skipLabel: inBarcodeBox },
+    { key: 'lat-r', x: VB_WIDTH - 72, labelX: VB_WIDTH - 108, anchor: 'end' as const, skipLabel: (y: number) => y > 2740 },
+  ];
+
   return (
     <svg
       viewBox={`0 0 ${VB_WIDTH} ${VB_HEIGHT}`}
@@ -878,6 +1021,80 @@ function UpsSheetView({
         height={VB_HEIGHT}
         preserveAspectRatio="none"
       />
+
+      {/* ===== Tick skala adaptif (magenta) — mengikuti skala aktif, bukan skala cetak asli ===== */}
+      <g aria-hidden="true">
+        {/* Skala lintang: kolom tick di tepi kiri & kanan lembar */}
+        {LAT_COLS.map((col) => (
+          <g key={col.key}>
+            <line x1={col.x} y1={PARALLEL_YS[0]} x2={col.x} y2={PARALLEL_YS[4]} stroke={SCALE_TICK} strokeWidth={1.4 * k} opacity={0.45} />
+            {latTicks.map((t) => (
+              <line
+                key={`${col.key}-t${t.min}`}
+                x1={col.x - (t.major ? 24 : 13) * k}
+                y1={t.y}
+                x2={col.x + (t.major ? 24 : 13) * k}
+                y2={t.y}
+                stroke={SCALE_TICK}
+                strokeWidth={t.major ? 3.2 * k : 2.2 * k}
+                opacity={t.major ? 0.95 : 0.6}
+              />
+            ))}
+            {latTicks.filter((t) => t.major && !col.skipLabel(t.y)).map((t) => (
+              <text
+                key={`${col.key}-l${t.min}`}
+                x={col.labelX}
+                y={t.y + 10}
+                textAnchor={col.anchor}
+                fontSize={SCALE_LABEL_FONT}
+                fontWeight="bold"
+                fill={SCALE_LABEL}
+                stroke="#ffffff"
+                strokeWidth={7}
+                paintOrder="stroke"
+                style={{ paintOrder: 'stroke' }}
+              >
+                {`${Math.abs(t.min)}′`}
+              </text>
+            ))}
+          </g>
+        ))}
+        {/* Skala bujur: tick di sepanjang kelima paralel */}
+        {PARALLEL_YS.map((py) => (
+          <g key={`lon-${py}`}>
+            {lonTicks.filter((t) => !inFanBox(t.x, py)).map((t) => (
+              <line
+                key={`lon-${py}-t${t.min}`}
+                x1={t.x}
+                y1={py - (t.major ? 20 : 11) * k}
+                x2={t.x}
+                y2={py + (t.major ? 20 : 11) * k}
+                stroke={SCALE_TICK}
+                strokeWidth={t.major ? 3.2 * k : 2.2 * k}
+                opacity={t.major ? 0.95 : 0.6}
+              />
+            ))}
+          </g>
+        ))}
+        {/* Label menit bujur — hanya pada paralel tengah agar lembar tetap bersih */}
+        {lonTicks.filter((t) => t.major && !inFanBox(t.x, UPS_CY)).map((t) => (
+          <text
+            key={`lon-l${t.min}`}
+            x={t.x}
+            y={UPS_CY + 50}
+            textAnchor="middle"
+            fontSize={SCALE_LABEL_FONT}
+            fontWeight="bold"
+            fill={SCALE_LABEL}
+            stroke="#ffffff"
+            strokeWidth={7}
+            paintOrder="stroke"
+            style={{ paintOrder: 'stroke' }}
+          >
+            {`${Math.abs(t.min)}′`}
+          </text>
+        ))}
+      </g>
 
       {/* Segmen vektor — tanpa filter saat cetak agar tetap murni vektor di PDF */}
       <g filter={isPrint ? undefined : `url(#ups-glow-${variant})`}>
@@ -1149,8 +1366,9 @@ function UpsPrintPortalBlock({
             </>
           )}
           <p className="mt-2 text-[6.5pt] text-slate-500 leading-snug">
-            Lembar asli VP-OS — 1 tick = 1′ = 1 NM, radius rose 60 NM. Bujur diplot memakai fan
-            Longitude Scale pada mid-latitude lembar. Jarak maksimum dari pusat: {maxDistanceNm.toFixed(1)} NM.
+            Lembar asli VP-OS — cetak selalu skala asli 1 tick = 1′ = 1 NM (radius rose 60 NM). Tick skala magenta
+            (lintang di tepi kiri/kanan, bujur sepanjang paralel) mengikuti skala aktif; fan Longitude Scale asli tetap
+            tersedia. Jarak maksimum dari pusat: {maxDistanceNm.toFixed(1)} NM.
             {outside.length > 0 && (
               <span className="block mt-1 font-semibold text-red-700">
                 Perhatian: {outside.length} titik di luar cakupan lembar pada skala asli — perluas ke lembar tambahan.
