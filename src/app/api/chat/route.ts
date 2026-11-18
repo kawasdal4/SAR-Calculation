@@ -80,6 +80,12 @@ PANDUAN ADW (AERONAUTICAL DRIFT WORKSHEET) — ASAL ANGKA & KETENTUAN:
 - Part B dihitung DUA KALI bila kasus memuat aircraft DAN parachute; simpan hasil tiap fase terpisah (aplikasi menggabungkan berurutan: glide pesawat dahulu, lalu drift parasut). Parachute dengan glide ratio 0 → Part C: aplikasi menghitung drift angin saja.
 - Contoh regresi (PD-AES, engines inop): Altmax 39.000 ft/Altmin 0, gr 4:1, TASg 190 kts, MH 158° Var 3°E, AWA 276°T/9.3 kts → B.6 = 4.797,5 ft/min; B.7 = 8,129 min; B.8 = 25,74 NM; B.9 = 161°T; B.11 = 96°T/1,259 NM; B.12 ≈ 158°T/26 NM; B.13 = 0131 Z. Gunakan untuk memeriksa proses, bukan sebagai nilai default.
 
+ATURAN WAKTU INSIDEN A.1 (worksheet ADW) — PILIHAN TANGGAL & WAKTU:
+- Point A.1 (Date/time) ADW = tanggal & waktu KEJADIAN (initial incident): saat kejadian distress terjadi — mis. saat ATC menerima panggilan MAYDAY, saat ditching/bail out terjadi. BUKAN tanggal & waktu Kantor SAR/RCC menerima informasi atau laporan kejadian. Drift dihitung dari waktu kejadian.
+- Analisis narasi soal: pisahkan (1) WAKTU KEJADIAN — "ATC menerima panggilan MAYDAY pukul ...", "kejadian pukul ...", "distress/ditching pukul ...", dan (2) WAKTU INFORMASI DITERIMA — "Kantor SAR menerima informasi pukul ...", "RCC menerima laporan pukul ...", "SAR diinformasikan pukul ...". A.1 diisi waktu kejadian (1), bukan waktu penerimaan informasi (2).
+- Contoh: "Pada 17 Nov 2026 16.05 WIT Kantor SAR Sorong menerima informasi dari ATC bahwa pada pukul 15.56 WIT ATC menerima panggilan MAYDAY" → A.1 = 17 Nov 2026 15.56 WIT: kirim date "17 Nov 2026" dan incidentTime "17 Nov 2026 15.56 WIT" — aplikasi mengonversi otomatis ke format Basarnas MMDD.HHMM; 16.05 WIT HANYA konteks waktu penerimaan laporan, JANGAN dipakai sebagai A.1.
+- WAJIB bertanya bila ragu: bila narasi memuat ≥2 kandidat waktu dan tidak jelas mana yang merupakan waktu kejadian untuk A.1 (mis. waktu MAYDAY vs waktu ditching berbeda tanpa keterangan, frasa tidak jelas, atau dua waktu kejadian sama-sama masuk akal) → JANGAN menentukan sendiri dan JANGAN menebak; panggil tool clarify_incident_time dengan question + candidates (label, value, frasa sumber soal). Pengguna memilih di kartu chat; gunakan jawaban pengguna PERSIS untuk date/incidentTime set_aero_drift_case. Bila waktu kejadian sudah jelas di soal, isi langsung tanpa bertanya.
+
 FORMAT TANGGAL-WAKTU (TW / DTG) — WAJIB dipahami untuk menafsirkan soal kasus:
 - Huruf zona waktu: G = WIB (UTC+7), H = WITA (UTC+8), I = WIT (UTC+9), Z = UTC (Zulu).
 - FORMAT TW (Basarnas): [Bulan][Tanggal] [Jam][Menit] [Zona]. Contoh: "TW 1117 1900 G" = 17 November pukul 19.00 WIB (11 = bulan November, 17 = tanggal, 1900 = pukul 19:00, G = WIB); varian "1122 1600 Z" / "1122.1600 Z" = 22 November pukul 16.00 UTC.
@@ -240,7 +246,7 @@ const tools: FunctionDeclaration[] = [
         },
         date: {
           type: SchemaType.STRING,
-          description: 'Tanggal insiden UTC bila disebut di soal, contoh: "22 Nov 2025"; jangan mengarang',
+          description: 'Tanggal KEJADIAN/insiden (bagian tanggal point A.1 ADW) bila disebut di soal, contoh: "17 Nov 2026". Pakai tanggal kejadian (MAYDAY/ditching/bail out), BUKAN tanggal Kantor SAR menerima informasi/laporan; jangan mengarang. Bila ragu antara beberapa tanggal, pakai clarify_incident_time.',
         },
         incidentPos: {
           type: SchemaType.OBJECT,
@@ -253,7 +259,7 @@ const tools: FunctionDeclaration[] = [
         },
         incidentTime: {
           type: SchemaType.STRING,
-          description: 'Waktu insiden (UTC) persis seperti di soal, format apa pun: "1117.0700 Z", "07.00 UTC", "17 Nov 2026 07.00 UTC"; jangan mengarang — aplikasi mengonversi otomatis ke format Basarnas',
+          description: 'Waktu KEJADIAN/insiden (point A.1 ADW) persis seperti di soal: waktu MAYDAY diterima ATC / ditching / bail out — BUKAN waktu Kantor SAR menerima informasi. Contoh: soal "Pada 17 Nov 2026 16.05 WIT Kantor SAR menerima informasi bahwa pukul 15.56 WIT ATC menerima MAYDAY" → kirim "17 Nov 2026 15.56 WIT", bukan 16.05. Format apa pun; jangan konversi zona — aplikasi mengonversi ke Basarnas otomatis. Bila ambigu antara beberapa kandidat waktu kejadian, panggil clarify_incident_time dulu — jangan menebak.',
         },
         useAircraftGlide: {
           type: SchemaType.BOOLEAN,
@@ -442,6 +448,42 @@ const tools: FunctionDeclaration[] = [
               source: {
                 type: SchemaType.STRING,
                 description: 'Kutipan frasa soal sumber kandidat, mis. "Pencarian kedua akan dilakukan pukul 10.00 WIT (03.00 UTC)"',
+              },
+            },
+            required: ['label', 'value'],
+          },
+        },
+      },
+      required: ['question', 'candidates'],
+    },
+  },
+  {
+    name: 'clarify_incident_time',
+    description: 'Menanyakan tanggal & waktu kejadian (point A.1 worksheet ADW) kepada pengguna saat soal ambigu atau ada beberapa kandidat waktu yang sama-sama masuk akal — JANGAN menentukan sendiri dan JANGAN menebak. Kirim pertanyaan + daftar kandidat waktu hasil tafsiran soal (label, value apa adanya, frasa sumber). Pengguna memilih salah satu kandidat atau mengisi manual di kartu chat; jawaban dikirim balik ke percakapan untuk dipakai sebagai date + incidentTime di set_aero_drift_case. Gunakan HANYA bila waktu kejadian ragu/ambigu; bila sudah jelas di soal (mis. jelas waktu MAYDAY vs waktu laporan diterima), isi langsung set_aero_drift_case tanpa bertanya.',
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        question: {
+          type: SchemaType.STRING,
+          description: 'Pertanyaan ringkas, mis. "Waktu mana yang dipakai sebagai waktu kejadian (A.1) worksheet ADW?"',
+        },
+        candidates: {
+          type: SchemaType.ARRAY,
+          description: 'Kandidat waktu kejadian hasil tafsiran soal, urut sesuai kemunculan di soal. Kirim array kosong bila tidak ada kandidat dan hanya minta input manual.',
+          items: {
+            type: SchemaType.OBJECT,
+            properties: {
+              label: {
+                type: SchemaType.STRING,
+                description: 'Keterangan kandidat yang mudah dibaca, mis. "Waktu MAYDAY diterima ATC — 17 Nov 2026 15.56 WIT"',
+              },
+              value: {
+                type: SchemaType.STRING,
+                description: 'Nilai waktu apa adanya dari soal (format apa pun), mis. "17 Nov 2026 15.56 WIT"',
+              },
+              source: {
+                type: SchemaType.STRING,
+                description: 'Kutipan frasa soal sumber kandidat, mis. "pada pukul 15.56 WIT ATC menerima panggilan MAYDAY dari pilot"',
               },
             },
             required: ['label', 'value'],

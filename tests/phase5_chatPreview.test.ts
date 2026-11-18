@@ -123,3 +123,12 @@ test('clarify_datum_time non-mutating: tanpa kontrak preview, jawaban lewat chat
   expect(buildChatPreviewContracts([{ name: 'clarify_datum_time', args: { question: 'q?', candidates: [] } }])).toEqual([]);
   expect(buildChatPreviewContract({ name: 'clarify_datum_time', args: {} })).toBeNull();
 });
+
+test('clarify_incident_time non-mutating: tanpa kontrak preview, jawaban lewat chat', () => {
+  // Tool klarifikasi waktu kejadian A.1 ADW tidak mengubah worksheet —
+  // kandidat waktu dijawab pengguna di kartu chat, lalu AI meneruskan
+  // set_aero_drift_case (date + incidentTime).
+  expect(CHAT_NON_MUTATING_TOOLS.has('clarify_incident_time')).toBe(true);
+  expect(buildChatPreviewContracts([{ name: 'clarify_incident_time', args: { question: 'q?', candidates: [] } }])).toEqual([]);
+  expect(buildChatPreviewContract({ name: 'clarify_incident_time', args: {} })).toBeNull();
+});

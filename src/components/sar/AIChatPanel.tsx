@@ -172,7 +172,7 @@ function formatFileSize(bytes?: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-/** Kandidat datum time hasil tafsiran AI atas soal (tool clarify_datum_time). */
+/** Kandidat waktu hasil tafsiran AI atas soal (tool clarify_datum_time / clarify_incident_time). */
 interface DatumTimeCandidate {
   label?: string;
   value?: string;
@@ -180,21 +180,26 @@ interface DatumTimeCandidate {
 }
 
 /**
- * Kartu klarifikasi datum time (tool clarify_datum_time, non-mutating):
- * pengguna memilih salah satu kandidat tafsiran AI atau mengisi manual di
- * chat. Jawaban dikirim sebagai pesan user sehingga AI meneruskan set_asw_case
- * dengan nilai yang dikonfirmasi (alur pratinjau/konfirmasi tetap berlaku).
+ * Kartu klarifikasi waktu (tool clarify_datum_time / clarify_incident_time,
+ * non-mutating): pengguna memilih salah satu kandidat tafsiran AI atau
+ * mengisi manual di chat. Jawaban dikirim sebagai pesan user sehingga AI
+ * meneruskan set_asw_case / set_aero_drift_case dengan nilai yang
+ * dikonfirmasi (alur pratinjau/konfirmasi tetap berlaku).
  */
 function DatumTimeClarifyCard({
   question,
   candidates,
   answered,
   onAnswer,
+  title = 'Klarifikasi Datum Time',
+  manualPlaceholder = 'Isi datum time manual, mis. 18 Nov 2026 03.00 UTC',
 }: {
   question?: string;
   candidates?: DatumTimeCandidate[];
   answered?: string;
   onAnswer: (value: string, label?: string) => void;
+  title?: string;
+  manualPlaceholder?: string;
 }) {
   const [manual, setManual] = useState('');
   const basarnasPreview = manual.trim() ? toBasarnasTimeFormat(manual) : null;
@@ -202,7 +207,7 @@ function DatumTimeClarifyCard({
   return (
     <div className="mt-2 border border-amber-300 bg-amber-50 rounded-lg p-2.5 space-y-2">
       <div className="flex items-center gap-1.5 text-[11px] font-bold text-amber-900">
-        <HelpCircle className="h-3.5 w-3.5" /> Klarifikasi Datum Time
+        <HelpCircle className="h-3.5 w-3.5" /> {title}
       </div>
       {question && <p className="text-[11px] text-slate-800 whitespace-pre-wrap">{question}</p>}
       {answered ? (
@@ -240,7 +245,7 @@ function DatumTimeClarifyCard({
                   onAnswer(manual.trim());
                 }
               }}
-              placeholder={validCandidates.length > 0 ? 'atau isi manual' : 'Isi datum time manual, mis. 18 Nov 2026 03.00 UTC'}
+              placeholder={validCandidates.length > 0 ? 'atau isi manual' : manualPlaceholder}
               spellCheck={false}
               data-ms-editor="true"
               className="flex-1 min-w-0 text-[11px] font-mono bg-white border border-slate-300 rounded-md px-2 py-1.5 focus:outline-none focus:border-emerald-400"
@@ -789,17 +794,21 @@ export default function AIChatPanel({
     [apiKey, attachedFiles, isLoading, messages, applyFunctionCalls]
   );
 
-  /** Jawaban klarifikasi datum time: catat keputusan, kirim ke chat agar AI meneruskan set_asw_case dengan nilai terkonfirmasi. */
+  /** Jawaban klarifikasi waktu (datum time / waktu insiden A.1): catat keputusan, kirim ke chat agar AI meneruskan set_asw_case / set_aero_drift_case dengan nilai terkonfirmasi. */
   const handleClarifyAnswer = useCallback(
-    (key: string, value: string, label?: string) => {
+    (key: string, value: string, label?: string, kind: 'datum' | 'incident' = 'datum') => {
       setClarifyAnswers((prev) => ({ ...prev, [key]: value }));
-      // SAR Workflow Memory: keputusan pengguna atas waktu datum tercatat di konteks.
+      // SAR Workflow Memory: keputusan pengguna atas waktu tercatat di konteks.
       onLogConversation?.(
         'decision',
-        `Datum time dikonfirmasi pengguna: ${value}${label ? ` (${label})` : ''}`,
+        kind === 'incident'
+          ? `Waktu kejadian (A.1) dikonfirmasi pengguna: ${value}${label ? ` (${label})` : ''}`
+          : `Datum time dikonfirmasi pengguna: ${value}${label ? ` (${label})` : ''}`,
       );
       void sendMessage(
-        `Datum time yang benar: ${value}${label ? ` — ${label}` : ''}. Gunakan nilai ini sebagai datum time worksheet ASW (distress time dan data angin tetap dari soal), lalu lanjutkan pengisian worksheet.`,
+        kind === 'incident'
+          ? `Waktu kejadian (A.1) yang benar: ${value}${label ? ` — ${label}` : ''}. Gunakan nilai ini sebagai tanggal & waktu kejadian point A.1 worksheet ADW (date + incidentTime pada set_aero_drift_case), lalu lanjutkan pengisian worksheet.`
+          : `Datum time yang benar: ${value}${label ? ` — ${label}` : ''}. Gunakan nilai ini sebagai datum time worksheet ASW (distress time dan data angin tetap dari soal), lalu lanjutkan pengisian worksheet.`,
       );
     },
     [sendMessage, onLogConversation],
@@ -875,6 +884,13 @@ export default function AIChatPanel({
           .map((c) => `• ${c.label || c.value}${c.source ? ` — “${c.source}”` : ''}`)
           .join('\n');
         return `❓ Klarifikasi Datum Time\n${a.question || ''}${list ? `\nKandidat:\n${list}` : '\n(menunggu input manual)'}`;
+      }
+      case 'clarify_incident_time': {
+        const a = fc.args as { question?: string; candidates?: DatumTimeCandidate[] };
+        const list = (a.candidates ?? [])
+          .map((c) => `• ${c.label || c.value}${c.source ? ` — “${c.source}”` : ''}`)
+          .join('\n');
+        return `❓ Klarifikasi Waktu Kejadian (ADW A.1)\n${a.question || ''}${list ? `\nKandidat:\n${list}` : '\n(menunggu input manual)'}`;
       }
       case 'set_asw_case': {
         const a = fc.args as {
@@ -1195,7 +1211,24 @@ export default function AIChatPanel({
                               question={a.question}
                               candidates={a.candidates}
                               answered={clarifyAnswers[clarifyKey]}
-                              onAnswer={(value, label) => handleClarifyAnswer(clarifyKey, value, label)}
+                              onAnswer={(value, label) => handleClarifyAnswer(clarifyKey, value, label, 'datum')}
+                            />
+                          );
+                        }
+                        // Klarifikasi waktu kejadian ADW A.1: kartu interaktif
+                        // (kandidat + input manual) — bukan kontrak mutasi worksheet.
+                        if (fc.name === 'clarify_incident_time') {
+                          const a = fc.args as { question?: string; candidates?: DatumTimeCandidate[] };
+                          const clarifyKey = `clarify-incident-${idx}-${fi}`;
+                          return (
+                            <DatumTimeClarifyCard
+                              key={fi}
+                              question={a.question}
+                              candidates={a.candidates}
+                              answered={clarifyAnswers[clarifyKey]}
+                              onAnswer={(value, label) => handleClarifyAnswer(clarifyKey, value, label, 'incident')}
+                              title="Klarifikasi Waktu Kejadian (ADW A.1)"
+                              manualPlaceholder="Isi waktu kejadian manual, mis. 17 Nov 2026 15.56 WIT"
                             />
                           );
                         }
