@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Plus, Trash2, Printer, CheckCircle2, Plane } from 'lucide-react';
-import { computeAWA, type AWAObservation, type AWAResult } from '@/lib/sar/sarCalculations';
+import { computeAWA, parseAltitudeFt, type AWAObservation, type AWAResult } from '@/lib/sar/sarCalculations';
 
 export type { AWAObservation };
 
@@ -37,7 +37,7 @@ const AWA_OBSERVATION_LEVELS_FT = [0, 3000, 6000, 9000, 12000, 18000, 24000, 300
 
 function getObservationAltitude(observation: AWAObservation): number {
   return typeof observation.altObs === 'string'
-    ? Number(observation.altObs)
+    ? parseAltitudeFt(observation.altObs)
     : observation.altitudeFt ?? observation.altLow ?? Number.NaN;
 }
 
@@ -83,7 +83,12 @@ export default function AWAWorksheet({
   const [observations, setObservations] = useState<AWAObservation[]>(
     () => initialState?.observations ?? []
   );
-  const [distressAltFt, setDistressAltFt] = useState<number>(initialState?.distressAltFt ?? 0);
+  const [distressAltFt, setDistressAltFt] = useState<number>(() => {
+    // initialState bisa berasal dari argumen AI (distressAltFt kadang string
+    // "10000") — koerce agar computeAWA dan input number menerima angka.
+    const parsed = parseAltitudeFt(initialState?.distressAltFt);
+    return Number.isFinite(parsed) ? parsed : 0;
+  });
   const [forecastSource, setForecastSource] = useState(initialState?.forecastSource ?? '');
   const [forecastValidTime, setForecastValidTime] = useState(initialState?.forecastValidTime ?? '');
 
@@ -109,7 +114,7 @@ export default function AWAWorksheet({
         const altitudeText = typeof observation.altObs === 'string'
           ? observation.altObs
           : String(observation.altitudeFt ?? observation.altLow ?? '');
-        const parsedAltitude = altitudeText.trim() === '' ? Number.NaN : Number(altitudeText);
+        const parsedAltitude = parseAltitudeFt(altitudeText);
         return {
           ...observation,
           inputIndex,

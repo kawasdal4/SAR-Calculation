@@ -33,7 +33,7 @@ import type { Worksheet8InitialState } from '@/components/sar/worksheets/Workshe
 import { W2_TARGET_OPTIONS, W8_TARGET_OPTIONS } from '@/lib/sar/wscPodTables';
 import type { SearchPatternPlanInitialState } from '@/lib/sar/searchPatterns';
 import type { AeroDriftInitialState } from '@/components/sar/AeronauticalDriftWorksheet';
-import { LEEWAY_OBJECT_TYPES } from '@/lib/sar/sarCalculations';
+import { LEEWAY_OBJECT_TYPES, parseAltitudeFt } from '@/lib/sar/sarCalculations';
 
 interface UploadedAttachment {
   name: string;
@@ -338,9 +338,17 @@ export default function AIChatPanel({
           break;
         }
         case 'set_awa_case': {
-          const data = args as Parameters<NonNullable<typeof onApplyAWA>>[0];
+          const raw = args as Parameters<NonNullable<typeof onApplyAWA>>[0];
           attempted = true;
-          if (data.distressAltFt > 0 && data.windData?.length >= 2) {
+          // distressAltFt kadang dikirim AI sebagai string ("10000") — koerce
+          // dulu; sebelumnya string lolos gate ("10000" > 0) lalu menggagalkan
+          // computeAWA (Number.isFinite menolak string) sehingga SELURUH kolom
+          // hasil worksheet AWA kosong walau baris angin terisi.
+          const distressAltFt = parseAltitudeFt(raw.distressAltFt);
+          const data = Number.isFinite(distressAltFt)
+            ? { ...raw, distressAltFt }
+            : raw;
+          if (Number.isFinite(distressAltFt) && distressAltFt > 0 && data.windData?.length >= 2) {
             onApplyAWA?.(data);
             applied = true;
             appliedWorksheets.push('awa');

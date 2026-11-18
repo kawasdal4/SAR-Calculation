@@ -175,6 +175,28 @@ export interface AWAResult {
   }>;
 }
 
+/**
+ * Parse ketinggian (feet) dari angka atau teks bebas — AI kadang mengirim
+ * altObs "Surface" (bukan "0") atau distressAltFt sebagai string "10000";
+ * sebelumnya Number("Surface") → NaN membuat computeAWA menolak SELURUH
+ * perhitungan (semua kolom worksheet jadi "—"). Bentuk yang dikenali:
+ * 0/"Surface"/"permukaan" → 0, "FL090" → 9000, "3.000 ft"/"3,000 feet" → 3000,
+ * "3000" → 3000. Selain itu NaN.
+ */
+export function parseAltitudeFt(value: unknown): number {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : Number.NaN;
+  if (typeof value !== 'string') return Number.NaN;
+  const text = value.trim().toLowerCase();
+  if (!text) return Number.NaN;
+  if (/^(surface|permukaan|sea level|mds)(\s|$)/.test(text)) return 0;
+  const flMatch = text.match(/^fl\s*0*(\d{1,3})$/);
+  if (flMatch) return Number(flMatch[1]) * 100;
+  // Buang satuan lalu pemisah ribuan ("3.000 ft" → 3000); ketinggian pengamatan
+  // selalu bilangan bulat feet, jadi pemisah desimal tidak dipakai di sini.
+  const cleaned = text.replace(/ft|feet|kaki/g, '').replace(/[.\s,]/g, '');
+  return /^\d+$/.test(cleaned) ? Number(cleaned) : Number.NaN;
+}
+
 export function computeAWA(observations: AWAObservation[], targetAltitudeFt: number): AWAResult {
   const emptyResult = (errors: string[]): AWAResult => ({
     totalAltLossKft: 0,
@@ -189,7 +211,10 @@ export function computeAWA(observations: AWAObservation[], targetAltitudeFt: num
   });
   const errors: string[] = [];
 
-  if (!Number.isFinite(targetAltitudeFt) || targetAltitudeFt <= 0) {
+  // Target bisa datang sebagai string dari state tersimpan/argumen AI — koerce
+  // di sini agar satu titik masuk menoleransi bentuk apa pun.
+  const targetAltitude = parseAltitudeFt(targetAltitudeFt);
+  if (!Number.isFinite(targetAltitude) || targetAltitude <= 0) {
     errors.push('Ketinggian target harus lebih besar dari 0 ft.');
   }
   if (!Array.isArray(observations) || observations.length === 0) {
@@ -200,7 +225,7 @@ export function computeAWA(observations: AWAObservation[], targetAltitudeFt: num
   const parsed = observations.map((obs, inputIndex) => {
     const hasAltitudeText = typeof obs.altObs === 'string';
     const altitudeValue = hasAltitudeText
-      ? (obs.altObs as string).trim() === '' ? Number.NaN : Number(obs.altObs)
+      ? parseAltitudeFt(obs.altObs)
       : Number.isFinite(obs.altitudeFt) ? obs.altitudeFt as number : obs.altLow ?? Number.NaN;
     const altitudeValid = Number.isFinite(altitudeValue) && altitudeValue >= 0;
     const directionValid = Number.isFinite(obs.windDirFrom) && obs.windDirFrom >= 0 && obs.windDirFrom <= 360;
@@ -228,12 +253,12 @@ export function computeAWA(observations: AWAObservation[], targetAltitudeFt: num
     errors.push('Data harus mencakup pengamatan Surface / 0 ft.');
   }
   if (
-    Number.isFinite(targetAltitudeFt) &&
-    targetAltitudeFt > 0 &&
+    Number.isFinite(targetAltitude) &&
+    targetAltitude > 0 &&
     validLevels.length > 0 &&
-    validLevels[validLevels.length - 1].altitudeFt < targetAltitudeFt
+    validLevels[validLevels.length - 1].altitudeFt < targetAltitude
   ) {
-    errors.push(`Data angin tertinggi (${validLevels[validLevels.length - 1].altitudeFt} ft) belum mencapai target ${targetAltitudeFt} ft; tambahkan level di atau di atas target.`);
+    errors.push(`Data angin tertinggi (${validLevels[validLevels.length - 1].altitudeFt} ft) belum mencapai target ${targetAltitude} ft; tambahkan level di atau di atas target.`);
   }
   if (errors.length > 0) return emptyResult(errors);
 
@@ -245,10 +270,10 @@ export function computeAWA(observations: AWAObservation[], targetAltitudeFt: num
     const next = validLevels[index + 1];
     const layerLow = index === 0 ? 0 : (previous.altitudeFt + observation.altitudeFt) / 2;
     const layerHigh = Math.min(
-      targetAltitudeFt,
-      next ? (observation.altitudeFt + next.altitudeFt) / 2 : targetAltitudeFt,
+      targetAltitude,
+      next ? (observation.altitudeFt + next.altitudeFt) / 2 : targetAltitude,
     );
-    const hasLayer = layerHigh > layerLow && layerLow < targetAltitudeFt;
+    const hasLayer = layerHigh > layerLow && layerLow < targetAltitude;
     const intervalLowFt = hasLayer ? layerLow : null;
     const intervalHighFt = hasLayer ? layerHigh : null;
     const altitudeKft = hasLayer ? (layerHigh - layerLow) / 1000 : 0;
