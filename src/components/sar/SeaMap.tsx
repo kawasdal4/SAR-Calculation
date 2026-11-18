@@ -6,6 +6,10 @@ import 'leaflet/dist/leaflet.css';
 import { type LatLng, distanceNm } from '@/lib/sar/sarCalculations';
 import { formatDegMinSec, type CoordAxis } from '@/lib/sar/coordFormat';
 import {
+  placeAlongLineLabels,
+  type LabelPlacement,
+} from '@/lib/sar/labelPlacement';
+import {
   chooseGridInterval,
   enumerateGridPoints,
   formatDepth,
@@ -1542,58 +1546,120 @@ export default function SeaMap({
     if (!mapRef.current || !layersRef.current.lines) return;
     const map = mapRef.current;
     const layer = layersRef.current.lines;
-    layer.clearLayers();
-    lines.forEach((l) => {
-      if (!Number.isFinite(l.from?.lat) || !Number.isFinite(l.from?.lng) || !Number.isFinite(l.to?.lat) || !Number.isFinite(l.to?.lng)) return;
-      const polyline = L.polyline(
-        [
-          [l.from.lat, l.from.lng],
-          [l.to.lat, l.to.lng],
-        ],
-        {
-          color: l.color,
-          weight: l.weight ?? 2.5,
-          opacity: l.opacity ?? 0.85,
-          dashArray: l.dashed ? '6 6' : undefined,
-        },
-      ).addTo(layer);
-      if (l.arrow) {
-        const startPx = map.latLngToLayerPoint([l.from.lat, l.from.lng]);
-        const endPx = map.latLngToLayerPoint([l.to.lat, l.to.lng]);
-        const dx = endPx.x - startPx.x;
-        const dy = endPx.y - startPx.y;
-        const anchorX = startPx.x + dx * 0.68;
-        const anchorY = startPx.y + dy * 0.68;
-        const angle = Math.atan2(dy, dx);
-        const arrowLength = 8;
-        const spread = 0.55;
-        const left = map.layerPointToLatLng([
-          anchorX + arrowLength * Math.cos(angle + Math.PI - spread),
-          anchorY + arrowLength * Math.sin(angle + Math.PI - spread),
-        ]);
-        const anchor = map.layerPointToLatLng([anchorX, anchorY]);
-        const right = map.layerPointToLatLng([
-          anchorX + arrowLength * Math.cos(angle + Math.PI + spread),
-          anchorY + arrowLength * Math.sin(angle + Math.PI + spread),
-        ]);
-        L.polyline([[left.lat, left.lng], [anchor.lat, anchor.lng], [right.lat, right.lng]], {
-          color: l.color,
-          weight: l.weight ?? 2.5,
-          opacity: l.opacity ?? 0.85,
-          interactive: false,
-        }).addTo(layer);
+
+    // Digambar ulang saat zoom agar rotasi & penempatan label (ruang px layar)
+    // tetap akurat — sekaligus memperbaiki panah yang dihitung dalam px layer.
+    const drawLines = () => {
+      layer.clearLayers();
+      const pxSegs = lines
+        .filter((l) => Number.isFinite(l.from?.lat) && Number.isFinite(l.from?.lng) && Number.isFinite(l.to?.lat) && Number.isFinite(l.to?.lng))
+        .map((l) => ({
+          line: l,
+          a: map.latLngToLayerPoint([l.from.lat, l.from.lng]),
+          b: map.latLngToLayerPoint([l.to.lat, l.to.lng]),
+        }));
+
+      // Label garis: dirotasi mengikuti bearing garis di ruang layar; label
+      // garis pendek digeser agar tidak menutupi garis/label lain.
+      const fontSizeOf = (l: MapLine) => (l.labelClassName === 'sar-pattern-label' ? 10 : 11);
+      const placements = new Map<number, LabelPlacement>();
+      const labeled = pxSegs
+        .map((s, idx) => ({ s, idx }))
+        .filter(({ s }) => !!s.line.label);
+      if (labeled.length > 0) {
+        const items = labeled.map(({ s, idx }) => ({
+          id: String(idx),
+          x1: s.a.x,
+          y1: s.a.y,
+          x2: s.b.x,
+          y2: s.b.y,
+          label: s.line.label as string,
+        }));
+        const obstacleSegments = pxSegs.map((s, idx) => ({
+          id: String(idx),
+          x1: s.a.x,
+          y1: s.a.y,
+          x2: s.b.x,
+          y2: s.b.y,
+        }));
+        const centerPx = map.latLngToLayerPoint(map.getCenter());
+        for (const pl of placeAlongLineLabels(items, {
+          fontSize: 11,
+          minPad: 3,
+          padX: 6,
+          obstacleSegments,
+          sceneCenter: { x: centerPx.x, y: centerPx.y },
+        })) {
+          placements.set(Number(pl.id), pl);
+        }
       }
-      if (l.label) {
-        const mid = {
-          lat: (l.from.lat + l.to.lat) / 2,
-          lng: (l.from.lng + l.to.lng) / 2,
-        };
-        L.tooltip({ permanent: true, direction: 'top', className: l.labelClassName ?? 'sar-label' })
-          .setContent(l.label)
-          .setLatLng([mid.lat, mid.lng])
-          .addTo(layer);
-      }
-    });
+
+      pxSegs.forEach((s, idx) => {
+        const l = s.line;
+        const polyline = L.polyline(
+          [
+            [l.from.lat, l.from.lng],
+            [l.to.lat, l.to.lng],
+          ],
+          {
+            color: l.color,
+            weight: l.weight ?? 2.5,
+            opacity: l.opacity ?? 0.85,
+            dashArray: l.dashed ? '6 6' : undefined,
+          },
+        ).addTo(layer);
+        if (l.arrow) {
+          const startPx = s.a;
+          const endPx = s.b;
+          const dx = endPx.x - startPx.x;
+          const dy = endPx.y - startPx.y;
+          const anchorX = startPx.x + dx * 0.68;
+          const anchorY = startPx.y + dy * 0.68;
+          const angle = Math.atan2(dy, dx);
+          const arrowLength = 8;
+          const spread = 0.55;
+          const left = map.layerPointToLatLng([
+            anchorX + arrowLength * Math.cos(angle + Math.PI - spread),
+            anchorY + arrowLength * Math.sin(angle + Math.PI - spread),
+          ]);
+          const anchor = map.layerPointToLatLng([anchorX, anchorY]);
+          const right = map.layerPointToLatLng([
+            anchorX + arrowLength * Math.cos(angle + Math.PI + spread),
+            anchorY + arrowLength * Math.sin(angle + Math.PI + spread),
+          ]);
+          L.polyline([[left.lat, left.lng], [anchor.lat, anchor.lng], [right.lat, right.lng]], {
+            color: l.color,
+            weight: l.weight ?? 2.5,
+            opacity: l.opacity ?? 0.85,
+            interactive: false,
+          }).addTo(layer);
+        }
+        const pl = placements.get(idx);
+        if (l.label && pl) {
+          const fontSize = fontSizeOf(l);
+          const isPattern = l.labelClassName === 'sar-pattern-label';
+          const escaped = l.label.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          const centerLL = map.layerPointToLatLng([pl.x, pl.y]);
+          const icon = L.divIcon({
+            className: 'sar-line-label-rot',
+            iconSize: undefined,
+            iconAnchor: [0, 0],
+            html:
+              `<div class="sar-line-label-inner">` +
+              `<span class="sar-line-label-text${isPattern ? ' pattern' : ''}" ` +
+              `style="transform:rotate(${pl.angleDeg}deg);border-left:3px solid ${l.color};font-size:${fontSize}px">` +
+              `${escaped}</span></div>`,
+          });
+          L.marker(centerLL, { icon, interactive: false, keyboard: false }).addTo(layer);
+        }
+      });
+    };
+
+    drawLines();
+    map.on('zoomend', drawLines);
+    return () => {
+      map.off('zoomend', drawLines);
+    };
   }, [lines]);
 
   // ---- Draw polygons (search areas) ----

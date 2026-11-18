@@ -1077,11 +1077,6 @@ export default function Home() {
         : patternType === 'TS' && segmentIndex === 1;
       const color = isConnector ? SEARCH_CONNECTOR_COLOR : SEARCH_PATTERN_COLORS[patternType];
       const bearing = bearingDeg(seg.from, seg.to);
-      const spacingLabel = !isConnector && trackSpacing > 0 && (patternType === 'PS' || patternType === 'CS')
-        ? ` · S ${trackSpacing.toFixed(2)} NM`
-        : patternType === 'SS' && trackSpacing > 0
-          ? ` · ${(seg.distanceNm / trackSpacing).toFixed(0)}S`
-          : '';
       list.push({
         from: seg.from,
         to: seg.to,
@@ -1091,7 +1086,7 @@ export default function Home() {
         weight: isConnector ? 1.5 : 2,
         opacity: 0.58,
         labelClassName: 'sar-pattern-label',
-        label: `${patternSruName} · ${isConnector ? 'Cross leg / turn' : `Search leg ${seg.legIndex}`} · ${bearing.toFixed(0)}°T · ${seg.distanceNm.toFixed(1)} NM${spacingLabel}${patternSpacingSource ? ` · ${patternSpacingSource}` : ''}`,
+        label: `${isConnector ? 'Cross' : `Leg ${seg.legIndex}`} - ${bearing.toFixed(0)}°/${seg.distanceNm.toFixed(1)} NM`,
       });
     });
 
@@ -1127,46 +1122,46 @@ export default function Home() {
         from: lkpPoint,
         to: seaCurrentEnd,
         color: '#2563eb',
-        label: `Worksheet 1 · Sea Current (SC): ${datumData.seaCurrent.dir.toFixed(0)}°T / ${(datumData.seaCurrent.mag * driftHours).toFixed(2)} NM`,
+        label: `SC - ${datumData.seaCurrent.dir.toFixed(0)}°/${(datumData.seaCurrent.mag * driftHours).toFixed(1)} NM`,
       });
       list.push({
         from: lkpPoint,
         to: surfaceWindEnd,
         color: '#0ea5e9',
         dashed: true,
-        label: `Worksheet 1 · Surface Wind reciprocal: ${downwindDir.toFixed(0)}°T / ${(datumData.aswSpeed * driftHours).toFixed(2)} NM`,
+        label: `ASW - ${downwindDir.toFixed(0)}°/${(datumData.aswSpeed * driftHours).toFixed(1)} NM`,
       });
       list.push({
         from: seaCurrentEnd,
         to: waterEnd,
         color: '#f97316',
-        label: `Worksheet 1 · Wind Current (WC): ${datumResults.wc.wcSet.toFixed(0)}°T / ${(datumResults.wc.wcDrift * driftHours).toFixed(2)} NM`,
+        label: `WC - ${datumResults.wc.wcSet.toFixed(0)}°/${(datumResults.wc.wcDrift * driftHours).toFixed(1)} NM`,
       });
       list.push({
         from: waterEnd,
         to: datumResults.datumLeft,
         color: '#16a34a',
-        label: `Worksheet 1 · Leeway Left: ${datumData.lwLeftDir.toFixed(0)}°T / ${(datumData.lwSpeed * driftHours).toFixed(2)} NM`,
+        label: `LWL - ${datumData.lwLeftDir.toFixed(0)}°/${(datumData.lwSpeed * driftHours).toFixed(1)} NM`,
       });
       list.push({
         from: waterEnd,
         to: datumResults.datumRight,
         color: '#db2777',
-        label: `Worksheet 1 · Leeway Right: ${datumData.lwRightDir.toFixed(0)}°T / ${(datumData.lwSpeed * driftHours).toFixed(2)} NM`,
+        label: `LWR - ${datumData.lwRightDir.toFixed(0)}°/${(datumData.lwSpeed * driftHours).toFixed(1)} NM`,
       });
       list.push({
         from: lkpPoint,
         to: datumResults.datumLeft,
         color: '#111827',
         dashed: true,
-        label: `Worksheet 1 · Total Drift Left: ${datumResults.driftDistance.toFixed(2)} NM`,
+        label: `TD-L - ${bearingDeg(lkpPoint, datumResults.datumLeft).toFixed(0)}°/${datumResults.driftDistance.toFixed(1)} NM`,
       });
       list.push({
         from: lkpPoint,
         to: datumResults.datumRight,
         color: '#64748b',
         dashed: true,
-        label: `Worksheet 1 · Total Drift Right: ${datumResults.driftDistance.toFixed(2)} NM`,
+        label: `TD-R - ${bearingDeg(lkpPoint, datumResults.datumRight).toFixed(0)}°/${datumResults.driftDistance.toFixed(1)} NM`,
       });
     }
 
@@ -1375,6 +1370,8 @@ export default function Home() {
         dirDeg: datumResults.twc.twc.dir,
         mag: datumResults.twc.twc.mag * 5,
         color: '#dc2626',
+        // mag di papan diskalakan 5× agar muat di ring; badge memakai nilai asli (kt)
+        badge: `${Math.round(datumResults.twc.twc.dir) % 360}°/${datumResults.twc.twc.mag} kt`,
       });
     }
     return list;

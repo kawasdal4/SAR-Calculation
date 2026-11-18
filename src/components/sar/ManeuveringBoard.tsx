@@ -4,9 +4,9 @@
  * ManeuveringBoard — Papan Manuver scan asli DMAHTC 5090.
  *
  * Template: scan asli dari "Maneuvering Board.pdf" (DMA 5090, 300 DPI),
- * TIDAK digambar ulang. Kalibrasi tampilan (web 2400x2618) dipertahankan:
- *  - Pusat lingkaran plotting: (1200, 1126.5)
- *  - Radius ring-10: 920.5 px → tiap ring = 92.05 px
+ * TIDAK digambar ulang. Kalibrasi terfit pada scan asli (grid-search coverage 360°):
+ *  - Pusat lingkaran plotting: (1209.2, 1128.6)
+ *  - Radius ring-10: 919.2 px → tiap ring = 91.92 px
  * Untuk cetak dipakai scan native 3898x4252 (aspek identik) sehingga efektif
  * >500 DPI di kertas A3/A4 — seluruh overlay tetap SVG vektor.
  *
@@ -22,7 +22,6 @@ import {
   RotateCcw,
   ZoomIn,
   ZoomOut,
-  Layers,
   Info,
   Play,
   Pause,
@@ -34,6 +33,12 @@ import {
   polarToCartesian,
   autoScaleBoard,
 } from '@/lib/sar/maneuveringBoard';
+import {
+  placeAlongLineLabels,
+  splitLabelLines,
+  type BoxObstacle,
+  type LabelPlacement,
+} from '@/lib/sar/labelPlacement';
 import SheetPrintMenu from './SheetPrintMenu';
 import { usePrintScope, paperContentMm } from '@/lib/sar/printSheets';
 
@@ -54,8 +59,14 @@ export interface ManeuveringBoardProps {
 
 const VB_WIDTH = 2400;
 const VB_HEIGHT = 2618;
-const TEMPLATE_SCREEN = '/templates/maneuvering_board_web.jpg';
-const TEMPLATE_PRINT = '/templates/mobo5090_original_print.jpg';
+/** Scan asli PDF "Maneuvering Board" (DMA 5090) — versi layar & versi cetak native.
+ *  Cache-busting ?v= agar browser tidak memakai template lama dari cache. */
+const TEMPLATE_SCREEN = '/templates/mobo5090_original_web.jpg?v=2';
+const TEMPLATE_PRINT = '/templates/mobo5090_original_print.jpg?v=2';
+/** Kalibrasi lingkaran plotting scan asli (hasil fit sudut 360°): pusat & radius ring-10. */
+const MOBO_CX = 1209.2;
+const MOBO_CY = 1128.6;
+const MOBO_R10 = 919.2;
 
 export default function ManeuveringBoard({
   title = 'Maneuvering Board (Papan Manuver Asli DMAHTC 5090)',
@@ -68,10 +79,10 @@ export default function ManeuveringBoard({
   printTargetId = 'mobo',
   className = '',
 }: ManeuveringBoardProps) {
-  const cx = 1200;
+  const cx = MOBO_CX;
   // Kalibrasi terhadap lingkaran plotting dan ruler samping pada scan asli.
-  const cy = 1126.5;
-  const ring10Radius = 920.5; // Radius luar area plotting 10 ring
+  const cy = MOBO_CY;
+  const ring10Radius = MOBO_R10; // Radius luar area plotting 10 ring
   const ringSpacing = ring10Radius / 10;
   const [isChainedMode, setIsChainedMode] = useState(chainVectors);
 
@@ -135,8 +146,7 @@ export default function ManeuveringBoard({
   const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  // When O moves, show a fresh set of scale rings around the actual origin.
-  const [showRingsGuide, setShowRingsGuide] = useState(autoFitOrigin);
+
 
   // Animation states (like in presentation PPT)
   const [isPlaying, setIsPlaying] = useState(false);
@@ -363,23 +373,6 @@ export default function ManeuveringBoard({
                 </select>
               </div>
 
-              {autoFitOrigin && (
-                <button
-                  type="button"
-                  onClick={() => setShowRingsGuide((visible) => !visible)}
-                  aria-pressed={showRingsGuide}
-                  className={`flex items-center gap-1.5 px-2 py-1 rounded border text-xs font-semibold shadow-2xs ${
-                    showRingsGuide
-                      ? 'bg-blue-50 border-blue-300 text-blue-800'
-                      : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-100'
-                  }`}
-                  title="Tampilkan atau sembunyikan lingkaran skala yang berpusat pada O"
-                >
-                  <Layers className="h-3.5 w-3.5" />
-                  Ring skala
-                </button>
-              )}
-
               {/* Zoom Controls */}
               <div className="flex items-center border border-slate-300 rounded bg-white shadow-2xs overflow-hidden">
                 <button
@@ -439,12 +432,10 @@ export default function ManeuveringBoard({
               <MoboBoardView
                 plottedVectors={plottedVectors}
                 zeroPoint={zeroPoint}
-                showRingsGuide={showRingsGuide}
-                scale={scale}
-                unitLabel={unitLabel}
                 activeStep={activeStep}
                 variant="screen"
                 fit="fill"
+                unitLabel={unitLabel}
               />
             </div>
 
@@ -536,12 +527,10 @@ export default function ManeuveringBoard({
             <MoboBoardView
               plottedVectors={plottedVectors}
               zeroPoint={zeroPoint}
-              showRingsGuide={showRingsGuide}
-              scale={scale}
-              unitLabel={unitLabel}
               activeStep={vectors.length}
               variant="print"
               fit="auto"
+              unitLabel={unitLabel}
             />
             <MoboVectorTable plottedVectors={plottedVectors} unitLabel={unitLabel} compact />
           </div>
@@ -558,7 +547,6 @@ export default function ManeuveringBoard({
           chained={isChainedMode}
           plottedVectors={plottedVectors}
           zeroPoint={zeroPoint}
-          showRingsGuide={showRingsGuide}
         />,
         document.body,
       )}
@@ -583,32 +571,82 @@ interface MoboPlottedVector extends BoardVector {
 interface MoboBoardViewProps {
   plottedVectors: MoboPlottedVector[];
   zeroPoint: { x: number; y: number };
-  showRingsGuide: boolean;
-  scale: number;
-  unitLabel: string;
   activeStep: number;
   variant: 'screen' | 'print';
   /** fill: isi kotak (aspek sama); height: tinggi penuh lebar otomatis; auto: lebar penuh tinggi otomatis; explicit: ukuran mm eksplisit */
   fit: 'fill' | 'height' | 'auto' | 'explicit';
   /** Ukuran eksplisit (mm) saat fit='explicit' — anti-quirk sizing svg. */
   explicitSizeMm?: { width: number; height: number };
+  /** Satuan magnitudo untuk badge vektor di papan ('kts' → 'kt', 'NM', dsb.). */
+  unitLabel: string;
 }
 
 function MoboBoardView({
   plottedVectors,
   zeroPoint,
-  showRingsGuide,
-  scale,
-  unitLabel,
   activeStep,
   variant,
   fit,
   explicitSizeMm,
+  unitLabel,
 }: MoboBoardViewProps) {
   const isPrint = variant === 'print';
   const k = isPrint ? 2 : 1; // pengali ukuran cetak
-  const cx = 1200;
-  const cy = 1126.5;
+
+  // ---- Badge vektor: cukup arah dan nilai (contoh 35°/125 kt) ----
+  // Nama lengkap vektor tetap tampil di tabel "Daftar Vektor" di samping papan.
+  const badgeUnit = unitLabel === 'kts' ? 'kt' : unitLabel;
+  const fmtBadgeMag = (m: number) => (Math.abs(m - Math.round(m)) < 0.05 ? String(Math.round(m)) : m.toFixed(1));
+  const badgeOf = (v: MoboPlottedVector) =>
+    v.badge ?? `${Math.round(v.dirDeg) % 360}°/${fmtBadgeMag(v.mag)} ${badgeUnit}`;
+
+  // ---- Penempatan label vektor: rotasi mengikuti vektor, hindari tabrakan ----
+  // Font besar agar terbaca di layar & kertas; label panjang dipecah 2 baris.
+  const labelFont = isPrint ? 34 : 32;
+  const visibleVectors = plottedVectors.filter((v) => v.stepIndex <= activeStep);
+  const labelPlacements: Map<string, LabelPlacement> = new Map();
+  if (visibleVectors.length > 0) {
+    const items = visibleVectors.map((v) => ({
+      id: v.id,
+      x1: v.startX,
+      y1: v.startY,
+      x2: v.endX,
+      y2: v.endY,
+      label: badgeOf(v),
+      lines: splitLabelLines(badgeOf(v)),
+    }));
+    const obstacleSegments = plottedVectors.map((v) => ({
+      id: v.id,
+      x1: v.startX,
+      y1: v.startY,
+      x2: v.endX,
+      y2: v.endY,
+    }));
+    // Kotak tetap: label verteks (P1..) & penanda O (0) tidak boleh tertutup.
+    const vertexFont = isPrint ? 30 : 15;
+    const staticObstacles: BoxObstacle[] = visibleVectors.map((v) => {
+      const w = v.pointLabelEnd.length * vertexFont * 0.62 + 10;
+      const h = vertexFont * 1.3;
+      return { id: `vertex-${v.id}`, x: v.endX + 12 + w / 2, y: v.endY + 6 * k - h * 0.35, w, h };
+    });
+    const oFont = isPrint ? 34 : 18;
+    staticObstacles.push({
+      id: 'zero-marker',
+      x: zeroPoint.x - 30 + ('O (0)'.length * oFont * 0.62) / 2,
+      y: zeroPoint.y - 14 * k - oFont * 0.35,
+      w: 'O (0)'.length * oFont * 0.62 + 8,
+      h: oFont * 1.3,
+    });
+    for (const pl of placeAlongLineLabels(items, {
+      fontSize: labelFont,
+      minPad: 6,
+      obstacleSegments,
+      staticObstacles,
+      sceneCenter: zeroPoint,
+    })) {
+      labelPlacements.set(pl.id, pl);
+    }
+  }
 
   const svgStyle = fit === 'fill'
     ? { width: '100%', height: '100%' }
@@ -647,7 +685,7 @@ function MoboBoardView({
         </filter>
       </defs>
 
-      {/* Scan asli DMA 5090: layar (invert estetik) & cetak (native 300 DPI) */}
+      {/* Scan asli DMA 5090: layar & cetak (native >=300 DPI, tanpa filter) */}
       <image
         href={TEMPLATE_SCREEN}
         className="sheet-img-screen"
@@ -656,7 +694,6 @@ function MoboBoardView({
         width={VB_WIDTH}
         height={VB_HEIGHT}
         preserveAspectRatio="none"
-        style={{ filter: 'invert(1) hue-rotate(180deg)' }}
       />
       <image
         href={TEMPLATE_PRINT}
@@ -667,46 +704,6 @@ function MoboBoardView({
         height={VB_HEIGHT}
         preserveAspectRatio="none"
       />
-
-      {/* Optional Ring Value Guides */}
-      {showRingsGuide &&
-        Array.from({ length: 10 }).map((_, i) => {
-          const r = (i + 1) * (920.5 / 10);
-          const val = (i + 1) * scale;
-          return (
-            <g key={`ring-guide-${i}-${variant}`}>
-              <circle
-                cx={zeroPoint.x}
-                cy={zeroPoint.y}
-                r={r}
-                fill="none"
-                stroke="#2563eb"
-                strokeWidth={1.5 * k}
-                strokeDasharray="6 6"
-                opacity={0.4}
-              />
-              <rect
-                x={zeroPoint.x + r - 16 * k}
-                y={zeroPoint.y - 14 * k}
-                width={32 * k}
-                height={18 * k}
-                rx={3 * k}
-                fill="#1e293b"
-                fillOpacity="0.85"
-              />
-              <text
-                x={zeroPoint.x + r}
-                y={zeroPoint.y - 1}
-                fill="#38bdf8"
-                fontSize={14 * k}
-                fontWeight="bold"
-                textAnchor="middle"
-              >
-                {val}
-              </text>
-            </g>
-          );
-        })}
 
       {/* The zero marker is attached to a real vertex in the plotted chain. */}
       <circle cx={zeroPoint.x} cy={zeroPoint.y} r={9 * k} fill="#ef4444" stroke="#ffffff" strokeWidth={3 * k} />
@@ -725,15 +722,12 @@ function MoboBoardView({
       </text>
 
       {/* Plotted Vectors (Chained or Radial, filtered by active animation step) */}
-      {plottedVectors
-        .filter((v) => v.stepIndex <= activeStep)
-        .map((v) => {
-          const midX = (v.startX + v.endX) / 2;
-          const midY = (v.startY + v.endY) / 2;
-          const isResultant = v.id.includes('result');
-          const labelWidth = Math.max(140, v.label.length * 7.5 + 24) * k;
+      {visibleVectors.map((v) => {
+        const isResultant = v.id.includes('result');
+        const pl = labelPlacements.get(v.id);
+        const labelLines = splitLabelLines(badgeOf(v));
 
-          return (
+        return (
             <g key={`plotted-${v.id}-${variant}`} filter={isPrint ? undefined : `url(#vector-glow-${variant})`}>
               {/* White border shadow for high contrast */}
               <line
@@ -747,7 +741,7 @@ function MoboBoardView({
                 opacity={0.85}
               />
 
-              {/* Main Vector Line */}
+              {/* Main Vector Line — selalu solid (permintaan: tanpa garis putus-putus) */}
               <line
                 x1={v.startX}
                 y1={v.startY}
@@ -756,7 +750,6 @@ function MoboBoardView({
                 stroke={v.color}
                 strokeWidth={(isResultant ? 6 : 5) * k}
                 strokeLinecap="round"
-                strokeDasharray={v.dashed ? '12 8' : undefined}
                 markerEnd={`url(#arrow-mobo-${v.id}-${variant})`}
               />
 
@@ -795,30 +788,39 @@ function MoboBoardView({
                 {v.pointLabelEnd}
               </text>
 
-              {/* Vector Label Badge */}
-              <g transform={`translate(${midX}, ${midY})`}>
-                <rect
-                  x={-labelWidth / 2}
-                  y={-22 * k}
-                  width={labelWidth}
-                  height={26 * k}
-                  rx={5 * k}
-                  fill={isResultant ? '#991b1b' : '#0f172a'}
-                  fillOpacity="0.92"
-                  stroke={v.color}
-                  strokeWidth={2 * k}
-                />
-                <text
-                  x="0"
-                  y={-4 * k}
-                  textAnchor="middle"
-                  fill="#ffffff"
-                  fontSize={isPrint ? 24 : 13}
-                  fontWeight="bold"
-                >
-                  {v.label}
-                </text>
-              </g>
+              {/* Vector Label Badge — dirotasi mengikuti arah vektor, digeser
+                  bila vektor pendek agar tidak menutupi vektor/label lain */}
+              {pl && (() => {
+                const lineH = labelFont * 1.15;
+                return (
+                  <g transform={`translate(${pl.x}, ${pl.y}) rotate(${pl.angleDeg})`}>
+                    <rect
+                      x={-pl.widthPx / 2}
+                      y={-pl.heightPx / 2}
+                      width={pl.widthPx}
+                      height={pl.heightPx}
+                      rx={6 * k}
+                      fill={isResultant ? '#991b1b' : '#0f172a'}
+                      fillOpacity="0.88"
+                      stroke={v.color}
+                      strokeWidth={1.5 * k}
+                    />
+                    {labelLines.map((line, i) => (
+                      <text
+                        key={`${v.id}-lbl-${i}`}
+                        x="0"
+                        y={(i - (labelLines.length - 1) / 2) * lineH + labelFont * 0.36}
+                        textAnchor="middle"
+                        fill="#ffffff"
+                        fontSize={labelFont}
+                        fontWeight="bold"
+                      >
+                        {line}
+                      </text>
+                    ))}
+                  </g>
+                );
+              })()}
             </g>
           );
         })}
@@ -909,7 +911,6 @@ interface MoboPrintPortalProps {
   chained: boolean;
   plottedVectors: MoboPlottedVector[];
   zeroPoint: { x: number; y: number };
-  showRingsGuide: boolean;
 }
 
 function MoboPrintPortalBlock({
@@ -920,7 +921,6 @@ function MoboPrintPortalBlock({
   chained,
   plottedVectors,
   zeroPoint,
-  showRingsGuide,
 }: MoboPrintPortalProps) {
   const [wmm, hmm] = paperContentMm(paper);
   const PAD_TB = 8, PAD_LR = 10, GAP = 5, HEADER_H = 16;
@@ -949,13 +949,11 @@ function MoboPrintPortalBlock({
           <MoboBoardView
             plottedVectors={plottedVectors}
             zeroPoint={zeroPoint}
-            showRingsGuide={showRingsGuide}
-            scale={scale}
-            unitLabel={unitLabel}
             activeStep={Number.MAX_SAFE_INTEGER}
             variant="print"
             fit="explicit"
             explicitSizeMm={{ width: sheetW, height: sheetH }}
+            unitLabel={unitLabel}
           />
         </div>
         <div className="flex-1 border-l border-slate-300 pl-[3mm] overflow-hidden" style={{ minWidth: 0 }}>

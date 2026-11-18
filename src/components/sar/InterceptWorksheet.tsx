@@ -143,9 +143,9 @@ export default function InterceptWorksheet({ onResults, initialInput, className 
       { position: i, label: 'I · Intercept Point', color: '#16a34a', isDatum: true, showLabel: true, labelDirection: 'top' },
     ];
     const lines: MapLine[] = [
-      { from: a, to: b, color: '#64748b', dashed: true, label: `AB baseline · ${results.initialDistanceNm.toFixed(2)} NM` },
-      { from: a, to: i, color: '#2563eb', arrow: true, label: `Target track · ${results.targetDistanceTravelledNm.toFixed(2)} NM` },
-      { from: b, to: i, color: '#f97316', arrow: true, label: `SRU track · ${results.sruDistanceTravelledNm.toFixed(2)} NM · ${results.interceptCourseDeg.toFixed(1)}°T` },
+      { from: a, to: b, color: '#64748b', dashed: true, label: `AB - ${results.initialDistanceNm.toFixed(1)} NM` },
+      { from: a, to: i, color: '#2563eb', arrow: true, label: `Target - ${bearingDeg(a, i).toFixed(0)}°/${results.targetDistanceTravelledNm.toFixed(1)} NM` },
+      { from: b, to: i, color: '#f97316', arrow: true, label: `SRU - ${results.interceptCourseDeg.toFixed(0)}°/${results.sruDistanceTravelledNm.toFixed(1)} NM` },
     ];
     const construction = results.constructionPoints;
     if (method === 'head-on' || method === 'overtaking') {
@@ -155,9 +155,9 @@ export default function InterceptWorksheet({ onResults, initialInput, className 
         markers.push({ position: c, label: 'C · Construction', color: '#a855f7', showLabel: true, labelDirection: 'top' });
         markers.push({ position: d, label: 'D · Construction', color: '#a855f7', showLabel: true, labelDirection: 'bottom' });
         lines.push(
-          { from: a, to: c, color: '#0d9488', dashed: true, label: `AC · ${calculationInput.target.speedKts * 0.5} NM (0.5 h)` },
-          { from: b, to: d, color: '#8b5cf6', dashed: true, label: `BD · ${calculationInput.sru.speedKts * 0.5} NM (0.5 h)` },
-          { from: method === 'overtaking' ? d : c, to: method === 'overtaking' ? i : d, color: '#db2777', dashed: true, label: method === 'overtaking' ? 'CD extended to I' : 'CD construction · intersection at I' },
+          { from: a, to: c, color: '#0d9488', dashed: true, label: `AC - ${calculationInput.target.speedKts * 0.5} NM` },
+          { from: b, to: d, color: '#8b5cf6', dashed: true, label: `BD - ${calculationInput.sru.speedKts * 0.5} NM` },
+          { from: method === 'overtaking' ? d : c, to: method === 'overtaking' ? i : d, color: '#db2777', dashed: true, label: 'CD → I' },
         );
       }
     }
@@ -172,9 +172,9 @@ export default function InterceptWorksheet({ onResults, initialInput, className 
           { position: w, label: 'W · SRU construction', color: '#8b5cf6', showLabel: true, labelDirection: 'right' },
         );
         lines.push(
-          { from: a, to: x, color: '#0d9488', dashed: true, arrow: true, label: `AX · heading ${calculationInput.target.courseDeg.toFixed(1)}°T · ${calculationInput.target.speedKts * 0.5} NM` },
+          { from: a, to: x, color: '#0d9488', dashed: true, arrow: true, label: `AX - ${calculationInput.target.courseDeg.toFixed(0)}°/${calculationInput.target.speedKts * 0.5} NM` },
           { from: x, to: y, color: '#0d9488', dashed: true, label: 'XY ∥ AB' },
-          { from: b, to: w, color: '#8b5cf6', dashed: true, arrow: true, label: `BW · ${calculationInput.sru.speedKts * 0.5} NM (0.5 h)` },
+          { from: b, to: w, color: '#8b5cf6', dashed: true, arrow: true, label: `BW - ${bearingDeg(b, w).toFixed(0)}°/${calculationInput.sru.speedKts * 0.5} NM` },
         );
       }
     }

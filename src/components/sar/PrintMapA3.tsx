@@ -105,39 +105,39 @@ export default function PrintMapA3({
       from: lkp,
       to: seaCurrentEnd,
       color: '#2563eb',
-      label: `SC: ${datumData.seaCurrent.dir.toFixed(0)}°T / ${(datumData.seaCurrent.mag * driftHours).toFixed(2)} NM`,
+      label: `SC - ${datumData.seaCurrent.dir.toFixed(0)}°/${(datumData.seaCurrent.mag * driftHours).toFixed(1)} NM`,
     });
     lines.push({
       from: seaCurrentEnd,
       to: waterEnd,
       color: '#f97316',
-      label: `WC: ${datumResults.wc.wcSet.toFixed(0)}°T / ${(datumResults.wc.wcDrift * driftHours).toFixed(2)} NM`,
+      label: `WC - ${datumResults.wc.wcSet.toFixed(0)}°/${(datumResults.wc.wcDrift * driftHours).toFixed(1)} NM`,
     });
     lines.push({
       from: waterEnd,
       to: datumResults.datumLeft,
       color: '#16a34a',
-      label: `Leeway Kiri: ${datumData.lwLeftDir.toFixed(0)}°T / ${(datumData.lwSpeed * driftHours).toFixed(2)} NM`,
+      label: `LWL - ${datumData.lwLeftDir.toFixed(0)}°/${(datumData.lwSpeed * driftHours).toFixed(1)} NM`,
     });
     lines.push({
       from: waterEnd,
       to: datumResults.datumRight,
       color: '#db2777',
-      label: `Leeway Kanan: ${datumData.lwRightDir.toFixed(0)}°T / ${(datumData.lwSpeed * driftHours).toFixed(2)} NM`,
+      label: `LWR - ${datumData.lwRightDir.toFixed(0)}°/${(datumData.lwSpeed * driftHours).toFixed(1)} NM`,
     });
     lines.push({
       from: lkp,
       to: datumResults.datumLeft,
       color: '#f59e0b',
       dashed: true,
-      label: `Drift Kiri (${datumResults.driftDistance.toFixed(1)} NM)`,
+      label: `TD-L - ${bearingDeg(lkp, datumResults.datumLeft).toFixed(0)}°/${datumResults.driftDistance.toFixed(1)} NM`,
     });
     lines.push({
       from: lkp,
       to: datumResults.datumRight,
       color: '#f59e0b',
       dashed: true,
-      label: `Drift Kanan (${datumResults.driftDistance.toFixed(1)} NM)`,
+      label: `TD-R - ${bearingDeg(lkp, datumResults.datumRight).toFixed(0)}°/${datumResults.driftDistance.toFixed(1)} NM`,
     });
   }
 

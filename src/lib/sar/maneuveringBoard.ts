@@ -11,6 +11,8 @@ export interface BoardVector {
   color: string;
   origin?: { x: number; y: number }; // Defaults to center (0, 0)
   dashed?: boolean;
+  /** Override badge di papan (arah/nilai), mis. saat mag diskalakan untuk plotting. */
+  badge?: string;
 }
 
 export interface BoardPoint {

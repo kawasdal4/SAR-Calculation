@@ -32,6 +32,11 @@ import { latLonToUPS } from '@/lib/sar/upsGrid';
 import { formatDMS } from '@/lib/sar/coordFormat';
 import CoordinateInput from './CoordinateInput';
 import { upsDirect, upsInverse } from '@/lib/sar/upsGeodesic';
+import {
+  placeAlongLineLabels,
+  type BoxObstacle,
+  type LabelPlacement,
+} from '@/lib/sar/labelPlacement';
 import SheetPrintMenu from './SheetPrintMenu';
 import { usePrintScope, paperContentMm } from '@/lib/sar/printSheets';
 
@@ -44,8 +49,9 @@ const UPS_ROSE_R = 900; // = 60 menit busur = 60 NM
 /** Radius rose dalam menit busur — skala asli lembar (1 tick = 1' = 1 NM). */
 const UPS_ROSE_SPAN_MIN = 60;
 
-const TEMPLATE_SCREEN = '/templates/ups_vpos_original_web.jpg';
-const TEMPLATE_PRINT = '/templates/ups_vpos_original_print.jpg';
+// Cache-busting ?v= agar browser tidak memakai scan lama dari cache.
+const TEMPLATE_SCREEN = '/templates/ups_vpos_original_web.jpg?v=2';
+const TEMPLATE_PRINT = '/templates/ups_vpos_original_print.jpg?v=2';
 
 /** Preset "rentang skala": menit busur yang dicakup radius rose. 60' = skala asli. */
 const UPS_SPAN_PRESETS = [120, 90, 60, 45, 30, 20, 15];
@@ -53,6 +59,8 @@ const UPS_SPAN_PRESETS = [120, 90, 60, 45, 30, 20, 15];
 type UserPlotPoint = {
   id: string;
   label: string;
+  /** Label pendek untuk ditampilkan di lembar (anti tumpang tindih); label lengkap tetap di daftar. */
+  short?: string;
   desc: string;
   pos: LatLng;
   color: string;
@@ -64,6 +72,8 @@ type UserPlotPoint = {
 /** Segmen garis vektor pada lembar (koordinat geodetik, dipetakan di view). */
 interface UpsVectorSeg {
   key: string;
+  /** Nama pendek vektor untuk label (contoh: "SC - 50°/60 NM"). */
+  name?: string;
   from: LatLng;
   to: LatLng;
   color: string;
@@ -170,11 +180,12 @@ export default function UPSPlotter({
     aeroParachuteResultVector,
   ]);
 
-  // Daftar titik terplot (worksheet + manual)
+  // Daftar titik terplot (worksheet + manual). `short` = label pendek di lembar.
   const points = useMemo(() => {
     const list: {
       id: string;
       label: string;
+      short?: string;
       desc: string;
       pos: LatLng;
       color: string;
@@ -182,40 +193,40 @@ export default function UPSPlotter({
     }[] = [];
 
     if (aeroIncidentPos) {
-      list.push({ id: 'aero-inc', label: 'Posisi Darurat (Incident)', desc: 'Titik awal darurat udara', pos: aeroIncidentPos, color: '#9333ea', fill: '#f3e8ff' });
+      list.push({ id: 'aero-inc', label: 'Posisi Darurat (Incident)', short: 'Incident', desc: 'Titik awal darurat udara', pos: aeroIncidentPos, color: '#9333ea', fill: '#f3e8ff' });
     }
     if (aeroEndGlidePos) {
-      list.push({ id: 'aero-glide', label: 'Resultan pesawat (B.12)', desc: 'Hasil penjumlahan vektor glide dan drift angin pesawat', pos: aeroEndGlidePos, color: '#2563eb', fill: '#dbeafe' });
+      list.push({ id: 'aero-glide', label: 'Resultan pesawat (B.12)', short: 'B.12 Pesawat', desc: 'Hasil penjumlahan vektor glide dan drift angin pesawat', pos: aeroEndGlidePos, color: '#2563eb', fill: '#dbeafe' });
     }
     if (aeroPlotPositions.aircraftGlideTip && (aeroAircraftGlideVector?.mag ?? 0) > 0) {
-      list.push({ id: 'air-glide-tip', label: 'Ujung glide pesawat (B.8)', desc: 'Posisi setelah vektor glide sebelum drift angin', pos: aeroPlotPositions.aircraftGlideTip, color: '#2563eb', fill: '#dbeafe' });
+      list.push({ id: 'air-glide-tip', label: 'Ujung glide pesawat (B.8)', short: 'B.8 Pesawat', desc: 'Posisi setelah vektor glide sebelum drift angin', pos: aeroPlotPositions.aircraftGlideTip, color: '#2563eb', fill: '#dbeafe' });
     }
     if (aeroPlotPositions.aircraftWindTip && (aeroAircraftWindVector?.mag ?? 0) > 0) {
-      list.push({ id: 'air-wind-tip', label: 'Ujung drift pesawat (B.11)', desc: 'Posisi setelah vektor angin selama glide', pos: aeroPlotPositions.aircraftWindTip, color: '#f97316', fill: '#ffedd5' });
+      list.push({ id: 'air-wind-tip', label: 'Ujung drift pesawat (B.11)', short: 'B.11 Pesawat', desc: 'Posisi setelah vektor angin selama glide', pos: aeroPlotPositions.aircraftWindTip, color: '#f97316', fill: '#ffedd5' });
     }
     if (aeroPlotPositions.parachuteGlideTip && (aeroParachuteGlideVector?.mag ?? 0) > 0) {
-      list.push({ id: 'para-glide-tip', label: 'Ujung glide parasut', desc: 'Posisi setelah vektor glide parasut', pos: aeroPlotPositions.parachuteGlideTip, color: '#7c3aed', fill: '#ede9fe' });
+      list.push({ id: 'para-glide-tip', label: 'Ujung glide parasut', short: 'B.8 Parasut', desc: 'Posisi setelah vektor glide parasut', pos: aeroPlotPositions.parachuteGlideTip, color: '#7c3aed', fill: '#ede9fe' });
     }
     if (aeroPlotPositions.parachuteWindTip && (aeroParachuteWindVector?.mag ?? 0) > 0) {
-      list.push({ id: 'para-wind-tip', label: 'Ujung drift parasut', desc: 'Posisi setelah vektor angin saat turun', pos: aeroPlotPositions.parachuteWindTip, color: '#0891b2', fill: '#cffafe' });
+      list.push({ id: 'para-wind-tip', label: 'Ujung drift parasut', short: 'B.11 Parasut', desc: 'Posisi setelah vektor angin saat turun', pos: aeroPlotPositions.parachuteWindTip, color: '#0891b2', fill: '#cffafe' });
     }
     if (aeroPlotPositions.parachuteResult && aeroParachuteResultVector) {
-      list.push({ id: 'para-result', label: 'Resultan parasut (B.12)', desc: 'Hasil penjumlahan vektor glide dan drift parasut', pos: aeroPlotPositions.parachuteResult, color: '#0f766e', fill: '#ccfbf1' });
+      list.push({ id: 'para-result', label: 'Resultan parasut (B.12)', short: 'B.12 Parasut', desc: 'Hasil penjumlahan vektor glide dan drift parasut', pos: aeroPlotPositions.parachuteResult, color: '#0f766e', fill: '#ccfbf1' });
     }
     if (aeroLandingPos) {
-      list.push({ id: 'aero-land', label: 'Posisi Mendarat (LKP SAR)', desc: 'Menjadi LKP Operasi Maritim', pos: aeroLandingPos, color: '#0284c7', fill: '#e0f2fe' });
+      list.push({ id: 'aero-land', label: 'Posisi Mendarat (LKP SAR)', short: 'LKP SAR', desc: 'Menjadi LKP Operasi Maritim', pos: aeroLandingPos, color: '#0284c7', fill: '#e0f2fe' });
     } else {
-      list.push({ id: 'lkp', label: 'LKP (Last Known Position)', desc: 'Posisi Terakhir Diketahui', pos: lkp, color: '#0284c7', fill: '#e0f2fe' });
+      list.push({ id: 'lkp', label: 'LKP (Last Known Position)', short: 'LKP', desc: 'Posisi Terakhir Diketahui', pos: lkp, color: '#0284c7', fill: '#e0f2fe' });
     }
 
     if (datumLeft) {
-      list.push({ id: 'dl', label: 'Datum L (Kiri)', desc: 'Hanyutan Leeway Kiri', pos: datumLeft, color: '#dc2626', fill: '#fee2e2' });
+      list.push({ id: 'dl', label: 'Datum L (Kiri)', short: 'Datum L', desc: 'Hanyutan Leeway Kiri', pos: datumLeft, color: '#dc2626', fill: '#fee2e2' });
     }
     if (datumRight) {
-      list.push({ id: 'dr', label: 'Datum R (Kanan)', desc: 'Hanyutan Leeway Kanan', pos: datumRight, color: '#ea580c', fill: '#ffedd5' });
+      list.push({ id: 'dr', label: 'Datum R (Kanan)', short: 'Datum R', desc: 'Hanyutan Leeway Kanan', pos: datumRight, color: '#ea580c', fill: '#ffedd5' });
     }
     if (searchAreaCenter) {
-      list.push({ id: 'sac', label: 'Pusat Area Pencarian', desc: 'Datum Pusat Search Area', pos: searchAreaCenter, color: '#16a34a', fill: '#dcfce7' });
+      list.push({ id: 'sac', label: 'Pusat Area Pencarian', short: 'Pusat SA', desc: 'Datum Pusat Search Area', pos: searchAreaCenter, color: '#16a34a', fill: '#dcfce7' });
     }
     return list;
   }, [
@@ -274,24 +285,24 @@ export default function UPSPlotter({
     if (aeroIncidentPos) {
       const { aircraftGlideTip, aircraftWindTip, parachuteGlideTip, parachuteWindTip, parachuteResult } = aeroPlotPositions;
       if (aircraftGlideTip && (aeroAircraftGlideVector?.mag ?? 0) > 0) {
-        segs.push({ key: 'air-glide', from: aeroIncidentPos, to: aircraftGlideTip, color: '#2563eb', width: 5, marker: 'blue' });
+        segs.push({ key: 'air-glide', name: 'B.8 Pesawat', from: aeroIncidentPos, to: aircraftGlideTip, color: '#2563eb', width: 5, marker: 'blue' });
       }
       if (aircraftGlideTip && aircraftWindTip && (aeroAircraftWindVector?.mag ?? 0) > 0) {
-        segs.push({ key: 'air-wind', from: aircraftGlideTip, to: aircraftWindTip, color: '#f97316', width: 5, dash: '12 7', marker: 'wind' });
+        segs.push({ key: 'air-wind', name: 'B.11 Pesawat', from: aircraftGlideTip, to: aircraftWindTip, color: '#f97316', width: 5, dash: '12 7', marker: 'wind' });
       }
       if (aeroEndGlidePos) {
-        segs.push({ key: 'air-result', from: aeroIncidentPos, to: aeroEndGlidePos, color: '#0f766e', width: 4, dash: '4 6', marker: 'result' });
+        segs.push({ key: 'air-result', name: 'B.12 Pesawat', from: aeroIncidentPos, to: aeroEndGlidePos, color: '#0f766e', width: 4, dash: '4 6', marker: 'result' });
       }
       const parachuteStart = aeroEndGlidePos ?? aeroIncidentPos;
       if (parachuteStart && parachuteGlideTip && (aeroParachuteGlideVector?.mag ?? 0) > 0) {
-        segs.push({ key: 'para-glide', from: parachuteStart, to: parachuteGlideTip, color: '#7c3aed', width: 5, marker: 'para' });
+        segs.push({ key: 'para-glide', name: 'B.8 Parasut', from: parachuteStart, to: parachuteGlideTip, color: '#7c3aed', width: 5, marker: 'para' });
       }
       const driftStart = parachuteGlideTip ?? parachuteStart;
       if (driftStart && parachuteWindTip && (aeroParachuteWindVector?.mag ?? 0) > 0) {
-        segs.push({ key: 'para-wind', from: driftStart, to: parachuteWindTip, color: '#0284c7', width: 5, dash: '6 6', marker: 'cyan' });
+        segs.push({ key: 'para-wind', name: 'B.11 Parasut', from: driftStart, to: parachuteWindTip, color: '#0284c7', width: 5, dash: '6 6', marker: 'cyan' });
       }
       if (parachuteStart && parachuteResult && aeroParachuteResultVector) {
-        segs.push({ key: 'para-result', from: parachuteStart, to: parachuteResult, color: '#0f766e', width: 4, dash: '4 6', marker: 'result' });
+        segs.push({ key: 'para-result', name: 'B.12 Parasut', from: parachuteStart, to: parachuteResult, color: '#0f766e', width: 4, dash: '4 6', marker: 'result' });
       }
       // Lintasan final ke LKP hanya bila berbeda dari kedua resultan (>0,05 NM)
       if (aeroLandingPos) {
@@ -303,17 +314,17 @@ export default function UPSPlotter({
         const sameAsAircraft = nearResultant(aeroEndGlidePos);
         const sameAsParachute = nearResultant(parachuteResult);
         if (!sameAsAircraft && !sameAsParachute) {
-          segs.push({ key: 'final-track', from: aeroIncidentPos, to: aeroLandingPos, color: '#b91c1c', width: 4, dash: '15 8', marker: 'red' });
+          segs.push({ key: 'final-track', name: 'Lintasan', from: aeroIncidentPos, to: aeroLandingPos, color: '#b91c1c', width: 4, dash: '15 8', marker: 'red' });
         }
       }
     }
 
     // Hanyutan laut: LKP -> Datum L / Datum R
     if (datumLeft && lkpBase) {
-      segs.push({ key: 'lkp-dl', from: lkpBase, to: datumLeft, color: '#dc2626', width: 5, marker: 'red', halo: true });
+      segs.push({ key: 'lkp-dl', name: 'Datum L', from: lkpBase, to: datumLeft, color: '#dc2626', width: 5, marker: 'red', halo: true });
     }
     if (datumRight && lkpBase) {
-      segs.push({ key: 'lkp-dr', from: lkpBase, to: datumRight, color: '#ea580c', width: 5, marker: 'red', halo: true });
+      segs.push({ key: 'lkp-dr', name: 'Datum R', from: lkpBase, to: datumRight, color: '#ea580c', width: 5, marker: 'red', halo: true });
     }
 
     // Leg manual (bearing & jarak WGS-84)
@@ -321,7 +332,7 @@ export default function UPSPlotter({
       if (!point.leg) return;
       const from = displayPoints.find((candidate) => candidate.id === point.leg?.fromId);
       if (!from) return;
-      segs.push({ key: `route-${point.id}`, from: from.pos, to: point.pos, color: '#0369a1', width: 4, marker: 'cyan' });
+      segs.push({ key: `route-${point.id}`, name: point.short ?? point.label, from: from.pos, to: point.pos, color: '#0369a1', width: 4, marker: 'cyan' });
     });
 
     return segs;
@@ -737,6 +748,61 @@ function UpsSheetView({
 
   const pointPixels = displayPoints.map((p) => ({ ...p, ...toPx(p.pos) }));
 
+  // ---- Label vektor: rotasi mengikuti arah segmen, hindari tabrakan ----
+  // Format: "Nama - arah/jarak" (contoh "Datum L - 50°/12.3 NM"), font proporsional
+  // agar tidak tumpang tindih; segmen pendek digeser ke samping garisnya.
+  const segLabelFont = isPrint ? 40 : 48;
+  const segPixels = vectorSegs.map((seg) => ({
+    seg,
+    a: toPx(seg.from),
+    b: toPx(seg.to),
+    inv: upsInverse(seg.from, seg.to),
+  }));
+  const segPlacements: Map<string, LabelPlacement> = new Map();
+  const segLabelText: Map<string, string> = new Map();
+  if (segPixels.length > 0) {
+    const items = segPixels.map(({ seg, a, b, inv }) => {
+      const text = `${seg.name ? `${seg.name} - ` : ''}${Math.round(inv.bearingDeg) % 360}°/${inv.distanceNm.toFixed(1)} NM`;
+      segLabelText.set(seg.key, text);
+      return {
+        id: seg.key,
+        x1: a.x,
+        y1: a.y,
+        x2: b.x,
+        y2: b.y,
+        label: text,
+      };
+    });
+    const obstacleSegments = segPixels.map(({ seg, a, b }) => ({
+      id: seg.key,
+      x1: a.x,
+      y1: a.y,
+      x2: b.x,
+      y2: b.y,
+    }));
+    // Kotak tetap: label titik (LKP, datum, dsb.) tidak boleh tertutup label vektor.
+    const staticObstacles: BoxObstacle[] = pointPixels.map((p) => {
+      const shortLabel = p.short ?? p.label;
+      if (isPrint) {
+        // Cetak: teks halo horizontal, baseline di (p.x, p.y - 26)
+        const w = shortLabel.length * 44 * 0.62 + 16;
+        return { id: `pt-${p.id}`, x: p.x, y: p.y - 26 - 44 * 0.35, w, h: 44 * 1.3 };
+      }
+      // Layar: badge di atas pin — translate(p.x, p.y-18), rect y=-74..-10
+      const w = Math.max(140, shortLabel.length * 30 + 44);
+      return { id: `pt-${p.id}`, x: p.x, y: p.y - 58, w, h: 64 };
+    });
+    for (const pl of placeAlongLineLabels(items, {
+      fontSize: segLabelFont,
+      minPad: 10,
+      obstacleSegments,
+      staticObstacles,
+      sceneCenter: { x: UPS_CX, y: UPS_CY },
+    })) {
+      segPlacements.set(pl.id, pl);
+    }
+  }
+
   const searchBox = useMemo(() => {
     if (!searchArea) return null;
     const c = toPx(searchArea.center);
@@ -815,24 +881,54 @@ function UpsSheetView({
 
       {/* Segmen vektor — tanpa filter saat cetak agar tetap murni vektor di PDF */}
       <g filter={isPrint ? undefined : `url(#ups-glow-${variant})`}>
-        {vectorSegs.map((seg) => {
-          const a = toPx(seg.from);
-          const b = toPx(seg.to);
+        {segPixels.map(({ seg, a, b }) => (
+          <g key={seg.key}>
+            {seg.halo && (
+              <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#ffffff" strokeWidth={seg.width * k + 4} opacity={0.9} />
+            )}
+            <line
+              x1={a.x}
+              y1={a.y}
+              x2={b.x}
+              y2={b.y}
+              stroke={seg.color}
+              strokeWidth={seg.width * k}
+              strokeDasharray={seg.dash}
+              markerEnd={`url(#ups-arrow-${seg.marker}-${variant})`}
+            />
+          </g>
+        ))}
+      </g>
+
+      {/* Label vektor — dirotasi mengikuti arah segmen; segmen pendek digeser
+          ke samping agar tidak menutupi vektor/label lain */}
+      <g filter={isPrint ? undefined : `url(#ups-glow-${variant})`}>
+        {segPixels.map(({ seg }) => {
+          const pl = segPlacements.get(seg.key);
+          if (!pl) return null;
           return (
-            <g key={seg.key}>
-              {seg.halo && (
-                <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#ffffff" strokeWidth={seg.width * k + 4} opacity={0.9} />
-              )}
-              <line
-                x1={a.x}
-                y1={a.y}
-                x2={b.x}
-                y2={b.y}
+            <g key={`seglbl-${seg.key}`} transform={`translate(${pl.x}, ${pl.y}) rotate(${pl.angleDeg})`}>
+              <rect
+                x={-pl.widthPx / 2}
+                y={-pl.heightPx / 2}
+                width={pl.widthPx}
+                height={pl.heightPx}
+                rx={8 * k}
+                fill="#0f172a"
+                fillOpacity="0.85"
                 stroke={seg.color}
-                strokeWidth={seg.width * k}
-                strokeDasharray={seg.dash}
-                markerEnd={`url(#ups-arrow-${seg.marker}-${variant})`}
+                strokeWidth={2 * k}
               />
+              <text
+                x="0"
+                y={segLabelFont * 0.36}
+                textAnchor="middle"
+                fill="#ffffff"
+                fontSize={segLabelFont}
+                fontWeight="bold"
+              >
+                {segLabelText.get(seg.key) ?? ''}
+              </text>
             </g>
           );
         })}
@@ -874,9 +970,10 @@ function UpsSheetView({
           <circle cx={p.x} cy={p.y} r={9 * k} fill={p.color} stroke="#ffffff" strokeWidth={2.5 * k} />
           <circle cx={p.x} cy={p.y} r={3 * k} fill="#ffffff" />
           {showLabels && (isPrint ? (
-            // Cetak: teks halo putih terbaca (~2 mm pada kertas), tegak sepanjang sumbu
+            // Cetak: label pendek horizontal di atas pin (terbaca normal pada lembar landscape)
             <text
-              transform={`rotate(90, ${p.x}, ${p.y - 30}) translate(${p.x}, ${p.y - 30})`}
+              x={p.x}
+              y={p.y - 26}
               textAnchor="middle"
               fontSize={44}
               fontWeight="bold"
@@ -886,13 +983,23 @@ function UpsSheetView({
               paintOrder="stroke"
               style={{ paintOrder: 'stroke' }}
             >
-              {p.label}
+              {p.short ?? p.label}
             </text>
           ) : (
-            <g transform={`rotate(90, ${p.x}, ${p.y - 18}) translate(${p.x}, ${p.y - 18})`}>
-              <rect x="-70" y="-22" width="140" height="24" rx="4" fill="#0f172a" fillOpacity="0.9" stroke={p.color} strokeWidth="1.5" />
-              <text x="0" y="-6" textAnchor="middle" fill="#ffffff" fontSize="11" fontWeight="bold">
-                {p.label}
+            <g transform={`translate(${p.x}, ${p.y - 18})`}>
+              <rect
+                x={-Math.max(140, (p.short ?? p.label).length * 30 + 44) / 2}
+                y={-74}
+                width={Math.max(140, (p.short ?? p.label).length * 30 + 44)}
+                height={64}
+                rx={10}
+                fill="#0f172a"
+                fillOpacity="0.9"
+                stroke={p.color}
+                strokeWidth="3"
+              />
+              <text x="0" y="-30" textAnchor="middle" fill="#ffffff" fontSize="48" fontWeight="bold">
+                {p.short ?? p.label}
               </text>
             </g>
           ))}
@@ -1033,7 +1140,7 @@ function UpsPrintPortalBlock({
                     <li key={seg.key} className="flex items-start gap-1">
                       <span className="inline-block w-[9px] h-[3px] mt-[4px] shrink-0" style={{ backgroundColor: seg.color }} />
                       <span>
-                        {String(Math.round(inv.bearingDeg) % 360).padStart(3, '0')}°T / {inv.distanceNm.toFixed(1)} NM
+                        {seg.name ? `${seg.name} - ` : ''}{Math.round(inv.bearingDeg) % 360}°/{inv.distanceNm.toFixed(1)} NM
                       </span>
                     </li>
                   );
