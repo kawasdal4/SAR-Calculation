@@ -4,7 +4,6 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { type LatLng, distanceNm, project } from '@/lib/sar/sarCalculations';
-import { formatDegMinSec, type CoordAxis } from '@/lib/sar/coordFormat';
 import {
   placeAlongLineLabels,
   type LabelPlacement,
@@ -485,195 +484,232 @@ export default function SeaMap({
       L.tileLayer(SEAMARK_URL, { attribution: SEAMARK_ATTR, maxZoom: SEAMARK_MAX_ZOOM, tileSize: 256, opacity: 0.9 }).addTo(map);
     }
 
-    // ---- Nautical chart scale border (canvas-based) ----
-    // Style: NO black/white band. Each side is a 1 px outline at the very
-    // edge, with short tick marks projecting INTO the map area:
-    //   - minor tick: 5 px long, every `minorSec` arc-seconds
-    //   - major tick: 10 px long, every 30′ (or coarser at very far zoom)
-    // Ticks are dark (#1a1a1a) with a thin white halo (3 px stroke first,
-    // then 1 px dark on top) so they read on both the road map and satellite
-    // tiles. Labels (every major interval) sit just inside the map, with a
-    // white pill background.
+    // ---- Bingkai skala peta laut (canvas) — replika bingkai peta cetak ----
+    // Referensi: Peta No. 149 "Babel" (Dishidros, A3). Struktur diukur dari
+    // PDF referensi pada render 300 dpi (kalibrasi 1' = 43.85 px dari jarak
+    // label 111° s.d. 111°30'):
+    //   • Pita 3 neatline tipis, dua separuh 6 px. Separuh DALAM = sisi peta,
+    //     separuh LUAR = sisi margin.
+    //   • Separuh luar: blok hitam/putih bergantian per 5'. Hitam MULAI TEPAT
+    //     di derajat: 0–5', 10–15', 20–25' hitam; 5–10', 15–20', 25–30' putih
+    //     (terverifikasi identik di tepi bawah 111° dan tepi kanan 3°).
+    //   • Tick penuh (selebar pita) di setiap batas blok 5'; tick 1' lainnya
+    //     pendek (55% lebar pita) mulai dari neatline dalam.
+    //   • Label HANYA di kelipatan 30'/derajat, format cetak: derajat penuh
+    //     "111°" (tanpa nol di depan), menit "30'" (tanpa detik), TANPA huruf
+    //     hemisfer S/T/B/U. Bujur di bawah DAN atas bingkai (rata tengah di
+    //     meridian); lintang di kiri DAN kanan (teks tegak; kanan rata kiri,
+    //     kiri rata kanan). Tonjolan 6 px dari bingkai ke label.
+    //   • Garis kisi 0.6 px menembus peta di setiap posisi label, dari
+    //     bingkai ke bingkai.
     //
-    // Label interval adapts to zoom: 5′, 10′, and 20′ appear at close zoom;
-    // coarser intervals are selected as the map zooms out.
+    // Perilaku zoom: tangga langkah [60, 30, 10, 5, 1, 0.5, 1/6, 1/12, 1/60]
+    // menit. Level label = langkah terhalus yang jarak antar-labelnya masih
+    // >= LABEL_MIN_PX. Blok = 2 level di bawah label; tick = 3 level di bawahnya.
+    // Skala bujur dan lintang dihitung TERPISAH (px/menit berbeda pada
+    // proyeksi Web Mercator). Semua langkah tangga membag habis 60', sehingga
+    // grid selalu anchor ke derajat penuh — fase blok hitam tetap stabil.
     //
-    // The four sides share one `drawBand` function — no per-side duplication.
-    const MAJOR_TICK_PX = 10;
-    const MINOR_TICK_PX = 5;
-    const LABEL_MIN_PX_LNG = 60;
-    const LABEL_MIN_PX_LAT = 30;
-    const MINOR_MIN_PX = 5;
-    const MINOR_DENSIFY_PX = 60;
-
-    const MAJOR_LABEL_STEPS_SEC = [300, 600, 1200, 1800, 3600, 7200, 18000];
+    // Konstanta yang bisa disetel:
+    const BAND_W = 12;             // lebar pita bingkai (px) — cetak ≈ 2 mm
+    const FRAME_INSET_X = 70;      // ruang label kiri/kanan di luar bingkai (px)
+    const FRAME_INSET_Y = 22;      // ruang label atas/bawah di luar bingkai (px)
+    const TICK_MINOR_FRAC = 0.55;  // panjang tick 1' = fraksi lebar pita
+    const LABEL_PROJ = 6;          // tonjolan garis dari bingkai ke label (px)
+    const LABEL_FONT = '12px Georgia, "Times New Roman", serif'; // serif tipis ala cetak
+    const LABEL_COLOR = '#1a1a1a';
+    const FRAME_COLOR = '#1a1a1a';
+    const GRAT_COLOR = 'rgba(26, 26, 26, 0.6)'; // garis kisi lebih redup
+    const GRAT_W = 0.6;            // tebal garis kisi (px)
+    const LABEL_MIN_PX = 140;      // jarak antar-label minimum (px)
+    const LADDER_MIN = [60, 30, 10, 5, 1, 0.5, 1 / 6, 1 / 12, 1 / 60]; // menit
+    const BLOCK_LEVELS_BELOW = 2;  // blok = 2 level di bawah label
+    const TICK_LEVELS_BELOW = 3;   // tick = 3 level di bawah label
 
     let scaleBorderCanvas: HTMLCanvasElement | null = null;
     let scaleBorderRAF: number | null = null;
+    let frameFullscreenHandler: (() => void) | null = null;
+    let frameResizeHandler: (() => void) | null = null;
 
-    function chooseMajorInterval(pxPerDeg: number, minLabelPx: number): number {
-      for (const step of MAJOR_LABEL_STEPS_SEC) {
-        if (step * pxPerDeg / 3600 >= minLabelPx) return step;
+    // Level label: langkah TERHALUS yang jarak antar-labelnya masih >=
+    // LABEL_MIN_PX pada sumbu tsb (px per menit bujur ≠ px per menit
+    // lintang di Web Mercator). Konsisten dengan kriteria #1: pada zoom yang
+    // menampilkan ±108°–112°BT, label jatuh di kelipatan 30'/derajat.
+    // Bila bahkan langkah terkasar (60') pun < 140 px, pakai 60'.
+    function chooseLabelLevel(pxPerMin: number): number {
+      let lvl = 0;
+      for (let i = 1; i < LADDER_MIN.length; i++) {
+        if (LADDER_MIN[i] * pxPerMin >= LABEL_MIN_PX) lvl = i; else break;
       }
-      return MAJOR_LABEL_STEPS_SEC[MAJOR_LABEL_STEPS_SEC.length - 1];
+      return lvl;
     }
 
-    function chooseMinorInterval(majorSec: number, pxPerDeg: number): number {
-      const spacing5 = 300 * pxPerDeg / 3600;
-      if (spacing5 >= MINOR_MIN_PX) {
-        if (spacing5 > MINOR_DENSIFY_PX) {
-          for (const c of [30, 60]) {
-            if (c * pxPerDeg / 3600 >= MINOR_MIN_PX && c < majorSec) return c;
-          }
-          return 300;
-        }
-        return 300;
+    // Label gaya cetak. Input: detik busur (grid anchor derajat, bulat).
+    //   derajat penuh -> "111°" / "3°"   (tanpa nol di depan)
+    //   menit         -> "30'"            (hanya menit, tanpa detik)
+    // Tanpa huruf S/T/B/U; lintang selalu tampil sebagai nilai positif.
+    // Bujur dinormalisasi ke [0,360) (praktik BT). Di zoom ekstrem label bisa
+    // jatuh di bawah 1 menit — saat itu ditampilkan dalam detik ("10\"")
+    // karena cetak juga memakai detik pada skala besar.
+    function frameLabel(sec: number, axis: 'lat' | 'lng'): string {
+      const minFromDeg = (Math.abs(Math.round(sec)) % 3600) / 60;
+      if (minFromDeg === 0) {
+        const deg = Math.round(sec / 3600);
+        const norm = axis === 'lng' ? (((deg % 360) + 360) % 360) : Math.abs(deg);
+        return `${norm}°`;
       }
-      for (const c of [600, 900]) {
-        if (c < majorSec && c * pxPerDeg / 3600 >= MINOR_MIN_PX) return c;
+      if (minFromDeg >= 1) {
+        const txt = Number.isInteger(minFromDeg)
+          ? `${minFromDeg}`
+          : String(parseFloat(minFromDeg.toFixed(3)));
+        return `${txt}'`;
       }
-      return majorSec;
+      return `${Math.round(minFromDeg * 60)}"`;
     }
 
     /**
-     * Unified tick-drawing routine used by all four sides of the chart border.
-     * Top/bottom iterate along the longitude axis; left/right iterate along
-     * the latitude axis. The exact same tick + label rules apply to every
-     * side — only the orientation differs.
+     * Satu rutin untuk KEEMPAT sisi bingkai — pola identik dengan cetak.
+     * side menentukan orientasi; axis menentukan sumbu nilai (bujur untuk
+     * top/bottom, lintang untuk left/right). Struktur per sisi, dari sisi
+     * peta ke margin:
+     *   neatline dalam → separuh dalam (tick 1') → neatline tengah →
+     *   separuh luar (blok hitam/putih) → neatline luar → tonjolan → label.
      *
-     * No black/white band fill is drawn — only:
-     *   - tick marks (with white halo) projecting INTO the map from the edge,
-     *   - labels at major ticks (just inside the map, with black pill bg).
-     * The outer 1 px outline is drawn separately in drawScaleBorder().
-     *
-     * Labels are collected (not drawn immediately) so drawScaleBorder() can
-     * run a single bounding-box collision pass over ALL labels of ALL four
-     * sides together — a label that overlaps another label, or overlaps the
-     * scale/attribution controls, is dropped instead of stacked.
+     * Grid tick/blok/label semuanya kelipatan bulat detik busur yang membag
+     * habis 3600 (derajat), sehingga fase blok hitam tidak pernah bergeser.
      */
-    function drawBand(args: {
-      ctx: CanvasRenderingContext2D;
-      orientation: 'top' | 'bottom' | 'left' | 'right';
-      axis: CoordAxis;
-      axisStart: number;
-      axisEnd: number;
-      majorSec: number;
-      minorSec: number;
-      w: number;
-      h: number;
-      toScreenPos: (axisValueDeg: number) => number;
-      // Collect a label candidate (returns the bounding box that would be
-      // drawn, or null if the label would not fit inside the map area).
-      collectLabel: (text: string, x: number, y: number, align: 'center' | 'left' | 'right', baseline: 'top' | 'middle' | 'bottom', side: 'top' | 'bottom' | 'left' | 'right') => void;
+    function drawSide(args: {
+      side: 'top' | 'bottom' | 'left' | 'right';
+      axis: 'lat' | 'lng';
+      axisStartSec: number;  // batas sumbu terkecil (detik busur)
+      axisEndSec: number;    // batas sumbu terbesar (detik busur)
+      labelSec: number;      // langkah label (30'/derajat)
+      blockSec: number;      // langkah blok (2 level di bawah label)
+      tickSec: number;       // langkah tick (3 level di bawah label)
+      toPos: (deg: number) => number; // derajat → x (horizontal) / y (vertikal)
+      reserved: Array<{ x: number; y: number; w: number; h: number }>; // area kontrol yang tak boleh tertutup label
     }): void {
-      const {
-        ctx, orientation, axis, axisStart, axisEnd,
-        majorSec, minorSec, w, h,
-        toScreenPos, collectLabel,
-      } = args;
+      const { side, axis, axisStartSec, axisEndSec, labelSec, blockSec, tickSec, toPos, reserved } = args;
+      const isH = side === 'top' || side === 'bottom';
+      // Neatline: luar (sisi margin) → tengah → dalam (sisi peta).
+      const lineOuter = isH ? (side === 'bottom' ? fy1 : fy0) : (side === 'right' ? fx1 : fx0);
+      const s = side === 'bottom' || side === 'right' ? -1 : 1; // arah ke dalam
+      const lineMid = lineOuter + (BAND_W / 2) * s;
+      const lineInner = lineOuter + BAND_W * s;
+      const axisMin = isH ? fx0 : fy0;
+      const axisMax = isH ? fx1 : fy1;
+      const tickMinor = TICK_MINOR_FRAC * BAND_W;
 
-      const isHorizontal = orientation === 'top' || orientation === 'bottom';
-      const viewportSpan = isHorizontal ? w : h;
-      const majSec = Math.round(majorSec);
-      const minSec = Math.round(minorSec);
-
-      // Iterate in integer arc-seconds to avoid floating-point drift.
-      // For latitude, axisStart = south (most negative), axisEnd = north
-      // (least negative / positive). startSec ≤ endSec because ceil() of a
-      // more-negative number divided by a positive step yields a smaller
-      // (more negative) integer.
-      const startSec = Math.ceil(axisStart * 3600 / minSec) * minSec;
-      const endSec = Math.ceil(axisEnd * 3600 / minSec) * minSec;
-
-      const LABEL_OFFSET = MAJOR_TICK_PX + 4;
-
-      for (let sec = startSec; sec <= endSec; sec += minSec) {
-        const axisValue = sec / 3600;
-        const wrappedAxisValue = axis === 'lng'
-          ? (((axisValue + 540) % 360) + 360) % 360 - 180
-          : axisValue;
-        const pos = toScreenPos(wrappedAxisValue);
-
-        if (pos < -40 || pos > viewportSpan + 40) continue;
-
-        const isMajor = (sec % majSec) === 0;
-        const tickLen = isMajor ? MAJOR_TICK_PX : MINOR_TICK_PX;
-
-        let x0: number, y0: number, x1: number, y1: number;
-        if (orientation === 'top') {
-          x0 = pos; y0 = 0; x1 = pos; y1 = tickLen;
-        } else if (orientation === 'bottom') {
-          x0 = pos; y0 = h - tickLen; x1 = pos; y1 = h;
-        } else if (orientation === 'left') {
-          x0 = 0; y0 = pos; x1 = tickLen; y1 = pos;
+      // --- Blok hitam/putih di separuh LUAR pita ---
+      // Hitam mulai TEPAT di derajat: floor(menit-dari-derajat / blok) genap.
+      // (Terukur dari PDF: 0–5', 10–15', 20–25' hitam; 5–10', 15–20',
+      // 25–30' putih — sama di keempat sisi.)
+      for (let sec = Math.floor(axisStartSec / blockSec) * blockSec; sec <= axisEndSec; sec += blockSec) {
+        const mfd = Math.abs(Math.round(sec)) % 3600;
+        if (Math.floor(mfd / blockSec) % 2 !== 0) continue; // putih = kosong
+        const x0 = toPos(sec / 3600);
+        const x1 = toPos((sec + blockSec) / 3600);
+        if (x1 < axisMin - 4 || x0 > axisMax + 4) continue;
+        const a = Math.max(x0, axisMin);
+        const b = Math.min(x1, axisMax);
+        if (b - a <= 0.5) continue;
+        if (isH) {
+          ctx.fillRect(a, Math.min(lineMid, lineOuter), b - a, BAND_W / 2);
         } else {
-          x0 = w - tickLen; y0 = pos; x1 = w; y1 = pos;
+          ctx.fillRect(Math.min(lineMid, lineOuter), a, BAND_W / 2, b - a);
         }
+      }
 
-        // Halo first (white, 3 px, round caps).
-        ctx.lineCap = 'round';
-        ctx.strokeStyle = 'rgba(255,255,255,0.95)';
-        ctx.lineWidth = 3;
+      // --- Tick: penuh (selebar pita) di batas blok, pendek (55%) selainnya ---
+      // Tick MEMOTONG PITA: mulai di neatline dalam, menuju neatline luar
+      // (arah -s), persis seperti cetak — bukan menonjol ke dalam peta.
+      ctx.beginPath();
+      for (let sec = Math.ceil(axisStartSec / tickSec) * tickSec; sec <= axisEndSec; sec += tickSec) {
+        const pos = toPos(sec / 3600);
+        if (pos < axisMin - 8 || pos > axisMax + 8) continue;
+        const isBlockEdge = Math.abs(Math.round(sec)) % blockSec === 0;
+        const len = isBlockEdge ? BAND_W : tickMinor;
+        if (isH) {
+          ctx.moveTo(pos, lineInner);
+          ctx.lineTo(pos, lineInner - len * s);
+        } else {
+          ctx.moveTo(lineInner, pos);
+          ctx.lineTo(lineInner - len * s, pos);
+        }
+      }
+      ctx.stroke();
+
+      // --- Tiga neatline tipis ---
+      ctx.beginPath();
+      if (isH) {
+        ctx.moveTo(fx0, lineOuter); ctx.lineTo(fx1, lineOuter);
+        ctx.moveTo(fx0, lineMid); ctx.lineTo(fx1, lineMid);
+        ctx.moveTo(fx0, lineInner); ctx.lineTo(fx1, lineInner);
+      } else {
+        ctx.moveTo(lineOuter, fy0); ctx.lineTo(lineOuter, fy1);
+        ctx.moveTo(lineMid, fy0); ctx.lineTo(lineMid, fy1);
+        ctx.moveTo(lineInner, fy0); ctx.lineTo(lineInner, fy1);
+      }
+      ctx.stroke();
+
+      // --- Label + tonjolan 6 px, HANYA di kelipatan 30'/derajat ---
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      for (let sec = Math.ceil(axisStartSec / labelSec) * labelSec; sec <= axisEndSec; sec += labelSec) {
+        const pos = toPos(sec / 3600);
+        // Jauhkan label dari sudut bingkai (hindari bertumpuk dengan pita
+        // yang tegak lurus).
+        if (pos < axisMin + 16 || pos > axisMax - 16) continue;
+        const text = frameLabel(sec, axis);
+        const tw = ctx.measureText(text).width;
+        if (side === 'bottom') {
+          const bx = pos - tw / 2;
+          const by = lineOuter + LABEL_PROJ + 2;
+          const collides = reserved.some(
+            (r) => bx < r.x + r.w && bx + tw > r.x && by < r.y + r.h && by + 14 > r.y,
+          );
+          if (collides) continue;
+        }
+        // Tonjolan: garis pendek dari neatline luar ke arah label.
         ctx.beginPath();
-        ctx.moveTo(x0, y0);
-        ctx.lineTo(x1, y1);
+        if (side === 'bottom') {
+          ctx.moveTo(pos, lineOuter); ctx.lineTo(pos, lineOuter + LABEL_PROJ);
+        } else if (side === 'top') {
+          ctx.moveTo(pos, lineOuter); ctx.lineTo(pos, lineOuter - LABEL_PROJ);
+        } else if (side === 'right') {
+          ctx.moveTo(lineOuter, pos); ctx.lineTo(lineOuter + LABEL_PROJ, pos);
+        } else {
+          ctx.moveTo(lineOuter, pos); ctx.lineTo(lineOuter - LABEL_PROJ, pos);
+        }
         ctx.stroke();
 
-        // Then the dark tick on top (1 px).
-        ctx.strokeStyle = '#1a1a1a';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(x0, y0);
-        ctx.lineTo(x1, y1);
-        ctx.stroke();
-
-        // Collect label candidate at major ticks. Spacing/collision is
-        // resolved later by the caller — here we just collect every
-        // candidate whose tick position is inside the visible area (with a
-        // 14 px / 20 px margin so the label has room near the corners).
-        if (isMajor) {
-          const label = formatDegMinSec(wrappedAxisValue, axis, majorSec);
-          if (isHorizontal) {
-            if (orientation === 'top') {
-              if (pos > MAJOR_TICK_PX + 20 && pos < w - MAJOR_TICK_PX - 20) {
-                collectLabel(label, pos, LABEL_OFFSET, 'center', 'top', 'top');
-              }
-            } else {
-              if (pos > MAJOR_TICK_PX + 20 && pos < w - MAJOR_TICK_PX - 20) {
-                collectLabel(label, pos, h - LABEL_OFFSET, 'center', 'bottom', 'bottom');
-              }
-            }
-          } else {
-            if (orientation === 'left') {
-              if (pos > MAJOR_TICK_PX + 14 && pos < h - MAJOR_TICK_PX - 14) {
-                collectLabel(label, LABEL_OFFSET, pos, 'left', 'middle', 'left');
-              }
-            } else {
-              if (pos > MAJOR_TICK_PX + 14 && pos < h - MAJOR_TICK_PX - 14) {
-                collectLabel(label, w - LABEL_OFFSET, pos, 'right', 'middle', 'right');
-              }
-            }
-          }
+        // Teks tegak (tidak diputar), serif tipis 12 px #1a1a1a.
+        if (side === 'bottom') {
+          ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+          ctx.fillText(text, pos, lineOuter + LABEL_PROJ + 3);
+        } else if (side === 'top') {
+          ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+          ctx.fillText(text, pos, lineOuter - LABEL_PROJ - 3);
+        } else if (side === 'right') {
+          ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+          ctx.fillText(text, lineOuter + LABEL_PROJ + 3, pos);
+        } else {
+          ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+          ctx.fillText(text, lineOuter - LABEL_PROJ - 3, pos);
         }
       }
     }
 
-    // A label candidate collected by drawBand. Bounding box is computed up
-    // front so the collision pass doesn't need to re-measure text.
-    interface LabelCandidate {
-      text: string;
-      x: number;          // text anchor x
-      y: number;          // text anchor y
-      align: 'center' | 'left' | 'right';
-      baseline: 'top' | 'middle' | 'bottom';
-      side: 'top' | 'bottom' | 'left' | 'right';
-      bgX: number;       // background rect left
-      bgY: number;       // background rect top
-      tw: number;        // background rect width
-      th: number;        // background rect height
-    }
+    // Variabel geometri bingkai untuk frame render berjalan — diisi
+    // drawChartFrame() sebelum drawSide() dipanggil (drawSide membaca lewat
+    // closure; definite assignment karena selalu diset lebih dulu).
+    let ctx!: CanvasRenderingContext2D;
+    let fx0 = 0;
+    let fx1 = 0;
+    let fy0 = 0;
+    let fy1 = 0;
 
-    function drawScaleBorder() {
+    function drawChartFrame() {
       if (!scaleBorderCanvas || !isMapActive()) return;
       const mapEl = map.getContainer();
       const w = mapEl.clientWidth;
@@ -684,196 +720,110 @@ export default function SeaMap({
       scaleBorderCanvas.style.width = w + 'px';
       scaleBorderCanvas.style.height = h + 'px';
 
-      const ctx = scaleBorderCanvas.getContext('2d');
-      if (!ctx) return;
-      ctx.save();
-      ctx.scale(dpr, dpr);
-      ctx.clearRect(0, 0, w, h);
+      const ctx2d = scaleBorderCanvas.getContext('2d');
+      if (!ctx2d) return;
+      ctx2d.save();
+      ctx2d.scale(dpr, dpr);
+      ctx2d.clearRect(0, 0, w, h);
+      ctx = ctx2d;
 
-      const centerPt = map.getCenter();
+      // Kontainer kecil (hp): kecilkan inset proporsional agar bingkai tetap
+      // muat; kontainer normal memakai konstanta penuh 70/22.
+      const insetX = Math.max(24, Math.min(FRAME_INSET_X, (w - 160) / 2));
+      const insetY = Math.max(14, Math.min(FRAME_INSET_Y, (h - 120) / 2));
+      fx0 = insetX;
+      fx1 = w - insetX;
+      fy0 = insetY;
+      fy1 = h - insetY;
 
-      const pt1 = map.latLngToContainerPoint(centerPt);
-      const pt2Lng = map.latLngToContainerPoint({
-        lat: centerPt.lat,
-        lng: centerPt.lng + 1,
-      } as L.LatLngExpression);
-      const pt2Lat = map.latLngToContainerPoint({
-        lat: centerPt.lat + 1,
-        lng: centerPt.lng,
-      } as L.LatLngExpression);
-      const pxPerDegLng = Math.abs(pt2Lng.x - pt1.x);
-      const pxPerDegLat = Math.abs(pt2Lat.y - pt1.y);
+      // px/menit bujur dan lintang dihitung TERPISAH — di Web Mercator
+      // px/menit bujur konstan sementara px/menit lintang membesar ke kutub.
+      const center = map.getCenter();
+      const pC = map.latLngToContainerPoint(center);
+      const pLng = map.latLngToContainerPoint({ lat: center.lat, lng: center.lng + 1 } as L.LatLngExpression);
+      const pLat = map.latLngToContainerPoint({ lat: center.lat + 1, lng: center.lng } as L.LatLngExpression);
+      const pxPerMinLng = Math.abs(pLng.x - pC.x) / 60;
+      const pxPerMinLat = Math.abs(pLat.y - pC.y) / 60;
 
-      const lngMajSec = chooseMajorInterval(pxPerDegLng, LABEL_MIN_PX_LNG);
-      const lngMinSec = chooseMinorInterval(lngMajSec, pxPerDegLng);
-      const latMajSec = chooseMajorInterval(pxPerDegLat, LABEL_MIN_PX_LAT);
-      const latMinSec = chooseMinorInterval(latMajSec, pxPerDegLat);
+      const lvlLng = chooseLabelLevel(pxPerMinLng);
+      const lvlLat = chooseLabelLevel(pxPerMinLat);
+      const clampIdx = (i: number) => Math.min(i, LADDER_MIN.length - 1);
+      const labelSecLng = Math.round(LADDER_MIN[lvlLng] * 60);
+      const labelSecLat = Math.round(LADDER_MIN[lvlLat] * 60);
+      const blockSecLng = Math.round(LADDER_MIN[clampIdx(lvlLng + BLOCK_LEVELS_BELOW)] * 60);
+      const blockSecLat = Math.round(LADDER_MIN[clampIdx(lvlLat + BLOCK_LEVELS_BELOW)] * 60);
+      const tickSecLng = Math.round(LADDER_MIN[clampIdx(lvlLng + TICK_LEVELS_BELOW)] * 60);
+      const tickSecLat = Math.round(LADDER_MIN[clampIdx(lvlLat + TICK_LEVELS_BELOW)] * 60);
 
       const bounds = map.getBounds();
-      const westLng = bounds.getWest();
-      const eastLng = bounds.getEast();
-      const southLat = Math.max(-85, bounds.getSouth());
-      const northLat = Math.min(85, bounds.getNorth());
+      const westSec = Math.round(bounds.getWest() * 3600);
+      const eastSec = Math.round(bounds.getEast() * 3600);
+      const southSec = Math.round(Math.max(-85, bounds.getSouth()) * 3600);
+      const northSec = Math.round(Math.min(85, bounds.getNorth()) * 3600);
 
-      const font = '11px "Courier New", ui-monospace, monospace';
-      const padX = 4;   // horizontal padding inside the label pill
-      const padY = 2;   // vertical padding inside the label pill
-      const th = 14 + padY * 2; // text height + padding = bg height
+      const toLngX = (deg: number) =>
+        map.latLngToContainerPoint({ lat: 0, lng: deg } as L.LatLngExpression).x;
+      const toLatY = (deg: number) =>
+        map.latLngToContainerPoint({ lat: deg, lng: 0 } as L.LatLngExpression).y;
 
-      // Measure helper: returns bounding rect for a label at (x, y) with the
-      // given alignment/baseline. The pill width follows the text width
-      // (ctx.measureText) — no fixed width.
-      function measureLabel(
-        text: string,
-        x: number,
-        y: number,
-        align: 'center' | 'left' | 'right',
-        baseline: 'top' | 'middle' | 'bottom',
-      ): { bgX: number; bgY: number; tw: number; th: number } {
-        if (!ctx) return { bgX: 0, bgY: 0, tw: 0, th: 0 };
-        ctx.font = font;
-        const tw = ctx.measureText(text).width + padX * 2;
-        let bgX = x - tw / 2;
-        if (align === 'left') bgX = x - padX;
-        if (align === 'right') bgX = x - tw + padX;
-        const bgY = baseline === 'top' ? y - padY : baseline === 'middle' ? y - th / 2 : y - th + padY;
-        return { bgX, bgY, tw, th };
+      // ---- Garis kisi 0.6 px di setiap POSISI LABEL (posisi bujur atas =
+      // bawah; lintang kiri = kanan — cukup digambar sekali), dari bingkai
+      // ke bingkai. Digambar sebelum pita agar berada di bawahnya.
+      ctx.strokeStyle = GRAT_COLOR;
+      ctx.lineWidth = GRAT_W;
+      ctx.beginPath();
+      for (let sec = Math.ceil(westSec / labelSecLng) * labelSecLng; sec <= eastSec; sec += labelSecLng) {
+        const x = toLngX(sec / 3600);
+        if (x < fx0 + BAND_W || x > fx1 - BAND_W) continue;
+        ctx.moveTo(x, fy0 + BAND_W);
+        ctx.lineTo(x, fy1 - BAND_W);
       }
-
-      // Collect candidates from all four sides first. drawBand pushes into
-      // this array via the collectLabel closure.
-      const candidates: LabelCandidate[] = [];
-
-      function collectLabel(
-        text: string,
-        x: number,
-        y: number,
-        align: 'center' | 'left' | 'right',
-        baseline: 'top' | 'middle' | 'bottom',
-        side: 'top' | 'bottom' | 'left' | 'right',
-      ) {
-        const { bgX, bgY, tw, th: ths } = measureLabel(text, x, y, align, baseline);
-        // Reject candidates whose bounding box would extend past the map
-        // edges (would overlap the perpendicular border).
-        if (bgX < 1 || bgX + tw > w - 1 || bgY < 1 || bgY + ths > h - 1) return;
-        candidates.push({ text, x, y, align, baseline, side, bgX, bgY, tw, th: ths });
+      for (let sec = Math.ceil(southSec / labelSecLat) * labelSecLat; sec <= northSec; sec += labelSecLat) {
+        const y = toLatY(sec / 3600);
+        if (y < fy0 + BAND_W || y > fy1 - BAND_W) continue;
+        ctx.moveTo(fx0 + BAND_W, y);
+        ctx.lineTo(fx1 - BAND_W, y);
       }
+      ctx.stroke();
 
-      drawBand({
-        ctx, orientation: 'top', axis: 'lng',
-        axisStart: westLng, axisEnd: eastLng,
-        majorSec: lngMajSec, minorSec: lngMinSec,
-        w, h,
-        toScreenPos: (lng: number) =>
-          map.latLngToContainerPoint({ lat: 0, lng } as L.LatLngExpression).x,
-        collectLabel,
-      });
-      drawBand({
-        ctx, orientation: 'bottom', axis: 'lng',
-        axisStart: westLng, axisEnd: eastLng,
-        majorSec: lngMajSec, minorSec: lngMinSec,
-        w, h,
-        toScreenPos: (lng: number) =>
-          map.latLngToContainerPoint({ lat: 0, lng } as L.LatLngExpression).x,
-        collectLabel,
-      });
-      drawBand({
-        ctx, orientation: 'left', axis: 'lat',
-        axisStart: southLat, axisEnd: northLat,
-        majorSec: latMajSec, minorSec: latMinSec,
-        w, h,
-        toScreenPos: (lat: number) =>
-          map.latLngToContainerPoint({ lat, lng: 0 } as L.LatLngExpression).y,
-        collectLabel,
-      });
-      drawBand({
-        ctx, orientation: 'right', axis: 'lat',
-        axisStart: southLat, axisEnd: northLat,
-        majorSec: latMajSec, minorSec: latMinSec,
-        w, h,
-        toScreenPos: (lat: number) =>
-          map.latLngToContainerPoint({ lat, lng: 0 } as L.LatLngExpression).y,
-        collectLabel,
-      });
+      // ---- Empat sisi bingkai: pita + tick + label (pola identik).
+      ctx.font = LABEL_FONT;
+      ctx.strokeStyle = FRAME_COLOR;
+      ctx.fillStyle = FRAME_COLOR;
+      ctx.lineWidth = 1;
 
-      // ---- Collision resolution ----
-      // Reserved rectangles: the Leaflet scale control (bottom-left) and
-      // attribution (bottom-right) live inside the map. We don't want labels
-      // to overlap them. The actual control sizes vary, so reserve a generous
-      // strip in the bottom-left and bottom-right corners.
-      const reservedRects: Array<{ x: number; y: number; w: number; h: number }> = [
-        // Bottom-left: scale control (metric + nautical ≈ 110×34 px).
-        { x: 0, y: h - 40, w: 130, h: 40 },
-        // Bottom-right: attribution (text varies; reserve 220×24 px).
-        { x: w - 220, y: h - 28, w: 220, h: 28 },
+      // Kontrol Leaflet yang tak boleh tertutup label bawah.
+      const bottomReserved = [
+        { x: 0, y: h - 44, w: 140, h: 44 },        // kontrol skala kiri-bawah
+        { x: w - 230, y: h - 30, w: 230, h: 30 },  // atribusi kanan-bawah
       ];
 
-      // Sort candidates by priority: top/bottom first (they're spread along
-      // the longer edge), then left/right. Within a side, keep iteration
-      // order (which is ascending latitude for left/right, ascending
-      // longitude for top/bottom). Stable sort preserves insertion order
-      // for ties.
-      const sideOrder: Record<string, number> = { top: 0, bottom: 1, left: 2, right: 3 };
-      candidates.sort((a, b) => sideOrder[a.side] - sideOrder[b.side]);
+      drawSide({
+        side: 'top', axis: 'lng',
+        axisStartSec: westSec, axisEndSec: eastSec,
+        labelSec: labelSecLng, blockSec: blockSecLng, tickSec: tickSecLng,
+        toPos: toLngX, reserved: [],
+      });
+      drawSide({
+        side: 'bottom', axis: 'lng',
+        axisStartSec: westSec, axisEndSec: eastSec,
+        labelSec: labelSecLng, blockSec: blockSecLng, tickSec: tickSecLng,
+        toPos: toLngX, reserved: bottomReserved,
+      });
+      drawSide({
+        side: 'left', axis: 'lat',
+        axisStartSec: southSec, axisEndSec: northSec,
+        labelSec: labelSecLat, blockSec: blockSecLat, tickSec: tickSecLat,
+        toPos: toLatY, reserved: [],
+      });
+      drawSide({
+        side: 'right', axis: 'lat',
+        axisStartSec: southSec, axisEndSec: northSec,
+        labelSec: labelSecLat, blockSec: blockSecLat, tickSec: tickSecLat,
+        toPos: toLatY, reserved: [],
+      });
 
-      function rectsOverlap(
-        a: { x: number; y: number; w: number; h: number },
-        b: { x: number; y: number; w: number; h: number },
-      ): boolean {
-        return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
-      }
-
-      const placedRects: Array<{ x: number; y: number; w: number; h: number }> = [...reservedRects];
-      const kept: LabelCandidate[] = [];
-      for (const cand of candidates) {
-        const rect = { x: cand.bgX, y: cand.bgY, w: cand.tw, h: cand.th };
-        let collides = false;
-        for (const placed of placedRects) {
-          if (rectsOverlap(rect, placed)) { collides = true; break; }
-        }
-        if (collides) continue;
-        kept.push(cand);
-        placedRects.push(rect);
-      }
-
-      // ---- Draw kept labels ----
-      // Style: black bg (#000, opacity 0.85), white text, no outline,
-      // padding 4 px / 2 px, border-radius 2 px, font 11 px monospace.
-      // Sized to text via measureText (already done in measureLabel).
-      if (ctx) {
-        ctx.font = font;
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'top';
-        for (const cand of kept) {
-          // Background pill: black, opacity 0.85.
-          ctx.fillStyle = 'rgba(0,0,0,0.85)';
-          // Border-radius 2 px is approximated by drawing a rect (canvas v1
-          // supports roundRect, but the type defs in older @types/canvas
-          // don't — fall back to plain fillRect for portability).
-          if (typeof ctx.roundRect === 'function') {
-            ctx.beginPath();
-            ctx.roundRect(cand.bgX, cand.bgY, cand.tw, cand.th, 2);
-            ctx.fill();
-          } else {
-            ctx.fillRect(cand.bgX, cand.bgY, cand.tw, cand.th);
-          }
-          // Text: white, no outline. Position by textBaseline=text-top
-          // inside the pill.
-          ctx.fillStyle = '#ffffff';
-          // Place text inside the pill: left edge = bgX + padX, vertical
-          // center = bgY + th/2 + ~3 (font ascent correction for 11 px).
-          ctx.fillText(cand.text, cand.bgX + padX, cand.bgY + padY + 1);
-        }
-      }
-
-      // ===== Outer 1 px black outline around the whole map =====
-      if (ctx) {
-        ctx.strokeStyle = '#1a1a1a';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(0.5, 0.5, w - 1, h - 1);
-      }
-
-      ctx?.restore();
+      ctx.restore();
     }
 
     function scheduleScaleBorderRedraw() {
@@ -881,7 +831,7 @@ export default function SeaMap({
       if (scaleBorderRAF !== null) return;
       scaleBorderRAF = requestAnimationFrame(() => {
         scaleBorderRAF = null;
-        if (isMapActive()) drawScaleBorder();
+        if (isMapActive()) drawChartFrame();
       });
     }
 
@@ -898,8 +848,18 @@ export default function SeaMap({
     map.getContainer().appendChild(scaleBorderCanvas);
 
     map.on('move zoom moveend zoomend resize viewreset', scheduleScaleBorderRedraw);
+    // Toggle layar penuh ("Layar Penuh" / "Keluar layar penuh"): ukuran
+    // kontainer berubah di luar event Leaflet — gambar ulang setelah layout
+    // fullscreen settle (dua tahap, selaras dengan invalidateSize di atas).
+    frameFullscreenHandler = () => {
+      setTimeout(() => { if (isMapActive()) drawChartFrame(); }, 150);
+      setTimeout(() => { if (isMapActive()) drawChartFrame(); }, 450);
+    };
+    document.addEventListener('fullscreenchange', frameFullscreenHandler);
+    frameResizeHandler = () => scheduleScaleBorderRedraw();
+    window.addEventListener('resize', frameResizeHandler);
     setTimeout(() => {
-      if (isMapActive()) drawScaleBorder();
+      if (isMapActive()) drawChartFrame();
     }, 100);
 
     // ---- Depth numbers overlay ("Angka kedalaman") ----
@@ -1226,7 +1186,7 @@ export default function SeaMap({
       if (gridCb && scaleBorderCanvas) {
         gridCb.addEventListener('change', () => {
           scaleBorderCanvas!.style.display = gridCb.checked ? 'block' : 'none';
-          if (gridCb.checked) drawScaleBorder();
+          if (gridCb.checked) drawChartFrame();
         });
       }
       // Depth checkbox + density dropdown.
@@ -1419,6 +1379,14 @@ export default function SeaMap({
     return () => {
       disposed = true;
       document.removeEventListener('fullscreenchange', onFullscreenChange);
+      if (frameFullscreenHandler) {
+        document.removeEventListener('fullscreenchange', frameFullscreenHandler);
+        frameFullscreenHandler = null;
+      }
+      if (frameResizeHandler) {
+        window.removeEventListener('resize', frameResizeHandler);
+        frameResizeHandler = null;
+      }
       if (scaleBorderRAF !== null) {
         cancelAnimationFrame(scaleBorderRAF);
         scaleBorderRAF = null;
