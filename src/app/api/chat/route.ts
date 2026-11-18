@@ -666,14 +666,28 @@ const tools: FunctionDeclaration[] = [
   },
 ];
 
-const GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.5-flash-lite'] as const;
-const MAX_RETRIES_PER_MODEL = 1;
+const GEMINI_MODELS_DEFAULT = ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.5-flash-lite'] as const;
+// Rantai model fallback bisa digeser tanpa mengubah kode lewat env
+// GEMINI_MODEL_FALLBACKS (dipisah koma) — berguna saat kapasitas Google
+// berpindah antar model; nama divalidasi karakter aman saja dan env kosong/
+// tak valid kembali ke daftar default.
+const envModelFallbacks = (process.env.GEMINI_MODEL_FALLBACKS ?? '')
+  .split(',')
+  .map((name) => name.trim())
+  .filter((name) => /^[\w.\-]+$/.test(name));
+const GEMINI_MODELS: readonly string[] = envModelFallbacks.length > 0 ? envModelFallbacks : GEMINI_MODELS_DEFAULT;
+// 2 retry per model (total 3 percobaan): 429 "high demand" kembali cepat
+// (~1–3 detik) dan Google menyertakan retryDelay yang dihormati backoff di
+// bawah — percobaan ketiga sering lolos begitu lonjakan mereda. Percobaan
+// berhenti sendiri saat anggaran waktu menipis, jadi tidak melampaui batas
+// function Vercel.
+const MAX_RETRIES_PER_MODEL = 2;
 // Timeout per percobaan dinaikkan: lampiran besar + prompt panjang dapat melewati 45s
 // (kasus nyata: "Gemini gemini-3.5-flash-lite tidak merespons dalam 45 detik").
 // Override lewat env GEMINI_REQUEST_TIMEOUT_MS (min 10s) untuk tuning di Vercel.
 const envTimeoutMs = Number(process.env.GEMINI_REQUEST_TIMEOUT_MS);
 const GEMINI_REQUEST_TIMEOUT_MS = Number.isFinite(envTimeoutMs) && envTimeoutMs >= 10_000 ? envTimeoutMs : 120_000;
-// Anggaran waktu total SEMUA percobaan (3 model × 2 percobaan) — di bawah batas Fluid
+// Anggaran waktu total SEMUA percobaan (3 model × 3 percobaan) — di bawah batas Fluid
 // compute Vercel Hobby/Pro (default & maksimum 300s). Override: env GEMINI_TOTAL_BUDGET_MS (min 15s).
 const envBudgetMs = Number(process.env.GEMINI_TOTAL_BUDGET_MS);
 const GEMINI_TOTAL_BUDGET_MS = Number.isFinite(envBudgetMs) && envBudgetMs >= 15_000 ? envBudgetMs : 260_000;
@@ -1093,7 +1107,13 @@ ATURAN MEMORI WORKSPACE:
     if (!result) {
       const base = lastError?.message || 'Gemini sedang sibuk. Silakan coba lagi beberapa saat lagi.';
       const triedNote = triedModels.length > 1 ? ` Model yang sudah dicoba: ${triedModels.join(', ')}.` : '';
-      throw new Error(`${base}${triedNote} Coba kirim ulang pesan Anda; bila terus gagal, periksa koneksi internet atau lampirkan berkas yang lebih kecil.`);
+      // "High demand" adalah lonjakan kapasitas di sisi Google, bukan masalah
+      // koneksi pengguna — saran akhir disesuaikan agar tidak menyesatkan.
+      const highDemand = /high demand|resource exhausted|overloaded|unavailable/i.test(base);
+      const advice = highDemand
+        ? 'Semua model Google sedang mengalami lonjakan permintaan; biasanya pulih dalam beberapa menit — tunggu sebentar lalu kirim ulang pesan Anda.'
+        : 'Coba kirim ulang pesan Anda; bila terus gagal, periksa koneksi internet atau lampirkan berkas yang lebih kecil.';
+      throw new Error(`${base}${triedNote} ${advice}`);
     }
 
     if (!Array.isArray(result.steps)) {
