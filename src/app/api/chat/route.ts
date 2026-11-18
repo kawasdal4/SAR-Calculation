@@ -2,7 +2,7 @@ import { type FunctionDeclaration, SchemaType } from '@google/generative-ai';
 import { NextRequest, NextResponse } from 'next/server';
 import { processUploadedFile } from '@/lib/sar/fileExtractor';
 import type { DataBankField, RawQuestion } from '@/lib/sar/dataBank';
-import { buildChainCompletionInstruction, computeMissingWorksheetTools, parseDeclaredWorksheetTools, type WorksheetToolName } from '@/lib/sar/caseChain';
+import { buildChainCompletionInstruction, computeMissingWorksheetTools, matchWorksheetToolNames, parseDeclaredWorksheetTools, type WorksheetToolName } from '@/lib/sar/caseChain';
 
 const SYSTEM_PROMPT = `Kamu adalah Asisten SAR Planner AI untuk Badan SAR Nasional (Basarnas) Indonesia.
 Kamu membantu dalam perhitungan dan analisis operasi SAR berdasarkan panduan operasi SAR dan Peraturan No. 3 Tahun 2020.
@@ -725,14 +725,22 @@ async function runForcedWorksheetRetry(
           generation_config: {
             max_output_tokens: 32768,
             thinking_level: model === 'gemini-3.5-flash-lite' ? 'minimal' : 'low',
-            tool_choice: { allowed_tools: { mode: 'any', tools: WORKSHEET_TOOL_NAMES } },
+            // Paksa function call dengan bentuk TERDOKUMENTASI Interactions API:
+            // string "any". Pembatasan tool dilakukan lewat array tools di bawah
+            // (bentuk lama { allowed_tools: { mode, tools } } hanya terdokumentasi
+            // untuk tool mcp_server dan bisa ditolak/diabaikan API — membuat
+            // jaring pengaman mati diam-diam saat pass pertama tidak memanggil
+            // satu pun tool worksheet).
+            tool_choice: 'any',
           },
-          tools: tools.map((tool) => ({
-            type: 'function',
-            name: tool.name,
-            description: tool.description,
-            parameters: normalizeSchemaFn(tool.parameters),
-          })),
+          tools: tools
+            .filter((tool) => WORKSHEET_TOOL_NAMES.includes(tool.name))
+            .map((tool) => ({
+              type: 'function',
+              name: tool.name,
+              description: tool.description,
+              parameters: normalizeSchemaFn(tool.parameters),
+            })),
           store: false,
         }),
       });
@@ -799,15 +807,19 @@ async function runChainCompletionPass(
           generation_config: {
             max_output_tokens: 32768,
             thinking_level: model === 'gemini-3.5-flash-lite' ? 'minimal' : 'low',
-            // Paksa panggilan tool: pass sebelumnya sering hanya menjawab teks
-            // ("belum ada yang perlu ditambahkan") walau tool masih hilang.
-            // Daftar dibatasi ke tool yang hilang + ask_for_case_data sehingga
-            // model tidak bisa menjawab tanpa tool dan tidak mengulang tool lain.
-            ...(allowedToolNames && allowedToolNames.length > 0
-              ? { tool_choice: { allowed_tools: { mode: 'any', tools: [...allowedToolNames] } } }
-              : {}),
+            // Paksa panggilan tool dengan bentuk terdokumentasi "any"
+            // (pembatasan tool lewat array tools di bawah — bentuk
+            // { allowed_tools: {...} } top-level bisa ditolak/diabaikan API):
+            // pass sebelumnya sering hanya menjawab teks ("belum ada yang
+            // perlu ditambahkan") walau tool masih hilang. Array dibatasi ke
+            // tool yang hilang + ask_for_case_data sehingga model tidak bisa
+            // menjawab tanpa tool dan tidak mengulang tool lain.
+            ...(allowedToolNames && allowedToolNames.length > 0 ? { tool_choice: 'any' } : {}),
           },
-          tools: tools.map((tool) => ({
+          tools: (allowedToolNames && allowedToolNames.length > 0
+            ? tools.filter((tool) => allowedToolNames.includes(tool.name))
+            : tools
+          ).map((tool) => ({
             type: 'function',
             name: tool.name,
             description: tool.description,
@@ -924,6 +936,29 @@ ATURAN MEMORI WORKSPACE:
     const interceptCaseDetected = /\b(intercept|intersep|pintasan|medevac)\b/i.test(interceptSourceText)
       && speedMentions.length >= 2;
 
+    // Deteksi "soal kasus" SEKALI sebelum loop model. Dipakai untuk:
+    // (a) menyisihkan jatah waktu jaring pengaman (pass paksa + pass penyambung)
+    //     — pass pertama yang lambat (model sibuk/timeout) tidak boleh
+    //     menghabiskan seluruh anggaran sehingga jaring pengaman dilewati
+    //     dengan peringatan "anggaran waktu hampir habis";
+    // (b) syarat jaring pengaman pasca-respons di bawah.
+    const hasInlineAttachment = input.some((part) => part.type === 'document' || part.type === 'image');
+    const caseStructureHits = [
+      /(detresfa|distress)/i,
+      /(lkp|last known position|koordinat|positions?)/i,
+      /\b(pob|crews?|penumpang|kapal|vessel|pesawat|aircraft|raft|perahu)\b/i,
+      /\d{1,4}[.:]\d{2}\s*(wib|wit|wita|utc|z\b|lt\b)/i,
+      /(angin|wind)\b.{0,60}\b(kts|knot|knots|derajat)/i,
+      /(derajat|°)/,
+    ].filter((re) => re.test(interceptSourceText)).length;
+    const caseVerbPresent = /(buat|hitung|tentukan|analisis|kerjakan|isi|telaah|eksekusi|exercise|latihan|tugas|soal)/i.test(userPrompt);
+    const caseLikeRequest = hasInlineAttachment
+      ? caseStructureHits >= 3 || caseVerbPresent
+      : caseStructureHits >= 4 && caseVerbPresent;
+    // Jatah jaring pengaman: hanya untuk permintaan soal kasus — obrolan
+    // biasa tidak butuh pass paksa/penyambung.
+    const safetyNetReserveMs = caseLikeRequest ? 60_000 : 0;
+
     // Interactions API uses lowercase JSON Schema types for function tools.
     const normalizeSchema = (value: unknown): unknown => {
       if (Array.isArray(value)) return value.map(normalizeSchema);
@@ -965,14 +1000,15 @@ ATURAN MEMORI WORKSPACE:
         // Timeout dinamis per percobaan: sisa anggaran dikurangi (a) cadangan
         // 50s per model yang belum dicoba — model lite di urutan akhir paling
         // sering berhasil saat high-demand, dan dulu tidak pernah mendapat
-        // giliran karena dua model besar menghabiskan 2×120s — serta (b) ruang
-        // untuk membuat respons JSON (Vercel mematikan function pada 300s).
-        // Sebelumnya AbortSignal.timeout memakai nilai tetap 120s, jadi
+        // giliran karena dua model besar menghabiskan 2×120s — (b) jatah
+        // jaring pengaman untuk soal kasus (safetyNetReserveMs), serta (c)
+        // ruang untuk membuat respons JSON (Vercel mematikan function pada
+        // 300s). Sebelumnya AbortSignal.timeout memakai nilai tetap 120s, jadi
         // percobaan yang mulai dekat deadline bisa berjalan MELEWATI anggaran.
         const modelsLeftAfter = GEMINI_MODELS.length - 1 - modelIdx;
         const attemptTimeoutMs = Math.min(
           GEMINI_REQUEST_TIMEOUT_MS,
-          geminiDeadlineMs - Date.now() - modelsLeftAfter * 50_000 - 8_000,
+          geminiDeadlineMs - Date.now() - modelsLeftAfter * 50_000 - safetyNetReserveMs - 8_000,
         );
         if (attemptTimeoutMs < 25_000) {
           lastError = lastError ?? new Error(`Anggaran waktu permintaan Gemini (${GEMINI_TOTAL_BUDGET_MS / 1000} detik) tercapai.`);
@@ -993,13 +1029,16 @@ ATURAN MEMORI WORKSPACE:
               generation_config: {
                 max_output_tokens: 32768,
                 thinking_level: model === 'gemini-3.5-flash-lite' ? 'minimal' : 'low',
-                ...(interceptCaseDetected ? {
-                  tool_choice: {
-                    allowed_tools: { mode: 'any', tools: ['set_intercept_case'] },
-                  },
-                } : {}),
+                // Kasus Intercept: paksa function call dengan bentuk
+                // terdokumentasi "any"; pembatasan ke satu tool lewat array
+                // tools di bawah (bentuk { allowed_tools: {...} } top-level
+                // tidak terdokumentasi untuk tool function biasa).
+                ...(interceptCaseDetected ? { tool_choice: 'any' } : {}),
               },
-              tools: tools.map((tool) => ({
+              tools: (interceptCaseDetected
+                ? tools.filter((tool) => tool.name === 'set_intercept_case')
+                : tools
+              ).map((tool) => ({
                 type: 'function',
                 name: tool.name,
                 description: tool.description,
@@ -1074,19 +1113,8 @@ ATURAN MEMORI WORKSPACE:
     // paksa ke tool worksheet (model cadangan kadang hanya menjawab teks
     // berisi daftar worksheet + pertanyaan, atau memanggil ask_for_case_data
     // untuk pilihan planner yang sebenarnya sudah punya default).
-    const hasInlineAttachment = input.some((part) => part.type === 'document' || part.type === 'image');
-    const caseStructureHits = [
-      /(detresfa|distress)/i,
-      /(lkp|last known position|koordinat|positions?)/i,
-      /\b(pob|crews?|penumpang|kapal|vessel|pesawat|aircraft|raft|perahu)\b/i,
-      /\d{1,4}[.:]\d{2}\s*(wib|wit|wita|utc|z\b|lt\b)/i,
-      /(angin|wind)\b.{0,60}\b(kts|knot|knots|derajat)/i,
-      /(derajat|°)/,
-    ].filter((re) => re.test(interceptSourceText)).length;
-    const caseVerbPresent = /(buat|hitung|tentukan|analisis|kerjakan|isi|telaah|eksekusi|exercise|latihan|tugas|soal)/i.test(userPrompt);
-    const caseLikeRequest = hasInlineAttachment
-      ? caseStructureHits >= 3 || caseVerbPresent
-      : caseStructureHits >= 4 && caseVerbPresent;
+    // hasInlineAttachment + caseLikeRequest sudah dihitung sebelum loop model
+    // (dipakai juga untuk jatah waktu jaring pengaman).
     const firstPassBankCalls: Array<{ name: string; args: unknown }> = functionCalls
       .filter((fc) => fc.name === 'save_case_data_bank')
       .map((fc) => ({ name: fc.name, args: fc.arguments || {} }));
@@ -1126,7 +1154,9 @@ ATURAN MEMORI WORKSPACE:
     // yang dinyatakan model + rantai penerbangan AWA → ADW → Datum, dikurangi
     // tool yang sudah dipanggil sejauh ini.
     const computeMissingNow = (): WorksheetToolName[] => {
-      const missing = [...computeMissingWorksheetTools(declaredTools, functionCalls.map((fc) => fc.name))];
+      const emittedNames = functionCalls.map((fc) => fc.name);
+      const emitted = new Set(emittedNames);
+      const missing = [...computeMissingWorksheetTools(declaredTools, emittedNames)];
       // Rantai penerbangan: AWA dipanggil tetapi ADW belum — model kadang
       // berhenti di tool pertama walau data hilir lengkap; tanpa daftar pun
       // rantai AWA → ADW → Datum tetap disambung (perilaku lama dipertahankan).
@@ -1137,6 +1167,26 @@ ATURAN MEMORI WORKSPACE:
       ) {
         for (const tool of ['set_aero_drift_case', 'set_datum_case'] as const) {
           if (!missing.includes(tool)) missing.push(tool);
+        }
+      }
+      // KASUS NOL WORKSHEET: model cadangan kerap menjawab TANPA teks dan
+      // hanya memanggil save_case_data_bank/ask_for_case_data — daftar
+      // "WORKSHEET YANG HARUS DIPAKAI" tidak ada, jadi jaring pengaman parsial
+      // (yang bergantung parseDeclaredWorksheetTools) mati. Seed dari nama
+      // worksheet yang disebut ask_for_case_data agar pass penyambung tetap
+      // tahu tool mana yang dimaksud dan dapat memaksa pemanggilannya.
+      const worksheetEmitted = emittedNames.some(
+        (name) => name !== 'ask_for_case_data' && name !== 'save_case_data_bank',
+      );
+      if (!worksheetEmitted) {
+        for (const fc of functionCalls) {
+          if (fc.name !== 'ask_for_case_data') continue;
+          const ws = (fc.arguments as { worksheet?: unknown } | undefined)?.worksheet;
+          if (typeof ws === 'string') {
+            for (const tool of matchWorksheetToolNames(ws)) {
+              if (!missing.includes(tool) && !emitted.has(tool)) missing.push(tool);
+            }
+          }
         }
       }
       return missing;
@@ -1246,7 +1296,10 @@ ATURAN MEMORI WORKSPACE:
         ? 'Data kasus Intercept berhasil dianalisis. Saya memasukkan data ke worksheet Intercept; hasil hitung dan vektornya akan dibuat oleh kalkulator aplikasi.'
         : text || (worksheetCalls.length
           ? 'Data telah disiapkan. Klik "Terapkan ke Worksheet" untuk mengisi worksheet.'
-          : 'Analisis kasus selesai, tetapi belum ada data worksheet yang bisa diterapkan otomatis. Lengkapi data yang masih kurang di atas, lalu kirim ulang agar saya dapat mengisi worksheet.');
+          : // Teks jawaban kosong + nol tool worksheet: jangan menyebut "data
+            // di atas" (tidak ada yang ditampilkan) — minta kirim ulang, karena
+            // jaring pengaman pass paksa hanya bisa dicoba pada respons baru.
+            'Analisis kasus gagal menghasilkan data worksheet yang bisa diterapkan — kemungkinan model sedang sibuk sehingga jawaban tidak memuat data terstruktur. Silakan kirim ulang pesan + lampiran soal kasus Anda; bila tetap sama, tunggu 1–2 menit lalu coba lagi.');
       return NextResponse.json({
         text: `${usedModel !== GEMINI_MODELS[0] ? 'Model utama sedang sibuk; jawaban diproses dengan model cadangan.\n\n' : ''}${responseText}${bankSavedText}${clarificationText}`,
         functionCalls: worksheetCalls.length ? worksheetCalls : null,

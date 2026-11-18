@@ -71,6 +71,23 @@ export function parseDeclaredWorksheetTools(answerText: string): WorksheetToolNa
 }
 
 /**
+ * Petakan teks bebas (mis. argumen worksheet pada ask_for_case_data: "WS 2",
+ * "worksheet ASW", "Datum") ke daftar tool worksheet yang disebut. Berbeda
+ * dengan parseDeclaredWorksheetTools yang mensyaratkan struktur daftar
+ * bernomor di bawah header "WORKSHEET YANG HARUS DIPAKAI" — model cadangan
+ * kerap menjawab tanpa teks sama sekali, sehingga jaring pengaman parsial
+ * perlu di-seed dari argumen tool klarifikasi.
+ */
+export function matchWorksheetToolNames(text: string): WorksheetToolName[] {
+  if (!text) return [];
+  const matched = new Set<WorksheetToolName>();
+  for (const matcher of ITEM_TOOL_MATCHERS) {
+    if (matcher.re.test(text)) matched.add(matcher.tool);
+  }
+  return WORKSHEET_CHAIN_ORDER.filter((tool) => matched.has(tool));
+}
+
+/**
  * Worksheet yang DINYATAKAN model tetapi tool-nya BELUM dipanggil, urut sesuai
  * rantai hulu → hilir.
  */
