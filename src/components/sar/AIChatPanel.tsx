@@ -35,6 +35,7 @@ import { W2_TARGET_OPTIONS, W8_TARGET_OPTIONS } from '@/lib/sar/wscPodTables';
 import type { SearchPatternPlanInitialState } from '@/lib/sar/searchPatterns';
 import type { AeroDriftInitialState } from '@/components/sar/AeronauticalDriftWorksheet';
 import { LEEWAY_OBJECT_TYPES, mapNavAidToFixError, parseAltitudeFt } from '@/lib/sar/sarCalculations';
+import { normalizeCaseToolArgs } from '@/lib/sar/caseToolNormalize';
 
 interface UploadedAttachment {
   name: string;
@@ -333,7 +334,12 @@ export default function AIChatPanel({
     const appliedWorksheets: string[] = [];
     const failedWorksheets: string[] = [];
     for (const call of calls) {
-      const args = call.args;
+      // Normalisasi argumen SEBELUM gate validasi: angka-string ("140"),
+      // varian enum ("Fixed Wing", "no", "20 km"), dan teks target bebas
+      // ("life raft 6 person") dikonversi ke bentuk kanonik. Tanpa ini satu
+      // format menyimpang menolak SELURUH worksheet padahal pratinjau sudah
+      // menampilkannya (bug: hanya AWA yang terisi setelah Terapkan).
+      const args = normalizeCaseToolArgs(call.name, call.args ?? {});
       switch (call.name) {
         case 'set_asw_case': {
           const data = args as Parameters<NonNullable<typeof onApplyASW>>[0];
@@ -824,13 +830,21 @@ export default function AIChatPanel({
             // peta/state/dokumen lewat kontrak preview/konfirmasi seragam
             // (chatPreview.ts). Pengguna meninjau pratinjau di kartu pesan lalu
             // menekan "Konfirmasi & Terapkan" (handleApply yang sama).
-            const mutating = (data.functionCalls ?? []).filter(
+            // Argumen dinormalisasi SEKALI di sini agar pratinjau dan apply
+            // memakai nilai yang sama (angka-string/varian enum → kanonik).
+            const normalizedCalls = (data.functionCalls ?? []).map(
+              (c: { name: string; args: Record<string, unknown> }) => ({
+                name: c.name,
+                args: normalizeCaseToolArgs(c.name, c.args ?? {}),
+              }),
+            );
+            const mutating = normalizedCalls.filter(
               (c: { name: string }) => !CHAT_NON_MUTATING_TOOLS.has(c.name),
             );
             const assistantMsg: ChatMessage = {
               role: 'assistant',
               content: data.text || 'Server tidak mengirim teks jawaban.',
-              functionCalls: data.functionCalls,
+              functionCalls: normalizedCalls,
             };
             if (mutating.length > 0) {
               const targets = [...new Set(buildChatPreviewContracts(mutating).map((c) => c.target))];

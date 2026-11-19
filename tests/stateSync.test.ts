@@ -12,7 +12,7 @@
  * Jalankan: bun test tests/stateSync.test.ts
  */
 import { describe, expect, it } from 'bun:test';
-import { deepEqualValue, filterSarCases, shallowEqualRecord } from '../src/lib/sar/stateSync';
+import { deepEqualValue, filterSarCases, shallowEqualRecord, hasFilledValue, firstFilledSnapshot, mergeAswSnapshot, describeRestoredCaseSections } from '../src/lib/sar/stateSync';
 
 describe('deepEqualValue', () => {
   it('primitif identik → true', () => {
@@ -106,5 +106,108 @@ describe('filterSarCases — pencarian pada dialog Open Case', () => {
     expect(filterSarCases(cases, 'sinar jaya').map((c) => c.id)).toEqual(['2']);
     expect(filterSarCases(cases, 'sinar xyz')).toEqual([]);
     expect(filterSarCases(cases, 'distress parasut').map((c) => c.id)).toEqual(['3']);
+  });
+});
+
+describe('hasFilledValue — deteksi nilai berisi', () => {
+  it('primitif', () => {
+    expect(hasFilledValue(0)).toBe(false);
+    expect(hasFilledValue(6)).toBe(true);
+    expect(hasFilledValue('x')).toBe(true);
+    expect(hasFilledValue('')).toBe(false);
+    expect(hasFilledValue(false)).toBe(false);
+    expect(hasFilledValue(true)).toBe(true);
+    expect(hasFilledValue(null)).toBe(false);
+    expect(hasFilledValue(undefined)).toBe(false);
+    expect(hasFilledValue(Number.NaN)).toBe(false);
+  });
+  it('array & objek rekursif', () => {
+    expect(hasFilledValue([])).toBe(false);
+    expect(hasFilledValue([{ a: 1 }])).toBe(true);
+    expect(hasFilledValue({ a: null, b: undefined, c: '' })).toBe(false);
+    expect(hasFilledValue({ a: { b: { c: 0 } } })).toBe(false);
+    expect(hasFilledValue({ a: { b: { c: 15 } } })).toBe(true);
+  });
+});
+
+describe('firstFilledSnapshot — pilih snapshot terisi (mirror vs data awal)', () => {
+  it('mirror berisi → menang', () => {
+    expect(firstFilledSnapshot({ driftInterval: 15 }, { driftInterval: 6 })).toEqual({ driftInterval: 15 });
+  });
+  it('mirror kosong/null → fallback data awal (AI/kasus)', () => {
+    expect(firstFilledSnapshot(null, { driftInterval: 6 })).toEqual({ driftInterval: 6 });
+    expect(firstFilledSnapshot({ X: 0, Y: 0 }, { driftInterval: 6, X: 0, Y: 0 })).toEqual({ driftInterval: 6, X: 0, Y: 0 });
+  });
+  it('keduanya kosong → undefined', () => {
+    expect(firstFilledSnapshot({}, undefined)).toBeUndefined();
+    expect(firstFilledSnapshot({ X: 0, Y: 0 }, { seaCurrentDir: 0, seaCurrentSpeed: 0 })).toBeUndefined();
+  });
+});
+
+describe('mergeAswSnapshot — gabungan per-bidang ASW', () => {
+  it('mirror kosong → seluruh data dari fallback (AI/kasus)', () => {
+    const merged = mergeAswSnapshot(
+      { observations: [], aswErr: 0 },
+      { observations: [{ windDirFrom: 90 }], aswErr: 2, distressTime: '1117.0700 Z', datumTime: '1118.0100 Z', obsIntervalMode: '6h', caseTitle: 'EXE' },
+    );
+    expect(merged.observations).toHaveLength(1);
+    expect(merged.aswErr).toBe(2);
+    expect(merged.distressTime).toBe('1117.0700 Z');
+    expect(merged.datumTime).toBe('1118.0100 Z');
+    expect(merged.obsIntervalMode).toBe('6h');
+    expect(merged.caseTitle).toBe('EXE');
+  });
+  it('mirror berisi → observasi & waktu mirror menang, bagian kosong diisi fallback', () => {
+    const merged = mergeAswSnapshot(
+      { observations: [{ windDirFrom: 45 }], aswErr: 3, distressTime: '1117.0800 Z' },
+      { observations: [{ windDirFrom: 90 }], aswErr: 0, distressTime: '1117.0700 Z', datumTime: '1118.0100 Z' },
+    );
+    expect(merged.observations).toEqual([{ windDirFrom: 45 }]);
+    expect(merged.aswErr).toBe(3);
+    expect(merged.distressTime).toBe('1117.0800 Z');
+    expect(merged.datumTime).toBe('1118.0100 Z');
+  });
+  it('keduanya kosong → hasil kosong dengan default interval 6h', () => {
+    const merged = mergeAswSnapshot({ observations: [], aswErr: 0 }, {});
+    expect(merged.observations).toEqual([]);
+    expect(merged.obsIntervalMode).toBe('6h');
+  });
+});
+
+describe('describeRestoredCaseSections — info kelengkapan kasus saat load', () => {
+  it('kasus lengkap: semua bagian berisi', () => {
+    const state = {
+      awa: { observations: [{ windDirFrom: 1 }] },
+      asw: { observations: [{ windDirFrom: 2 }] },
+      datum: { driftInterval: 6, seaCurrentDir: 90, seaCurrentSpeed: 1 },
+      lkp: { lat: 1, lng: 2 },
+      assets: [{ id: 'a' }],
+      ws2Sheets: [{ key: 'default', data: { searchTas: 140 } }],
+      patternType: 'PS',
+      patternOrientationText: '308',
+    };
+    const { filled, empty } = describeRestoredCaseSections(state);
+    expect(filled).toContain('AWA');
+    expect(filled).toContain('ASW');
+    expect(filled).toContain('WS 1 (Datum)');
+    expect(filled).toContain('LKP');
+    expect(filled).toContain('Aset SRU');
+    expect(filled).toContain('WS 2');
+    expect(filled).toContain('Pola Pencarian');
+    expect(empty).not.toContain('AWA');
+  });
+  it('kasus versi lama (hanya AWA): bagian lain dilaporkan kosong', () => {
+    const state = { awa: { observations: [{ windDirFrom: 1 }] } };
+    const { filled, empty } = describeRestoredCaseSections(state);
+    expect(filled).toEqual(['AWA']);
+    expect(empty).toContain('ASW');
+    expect(empty).toContain('WS 1 (Datum)');
+    expect(empty).toContain('WS 2');
+    expect(empty).toContain('Aset SRU');
+  });
+  it('snapshot null/kosong → semua kosong', () => {
+    const { filled, empty } = describeRestoredCaseSections(null);
+    expect(filled).toEqual([]);
+    expect(empty.length).toBeGreaterThan(10);
   });
 });

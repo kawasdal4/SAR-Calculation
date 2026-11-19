@@ -71,6 +71,7 @@ import {
   type LatLng,
   type Vector,
   computeAWA,
+  computeASW,
   rectangleCorners,
   distanceNm,
   bearingDeg,
@@ -128,7 +129,7 @@ import {
   assetDomain,
   calculateAssetAllocationSummary,
 } from '@/lib/sar/assetAllocation';
-import { deepEqualValue } from '@/lib/sar/stateSync';
+import { deepEqualValue, firstFilledSnapshot, mergeAswSnapshot, hasFilledValue, describeRestoredCaseSections } from '@/lib/sar/stateSync';
 
 const DEFAULT_CENTER: LatLng = { lat: 0, lng: 0 };
 
@@ -179,7 +180,7 @@ export default function Home() {
   // AWA & ASW states
   // Data AWA yang di-report worksheet saat tab AWA aktif (authoritative saat user mengedit).
   const [awaWorksheet, setAwaWorksheet] = useState<AWAData>({ aswDirFrom: 0, aswSpeed: 0, isValid: false });
-  const [asw, setAsw] = useState<ASWData>({
+  const [aswLive, setAswLive] = useState<ASWData>({
     aswDirFrom: 0,
     aswSpeed: 0,
     aswErr: 0,
@@ -187,6 +188,56 @@ export default function Home() {
     totalHours: 0,
     distressTime: '',
   });
+
+  const [aswState, setAswState] = useState<{
+    observations: ASWObservation[];
+    aswErr: number;
+    distressTime?: string;
+    datumTime?: string;
+    obsIntervalMode?: '6h' | '3h';
+    caseTitle?: string;
+  }>({ observations: [], aswErr: 0 });
+  const [datumState, setDatumState] = useState<DatumInitialState | null>(null);
+  const [searchState, setSearchState] = useState<SearchPlanInitialState | null>(null);
+  /** Draf edit manual worksheet ADW — dipertahankan antar remount tab agar hitungan tidak hilang. */
+  const [aeroDraft, setAeroDraft] = useState<AeroDriftInitialState | null>(null);
+
+  const [loadedInitialState, setLoadedInitialState] = useState<{
+    awa?: AWAInitialState;
+    aero?: AeroDriftInitialState;
+    asw?: ASWInitialState;
+    datum?: DatumInitialState;
+    search?: SearchPlanInitialState;
+    ws2?: Worksheet2InitialState;
+    ws8?: Worksheet8InitialState;
+    ws3?: Worksheet3InitialState;
+    lkp?: LatLng;
+  } | null>(null);
+
+  // === Ringkasan ASW EFEKTIF (saling berkesinambungan antar worksheet) ===
+  // TabsContent meng-unmount tab non-aktif: bila tab ASW belum pernah dibuka
+  // setelah load kasus / apply AI, `aswLive` (hasil onDataChange worksheet)
+  // masih nol dan Datum WS 1 menghitung arus angin dari angin 0 — salah.
+  // Ringkasan ASW murni turunan observasi (computeASW, satu sumber rumus dengan
+  // worksheet), jadi hitung ulang di level page dari mirror aswState yang
+  // di-seed saat load kasus / apply AI dan diperbarui live oleh worksheet.
+  // Hasilnya: perubahan observasi angin di ASW langsung mengalir ke Datum WS 1,
+  // panduan pencarian, peta, dan panel cuaca tanpa harus membuka tab ASW.
+  const asw = useMemo<ASWData>(() => {
+    const obs = aswState.observations;
+    if (obs.length === 0) return aswLive;
+    const err = aswState.aswErr || aswLive.aswErr;
+    const summary = computeASW(obs);
+    return {
+      aswDirFrom: summary.aswDirFrom,
+      aswSpeed: Number(summary.aswSpeed.toFixed(2)),
+      aswErr: err,
+      aswdve: Number((err * 0.08).toFixed(2)),
+      totalHours: summary.totalHours,
+      distressTime: aswState.distressTime || aswLive.distressTime,
+    };
+  }, [aswLive, aswState]);
+
 
   // Marine Datum & Search results
   const [datumData, setDatumData] = useState<DatumData | null>(null);
@@ -382,26 +433,6 @@ export default function Home() {
     } satisfies AWAData;
   }, [awaObservations, awaContext.distressAltFt]);
   const awa = awaWorksheet.isValid ? awaWorksheet : awaComputed;
-  const [aswState, setAswState] = useState<{ observations: ASWObservation[]; aswErr: number }>({
-    observations: [],
-    aswErr: 0,
-  });
-  const [datumState, setDatumState] = useState<DatumInitialState | null>(null);
-  const [searchState, setSearchState] = useState<SearchPlanInitialState | null>(null);
-  /** Draf edit manual worksheet ADW — dipertahankan antar remount tab agar hitungan tidak hilang. */
-  const [aeroDraft, setAeroDraft] = useState<AeroDriftInitialState | null>(null);
-
-  const [loadedInitialState, setLoadedInitialState] = useState<{
-    awa?: AWAInitialState;
-    aero?: AeroDriftInitialState;
-    asw?: ASWInitialState;
-    datum?: DatumInitialState;
-    search?: SearchPlanInitialState;
-    ws2?: Worksheet2InitialState;
-    ws8?: Worksheet8InitialState;
-    ws3?: Worksheet3InitialState;
-    lkp?: LatLng;
-  } | null>(null);
   const [caseVersion, setCaseVersion] = useState<number>(0);
 
   // === Persistence input manual worksheet (save case lengkap + recalculate) ===
@@ -458,14 +489,20 @@ export default function Home() {
       title: '',
       state: {
         awa: { observations: awaObservations, ...awaContext },
-        asw: { observations: aswState.observations, aswErr: aswState.aswErr },
+        // ASW digabung per-bidang: mirror (worksheet terpasang) menang bila
+        // berisi, bagian kosong diisi data awal (AI/kasus) — waktu distress/
+        // datum sebelumnya hilang karena hanya ada di state lokal worksheet.
+        asw: mergeAswSnapshot(aswState, loadedInitialState?.asw),
         // PHASE 3: draf input Aero Drift (ADW) ikut disimpan agar rantai
         // penerbangan ditching tidak hilang saat kasus dimuat ulang
         // (hasil dihitung ulang dari draf saat tab ADW dibuka — pola yang
-        // sama dengan observasi AWA/ASW).
-        aero: aeroDraft ?? undefined,
-        datum: datumState ?? {},
-        search: searchState ?? {},
+        // sama dengan observasi AWA/ASW). Fallback ke data awal AI/kasus
+        // bila tab ADW belum pernah dibuka (mirror draf masih kosong).
+        aero: aeroDraft ?? loadedInitialState?.aero ?? undefined,
+        // Datum/Search: mirror tab terpasang menang; bila tab belum pernah
+        // dibuka, pakai data awal (AI/kasus) agar tidak tersimpan kosong.
+        datum: firstFilledSnapshot(datumState, loadedInitialState?.datum) ?? {},
+        search: firstFilledSnapshot(searchState, loadedInitialState?.search) ?? {},
         // Worksheet 1: Fs, drift error %, jarak terukur peta (input manual).
         ws1: { fs: worksheet1Fs, measured: ws1Measured ?? undefined },
         lkp,
@@ -508,7 +545,7 @@ export default function Home() {
         renops: renopsState ?? undefined,
       },
     };
-  }, [awaObservations, awaContext, aswState, aeroDraft, datumState, searchState, worksheet1Fs, ws1Measured, lkp, assets, patternType, patternAssetId, patternTurn, tsReturn, patternOrientationText, patternEnvironment, patternWorksheetSource, patternLandHeight, sectorAngleText, sectorLegLengthText, sectorLegCountText, trackLineLengthText, tsReturnOffsetText, windOverride, seaCurrentOverride, visibilityOverride, driftIntervalForWeather, adwSyncLkp, ws2Sheets, ws3Sheets, ws8Sheets, ws2TrackSpacings, ws3TrackSpacings, ws8TrackSpacings, ws4State, interceptState, aiInterceptInput, briefingState, renopsState]);
+  }, [awaObservations, awaContext, aswState, loadedInitialState, aeroDraft, datumState, searchState, worksheet1Fs, ws1Measured, lkp, assets, patternType, patternAssetId, patternTurn, tsReturn, patternOrientationText, patternEnvironment, patternWorksheetSource, patternLandHeight, sectorAngleText, sectorLegLengthText, sectorLegCountText, trackLineLengthText, tsReturnOffsetText, windOverride, seaCurrentOverride, visibilityOverride, driftIntervalForWeather, adwSyncLkp, ws2Sheets, ws3Sheets, ws8Sheets, ws2TrackSpacings, ws3TrackSpacings, ws8TrackSpacings, ws4State, interceptState, aiInterceptInput, briefingState, renopsState]);
 
   /** Apply loaded state */
   const applyState = useCallback((state: Record<string, unknown>) => {
@@ -592,6 +629,22 @@ export default function Home() {
     setAwaContext({ distressAltFt: awa.distressAltFt, forecastSource: awa.forecastSource, forecastValidTime: awa.forecastValidTime });
     if (lkpLoaded) setLkp(lkpLoaded);
 
+    // Seed mirror page-level dari snapshot kasus. TabsContent meng-unmount tab
+    // non-aktif — tanpa seed ini, simpan ulang kasus yang baru dimuat (tanpa
+    // membuka setiap tab) mengosongkan worksheet yang tidak pernah terpasang,
+    // dan worksheet hilir (Datum WS 1) menghitung dari angin/observasi nol.
+    setAwaObservations(Array.isArray(awa.observations) ? awa.observations : []);
+    setAswState({
+      observations: Array.isArray(asw.observations) ? asw.observations : [],
+      aswErr: typeof asw.aswErr === 'number' ? asw.aswErr : 0,
+      distressTime: asw.distressTime,
+      datumTime: asw.datumTime,
+      obsIntervalMode: asw.obsIntervalMode,
+      caseTitle: asw.caseTitle,
+    });
+    setDatumState(hasFilledValue(datum) ? datum : null);
+    setSearchState(hasFilledValue(search) ? search : null);
+
     // Worksheet mandiri & dokumen: pulihkan input tersimpan (null bila kasus
     // tidak memilikinya — hindari kebocoran data antarkasus).
     const ws4Saved = state.ws4 as Worksheet4InitialState | undefined;
@@ -607,6 +660,20 @@ export default function Home() {
     setBriefingState(briefingSaved && typeof briefingSaved === 'object' ? briefingSaved : null);
     const renopsSaved = state.renops as Record<string, string> | undefined;
     setRenopsState(renopsSaved && typeof renopsSaved === 'object' ? renopsSaved : null);
+
+    // Info kelengkapan kasus: kasus versi lama (sebelum save-case lengkap)
+    // hanya menyimpan sebagian worksheet — beri tahu pengguna bagian mana
+    // yang berisi dan mana yang tidak ada di kasus, agar tidak bingung saat
+    // membuka tab yang tetap kosong.
+    const restored = describeRestoredCaseSections(state);
+    if (restored.filled.length === 0) {
+      toast.warning('Kasus dimuat tanpa data worksheet (kasus lama/kosong) — semua lembar tetap kosong.');
+    } else if (restored.empty.length > 0) {
+      toast.info(
+        `Kasus dimuat — bagian berisi: ${restored.filled.join(', ')}. Tidak tersimpan di kasus ini: ${restored.empty.join(', ')}.`,
+        { duration: 8000 },
+      );
+    }
 
     setCaseVersion((v) => v + 1);
   }, []);
@@ -675,7 +742,8 @@ export default function Home() {
   const handleClearAll = useCallback(() => {
     // Reset AWA & ASW
     setAwaWorksheet({ aswDirFrom: 0, aswSpeed: 0 });
-    setAsw({ aswDirFrom: 0, aswSpeed: 0, aswErr: 0, aswdve: 0, totalHours: 0, distressTime: '' });
+    setAswLive({ aswDirFrom: 0, aswSpeed: 0, aswErr: 0, aswdve: 0, totalHours: 0, distressTime: '' });
+    setAswState({ observations: [], aswErr: 0 });
     setAwaObservations([]);
     setAwaContext({ distressAltFt: 0 });
     setAswState({ observations: [], aswErr: 0 });
@@ -781,7 +849,8 @@ export default function Home() {
         setIsLkpSet(false);
         break;
       case 'asw':
-        setAsw({ aswDirFrom: 0, aswSpeed: 0, aswErr: 0, aswdve: 0, totalHours: 0, distressTime: '' });
+        setAswLive({ aswDirFrom: 0, aswSpeed: 0, aswErr: 0, aswdve: 0, totalHours: 0, distressTime: '' });
+    setAswState({ observations: [], aswErr: 0 });
         setAswState({ observations: [], aswErr: 0 });
         setLoadedInitialState((prev) => ({ ...(prev ?? {}), asw: { observations: [], distressTime: '', datumTime: '', caseTitle: '-', aswErr: 0 } }));
         break;
@@ -892,6 +961,17 @@ export default function Home() {
         caseTitle: data.caseTitle,
       },
     }));
+    // Seed mirror ASW dari data AI: tab ASW mungkin belum pernah dibuka saat
+    // kasus disimpan — tanpa seed ini observasi + waktu ASW hilang di snapshot.
+    // aswErr/aswdve manual pengguna dipertahankan (AI tidak mengirim nilai itu).
+    setAswState((prev) => ({
+      observations: obsWithWind,
+      aswErr: prev.aswErr,
+      distressTime,
+      datumTime,
+      obsIntervalMode: data.intervalMode,
+      caseTitle: data.caseTitle,
+    }));
     setCaseVersion((v) => v + 1);
     setActiveTab('asw');
   }, []);
@@ -926,7 +1006,9 @@ export default function Home() {
   // landing position menjadi LKP (sinkron otomatis), lalu hasil digambar di UPS.
   const handleApplyAeroDrift = useCallback((data: AeroDriftInitialState) => {
     setLoadedInitialState((prev) => ({ ...prev, aero: data }));
-    setAeroDraft(null); // data baru dari AI menggantikan draf manual
+    // Draf ikut diisi dari data AI: bila tab ADW belum pernah dibuka saat
+    // kasus disimpan, draf ADW tetap masuk snapshot (aeroDraft ?? aero awal).
+    setAeroDraft(data);
     if (data.incidentPos && Number.isFinite(data.incidentPos.lat) && Number.isFinite(data.incidentPos.lng)) {
       setLkp({ lat: data.incidentPos.lat, lng: data.incidentPos.lng });
       setIsLkpSet(true);
@@ -964,19 +1046,23 @@ export default function Home() {
     if (data.fs !== undefined && (WS1_FS_OPTIONS as readonly number[]).includes(data.fs)) {
       setWorksheet1Fs(data.fs);
     }
+    const datumInit: DatumInitialState = {
+      ...(data.latitude !== undefined ? { latitude: data.latitude } : {}),
+      driftInterval: data.driftInterval,
+      seaCurrentDir: data.seaCurrentDir,
+      seaCurrentSpeed: data.seaCurrentSpeed,
+      seaCurrentErr: data.seaCurrentErr ?? 0,
+      ...(data.leewayObjectId ? { leewayObjectId: data.leewayObjectId } : {}),
+      X: data.X ?? 0,
+      Y: data.Y ?? 0,
+    };
     setLoadedInitialState((prev) => ({
       ...prev,
-      datum: {
-        ...(data.latitude !== undefined ? { latitude: data.latitude } : {}),
-        driftInterval: data.driftInterval,
-        seaCurrentDir: data.seaCurrentDir,
-        seaCurrentSpeed: data.seaCurrentSpeed,
-        seaCurrentErr: data.seaCurrentErr ?? 0,
-        ...(data.leewayObjectId ? { leewayObjectId: data.leewayObjectId } : {}),
-        X: data.X ?? 0,
-        Y: data.Y ?? 0,
-      },
+      datum: datumInit,
     }));
+    // Seed mirror Datum: bila tab WS 1 belum pernah dibuka saat kasus
+    // disimpan, input arus/leeway dari AI ikut tersimpan di snapshot.
+    setDatumState(datumInit);
     setCaseVersion((version) => version + 1);
     setActiveTab('ws1');
   }, []);
@@ -1209,6 +1295,30 @@ export default function Home() {
   // tulis hanya bila isinya berubah (deepEqual) agar tidak loop re-render
   // (pola guard sama dengan handler Track Spacing di atas). sheet.data yang
   // selalu segar inilah yang disimpan buildState & dipulihkan saat load kasus.
+  // Mirror state lengkap worksheet ASW → aswState (guard deepEqual mencegah
+  // loop re-render karena identitas objek baru tiap laporan; pola sama dengan
+  // mirror sheet WS 2/3/8 di bawah). Snapshot save case & ringkasan ASW efektif
+  // (memo `asw`) membaca mirror ini.
+  const handleAswMirror = useCallback((data: {
+    observations: ASWObservation[];
+    aswErr: number;
+    distressTime?: string;
+    datumTime?: string;
+    obsIntervalMode?: '6h' | '3h';
+    caseTitle?: string;
+  }) => {
+    setAswState((prev) => (deepEqualValue(prev as unknown as Record<string, unknown>, data as unknown as Record<string, unknown>)
+      ? prev
+      : {
+        observations: data.observations,
+        aswErr: data.aswErr,
+        distressTime: data.distressTime,
+        datumTime: data.datumTime,
+        obsIntervalMode: data.obsIntervalMode,
+        caseTitle: data.caseTitle,
+      }));
+  }, []);
+
   const handleWS2SheetData = useCallback((sheetKey: string, data: Worksheet2InitialState) => {
     setWs2Sheets((prev) => {
       const current = prev.find((sheet) => sheet.key === sheetKey);
@@ -2383,8 +2493,8 @@ export default function Home() {
             <TabsContent value="asw" key={`asw-tab-${caseVersion}-${tabClearVersions.asw ?? 0}`} className="mt-0 space-y-4">
               <ASWWorksheet
                 key={`asw-${caseVersion}`}
-                onDataChange={setAsw}
-                onStateChange={setAswState}
+                onDataChange={setAswLive}
+                onStateChange={handleAswMirror}
                 windOverride={windOverride}
                 initialState={loadedInitialState?.asw}
                 derivedDistressTime={adwDerivedDistressTime}

@@ -894,7 +894,7 @@ const LEEWAY_DESC_KEYWORDS: Record<string, string[]> = {
   'piw-novice': ['piw', 'person in water', 'orang di air', 'man overboard', 'non-swimmer'],
   'piw-vertical-2': ['piw vertical', 'piw tegak', 'vertical', 'tegak'],
   'piw-sitting': ['piw sitting', 'sitting', 'duduk', 'fetal'],
-  'piw-lifejacket': ['survival suit', 'life jacket', 'lifejacket', 'pelampung', 'piw horizontal'],
+  'piw-lifejacket': ['wearing lifejacket', 'wearing life jacket', 'mengenakan pelampung', 'survival suit', 'life jacket', 'lifejacket', 'pelampung', 'piw horizontal'],
   'piw-scuba': ['scuba', 'wetsuit'],
   'piw-deceased': ['deceased', 'meninggal', 'jenazah', 'korban jiwa', 'tewas'],
   // ── Maritime life rafts (Table I-1) ──

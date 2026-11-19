@@ -30,7 +30,17 @@ export interface ASWInitialState {
 
 interface ASWWorksheetProps {
   onDataChange: (data: ASWData) => void;
-  onStateChange?: (state: { observations: ASWObservation[]; aswErr: number }) => void;
+  /** Lapor state LENGKAP (observasi + error + waktu + judul kasus) ke halaman
+   *  agar snapshot save case tidak kehilangan waktu distress/datum — kolom ini
+   *  sebelumnya hanya ada di state lokal komponen dan hilang saat save/load. */
+  onStateChange?: (state: {
+    observations: ASWObservation[];
+    aswErr: number;
+    distressTime?: string;
+    datumTime?: string;
+    obsIntervalMode?: '6h' | '3h';
+    caseTitle?: string;
+  }) => void;
   windOverride?: { dirFrom: number; speed: number; hours: number; ts: number } | null;
   initialState?: ASWInitialState | null;
   /**
@@ -126,8 +136,8 @@ export default function ASWWorksheet({
   }, [windOverride]);
 
   useEffect(() => {
-    onStateChange?.({ observations, aswErr });
-  }, [observations, aswErr, onStateChange]);
+    onStateChange?.({ observations, aswErr, distressTime, datumTime, obsIntervalMode, caseTitle });
+  }, [observations, aswErr, distressTime, datumTime, obsIntervalMode, caseTitle, onStateChange]);
 
   // Compute mathematical vector components matching ASW dan POD.xls
   const detailedRows = useMemo(() => {

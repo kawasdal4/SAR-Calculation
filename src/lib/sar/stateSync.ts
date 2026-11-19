@@ -60,3 +60,117 @@ export function filterSarCases<T extends SarCaseSearchFields>(cases: T[], query:
     return tokens.every((token) => haystack.includes(token));
   });
 }
+
+/** True bila nilai "berisi": bukan null/undefined/string kosong/0/false/NaN,
+ *  array tidak kosong, atau objek dengan minimal satu nilai berisi (rekursif).
+ *  Nol diperlakukan "tidak berisi" karena snapshot worksheet default-nya nol —
+ *  {X:0, Y:0} tidak boleh mengalahkan data awal (AI/kasus) yang berisi. */
+export function hasFilledValue(value: unknown): boolean {
+  if (value === null || value === undefined || value === '' || value === false) return false;
+  if (typeof value === 'number') return Number.isFinite(value) && value !== 0;
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value === 'object') {
+    return Object.values(value as Record<string, unknown>).some(hasFilledValue);
+  }
+  return true;
+}
+
+/** Pilih snapshot terisi: mirror (worksheet terpasang, paling segar) bila
+ *  berisi, selain itu fallback (data awal dari AI/kasus). Mengatasi masalah
+ *  TabsContent yang meng-unmount tab non-aktif — mirror tak pernah terisi
+ *  untuk tab yang belum dibuka, sehingga data AI/kasus masih tersimpan. */
+export function firstFilledSnapshot<T extends object>(
+  mirror: T | null | undefined,
+  fallback: T | null | undefined,
+): T | undefined {
+  if (mirror && hasFilledValue(mirror)) return mirror;
+  if (fallback && hasFilledValue(fallback)) return fallback;
+  return undefined;
+}
+
+export interface AswSnapshotFields {
+  observations?: unknown;
+  aswErr?: number;
+  distressTime?: string;
+  datumTime?: string;
+  obsIntervalMode?: '6h' | '3h';
+  caseTitle?: string;
+}
+
+/** Gabungkan snapshot ASW per-bidang: mirror menang bila berisi, bagian kosong
+ *  diisi dari fallback (data awal AI/kasus). Perlu per-bidang karena mirror ASW
+ *  selalu ada ({observations: [], aswErr: 0}) walau tab belum pernah dibuka. */
+export function mergeAswSnapshot(
+  mirror: AswSnapshotFields | null | undefined,
+  fallback: AswSnapshotFields | null | undefined,
+): AswSnapshotFields {
+  const m = mirror ?? {};
+  const f = fallback ?? {};
+  const mirrorObs = Array.isArray(m.observations) ? (m.observations as unknown[]) : [];
+  const fallbackObs = Array.isArray(f.observations) ? (f.observations as unknown[]) : [];
+  const firstNonEmpty = (a: unknown, b: unknown): unknown =>
+    a === undefined || a === null || a === '' ? (b ?? undefined) : a;
+  return {
+    observations: mirrorObs.length > 0 ? mirrorObs : fallbackObs,
+    aswErr: (typeof m.aswErr === 'number' && m.aswErr !== 0 ? m.aswErr : (typeof f.aswErr === 'number' ? f.aswErr : 0)) as number,
+    distressTime: firstNonEmpty(m.distressTime, f.distressTime) as string | undefined,
+    datumTime: firstNonEmpty(m.datumTime, f.datumTime) as string | undefined,
+    obsIntervalMode: (firstNonEmpty(m.obsIntervalMode, f.obsIntervalMode) ?? '6h') as '6h' | '3h',
+    caseTitle: firstNonEmpty(m.caseTitle, f.caseTitle) as string | undefined,
+  };
+}
+
+/** Bagian worksheet pada snapshot kasus + label Indonesia untuk toast restore. */
+export const CASE_SECTION_LABELS: Record<string, string> = {
+  awa: 'AWA',
+  asw: 'ASW',
+  aero: 'ADW',
+  datum: 'WS 1 (Datum)',
+  search: 'Panduan Pencarian',
+  lkp: 'LKP',
+  assets: 'Aset SRU',
+  ws2Sheets: 'WS 2',
+  ws3Sheets: 'WS 3',
+  ws8Sheets: 'WS 8',
+  ws4: 'WS 4',
+  intercept: 'Intercept',
+  briefing: 'Briefing',
+  renops: 'Renops',
+  pattern: 'Pola Pencarian',
+};
+
+/** Daftar bagian kasus yang berisi vs kosong — dipakai toast info saat load
+ *  agar pengguna tahu kasus versi lama hanya menyimpan sebagian worksheet. */
+export function describeRestoredCaseSections(state: Record<string, unknown> | null | undefined): {
+  filled: string[];
+  empty: string[];
+} {
+  if (!state || typeof state !== 'object') return { filled: [], empty: Object.values(CASE_SECTION_LABELS) };
+  const patternFilled = state.patternType
+    || hasFilledValue(state.patternOrientationText)
+    || hasFilledValue(state.sectorAngleText)
+    || hasFilledValue(state.trackLineLengthText);
+  const probes: Record<string, unknown> = {
+    awa: (state.awa as { observations?: unknown[] } | undefined)?.observations,
+    asw: (state.asw as { observations?: unknown[] } | undefined)?.observations,
+    aero: state.aero,
+    datum: state.datum,
+    search: state.search,
+    lkp: state.lkp,
+    assets: state.assets,
+    ws2Sheets: (state.ws2Sheets as Array<{ data?: unknown }> | undefined)?.some((sheet) => hasFilledValue(sheet?.data)),
+    ws3Sheets: (state.ws3Sheets as Array<{ data?: unknown }> | undefined)?.some((sheet) => hasFilledValue(sheet?.data)),
+    ws8Sheets: (state.ws8Sheets as Array<{ data?: unknown }> | undefined)?.some((sheet) => hasFilledValue(sheet?.data)),
+    ws4: state.ws4,
+    intercept: state.intercept,
+    briefing: state.briefing,
+    renops: state.renops,
+    pattern: patternFilled,
+  };
+  const filled: string[] = [];
+  const empty: string[] = [];
+  for (const [key, label] of Object.entries(CASE_SECTION_LABELS)) {
+    (hasFilledValue(probes[key]) ? filled : empty).push(label);
+  }
+  return { filled, empty };
+}
