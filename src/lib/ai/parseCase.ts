@@ -288,11 +288,12 @@ ATURAN MUTLAK (pelanggaran = jawaban ditolak):
    - ARUS/DRIFT: arah KE mana air bergerak (dirToDeg) — "current setting 090" berarti dirToDeg 90.
    - TRUE = magnetic + variation (E ditambah, W dikurangi). Simpan nilai soal apa adanya; heading soal biasanya magnetic (headingReference "magnetic").
    - WAKTU: string APA ADANYA dari soal (mis. "18 November 2026 13.50 WIB"); lastContactTime = waktu MAYDAY/kontak terakhir; search.datumTime = Datum Time soal.
+   - WAKTU INSIDEN vs WAKTU LAPORAN — pisahkan dua kandidat waktu di narasi: (1) WAKTU KEJADIAN — "ATC/JATSC menerima panggilan MAYDAY pukul ...", "kejadian/distress/ditching pukul ..." → incident.lastContactTime; (2) WAKTU INFORMASI DITERIMA — "Kantor SAR menerima informasi pukul ...", "RCC menerima laporan pukul ..." → incident.reportTime. Contoh: "Pada 18 November 2026 pukul 14.10 WIB Kantor SAR menerima informasi ... bahwa pada pukul 13.50 WIB JATSC menerima panggilan MAYDAY" → lastContactTime = "18 November 2026 13.50 WIB", reportTime = "18 November 2026 14.10 WIB". Waktu penerimaan laporan DILARANG dipakai sebagai waktu insiden.
    - KOORDINAT: derajat desimal bertanda — S negatif, W negatif (mis. "06°52'46\\"S" → lat -6.879). dmsLat/dmsLng diisi string aslinya.
    - SATUAN: jarak NM, kecepatan knots, ketinggian feet, gelombang meter, visibility kilometer. FL200 → flightLevelFt 200 (bukan 20000; kaki dihitung aplikasi).
    - ANGKA Indonesia: "1.000" = 1000; "1,5" = 1.5.
 5. Tabel angin per ketinggian soal → aeroDrift.windLayers (altitudeFt 0 = Surface, sertakan altitudeLabel asli). Deret angin permukaan berwaktu → sea.surfaceWindSeries (obsTime string asli).
-6. Setiap SRU/alut di tabel data soal → satu entri sru (callsign WAJIB; kind: helicopter/fixed-wing/vessel; endurance "2j 45m" → enduranceHours 2 + enduranceMinutes 45).
+6. Setiap SRU/alut di tabel data soal → satu entri sru (callsign WAJIB; kind: helicopter/fixed-wing/vessel; endurance "2j 45m" → enduranceHours 2 + enduranceMinutes 45). KOORDINAT SRU/PANGKALAN: bila soal mencantum koordinat (desimal atau DMS), WAJIB pakai koordinat soal apa adanya — DILARANG mencari/mengganti dengan bandara/dermaga "terdekat". Identifikasi bandara/dermaga terdekat HANYA bila koordinat SRU/pangkalan sama sekali tidak tercantum di soal, dan catat sebagai asumsi.
 7. meta.source: "pdf" bila sumber lampiran PDF/gambar, "text" bila teks ditempel pengguna.
 8. Jangan mengisi field hasil perhitungan (ASW/AWA/datum/luas area/POD) — skema tidak memilikinya; hanya INPUT worksheet.`;
 

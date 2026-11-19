@@ -25,8 +25,15 @@ export interface TableRefRequest {
   currentValue: number | null;
   /** Formatter tampilan nilai worksheet (mis. '0.50'). */
   currentValueLabel?: string;
-  /** Terapkan nilai ubahan planner ke worksheet (0/undefined = kembali ke tabel). */
-  applyOverride?: (value: number) => void;
+  /** Terapkan nilai ubahan planner ke worksheet (0/undefined = kembali ke tabel).
+   *  `rowKey` = kunci baris tabel tempat klik terjadi (mis. kategori leeway
+   *  Table I-1/I-2 atau alat navigasi Table J-1) — dipakai mode per baris. */
+  applyOverride?: (value: number, rowKey?: string) => void;
+  /** Mode terapan per BARIS: klik sel mana pun pada baris tabel menerapkan
+   *  baris tersebut (applyOverride menerima rowKey; value = NaN) — untuk tabel
+   *  kategori (leeway I-1/I-2, fix error J-1/J-2) yang barisnya menentukan
+   *  nilai worksheet, bukan sel per sel. */
+  applyRowKey?: boolean;
   /** Nilai asli pada tabel appendix (bila berbeda dari nilai terpakai, mis. Wu PIW ×4). */
   tableValueLabel?: string;
   /** False untuk nilai hasil perhitungan (POD) atau yang diubah lewat selektor lain. */

@@ -129,6 +129,10 @@ export default function AusSarManualDialog({ open, onOpenChange, initialDocId, i
   // Nilai yang baru diterapkan ke worksheet (dari klik sel tabel / tombol
   // Terapkan) — badge umpan balik bahwa nilai bisa terus diubah.
   const [appliedValue, setAppliedValue] = useState<string | null>(null);
+  // Sel/baris terakhir yang DIKLIK planner pada tabel rujukan — efek blinking
+  // PINDAH ke sini menggantikan sel rujukan awal, sehingga nilai yang baru
+  // diklik langsung terlihat sebagai nilai terpakai (bukan blink di sel lama).
+  const [selectedCell, setSelectedCell] = useState<{ rowKey: string; colKey: string } | null>(null);
   const [panelHidden, setPanelHidden] = useState(false);
   // Rujukan dari worksheet (mis. tombol "Lihat Table I-1/I-2" Worksheet 1):
   // saat dialog dibuka dengan initialDocId yang dikenal, langsung tampilkan
@@ -144,6 +148,7 @@ export default function AusSarManualDialog({ open, onOpenChange, initialDocId, i
     if (open && initialRef) {
       setOverrideInput(initialRef.currentValue !== null ? String(initialRef.currentValue) : '');
       setAppliedValue(null);
+      setSelectedCell(null);
       setPanelHidden(false);
     }
   }, [open, initialRef]);
@@ -164,10 +169,14 @@ export default function AusSarManualDialog({ open, onOpenChange, initialDocId, i
   const activeRef = refForDoc && def ? refForDoc : null;
 
   // Sel yang dipilih pada tabel rujukan (satu-satunya yang blink) + label nilainya.
+  // Blink mengikuti sel TERAKHIR yang diklik planner (selectedCell); sebelum ada
+  // klik, blink tetap pada sel rujukan awal dari worksheet.
   const cellValue = activeRef ? manualTableCell(def as ManualTableDef, activeRef.rowKey, activeRef.colKey, activeRef.groupKey) : undefined;
   const rows = activeRef ? manualTableRows(def as ManualTableDef, activeRef.groupKey) : [];
-  const rowIndex = activeRef?.rowKey ? rows.findIndex((r) => r.key === activeRef.rowKey) : -1;
-  const colIndex = activeRef?.colKey && def ? def.colKeys.indexOf(activeRef.colKey) : -1;
+  const blinkRowKey = selectedCell?.rowKey ?? activeRef?.rowKey;
+  const blinkColKey = selectedCell?.colKey ?? activeRef?.colKey;
+  const rowIndex = blinkRowKey ? rows.findIndex((r) => r.key === blinkRowKey) : -1;
+  const colIndex = blinkColKey && def ? def.colKeys.indexOf(blinkColKey) : -1;
   const groupLabel = activeRef && def?.groups
     ? def.groups.find((g) => g.key === activeRef.groupKey)?.label
     : undefined;
@@ -180,18 +189,27 @@ export default function AusSarManualDialog({ open, onOpenChange, initialDocId, i
     setAppliedValue(overrideInput.replace(',', '.'));
   };
 
-  /** Klik sel nilai pada tabel rujukan → nilai LANGSUNG dipakai worksheet.
-   *  Nilai di worksheet tetap bisa diubah (input override, klik sel lain,
-   *  atau Reset kembali ke nilai tabel asli). */
-  const handleApplyCell = (raw: unknown) => {
+  /** Klik sel/baris pada tabel rujukan → nilai LANGSUNG dipakai worksheet
+   *  (mode per sel: angka; mode per baris: kunci baris — kategori leeway /
+   *  alat navigasi). Blinking pindah ke sel yang diklik dan nilai di worksheet
+   *  tetap bisa diubah (klik sel lain, input override, atau Reset). */
+  const handleApplyCell = (rowKey: string, colKey: string, raw: unknown) => {
     if (!activeRef?.allowOverride || !activeRef?.applyOverride) return;
     const text = String(raw ?? '').trim();
     if (!text || text === '—') return;
-    const parsed = Number(text.replace(',', '.'));
-    if (!Number.isFinite(parsed)) return;
-    activeRef.applyOverride(parsed);
-    setOverrideInput(String(parsed));
-    setAppliedValue(text);
+    if (activeRef.applyRowKey) {
+      // Mode per baris: sel mana pun pada baris menerapkan baris tersebut.
+      activeRef.applyOverride(Number.NaN, rowKey);
+      setAppliedValue(text);
+    } else {
+      const parsed = Number(text.replace(',', '.'));
+      if (!Number.isFinite(parsed)) return;
+      activeRef.applyOverride(parsed, rowKey);
+      setOverrideInput(String(parsed));
+      setAppliedValue(text);
+    }
+    // Efek blinking pindah ke sel yang baru diklik (menggantikan yang lama).
+    setSelectedCell({ rowKey, colKey });
   };
 
   return (
@@ -336,8 +354,12 @@ export default function AusSarManualDialog({ open, onOpenChange, initialDocId, i
                               return (
                                 <td
                                   key={`${row.key}-${def.colKeys[ci]}`}
-                                  onClick={clickable ? () => handleApplyCell(cellText) : undefined}
-                                  title={clickable ? `Klik untuk pakai nilai ${cellText} di worksheet — tetap bisa diubah` : undefined}
+                                  onClick={clickable ? () => handleApplyCell(row.key, def.colKeys[ci], cellText) : undefined}
+                                  title={clickable
+                                    ? (activeRef.applyRowKey
+                                      ? `Klik untuk pakai baris ini (${row.label}) di worksheet — nilai tetap bisa diubah`
+                                      : `Klik untuk pakai nilai ${cellText} di worksheet — tetap bisa diubah`)
+                                    : undefined}
                                   className={cn(
                                     'border border-slate-300 px-2 py-1 text-center font-mono',
                                     clickable && 'cursor-pointer hover:bg-amber-100 transition-colors',

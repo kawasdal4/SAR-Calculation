@@ -11,7 +11,7 @@
  */
 import { FIXED, HELI, TABLE_I8_ROWS, W2_TARGET_OPTIONS, W8_TARGET_OPTIONS, W8_I3, W8_I4 } from './wscPodTables';
 import { LAND_SEARCH_TARGETS, TABLE_I9, TABLE_I10 } from './landSearchTables';
-import { TABLE_J1_NAV_ERRORS, TABLE_J2_NAV_ERRORS } from './sarCalculations';
+import { LEEWAY_OBJECT_TYPES, TABLE_J1_NAV_ERRORS, TABLE_J2_NAV_ERRORS } from './sarCalculations';
 
 export type ManualDocId = 'combined' | 'appendix-i' | 'appendix-j' | 'appendix-k';
 
@@ -254,6 +254,33 @@ const TABLE_J2: ManualTableDef = {
 };
 
 // ---------------------------------------------------------------------------
+// Table I-1/I-2 — Leeway (Appendix_I_al1.pdf) — multiplier × windspeed +
+// modifier & divergence angle per kategori search target. Nilai per baris
+// adalah data yang sama dengan LEEWAY_OBJECT_TYPES (didigitasi dari manual),
+// jadi panel verifikasi selalu cocok dengan yang dipakai aplikasi.
+// ---------------------------------------------------------------------------
+const TABLE_I1: ManualTableDef = {
+  id: 'I-1',
+  title: 'Table I-1/I-2. Leeway speed — multiplier × windspeed + modifier & divergence angle',
+  docId: 'appendix-i',
+  page: 1,
+  colKeys: ['multiplier', 'modifier', 'divergence', 'error'],
+  columns: ['Multiplier', 'Modifier (kt)', 'Divergence (°)', 'LWe (kt)'],
+  rows: LEEWAY_OBJECT_TYPES.map((t) => ({
+    key: t.id,
+    label: t.label,
+    cells: [
+      String(t.leewayRate),
+      fmt(t.leewayModifier ?? 0),
+      String(t.divergenceAngle),
+      fmt(t.probableError),
+    ],
+  })),
+  unit: 'kt / °',
+  note: 'Leeway speed = multiplier × kecepatan angin (ASW) + modifier; arah = downwind ± divergence. Pembagian baris ke Table I-1 / I-2 mengikuti keterangan kategori pada manual (lihat label baris). Klik baris pada tabel ini untuk memakai kategori tersebut di Worksheet Datum.',
+};
+
+// ---------------------------------------------------------------------------
 // Figure I-12 — POD curve (hal. 11) — referensi gambar (tanpa sel tabel)
 // ---------------------------------------------------------------------------
 const FIGURE_I12: ManualTableDef = {
@@ -272,6 +299,7 @@ const FIGURE_I12: ManualTableDef = {
 // Registry + helper
 // ---------------------------------------------------------------------------
 export const MANUAL_TABLES: Record<string, ManualTableDef> = {
+  'I-1': TABLE_I1,
   'I-3': TABLE_I3,
   'I-4': TABLE_I4,
   'I-5': TABLE_I5,

@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
+import type { ReactNode } from 'react';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { WorksheetCard, NumberInput } from './WorksheetCard';
 import CoordinateInput from './CoordinateInput';
+import TableValue from './TableValue';
 import {
   computeWC,
   computeLW,
@@ -407,7 +409,37 @@ export default function DatumWorksheet({
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <StatBox label="Downwind Direction" value={`${lw.downwindDir.toFixed(1)}°T`} />
-          <StatBox label="Leeway Speed" value={`${lw.leewaySpeed.toFixed(3)} kts`} accent />
+          <StatBox
+            label="Leeway Speed"
+            value={`${lw.leewaySpeed.toFixed(3)} kts`}
+            accent
+            valueNode={(
+              <TableValue
+                request={{
+                  docId: 'appendix-i',
+                  page: 1,
+                  tableId: 'I-1',
+                  rowKey: objectType.id,
+                  colKey: 'multiplier',
+                  sourceLabel: 'Worksheet Datum — Leeway (Table I-1/I-2)',
+                  currentValue: objectType.leewayRate,
+                  currentValueLabel: `${objectType.label} — multiplier ${objectType.leewayRate}`,
+                  allowOverride: true,
+                  applyRowKey: true,
+                  applyOverride: (_value, rowKey) => {
+                    // Klik baris kategori pada Table I-1/I-2 → kategori leeway
+                    // worksheet berganti (multiplier/modifier/divergensi ikut).
+                    if (rowKey && LEEWAY_OBJECT_TYPES.some((t) => t.id === rowKey)) {
+                      setLeewayObjectId(rowKey);
+                    }
+                  },
+                }}
+                title="Klik untuk buka Table I-1/I-2 — klik baris kategori objek untuk memakainya"
+              >
+                {lw.leewaySpeed.toFixed(3)}
+              </TableValue>
+            )}
+          />
           <StatBox label="Divergence Angle" value={`±${lw.divergenceAngle}°`} />
           <StatBox label="Leeway Left" value={`${lw.lwLeftDir.toFixed(1)}°T`} accent />
         </div>
@@ -442,7 +474,31 @@ export default function DatumWorksheet({
                 ))}
               </SelectContent>
             </Select>
-            <NumberInput value={X} onChange={setX} />
+            <div className="flex items-center gap-2 mt-1">
+              <NumberInput value={X} onChange={setX} />
+              <TableValue
+                request={{
+                  docId: 'appendix-j',
+                  page: 1,
+                  tableId: TABLE_J1_NAV_ERRORS.some((e) => e.errorNm === X) ? 'J-1' : 'J-2',
+                  rowKey: [...TABLE_J1_NAV_ERRORS, ...TABLE_J2_NAV_ERRORS].find((e) => e.errorNm === X)?.id,
+                  colKey: 'error',
+                  sourceLabel: 'Worksheet Datum — X (fix error distress craft, Table J-1/J-2)',
+                  currentValue: X,
+                  currentValueLabel: `${X} NM`,
+                  allowOverride: true,
+                  applyRowKey: true,
+                  applyOverride: (_value, rowKey) => {
+                    // Klik baris alat navigasi pada Table J-1/J-2 → nilai X dipakai.
+                    const entry = [...TABLE_J1_NAV_ERRORS, ...TABLE_J2_NAV_ERRORS].find((e) => e.id === rowKey);
+                    if (entry) setX(entry.errorNm);
+                  },
+                }}
+                title="Klik untuk buka Table J-1/J-2 — klik baris alat navigasi untuk memakai nilainya"
+              >
+                <span className="text-[10px] font-bold text-blue-800 bg-blue-50 border border-blue-200 rounded px-1.5 py-0.5 whitespace-nowrap">J-1/J-2 ↗</span>
+              </TableValue>
+            </div>
             <p className="mt-1 text-[10px] leading-relaxed text-slate-500">Nilai dari Table J-1 sesuai alat navigasi objek yang disebut soal (mis. GPS → 0.1); J-2 untuk navigasi tidak diketahui / area praktis (Appendix J). AI mengisi otomatis dari analisis kalimat soal.</p>
           </div>
           <div>
@@ -464,7 +520,31 @@ export default function DatumWorksheet({
                 ))}
               </SelectContent>
             </Select>
-            <NumberInput value={Y} onChange={setY} />
+            <div className="flex items-center gap-2 mt-1">
+              <NumberInput value={Y} onChange={setY} />
+              <TableValue
+                request={{
+                  docId: 'appendix-j',
+                  page: 1,
+                  tableId: TABLE_J1_NAV_ERRORS.some((e) => e.errorNm === Y) ? 'J-1' : 'J-2',
+                  rowKey: [...TABLE_J1_NAV_ERRORS, ...TABLE_J2_NAV_ERRORS].find((e) => e.errorNm === Y)?.id,
+                  colKey: 'error',
+                  sourceLabel: 'Worksheet Datum — Y (fix error search craft, Table J-1/J-2)',
+                  currentValue: Y,
+                  currentValueLabel: `${Y} NM`,
+                  allowOverride: true,
+                  applyRowKey: true,
+                  applyOverride: (_value, rowKey) => {
+                    // Klik baris alat navigasi pada Table J-1/J-2 → nilai Y dipakai.
+                    const entry = [...TABLE_J1_NAV_ERRORS, ...TABLE_J2_NAV_ERRORS].find((e) => e.id === rowKey);
+                    if (entry) setY(entry.errorNm);
+                  },
+                }}
+                title="Klik untuk buka Table J-1/J-2 — klik baris alat navigasi untuk memakai nilainya"
+              >
+                <span className="text-[10px] font-bold text-blue-800 bg-blue-50 border border-blue-200 rounded px-1.5 py-0.5 whitespace-nowrap">J-1/J-2 ↗</span>
+              </TableValue>
+            </div>
             <p className="mt-1 text-[10px] leading-relaxed text-slate-500">Nilai dari Table J-1 sesuai alat navigasi SRU pencari yang disebut soal (mis. GPS → 0.1); J-2 untuk navigasi tidak diketahui / area praktis (Appendix J). AI mengisi otomatis dari analisis kalimat soal.</p>
           </div>
           <StatBox label="De — Drift Error" value={`${datum.De.toFixed(2)} NM`} />
@@ -479,11 +559,11 @@ export default function DatumWorksheet({
   );
 }
 
-function StatBox({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+function StatBox({ label, value, accent, valueNode }: { label: string; value: string; accent?: boolean; valueNode?: ReactNode }) {
   return (
     <div className={cn('p-2.5 rounded-md border', accent ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200')}>
       <div className="text-[10px] uppercase tracking-wide text-slate-500 mb-1">{label}</div>
-      <div className="text-sm font-mono font-semibold text-slate-800">{value}</div>
+      <div className="text-sm font-mono font-semibold text-slate-800">{valueNode ?? value}</div>
     </div>
   );
 }

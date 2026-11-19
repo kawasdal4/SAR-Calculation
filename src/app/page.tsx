@@ -1260,8 +1260,19 @@ export default function Home() {
         data,
       };
       focusAssetId = newSheet.assetId;
-      setWs2Sheets((prev) => [...prev, newSheet]);
-      setActiveWs2Key(newSheet.key);
+      // Lembar placeholder bawaan (auto-seed saat mount dengan data kosong)
+      // DIPAKAI untuk lembar SRU pertama — kalau tidak, lembar kosong "SRU 1"
+      // tetap nempel di depan dan tab WS 2 tampak "tidak terisi" setelah apply
+      // kasus AI padahal datanya masuk ke lembar di belakangnya.
+      const placeholder = ws2Sheets.find((sheet) => sheet.key === 'default'
+        && !sheet.data.sruName && !sheet.data.searchPlatform && !sheet.data.searchObject);
+      if (placeholder) {
+        setWs2Sheets((prev) => prev.map((sheet) => (sheet.key === placeholder.key ? { ...newSheet, key: placeholder.key } : sheet)));
+        setActiveWs2Key(placeholder.key);
+      } else {
+        setWs2Sheets((prev) => [...prev, newSheet]);
+        setActiveWs2Key(newSheet.key);
+      }
     }
     setPatternEnvironment('water');
     setPatternWorksheetSource('ws2');
@@ -1333,8 +1344,17 @@ export default function Home() {
         data,
       };
       focusAssetId = newSheet.assetId;
-      setWs8Sheets((prev) => [...prev, newSheet]);
-      setActiveWs8Key(newSheet.key);
+      // Lembar placeholder bawaan (data kosong) DIPAKAI untuk lembar SRU pertama
+      // — lihat catatan handleApplyWS2 (tab WS 8 jangan tampak kosong setelah apply).
+      const placeholder = ws8Sheets.find((sheet) => sheet.key === 'default'
+        && !sheet.data.sruName && !sheet.data.eyeHeight && !sheet.data.searchObject);
+      if (placeholder) {
+        setWs8Sheets((prev) => prev.map((sheet) => (sheet.key === placeholder.key ? { ...newSheet, key: placeholder.key } : sheet)));
+        setActiveWs8Key(placeholder.key);
+      } else {
+        setWs8Sheets((prev) => [...prev, newSheet]);
+        setActiveWs8Key(newSheet.key);
+      }
     }
     setPatternEnvironment('');
     setPatternWorksheetSource('ws8');
@@ -2655,9 +2675,10 @@ export default function Home() {
         {/* Left Column: Worksheets & Tools */}
         <section className="lg:col-span-3 space-y-4">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            {/* Scrollable Navigation Tabs List with Strict Logical Order */}
-            <div className="overflow-x-auto pb-1 mb-3">
-              <TabsList className="inline-flex h-auto p-1 bg-slate-200/80 rounded-lg gap-1 min-w-full sm:min-w-0">
+            {/* Navigation Tabs List — SEMUA tab tampil (wrap beberapa baris),
+                tanpa scroll samping: cukup klik tab yang dituju. */}
+            <div className="mb-3">
+              <TabsList className="flex flex-wrap h-auto p-1 bg-slate-200/80 rounded-lg gap-1 w-full">
                 <TabsTrigger
                   value="all-worksheets"
                   className="text-xs px-2.5 py-1.5 font-bold data-[state=active]:bg-emerald-600 data-[state=active]:text-white"

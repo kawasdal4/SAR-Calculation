@@ -372,7 +372,7 @@ export default function ScenarioGeneratorPanel({ onApplyCaseSteps }: ScenarioGen
             <div className="space-y-1.5">
               <Label className="text-xs">Jenis kejadian</Label>
               <Select value={incidentType} onValueChange={setIncidentType}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-full min-w-0 h-8 text-xs"><SelectValue className="truncate" /></SelectTrigger>
                 <SelectContent>
                   {(caps?.incidentTypes?.length ? caps.incidentTypes.map((t) => ({ value: t.id, label: t.label })) : Object.entries(INCIDENT_LABELS).map(([value, label]) => ({ value, label }))).map((t) => (
                     <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
@@ -383,7 +383,7 @@ export default function ScenarioGeneratorPanel({ onApplyCaseSteps }: ScenarioGen
             <div className="space-y-1.5">
               <Label className="text-xs">Gaya bahasa narasi</Label>
               <Select value={style} onValueChange={setStyle}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-full min-w-0 h-8 text-xs"><SelectValue className="truncate" /></SelectTrigger>
                 <SelectContent>
                   {(caps?.narrativeStyles?.length ? caps.narrativeStyles.map((s) => ({ value: s.id, label: s.label })) : Object.entries(STYLE_LABELS).map(([value, label]) => ({ value, label }))).map((s) => (
                     <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
@@ -394,7 +394,7 @@ export default function ScenarioGeneratorPanel({ onApplyCaseSteps }: ScenarioGen
             <div className="space-y-1.5">
               <Label className="text-xs">Wilayah</Label>
               <Select value={regionId} onValueChange={setRegionId}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-full min-w-0 h-8 text-xs"><SelectValue className="truncate" /></SelectTrigger>
                 <SelectContent>
                   {(caps?.regions ?? []).map((r) => (
                     <SelectItem key={r.id} value={r.id}>{r.name} ({r.timeZone})</SelectItem>
@@ -405,7 +405,7 @@ export default function ScenarioGeneratorPanel({ onApplyCaseSteps }: ScenarioGen
             <div className="space-y-1.5">
               <Label className="text-xs">Tingkat kesulitan</Label>
               <Select value={difficulty} onValueChange={(v) => { setDifficulty(v); setTraps([]); }}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-full min-w-0 h-8 text-xs"><SelectValue className="truncate" /></SelectTrigger>
                 <SelectContent>
                   {Object.entries(DIFFICULTY_LABELS).map(([value, label]) => (
                     <SelectItem key={value} value={value}>{label}</SelectItem>
@@ -897,7 +897,7 @@ export default function ScenarioGeneratorPanel({ onApplyCaseSteps }: ScenarioGen
                   <div className="space-y-1">
                     <Label>Verifikasi</Label>
                     <Select value={editEntry.verification} onValueChange={(v) => setEditEntry({ ...editEntry, verification: v as BankEntryApi['verification'] })}>
-                      <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="w-full min-w-0 h-8"><SelectValue className="truncate" /></SelectTrigger>
                       <SelectContent>
                         {['VERIFIED', 'UNVERIFIED', 'MISSING', 'SIMULATION'].map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}
                       </SelectContent>
@@ -906,7 +906,7 @@ export default function ScenarioGeneratorPanel({ onApplyCaseSteps }: ScenarioGen
                   <div className="space-y-1">
                     <Label>Approval</Label>
                     <Select value={editEntry.approval} onValueChange={(v) => setEditEntry({ ...editEntry, approval: v as BankEntryApi['approval'] })}>
-                      <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="w-full min-w-0 h-8"><SelectValue className="truncate" /></SelectTrigger>
                       <SelectContent>
                         {['DRAFT', 'APPROVED'].map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}
                       </SelectContent>
