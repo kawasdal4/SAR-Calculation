@@ -3,8 +3,10 @@
  * Terapkan → Hitung → Review" untuk soal kasus SAR.
  *
  * DESAIN (rencana Fase 0 §5 Fase 3 + keputusan implementasi):
- * - SATU panggilan LLM TANPA tools; keluaran dipaksa JSON via
- *   `response_format` + schema dari `sarCaseSchema` (temperature 0–0.2).
+ * - SATU panggilan LLM TANPA tools; keluaran dipaksa JSON via `response_format`
+ *   TOP-LEVEL request Interactions API (sejajar model/input/generation_config —
+ *   BUKAN di dalam generation_config, dan BUKAN responseMimeType/responseSchema
+ *   gaya GenerateContent) + schema dari `sarCaseSchema` (temperature 0.1).
  * - Revalidasi ZOD (`sarCaseSchema.safeParse`) SETIAP respons; bila tidak
  *   valid → kirim ulang PESAN ERROR VALIDASI ke model (maks 2 retry per
  *   model) sehingga model memperbaiki JSON-nya sendiri, bukan diubah diam-diam.
@@ -165,20 +167,24 @@ export async function POST(req: NextRequest) {
     let usage: { inputTokens?: number; outputTokens?: number; totalTokens?: number } | undefined;
     let usedModel: string | null = null;
 
-    for (const model of modelChain) {
+    modelChainLoop: for (const model of modelChain) {
       if (totalAttempts >= MAX_TOTAL_ATTEMPTS) break;
       let feedback = '';
-      for (let attempt = 0; attempt <= MAX_VALIDATION_RETRIES; attempt += 1) {
+      attemptLoop: for (let attempt = 0; attempt <= MAX_VALIDATION_RETRIES; attempt += 1) {
         if (totalAttempts >= MAX_TOTAL_ATTEMPTS) break;
         totalAttempts += 1;
         const result = await callGeminiInteraction({
           model,
           input: feedback ? [...input, { type: 'text', text: feedback }] : input,
           systemInstruction: EXTRACTION_SYSTEM_INSTRUCTION,
+          // Structured output TOP-LEVEL Interactions API — sejajar model/input/
+          // generation_config. Bukan di dalam generation_config (→ HTTP 400
+          // "Unknown parameter 'response_format' at 'generation_config'") dan
+          // bukan responseMimeType/responseSchema gaya GenerateContent.
+          responseFormat,
           generationConfig: {
             temperature: 0.1,
             max_output_tokens: 32768,
-            response_format: responseFormat,
             ...(getThinkingLevel(model) ? { thinking_level: getThinkingLevel(model) } : {}),
           },
           store: false,
@@ -192,6 +198,11 @@ export async function POST(req: NextRequest) {
             lastError = result.errorMessage || `Gemini API mengembalikan HTTP ${result.status}`;
           }
           console.warn(`[parse-case] Panggilan gagal (model=${model}, attempt=${attempt + 1}): ${lastError.slice(0, 200)}`);
+          // HTTP 400 = struktur request salah (parameter tidak dikenal, schema
+          // tidak valid, dsb.). Payload yang sama dikirim ke model lain juga
+          // cacat — hentikan seluruh chain agar tidak fallback berulang ke
+          // banyak model dengan request yang bermasalah.
+          if (result.status === 400) break modelChainLoop;
           break;
         }
         usage = usage ?? result.usage;

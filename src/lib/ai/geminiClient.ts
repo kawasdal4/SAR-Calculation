@@ -66,6 +66,14 @@ export interface InteractionCallArgs {
   tools?: Array<Record<string, unknown>>;
   /** {max_output_tokens, thinking_level?, tool_choice?} — snake_case sesuai API. */
   generationConfig?: Record<string, unknown>;
+  /** Structured output TOP-LEVEL (Interactions API, bukan GenerateContent):
+   *  {type:'text', mime_type:'application/json', schema}. WAJIB di tingkat
+   *  request, sejajar model/input/generation_config — menyematkannya di
+   *  dalam generation_config → HTTP 400 "Unknown parameter 'response_format'
+   *  at 'generation_config'". buildInteractionRequest menStrip response_format/
+   *  responseMimeType/responseSchema dari generation_config sebagai pengaman.
+   */
+  responseFormat?: Record<string, unknown>;
   /** Interaction ID sebelumnya (keputusan no. 4: riwayat dikelola server-side). */
   previousInteractionId?: string;
   /** Simpan interaction di sisi Google? Diperlukan true agar bisa di-chain.
@@ -73,6 +81,36 @@ export interface InteractionCallArgs {
   store?: boolean;
   /** Timeout percobaan ini (ms). */
   timeoutMs: number;
+}
+
+/** Parameter GenerateContent API yang TIDAK berlaku di Interactions API —
+ *  dibereskan dari generation_config agar tidak memicu HTTP 400 struktur. */
+const FORBIDDEN_IN_GENERATION_CONFIG = ['response_format', 'responseMimeType', 'responseSchema'] as const;
+
+/** Bentuk payload `client.interactions.create(...)` (argumen pertama) —
+ *  diekspor murni agar bisa diregresi tanpa jaringan: `response_format`
+ *  top-level (sejajar model/input/generation_config), TIDAK di dalam
+ *  generation_config; responseMimeType/responseSchema (gaya GenerateContent)
+ *  juga dilarang di generation_config. */
+export function buildInteractionRequest(args: InteractionCallArgs): Record<string, unknown> {
+  const generationConfig: Record<string, unknown> = { ...(args.generationConfig ?? {}) };
+  for (const key of FORBIDDEN_IN_GENERATION_CONFIG) delete generationConfig[key];
+  return {
+    model: args.model,
+    input: args.input,
+    ...(args.systemInstruction ? { system_instruction: args.systemInstruction } : {}),
+    ...(Object.keys(generationConfig).length > 0 ? { generation_config: generationConfig } : {}),
+    ...(args.responseFormat ? { response_format: args.responseFormat } : {}),
+    ...(args.tools && args.tools.length > 0
+      ? { tools: args.tools.map((tool) => {
+          const { type: _type, ...rest } = tool as Record<string, unknown> & { type?: string };
+          void _type;
+          return rest;
+        }) }
+      : {}),
+    store: args.store ?? false,
+    ...(args.previousInteractionId ? { previous_interaction_id: args.previousInteractionId } : {}),
+  };
 }
 
 /** Error khusus bila API key tidak tersedia — pesan aman untuk pengguna. */
@@ -152,23 +190,13 @@ function extractText(steps: InteractionStep[], outputText: unknown): string {
  *  berjalan persis seperti sebelumnya. Melempar HANYA GeminiApiKeyMissingError. */
 export async function callGeminiInteraction(args: InteractionCallArgs): Promise<InteractionCallResult> {
   const client = getGeminiClient(); // lempar GeminiApiKeyMissingError bila key kosong
-  // Lepas field `type` pada tool (FunctionT SDK: name/description/parameters).
-  const tools = args.tools?.map((tool) => {
-    const { type: _type, ...rest } = tool as Record<string, unknown> & { type?: string };
-    void _type;
-    return rest;
-  });
+  // Payload dibangun oleh builder murni: response_format top-level,
+  // generation_config dibersihkan dari parameter yang tidak berlaku di
+  // Interactions API (response_format/responseMimeType/responseSchema).
+  const payload = buildInteractionRequest(args);
 
   try {
-    const interaction = await client.interactions.create({
-      model: args.model,
-      input: args.input as never,
-      ...(args.systemInstruction ? { system_instruction: args.systemInstruction } : {}),
-      ...(args.generationConfig ? { generation_config: args.generationConfig as never } : {}),
-      ...(tools && tools.length > 0 ? { tools: tools as never } : {}),
-      store: args.store ?? false,
-      ...(args.previousInteractionId ? { previous_interaction_id: args.previousInteractionId } : {}),
-    }, {
+    const interaction = await client.interactions.create(payload as never, {
       signal: AbortSignal.timeout(args.timeoutMs),
       retries: 0,
     } as never);

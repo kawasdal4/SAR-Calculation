@@ -238,6 +238,20 @@ export const CASE_EXTRACTION_JSON_SCHEMA: Record<string, unknown> = {
       },
     },
     tasksRequested: { type: 'array', items: { type: 'string' } },
+    // Cermin `sarCaseSchema.supportingDistricts` — kecamatan/distrik pendukung
+    // dari soal (sebelumnya tidak ada di schema yang dikirim sehingga model
+    // tidak pernah mengeluarkan field ini).
+    supportingDistricts: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          note: { type: 'string' },
+        },
+        required: ['name'],
+      },
+    },
     meta: {
       type: 'object',
       properties: {
