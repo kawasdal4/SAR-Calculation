@@ -8,6 +8,7 @@ import {
   buildCaseWorksheetSeeds,
   checkCaseCompleteness,
   deriveAswIntervalMode,
+  DOWNSTREAM_FIELDS,
   eyeHeightForVessel,
   sruTypeFromCase,
   w2TargetFromRaftCapacity,
@@ -175,22 +176,46 @@ describe('Aturan pemetaan helper', () => {
 });
 
 describe('checkCaseCompleteness (fixture PK-TAL)', () => {
-  it('tanpa planner: leeway & x/y MISSING/ASSUMED, gelombang MISSING, belum complete', () => {
+  it('field hilir (glideRatio/waveHeightM/leeway) TIDAK dilaporkan hilang — PK-TAL lengkap', () => {
     const report = checkCaseCompleteness(PK_TAL);
-    expect(report.complete).toBe(false);
-    const liveLeeway = report.issues.find((issue) => issue.field === 'datum.leewayObjectId' && issue.worksheet === 'Datum WS 1');
-    expect(liveLeeway?.status).toBe('MISSING');
+    // Regresi PK-TAL: ketiga field ini dihasilkan/dipilih di worksheet hilir
+    // (ADW/Fw I-7/Datum WS 1) — bukan data soal; melaporkannya "hilang"
+    // mengunci penerapan tanpa alasan.
+    expect(report.issues.some((issue) => DOWNSTREAM_FIELDS.has(issue.field))).toBe(false);
+    expect(report.issues.some((issue) => issue.field === 'aeroDrift.glideRatio')).toBe(false);
+    expect(report.issues.some((issue) => issue.field === 'sea.waveHeightM')).toBe(false);
+    expect(report.issues.some((issue) => issue.field === 'datum.leewayObjectId')).toBe(false);
     const xy = report.issues.find((issue) => issue.field === 'datum.X/Y');
-    expect(xy?.status).toBe('ASSUMED');
-    expect(report.issues.some((issue) => issue.field === 'sea.waveHeightM')).toBe(true);
-    expect(report.missingCount).toBeGreaterThan(0);
+    expect(xy?.status).toBe('ASSUMED'); // info, bukan pemblokir
+    expect(report.complete).toBe(true);
+    expect(report.missingCount).toBe(0);
   });
 
-  it('dengan planner leeway + x/y: issue leeway/x-y hilang, gelombang tetap MISSING', () => {
+  it('dengan planner leeway + x/y: hanya tersisa informasi x/y (tidak ada MISSING)', () => {
     const report = checkCaseCompleteness(PK_TAL, { leewayObjectId: 'raft-aviation-46', xNm: 0.1, yNm: 0.1 });
-    expect(report.issues.some((issue) => issue.field === 'datum.leewayObjectId' && issue.worksheet === 'Datum WS 1')).toBe(false);
+    expect(report.issues.some((issue) => issue.status === 'MISSING')).toBe(false);
     expect(report.issues.some((issue) => issue.field === 'datum.X/Y')).toBe(false);
-    expect(report.issues.some((issue) => issue.field === 'sea.waveHeightM')).toBe(true);
+    expect(report.missingCount).toBe(0);
+  });
+
+  it('meta.missingFields yang menyebut field hilir diabaikan (model boleh salah klaim)', () => {
+    const withDownstreamMissing = {
+      ...PK_TAL,
+      meta: {
+        ...(PK_TAL.meta ?? {}),
+        missingFields: [
+          { field: 'aeroDrift.glideRatio', reason: 'Glide ratio tidak ada di soal.' },
+          { field: 'sea.waveHeightM', reason: 'Tinggi gelombang tidak disebut di soal.' },
+          { field: 'datum.leewayObjectId', reason: 'Kategori leeway belum dipilih.' },
+          { field: 'datum.x/y nav aid', reason: 'Alat navigasi (Tabel J-1) tidak disebut — default 0 NM.' },
+          { field: 'incident.pob', reason: 'Jumlah POB tidak disebut.' },
+        ],
+      },
+    } as typeof PK_TAL;
+    const report = checkCaseCompleteness(withDownstreamMissing);
+    // Hanya field BUKAN-hilir yang dilaporkan.
+    expect(report.issues.filter((issue) => issue.worksheet === 'Soal').map((issue) => issue.field)).toEqual(['incident.pob']);
+    expect(report.issues.some((issue) => DOWNSTREAM_FIELDS.has(issue.field))).toBe(false);
   });
 
   it('kasus kosong: banyak MISSING, tidak pernah melempar', () => {

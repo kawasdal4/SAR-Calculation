@@ -134,6 +134,18 @@ describe('buildCaseExtractionResult — fixture PK-TAL', () => {
     expect(byField.get('sru[HR-3604].tasSearchKts')?.value).toBe('90');
   });
 
+  test('regresi PK-TAL: TIDAK ada baris HILANG — panel "Data hilang" kosong, apply tidak terkunci', () => {
+    // Klaim model di fixture meta.missingFields (glideRatio/waveHeightM/leeway/
+    // x-y nav aid) adalah nilai worksheet hilir — tidak boleh jadi HILANG.
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const hilang = result.fieldRows.filter((row) => row.status === 'HILANG');
+    expect(hilang).toEqual([]);
+    // Laporan kelengkapan juga bersih (serverTools/AI agent tidak mengklaim hilang).
+    expect(result.completeness.missingCount).toBe(0);
+    expect(result.completeness.complete).toBe(true);
+  });
+
   test('field UNVERIFIED → DIASUMSIKAN (tidak dianggap resmi)', () => {
     const withUnverified: SarCaseSchema = {
       ...GOLDEN,
@@ -306,15 +318,37 @@ describe('deriveExtractionFieldRows — status HILANG', () => {
   test('meta.missingFields muncul sebagai HILANG + alasan dari soal', () => {
     const withMissing: SarCaseSchema = {
       ...GOLDEN,
+      incident: { ...GOLDEN.incident, pob: undefined },
       meta: {
         ...GOLDEN.meta,
-        missingFields: [{ field: 'sea.waveHeightM', reason: 'Tinggi gelombang tidak disebut di soal.' }],
+        missingFields: [{ field: 'incident.pob', reason: 'Jumlah POB tidak disebut di soal.' }],
       },
     };
     const rows = deriveExtractionFieldRows(withMissing, {});
-    const row = rows.find((entry) => entry.field === 'sea.waveHeightM');
+    const row = rows.find((entry) => entry.field === 'incident.pob');
     expect(row?.status).toBe('HILANG');
     expect(row?.source).toContain('tidak disebut');
+  });
+
+  test('field hilir (glideRatio/waveHeightM/leeway) tidak menjadi HILANG walau diklaim model', () => {
+    // Regresi PK-TAL: ketiga field ini dihasilkan/dipilih di worksheet hilir
+    // (ADW / Fw Table I-7 dari angin / picker Datum WS 1). Klaim "missing"
+    // dari model tidak boleh mengunci penerapan.
+    const withDownstream: SarCaseSchema = {
+      ...GOLDEN,
+      meta: {
+        ...GOLDEN.meta,
+        missingFields: [
+          { field: 'aeroDrift.glideRatio', reason: 'Glide ratio tidak ada di soal.' },
+          { field: 'sea.waveHeightM', reason: 'Tinggi gelombang tidak disebut di soal.' },
+          { field: 'datum.leewayObjectId', reason: 'Kategori leeway belum dipilih.' },
+        ],
+      },
+    };
+    const rows = deriveExtractionFieldRows(withDownstream, {});
+    expect(rows.some((entry) => entry.status === 'HILANG' && entry.field === 'aeroDrift.glideRatio')).toBe(false);
+    expect(rows.some((entry) => entry.status === 'HILANG' && entry.field === 'sea.waveHeightM')).toBe(false);
+    expect(rows.some((entry) => entry.status === 'HILANG' && entry.field === 'datum.leewayObjectId')).toBe(false);
   });
 
   test('kelengkapan worksheet (completeness) ikut menjadi baris HILANG', () => {

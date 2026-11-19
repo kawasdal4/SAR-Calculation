@@ -507,6 +507,34 @@ export interface CaseCompleteness {
   assumedCount: number;
 }
 
+/**
+ * Field yang DISENGAJA dari daftar kelengkapan ekstraksi (checkCaseCompleteness
+ * dan jalur meta.missingFields di parseCase) karena nilainya BUKAN data soal —
+ * nilainya dihasilkan/dipilih di worksheet hilir, jadi tidak boleh masuk daftar
+ * "data hilang" yang mengunci penerapan:
+ * - `aeroDrift.glideRatio` — nilai worksheet ADW (state aircraftGlideRatio,
+ *   fallback 0; baru wajib bila useAircraftGlide aktif — validatePlan).
+ *   Hasil rantai AWA → ADW di worksheet, bukan input ekstraksi soal.
+ * - `sea.waveHeightM` — bila gelombang tidak disebut, baris Fw Table I-7
+ *   dihitung dari angin (lookupTable: windKts dan/atau waveHeightM) — bukan
+ *   kekurangan data.
+ * - `datum.leewayObjectId` — kategori leeway (Tabel I-1/I-2) dipilih planner di
+ *   Datum WS 1 (picker LEWAY_OBJECT_TYPES dengan default terpilih).
+ */
+export const DOWNSTREAM_FIELDS: ReadonlySet<string> = new Set([
+  'aeroDrift.glideRatio',
+  'sea.waveHeightM',
+  'datum.leewayObjectId',
+]);
+
+/** True bila klaim "missing" untuk field ini sebenarnya nilai worksheet/planner.
+ *  Selain set eksplisit, pola `datum.x/y*` (varian penamaan model untuk galat
+ *  navigasi Tabel J-1 — default 0 NM, sudah dilaporkan ASSUMED datum.X/Y)
+ *  juga dianggap klaim hilir. */
+export function isDownstreamFieldClaim(field: string): boolean {
+  return DOWNSTREAM_FIELDS.has(field) || /^datum\.x\/y/i.test(field);
+}
+
 /** Periksa kelengkapan data kasus terhadap kebutuhan worksheet laut (ditching).
  *  Jenis insiden lain (kapal/darat) menambahkan aturan sendiri di fase berikut. */
 export function checkCaseCompleteness(
@@ -531,7 +559,7 @@ export function checkCaseCompleteness(
 
   // ADW
   if (!aero?.glideSpeedKts) push('MISSING', 'aeroDrift.glideSpeedKts', 'ADW', 'Glide speed tidak ada di soal.');
-  if (!aero?.glideRatio) push('MISSING', 'aeroDrift.glideRatio', 'ADW', 'Glide ratio tidak ada di soal.');
+  // glideRatio sengaja tidak dicek: nilai worksheet ADW (lihat DOWNSTREAM_FIELDS).
   if (aero?.variationDeg === undefined) push('MISSING', 'aeroDrift.variation', 'ADW', 'Variation (E/W) tidak ada di soal.');
   if (incident.headingDeg === undefined) push('MISSING', 'incident.headingDeg', 'ADW', 'Heading tidak ada di soal.');
   if (incident.flightLevelFt === undefined && incident.altitudeFt === undefined) {
@@ -546,11 +574,9 @@ export function checkCaseCompleteness(
     push('MISSING', 'aeroDrift.windLayers[surface]', 'AWA', 'Baris Surface (0 ft) tidak ada — AWA menuntut baris Surface.');
   }
 
-  // Datum
+  // Datum — leewayObjectId sengaja tidak dicek: dipilih planner di Datum WS 1
+  // (lihat DOWNSTREAM_FIELDS), bukan data soal.
   if (!sarCase.sea?.current) push('MISSING', 'sea.current', 'Datum WS 1', 'Arus laut (arah KE / kecepatan) tidak ada di soal.');
-  if (!planner.leewayObjectId && !sarCase.target?.leewayObjectId) {
-    push('MISSING', 'datum.leewayObjectId', 'Datum WS 1', 'Kategori leeway (Tabel I-1/I-2) belum dipilih planner.');
-  }
   if (planner.xNm === undefined || planner.yNm === undefined) {
     push('ASSUMED', 'datum.X/Y', 'Datum WS 1', 'Galat x/y default 0 NM (aturan worksheet) — hasil tidak final sebelum dikonfirmasi.');
   }
@@ -573,13 +599,13 @@ export function checkCaseCompleteness(
     }
   }
 
-  // Gelombang laut — opsional, hanya dicatat bila tidak ada (tidak menghalangi).
-  if (sarCase.sea?.waveHeightM === undefined) {
-    push('MISSING', 'sea.waveHeightM', 'WS 2/WS 8', 'Tinggi gelombang (seas) tidak disebut — baris Fw Table I-7 hanya dari angin.');
-  }
+  // waveHeightM sengaja tidak dicek: Fw Table I-7 dihitung dari angin bila
+  // gelombang tidak disebut (lihat DOWNSTREAM_FIELDS).
 
-  // Gabungkan missingFields dari meta ekstraksi
+  // Gabungkan missingFields dari meta ekstraksi — field hilir diabaikan agar
+  // laporan ke agent/AI tidak mengklaim "data hilang" untuk nilai worksheet.
   for (const missing of sarCase.meta?.missingFields ?? []) {
+    if (isDownstreamFieldClaim(missing.field)) continue;
     push('MISSING', missing.field, 'Soal', missing.reason);
   }
 

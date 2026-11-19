@@ -26,6 +26,7 @@ import {
 import {
   buildCaseWorksheetSeeds,
   checkCaseCompleteness,
+  isDownstreamFieldClaim,
   type CaseCompleteness,
   type CasePlannerInputs,
 } from '../sar/caseAdapter';
@@ -527,7 +528,11 @@ export function deriveExtractionFieldRows(
   }
 
   // 4) MISSING: meta.missingFields + checkCaseCompleteness (aturan worksheet).
+  // Field hilir (glideRatio/waveHeightM/leeway/x-y, lihat caseAdapter) diabaikan
+  // — nilainya dihasilkan/dipilih di worksheet, bukan data soal; mengklaimnya
+  // "hilang" mengunci penerapan tanpa alasan (regresi PK-TAL).
   for (const missing of sarCase.meta?.missingFields ?? []) {
+    if (isDownstreamFieldClaim(missing.field)) continue;
     const existing = rows.get(missing.field);
     // Entri missingFields yang field-nya SUDAH bernilai konkret dianggap basi
     // (model menyebut hilang tapi tetap mengisi nilai) — nilai yang ada menang.
