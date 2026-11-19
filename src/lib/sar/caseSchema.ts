@@ -35,12 +35,15 @@ export type VerificationStatus = (typeof VERIFICATION_STATUSES)[number];
 export const DATA_APPROVAL_STATUSES = ['DRAFT', 'APPROVED'] as const;
 export type DataApprovalStatus = (typeof DATA_APPROVAL_STATUSES)[number];
 
-/** Jenis insiden — menentukan blok data yang wajib (keputusan no. 13). */
+/** Jenis insiden — menentukan blok data yang wajib (keputusan no. 13).
+ *  Fase 5b: 'missing-person-land' ditambahkan untuk pencarian orang hilang
+ *  di darat (WS 3/WS 4 Search Radius darat). */
 export const INCIDENT_TYPES = [
-  'aircraft-ditching',     // pesawat ditching di laut (contoh: PK-TAL)
-  'aircraft-land-crash',   // pesawat jatuh di darat (WS 3/WS 4)
-  'vessel-sinking',        // kapal tenggelam (tanpa tabel angin per ketinggian; pakai kategori leeway)
-  'person-overboard',      // MOB / PIW
+  'aircraft-ditching',      // pesawat ditching di laut (contoh: PK-TAL)
+  'aircraft-land-crash',    // pesawat jatuh di darat (WS 3/WS 4)
+  'vessel-sinking',         // kapal tenggelam (tanpa tabel angin per ketinggian; pakai kategori leeway)
+  'person-overboard',       // MOB / PIW
+  'missing-person-land',    // orang hilang di darat (land search radius)
   'other',
 ] as const;
 export const incidentTypeSchema = z.enum(INCIDENT_TYPES);
@@ -201,6 +204,17 @@ export const searchSchema = z.object({
   weatherNotes: z.string().optional(),
   /** Nomor pencarian berikutnya (1 = pencarian pertama) — penentu kurva POD & fs. */
   searchNumber: z.number().int().min(1).max(5).optional(),
+  /** ── Pencarian darat (WS 3/WS 4) — Fase 5b ── */
+  /** Kategori vegetasi Tabel I-10 (Fv) untuk pencarian darat. */
+  terrainVegetation: z.enum(['under-15', '15-60', '60-85', 'over-85']).optional(),
+  /** Platform pencari darat — menentukan interval S (0.5/0.25 NM) WS 3. */
+  landPlatform: z.enum(['fixed-wing', 'helicopter']).optional(),
+  /** Nama titik tujuan/rute darat (mis. bandara tujuan) untuk Tr WS 4. */
+  routeDestination: z.string().optional(),
+  /** Koordinat tujuan rute (Tr WS 4 = jarak LKP → tujuan). */
+  routeDestinationCoord: coordSchema.optional(),
+  /** Jarak tempuh sejak terakhir terlihat untuk target darat non-pesawat (NM). */
+  lastSeenTrackNm: z.number().min(0).optional(),
 });
 export type CaseSearch = z.infer<typeof searchSchema>;
 
@@ -281,6 +295,7 @@ export const TASK_REQUESTS = [
   'asset-allocation',
   'search-pattern-csp',
   'sru-task-assignment',
+  'land-search-radius',
   'renops',
   'briefing',
   'debriefing',
@@ -331,6 +346,12 @@ export const sarCaseSchema = z.object({
   search: searchSchema.optional(),
   sru: z.array(sruSchema).optional(),
   tasksRequested: z.array(z.string()).optional(),
+  /** Distrik SAR/instansi pendukung yang ikut disebut soal (Fase 5b —
+   *  knob "distrik data": jumlah instansi yang diberikan di naskah). */
+  supportingDistricts: z.array(z.object({
+    name: z.string(),
+    note: z.string().optional(),
+  })).optional(),
   meta: metaSchema.optional(),
 });
 export type SarCaseSchema = z.infer<typeof sarCaseSchema>;

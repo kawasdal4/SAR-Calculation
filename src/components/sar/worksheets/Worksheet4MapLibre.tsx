@@ -37,6 +37,32 @@ const AIRPORT_SOURCE_ID = 'openaip-airports';
 const AIRPORT_LAYER_ID = 'openaip-airports-points';
 const AIRPORT_LABEL_ID = 'openaip-airports-labels';
 const OVERLAY_SOURCE_ID = 'worksheet4-overlays';
+
+const KANSAR_SOURCE_ID = 'worksheet4-kansar-boundaries';
+const KANSAR_FILL_LAYER_ID = 'worksheet4-kansar-fill';
+const KANSAR_LINE_LAYER_ID = 'worksheet4-kansar-line';
+
+/** Batas wilayah 43 KANSAR (referensi latihan, sumber upload KMZ 9 Okt 2021). */
+function addKansarLayers(map: maplibregl.Map, visible: boolean): void {
+  if (!map.getSource(KANSAR_SOURCE_ID)) {
+    map.addSource(KANSAR_SOURCE_ID, { type: 'geojson', data: EMPTY_GEOJSON });
+  }
+  const visibility = visible ? 'visible' : 'none';
+  if (!map.getLayer(KANSAR_FILL_LAYER_ID)) {
+    map.addLayer({
+      id: KANSAR_FILL_LAYER_ID, type: 'fill', source: KANSAR_SOURCE_ID,
+      paint: { 'fill-color': '#f59e0b', 'fill-opacity': 0.06 },
+      layout: { visibility },
+    });
+  }
+  if (!map.getLayer(KANSAR_LINE_LAYER_ID)) {
+    map.addLayer({
+      id: KANSAR_LINE_LAYER_ID, type: 'line', source: KANSAR_SOURCE_ID,
+      paint: { 'line-color': '#92400e', 'line-width': 1.1, 'line-opacity': 0.85, 'line-dasharray': [4, 3] },
+      layout: { visibility },
+    });
+  }
+}
 const GRATICULE_SOURCE_ID = 'worksheet4-onc-graticule';
 const MEF_SOURCE_ID = 'worksheet4-mef';
 const SCAN_SOURCE_ID = 'worksheet4-onc-scan';
@@ -424,6 +450,9 @@ export default function Worksheet4MapLibre({
   const [mefData, setMefData] = useState<FeatureCollection<Geometry, GeoJsonProperties> | null>(null);
   const [mefStatus, setMefStatus] = useState('');
   const [scanVisible, setScanVisible] = useState(false);
+  const [kansarVisible, setKansarVisible] = useState(false);
+  const [kansarHover, setKansarHover] = useState<string | null>(null);
+  const [kansarStatus, setKansarStatus] = useState('');
   const [scanOpacity, setScanOpacity] = useState(0.55);
   const [hideAll, setHideAll] = useState(false);
   const mefVisibleRef = useRef(mefVisible);
@@ -484,6 +513,7 @@ export default function Worksheet4MapLibre({
       addGraticuleLayers(map, graticuleVisible);
       addMefLayers(map, mefVisible);
       addAirportLayers(map, airportsVisible);
+      addKansarLayers(map, kansarVisible);
       setStyleReady((current) => current + 1);
       updateGraticule();
     });
@@ -495,6 +525,12 @@ export default function Worksheet4MapLibre({
     map.on('mousemove', (event) => {
       setCursor(`${event.lngLat.lat.toFixed(5)}, ${event.lngLat.lng.toFixed(5)} · ${toDDM(event.lngLat.lat, 'lat')}, ${toDDM(event.lngLat.lng, 'lng')}`);
     });
+    map.on('mousemove', KANSAR_FILL_LAYER_ID, (event) => {
+      const feature = event.features?.[0];
+      const name = feature?.properties?.kansar;
+      setKansarHover(typeof name === 'string' ? name : null);
+    });
+    map.on('mouseout', KANSAR_FILL_LAYER_ID, () => setKansarHover(null));
     map.on('mouseout', () => setCursor(''));
     map.on('error', (event) => {
       const detail = event as unknown as { sourceId?: string; error?: Error; url?: string; request?: { url?: string } };
@@ -598,9 +634,37 @@ export default function Worksheet4MapLibre({
     for (const layerId of [AIRPORT_LAYER_ID, AIRPORT_LABEL_ID]) {
       if (map.getLayer(layerId)) map.setLayoutProperty(layerId, 'visibility', airportsVisible ? 'visible' : 'none');
     }
+    for (const layerId of [KANSAR_FILL_LAYER_ID, KANSAR_LINE_LAYER_ID]) {
+      if (map.getLayer(layerId)) map.setLayoutProperty(layerId, 'visibility', kansarVisible ? 'visible' : 'none');
+    }
     const minZoom = mefGridSize === '1deg' ? 2 : mefGridSize === '30min' ? 4 : 6;
     if (map.getLayer('worksheet4-mef-labels')) map.setLayerZoomRange('worksheet4-mef-labels', minZoom, 24);
-  }, [airportsVisible, graticuleVisible, mefGridSize, mefVisible, scanOpacity, scanVisible, styleReady]);
+  }, [airportsVisible, graticuleVisible, kansarVisible, mefGridSize, mefVisible, scanOpacity, scanVisible, styleReady]);
+
+  // Batas KANSAR: muat FeatureCollection dari API saat layer diaktifkan.
+  useEffect(() => {
+    if (!kansarVisible) return;
+    const controller = new AbortController();
+    fetch('/api/kansar-boundaries', { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json() as Promise<FeatureCollection<Geometry, GeoJsonProperties>>;
+      })
+      .then((collection) => {
+        const map = mapRef.current;
+        if (!map) return;
+        const source = map.getSource(KANSAR_SOURCE_ID);
+        if (source?.type === 'geojson') {
+          (source as maplibregl.GeoJSONSource).setData(collection);
+          setKansarStatus(`${collection.features.length} batas wilayah KANSAR dimuat.`);
+        }
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        setKansarStatus(`Gagal memuat batas KANSAR: ${error instanceof Error ? error.message : 'kesalahan tidak diketahui'}`);
+      });
+    return () => controller.abort();
+  }, [kansarVisible]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -681,6 +745,10 @@ export default function Worksheet4MapLibre({
           <option value="30min">MEF 30′</option>
           <option value="15min">MEF 15′</option>
         </select>
+        <label className="flex items-center gap-1 px-1 text-xs text-slate-800" title="Batas wilayah kerja 43 KANSAR — referensi latihan (upload KMZ 9 Okt 2021)">
+          <input type="checkbox" checked={kansarVisible} onChange={(event) => { setKansarVisible(event.target.checked); setKansarStatus(''); }} />
+          Batas KANSAR
+        </label>
         {ONC_SCAN_TILE_URL ? <>
           <label className="flex items-center gap-1 px-1 text-xs text-slate-800">
             <input type="checkbox" checked={scanVisible} onChange={(event) => setScanVisible(event.target.checked)} />
@@ -696,6 +764,12 @@ export default function Worksheet4MapLibre({
         <div>1 cm = 10 km · rasio cetak</div>
       </div>
       {cursor && !hideAll && <div className="absolute left-2 bottom-11 z-10 max-w-[calc(100%-1rem)] rounded bg-white/95 px-2 py-1 font-mono text-[10px] text-slate-800 shadow" aria-live="polite">{cursor}</div>}
+      {kansarHover && !hideAll && kansarVisible && (
+        <div className="absolute left-2 bottom-20 z-10 rounded border border-amber-300 bg-amber-50/95 px-2 py-1 text-[10px] font-medium text-amber-950 shadow" aria-live="polite">
+          Batas wilayah KANSAR {kansarHover} — referensi latihan
+        </div>
+      )}
+      {kansarStatus && kansarVisible && !hideAll && <div role="status" className="absolute right-2 top-14 z-10 max-w-xs rounded border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow">{kansarStatus}</div>}
       {tileError && !hideAll && <div role="status" className="absolute right-2 top-14 z-10 max-w-xs rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-950 shadow">{tileError}</div>}
       <button
         type="button"

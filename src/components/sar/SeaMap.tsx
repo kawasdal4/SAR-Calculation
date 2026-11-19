@@ -1156,6 +1156,9 @@ export default function SeaMap({
           <div class="layer-row">
             <label><input type="checkbox" id="${mapControlId(mapScope, 'grid')}" checked suppressHydrationWarning /> Bingkai skala</label>
           </div>
+          <div class="layer-row">
+            <label><input type="checkbox" id="${mapControlId(mapScope, 'kansar')}" suppressHydrationWarning /> Batas wilayah KANSAR (43)</label>
+          </div>
           ${basemap !== 'onc' ? `<div class="layer-row">
             <label><input type="checkbox" id="${mapControlId(mapScope, 'depth')}" suppressHydrationWarning /> Angka kedalaman</label>
             <div class="layer-density" id="${mapControlId(mapScope, 'density-wrap')}" style="display:none; margin-top:4px;">
@@ -1237,6 +1240,43 @@ export default function SeaMap({
               ? map.addLayer(layer as unknown as L.Layer)
               : map.removeLayer(layer as unknown as L.Layer));
           }
+        }
+
+        // Batas wilayah KANSAR (43) — geojson lazy-load dari API, poligon garis.
+        const kansarCb = document.getElementById(mapControlId(mapScope, 'kansar')) as HTMLInputElement | null;
+        let kansarLayer: L.GeoJSON | null = null;
+        let kansarLoading = false;
+        const ensureKansarLayer = async (): Promise<L.GeoJSON | null> => {
+          if (kansarLayer || kansarLoading) return kansarLayer;
+          kansarLoading = true;
+          try {
+            const res = await fetch('/api/kansar-boundaries');
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            kansarLayer = L.geoJSON(data, {
+              style: () => ({ color: '#92400e', weight: 1.5, opacity: 0.8, dashArray: '5 4', fillColor: '#f59e0b', fillOpacity: 0.05 }),
+              onEachFeature: (feature, layer) => {
+                const name = (feature?.properties?.kansar ?? '') as string;
+                (layer as unknown as L.Path).bindTooltip(`Batas wilayah KANSAR ${name}`, { sticky: true });
+              },
+            });
+          } catch {
+            // data gagal dimuat — layer tetap tidak aktif, checkbox boleh dicoba lagi
+          } finally {
+            kansarLoading = false;
+          }
+          return kansarLayer;
+        };
+        if (kansarCb) {
+          kansarCb.addEventListener('change', () => {
+            if (kansarCb.checked) {
+              void ensureKansarLayer().then((layer) => {
+                if (layer && !map.hasLayer(layer)) map.addLayer(layer);
+              });
+            } else if (kansarLayer && map.hasLayer(kansarLayer)) {
+              map.removeLayer(kansarLayer);
+            }
+          });
         }
       }
       void osmTile;

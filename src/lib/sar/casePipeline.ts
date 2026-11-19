@@ -138,6 +138,18 @@ export function runCasePipeline(
 
   const searchNumber: SearchNumber = ((options.searchNumber ?? sarCase.search?.searchNumber ?? 1) as SearchNumber);
 
+  // ── 0. Jenis darat (Fase 5b): pipeline laut tidak berlaku ────────────────
+  const isLandIncident = sarCase.incident.type === 'aircraft-land-crash' || sarCase.incident.type === 'missing-person-land';
+  if (isLandIncident) {
+    steps.push({
+      step: 'land-search-ws3',
+      status: 'skipped',
+      detail: 'Pencarian darat — radius/area dihitung lewat WS 3/WS 4 (landSearchRadius + Tabel I-9/I-10), bukan pipeline laut; lihat kunci jawaban.',
+    });
+    output.ok = true;
+    return output;
+  }
+
   // ── 1. ASW ───────────────────────────────────────────────────────────────
   let aswResult: ASWResult | undefined;
   const aswObservations = (seeds.asw?.windData
@@ -173,29 +185,30 @@ export function runCasePipeline(
         : awaResult.errors.join(' '),
     });
   } else {
+    const nonDitching = sarCase.incident.type !== 'aircraft-ditching';
     steps.push({
       step: 'awa',
-      status: sarCase.incident.type === 'vessel-sinking' ? 'skipped' : 'error',
-      detail: sarCase.incident.type === 'vessel-sinking'
-        ? 'Tidak berlaku untuk insiden kapal (tanpa tabel angin per ketinggian).'
+      status: nonDitching ? 'skipped' : 'error',
+      detail: nonDitching
+        ? 'Tidak berlaku untuk insiden tanpa tabel angin per ketinggian (kapal/MOB).'
         : 'Tabel angin per ketinggian tidak tersedia.',
     });
   }
 
   // ── 3. Aeronautical Drift (ditching) ─────────────────────────────────────
   let landingPos: LatLng | undefined;
-  const isVesselIncident = sarCase.incident.type === 'vessel-sinking';
+  const isVesselIncident = sarCase.incident.type !== 'aircraft-ditching';
   if (isVesselIncident) {
     // Cabang aditif kapal (Fase 5a): tanpa ADW — LKP (posisi terakhir)
     // dipakai langsung sebagai titik awal datum. Jalur ditching tidak berubah.
     landingPos = seeds.lkp;
-    steps.push({
-      step: 'aero-drift',
-      status: landingPos ? 'skipped' : 'error',
-      detail: landingPos
-        ? 'Tidak berlaku untuk insiden kapal — LKP dipakai sebagai titik awal datum.'
-        : 'Koordinat LKP tidak tersedia.',
-    });
+      steps.push({
+        step: 'aero-drift',
+        status: landingPos ? 'skipped' : 'error',
+        detail: landingPos
+          ? 'Tidak berlaku untuk insiden non-ditching — LKP dipakai sebagai titik awal datum.'
+          : 'Koordinat LKP tidak tersedia.',
+      });
   } else if (awaResult?.isValid && seeds.aero && seeds.lkp) {
     const seedAero = seeds.aero as unknown as Partial<AeroDriftInput>;
     const aeroInput: AeroDriftInput = {

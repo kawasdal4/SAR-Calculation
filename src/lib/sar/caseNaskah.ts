@@ -95,6 +95,25 @@ export interface NaskahRenderOptions {
   explicitSearchNumber?: boolean;
   /** Sertakan blok catatan "gunakan lampiran tabel resmi". */
   includeReferenceNote?: boolean;
+  /** Gaya bahasa narasi (Fase 5b). Dengan `narrativeText`, teks narasi sudah
+   *  dibangun `buildCaseNarrative()` (caseNarrative.ts) dan dipakai apa adanya. */
+  narrativeText?: string;
+}
+
+/** Label vegetasi Tabel I-10 gaya naskah (dipakai juga caseNarrative). */
+export function vegetationLabelOf(v?: string): string {
+  switch (v) {
+    case 'under-15': return 'vegetasi < 15%';
+    case '15-60': return 'vegetasi 15-60%';
+    case '60-85': return 'vegetasi 60-85%';
+    case 'over-85': return 'vegetasi > 85%';
+    default: return '';
+  }
+}
+
+/** Label platform pencari darat gaya naskah. */
+export function landPlatformLabelOf(p?: 'fixed-wing' | 'helicopter'): string {
+  return p === 'helicopter' ? 'helikopter' : p === 'fixed-wing' ? 'pesawat sayap tetap' : '';
 }
 
 // ---------------------------------------------------------------------------
@@ -109,6 +128,7 @@ const TASK_LABELS: Record<string, string> = {
   'asset-allocation': 'Perhitungan alokasi Aset',
   'search-pattern-csp': 'Search Pattern (CSP & gambar)',
   'sru-task-assignment': 'pembagian tugas SRU di Lokasi',
+  'land-search-radius': 'Perhitungan Search Radius darat (WS 3/WS 4)',
   renops: 'Rencana Operasi SAR (RENOPS)',
   briefing: 'Briefing',
   debriefing: 'De-briefing',
@@ -144,6 +164,12 @@ const TARGET_ROW_LABELS_VESSEL: Array<{ key: keyof CaseTarget; label: string; un
   { key: 'frequencies', label: 'Frequencies Radio' },
   { key: 'payload', label: 'Muatan' },
   { key: 'navigation', label: 'Navigasi Equipment' },
+];
+
+/** Target orang (MOB / missing person) — hanya identitas. */
+const TARGET_ROW_LABELS_PERSON: Array<{ key: keyof CaseTarget; label: string; unit?: string }> = [
+  { key: 'name', label: 'Target' },
+  { key: 'flag', label: 'Keterangan' },
 ];
 
 const SRU_KIND_LABEL: Record<CaseSru['kind'], string> = {
@@ -189,13 +215,20 @@ export function expectedNaskahFields(
 ): CoverageEntry[] {
   const out: CoverageEntry[] = [];
   const inc = sarCase.incident;
-  const isAircraft = inc.type === 'aircraft-ditching';
+  const isDitching = inc.type === 'aircraft-ditching';
+  const isPersonTarget = sarCase.target?.category === 'person';
+  const isLand = inc.type === 'aircraft-land-crash' || inc.type === 'missing-person-land';
 
   out.push({ field: 'incident.callsign', value: inc.callsign ?? '-' });
   out.push({ field: 'incident.craftType', value: inc.craftType ?? '-' });
   out.push({ field: 'incident.pob', value: String(inc.pob ?? '-') });
   if (inc.lifeRaftCount !== undefined) {
-    out.push({ field: 'incident.lifeRaft', value: `${inc.lifeRaftCount} buah life raft kapasitas ${inc.lifeRaftCapacityPerRaft ?? '-'} orang` });
+    // Pemeriksaan berbasis konteks (frasa bebas bervariasi antar gaya bahasa);
+    // kebenaran pasangan count×kapasitas dijaga ketat oleh parse-back.
+    out.push({ field: 'incident.lifeRaft', context: 'life raft', value: String(inc.lifeRaftCount) });
+    if (inc.lifeRaftCapacityPerRaft !== undefined) {
+      out.push({ field: 'incident.lifeRaftCapacityPerRaft', context: 'life raft', value: String(inc.lifeRaftCapacityPerRaft) });
+    }
   }
   out.push({ field: 'incident.infoSource', value: inc.infoSource ?? '-' });
   if (inc.reportTime) {
@@ -215,14 +248,18 @@ export function expectedNaskahFields(
     out.push({ field: 'incident.headingDeg', value: `${fmtId(inc.headingDeg)}°${ref}` });
   }
   if (inc.damageDescription) out.push({ field: 'incident.damageDescription', value: inc.damageDescription });
-  if (inc.ditchingIndication) out.push({ field: 'incident.ditchingIndication', value: 'ditching' });
+  if (inc.ditchingIndication) {
+    out.push({ field: 'incident.ditchingIndication', value: isDitching ? 'ditching' : 'jatuh di darat' });
+  }
 
   if (sarCase.sarOffice?.name) out.push({ field: 'sarOffice.name', value: sarCase.sarOffice.name });
   if (sarCase.sarOffice?.radialDegToLkp !== undefined) {
     out.push({ field: 'sarOffice.radialDegToLkp', value: `${fmtId(sarCase.sarOffice.radialDegToLkp)}°` });
   }
   if (sarCase.sarOffice?.transitHoursToLkp !== undefined) {
-    out.push({ field: 'sarOffice.transitHoursToLkp', value: `± ${fmtId(sarCase.sarOffice.transitHoursToLkp)} jam` });
+    // Konteks "jam" — frasa bebas bervariasi antar gaya; pasangan angka jam
+    // divalidasi ketat oleh parse-back (sarOffice.transitHoursToLkp).
+    out.push({ field: 'sarOffice.transitHoursToLkp', context: 'jam', value: fmtId(sarCase.sarOffice.transitHoursToLkp) });
   }
 
   if (sarCase.lkp?.coord) {
@@ -232,8 +269,8 @@ export function expectedNaskahFields(
     });
   }
 
-  // Blok target
-  const rows = isAircraft ? TARGET_ROW_LABELS_AIRCRAFT : TARGET_ROW_LABELS_VESSEL;
+  // Blok target (pesawat/kapal/orang)
+  const rows = isDitching ? TARGET_ROW_LABELS_AIRCRAFT : isPersonTarget ? TARGET_ROW_LABELS_PERSON : TARGET_ROW_LABELS_VESSEL;
   if (sarCase.target) {
     for (const row of rows) {
       const value = targetValueString(sarCase.target, row.key);
@@ -241,8 +278,32 @@ export function expectedNaskahFields(
     }
   }
 
+  // Blok distrik/instansi pendukung (Fase 5b)
+  for (const district of sarCase.supportingDistricts ?? []) {
+    out.push({ field: 'supportingDistricts', value: district.name });
+  }
+
+  // Blok data pencarian darat (Fase 5b — WS 3/WS 4)
+  if (isLand) {
+    const search = sarCase.search;
+    if (search?.routeDestination) out.push({ field: 'search.routeDestination', value: search.routeDestination });
+    if (search?.routeDestinationCoord) {
+      out.push({
+        field: 'search.routeDestinationCoord',
+        value: `${formatDmsSpaced(search.routeDestinationCoord.dmsLat ?? formatDMS(search.routeDestinationCoord.lat, false))} – ${formatDmsSpaced(search.routeDestinationCoord.dmsLng ?? formatDMS(search.routeDestinationCoord.lng, true))}`,
+      });
+    }
+    if (search?.lastSeenTrackNm !== undefined) {
+      out.push({ field: 'search.lastSeenTrackNm', value: `${fmtId(search.lastSeenTrackNm)} NM` });
+    }
+    const vegLabel = vegetationLabelOf(search?.terrainVegetation);
+    if (vegLabel) out.push({ field: 'search.terrainVegetation', value: vegLabel });
+    const platformLabel = landPlatformLabelOf(search?.landPlatform);
+    if (platformLabel) out.push({ field: 'search.landPlatform', value: platformLabel });
+  }
+
   // Blok Aeronautical Drift (pesawat)
-  if (isAircraft && sarCase.aeroDrift) {
+  if (isDitching && sarCase.aeroDrift) {
     out.push({ field: 'aeroDrift.glideSpeedKts', context: 'Glide Speed', value: `${fmtId(sarCase.aeroDrift.glideSpeedKts ?? 0)} Knots` });
     out.push({ field: 'aeroDrift.glideRatio', context: 'Glide Ratio', value: `${fmtId(sarCase.aeroDrift.glideRatio ?? 0)}:1` });
     if (sarCase.aeroDrift.variationDeg !== undefined) {
@@ -309,13 +370,16 @@ export function expectedNaskahFields(
   return out;
 }
 
-/** Susun blok naskah lengkap (deterministik, tanpa LLM). */
+/** Susun blok naskah lengkap. Narasi: `opts.narrativeText` (gaya bahasa Fase
+ *  5b) bila ada; selain itu template bawaan gaya naskah resmi (deterministik,
+ *  tanpa LLM). Data section selalu dirender dari kasus. */
 export function renderCaseNaskah(
   sarCase: SarCaseSchema,
   opts: NaskahRenderOptions = {},
 ): CaseNaskah {
   const inc = sarCase.incident;
   const isAircraft = inc.type === 'aircraft-ditching';
+  const isLand = inc.type === 'aircraft-land-crash' || inc.type === 'missing-person-land';
   const callsign = inc.callsign ?? 'TARGET';
   const blocks: NaskahBlock[] = [];
   const covered: Record<string, string> = {};
@@ -346,20 +410,65 @@ export function renderCaseNaskah(
   const datumParts = sarCase.search?.datumTime ? splitCaseTime(sarCase.search.datumTime) : null;
   const office = sarCase.sarOffice?.name ?? 'Kantor SAR';
   const stages = sarCase.search?.stagesDone ?? [];
-  const stageList = stages.length === 1
-    ? 'stage 1'
-    : `${stages.map((s) => `stage ${s.stage}`).slice(0, -1).join(', ')} dan stage ${stages[stages.length - 1]?.stage ?? ''}`;
+  const stageList = stages.length === 0
+    ? ''
+    : stages.length === 1
+      ? 'stage 1'
+      : `${stages.map((s) => `stage ${s.stage}`).slice(0, -1).join(', ')} dan stage ${stages[stages.length - 1]?.stage ?? ''}`;
+  const stageSentence = stages.length === 0
+    ? 'Pencarian belum dilakukan; pencarian pertama dilaksanakan pada Datum Time.'
+    : `Dan pencarian ${stageList} sudah dilakukan namun belum membuahkan hasil.`;
   const taskItems = (sarCase.tasksRequested ?? []).map((t) => TASK_LABELS[t] ?? t);
-  const incidentTypeLabel = isAircraft ? 'Kecelakaan Pesawat' : 'Kecelakaan Kapal';
+  const incidentTypeLabel = isAircraft
+    ? 'Kecelakaan Pesawat'
+    : isLand
+      ? (inc.type === 'aircraft-land-crash' ? 'Kecelakaan Pesawat Darat' : 'Pencarian Orang Hilang Darat')
+      : inc.type === 'person-overboard'
+        ? 'Man Overboard'
+        : 'Kecelakaan Kapal';
 
-  if (isAircraft) {
+  if (opts.narrativeText) {
+    // Fase 5b: narasi gaya bahasa pilihan instruktur (buildCaseNarrative).
+    blocks.push({ kind: 'paragraph', text: opts.narrativeText });
+  } else if (isAircraft) {
     const narrative = [
       `Pada tanggal ${reportParts?.date ?? ''} pukul ${reportParts?.time ?? ''} ${reportParts?.zone ?? ''} ${office} menerima informasi dari ${inc.infoSource ?? 'ATS'}, bahwa pada tanggal ${lastContactParts?.date ?? ''} pukul ${lastContactParts?.time ?? ''} ${lastContactParts?.zone ?? ''} ${inc.infoSource ?? 'ATS'} menerima panggilan "MAYDAY" dari pesawat dengan callsign ${callsign} setelah cek point ${inc.checkpoint ?? '-'} di ketinggian FL${inc.flightLevelFt ?? '-'} dengan heading ${fmtId(inc.headingDeg ?? 0)}°${inc.headingReference === 'magnetic' ? '(M)' : inc.headingReference === 'true' ? '(T)' : ''}.`,
       `Dilaporkan bahwa ${callsign} mengalami ${inc.damageDescription ?? 'kerusakan'} dan diindikasikan akan ditching.`,
       `Berdasarkan data flight plan, perlengkapan keselamatan yang tersedia di ${callsign} adalah ${inc.lifeRaftCount ?? 0} buah life raft kapasitas ${inc.lifeRaftCapacityPerRaft ?? '-'} orang dan POB ${callsign} sebanyak ${inc.pob ?? '-'} orang.`,
       `Radial LKP dari ${office} adalah ${fmtId(sarCase.sarOffice?.radialDegToLkp ?? 0)}° dan waktu tempuh ke LKP ± ${fmtId(sarCase.sarOffice?.transitHoursToLkp ?? 0)} jam.`,
       `Berdasarkan perhitungan Aeronautical Drift, dihasilkan koordinat perkiraan ditching ${callsign}.`,
-      `Dan pencarian ${stageList} sudah dilakukan namun belum membuahkan hasil.`,
+      stageSentence,
+      opts.explicitSearchNumber && sarCase.search?.searchNumber !== undefined
+        ? `Pencarian selanjutnya adalah pencarian ke-${sarCase.search.searchNumber} dan akan dimulai pada ${datumParts?.date ?? ''} pukul ${datumParts?.time ?? ''} ${datumParts?.zone ?? ''} (Datum Time).`
+        : `Pencarian selanjutnya akan dimulai pada ${datumParts?.date ?? ''} pukul ${datumParts?.time ?? ''} ${datumParts?.zone ?? ''} (Datum Time).`,
+    ].join(' ');
+    blocks.push({ kind: 'paragraph', text: narrative });
+  } else if (isLand) {
+    const lkpCoord = sarCase.lkp?.coord;
+    const destCoord = sarCase.search?.routeDestinationCoord;
+    const narrative = [
+      `Pada tanggal ${reportParts?.date ?? ''} pukul ${reportParts?.time ?? ''} ${reportParts?.zone ?? ''} ${office} menerima informasi dari ${inc.infoSource ?? 'unit darat'}, bahwa pada tanggal ${lastContactParts?.date ?? ''} pukul ${lastContactParts?.time ?? ''} ${lastContactParts?.zone ?? ''} ${callsign} (${inc.craftType ?? 'target'}) mengalami kejadian darurat di wilayah darat.`,
+      inc.type === 'aircraft-land-crash'
+        ? `Dilaporkan bahwa ${callsign} mengalami ${inc.damageDescription ?? 'kerusakan'} dan diindikasikan jatuh di darat pada posisi ${lkpCoord ? `${formatDmsSpaced(lkpCoord.dmsLat ?? formatDMS(lkpCoord.lat, false))} – ${formatDmsSpaced(lkpCoord.dmsLng ?? formatDMS(lkpCoord.lng, true))}` : '-'}.`
+        : `Posisi terakhir terlihat dilaporkan pada koordinat ${lkpCoord ? `${formatDmsSpaced(lkpCoord.dmsLat ?? formatDMS(lkpCoord.lat, false))} – ${formatDmsSpaced(lkpCoord.dmsLng ?? formatDMS(lkpCoord.lng, true))}` : '-'}, dengan perkiraan jarak tempuh sejak terakhir terlihat ${fmtId(sarCase.search?.lastSeenTrackNm ?? 0)} NM.`,
+      sarCase.search?.routeDestination
+        ? `Rute diperkirakan menuju ${sarCase.search.routeDestination}${destCoord ? ` (${formatDmsSpaced(destCoord.dmsLat ?? formatDMS(destCoord.lat, false))} – ${formatDmsSpaced(destCoord.dmsLng ?? formatDMS(destCoord.lng, true))})` : ''}.`
+        : '',
+      `Jumlah orang yang dicari (POB) sebanyak ${inc.pob ?? '-'} orang.`,
+      `Radial LKP dari ${office} adalah ${fmtId(sarCase.sarOffice?.radialDegToLkp ?? 0)}° dan waktu tempuh ke LKP ± ${fmtId(sarCase.sarOffice?.transitHoursToLkp ?? 0)} jam.`,
+      stageSentence,
+      opts.explicitSearchNumber && sarCase.search?.searchNumber !== undefined
+        ? `Pencarian selanjutnya adalah pencarian ke-${sarCase.search.searchNumber} dan akan dimulai pada ${datumParts?.date ?? ''} pukul ${datumParts?.time ?? ''} ${datumParts?.zone ?? ''} (Datum Time).`
+        : `Pencarian selanjutnya akan dimulai pada ${datumParts?.date ?? ''} pukul ${datumParts?.time ?? ''} ${datumParts?.zone ?? ''} (Datum Time).`,
+    ].filter((s) => s.length > 0).join(' ');
+    blocks.push({ kind: 'paragraph', text: narrative });
+  } else if (inc.type === 'person-overboard') {
+    const lkpCoord = sarCase.lkp?.coord;
+    const narrative = [
+      `Pada tanggal ${reportParts?.date ?? ''} pukul ${reportParts?.time ?? ''} ${reportParts?.zone ?? ''} ${office} menerima informasi dari ${inc.infoSource ?? 'MRA/ATS'}, bahwa pada tanggal ${lastContactParts?.date ?? ''} pukul ${lastContactParts?.time ?? ''} ${lastContactParts?.zone ?? ''} satu orang awak jatuh ke laut (Man Overboard) dari ${inc.craftType ?? 'kapal'} ${callsign} pada posisi ${lkpCoord ? `${formatDmsSpaced(lkpCoord.dmsLat ?? formatDMS(lkpCoord.lat, false))} – ${formatDmsSpaced(lkpCoord.dmsLng ?? formatDMS(lkpCoord.lng, true))}` : '-'}.`,
+      `Kapal melaporkan POB sebanyak ${inc.pob ?? '-'} orang dan membawa ${inc.lifeRaftCount ?? 0} buah life raft kapasitas ${inc.lifeRaftCapacityPerRaft ?? '-'} orang.`,
+      `Radial LKP dari ${office} adalah ${fmtId(sarCase.sarOffice?.radialDegToLkp ?? 0)}° dan waktu tempuh ke LKP ± ${fmtId(sarCase.sarOffice?.transitHoursToLkp ?? 0)} jam.`,
+      stageSentence,
       opts.explicitSearchNumber && sarCase.search?.searchNumber !== undefined
         ? `Pencarian selanjutnya adalah pencarian ke-${sarCase.search.searchNumber} dan akan dimulai pada ${datumParts?.date ?? ''} pukul ${datumParts?.time ?? ''} ${datumParts?.zone ?? ''} (Datum Time).`
         : `Pencarian selanjutnya akan dimulai pada ${datumParts?.date ?? ''} pukul ${datumParts?.time ?? ''} ${datumParts?.zone ?? ''} (Datum Time).`,
@@ -372,7 +481,7 @@ export function renderCaseNaskah(
       `Kapal dilaporkan dalam kondisi darurat dan akan tenggelam pada posisi ${lkpCoord ? `${formatDmsSpaced(lkpCoord.dmsLat ?? formatDMS(lkpCoord.lat, false))} – ${formatDmsSpaced(lkpCoord.dmsLng ?? formatDMS(lkpCoord.lng, true))}` : '-'}.`,
       `Berdasarkan data pelayaran, perlengkapan keselamatan yang tersedia di ${callsign} adalah ${inc.lifeRaftCount ?? 0} buah life raft kapasitas ${inc.lifeRaftCapacityPerRaft ?? '-'} orang dan POB sebanyak ${inc.pob ?? '-'} orang.`,
       `Radial LKP dari ${office} adalah ${fmtId(sarCase.sarOffice?.radialDegToLkp ?? 0)}° dan waktu tempuh ke LKP ± ${fmtId(sarCase.sarOffice?.transitHoursToLkp ?? 0)} jam.`,
-      `Dan pencarian ${stageList} sudah dilakukan namun belum membuahkan hasil.`,
+      stageSentence,
       opts.explicitSearchNumber && sarCase.search?.searchNumber !== undefined
         ? `Pencarian selanjutnya adalah pencarian ke-${sarCase.search.searchNumber} dan akan dimulai pada ${datumParts?.date ?? ''} pukul ${datumParts?.time ?? ''} ${datumParts?.zone ?? ''} (Datum Time).`
         : `Pencarian selanjutnya akan dimulai pada ${datumParts?.date ?? ''} pukul ${datumParts?.time ?? ''} ${datumParts?.zone ?? ''} (Datum Time).`,
@@ -390,13 +499,14 @@ export function renderCaseNaskah(
   // ── Bagian 1: Data target ──
   let sectionNumber = 1;
   const target = sarCase.target;
+  const isPersonTarget = target?.category === 'person';
   blocks.push({
     kind: 'section',
     number: sectionNumber,
-    title: `Data ${isAircraft ? 'Pesawat' : 'Kapal'} ${callsign}`,
+    title: `Data ${isAircraft ? 'Pesawat' : isPersonTarget ? 'Target' : 'Kapal'} ${callsign}`,
   });
   if (target) {
-    const rows = (isAircraft ? TARGET_ROW_LABELS_AIRCRAFT : TARGET_ROW_LABELS_VESSEL)
+    const rows = (isAircraft ? TARGET_ROW_LABELS_AIRCRAFT : isPersonTarget ? TARGET_ROW_LABELS_PERSON : TARGET_ROW_LABELS_VESSEL)
       .map(({ key, label }) => {
         const value = targetValueString(target, key);
         return value !== undefined ? { label, value } : null;
@@ -405,6 +515,14 @@ export function renderCaseNaskah(
     blocks.push({ kind: 'labelValue', rows });
   }
   sectionNumber += 1;
+
+  // ── Bagian distrik/instansi pendukung (Fase 5b) ──
+  const districts = sarCase.supportingDistricts ?? [];
+  if (districts.length > 0) {
+    blocks.push({ kind: 'section', number: sectionNumber, title: 'Distrik/instansi SAR pendukung :' });
+    blocks.push({ kind: 'bullets', items: districts.map((d) => `${d.name}${d.note ? ` — ${d.note}` : ''}`) });
+    sectionNumber += 1;
+  }
 
   // ── Bagian 2 (pesawat): Aeronautical Drift + tabel angin ──
   if (isAircraft && sarCase.aeroDrift) {
@@ -435,6 +553,29 @@ export function renderCaseNaskah(
     sectionNumber += 1;
   }
 
+  // ── Bagian pencarian darat (Fase 5b — WS 3/WS 4) ──
+  if (isLand) {
+    const lkpCoord = sarCase.lkp?.coord;
+    const bullets: string[] = [];
+    if (lkpCoord) {
+      bullets.push(`Koordinat posisi terakhir : ${formatDmsSpaced(lkpCoord.dmsLat ?? formatDMS(lkpCoord.lat, false))} – ${formatDmsSpaced(lkpCoord.dmsLng ?? formatDMS(lkpCoord.lng, true))}`);
+    }
+    if (sarCase.search?.routeDestination) {
+      const destCoord = sarCase.search.routeDestinationCoord;
+      bullets.push(`Tujuan rute : ${sarCase.search.routeDestination}${destCoord ? ` (${formatDmsSpaced(destCoord.dmsLat ?? formatDMS(destCoord.lat, false))} – ${formatDmsSpaced(destCoord.dmsLng ?? formatDMS(destCoord.lng, true))})` : ''}`);
+    }
+    if (sarCase.search?.lastSeenTrackNm !== undefined) {
+      bullets.push(`Perkiraan jarak tempuh sejak terakhir terlihat : ${fmtId(sarCase.search.lastSeenTrackNm)} NM`);
+    }
+    const vegLabel = vegetationLabelOf(sarCase.search?.terrainVegetation);
+    if (vegLabel) bullets.push(`Kondisi wilayah : ${vegLabel}`);
+    const platformLabel = landPlatformLabelOf(sarCase.search?.landPlatform);
+    if (platformLabel) bullets.push(`Platform pencarian : ${platformLabel}`);
+    blocks.push({ kind: 'section', number: sectionNumber, title: 'Data pencarian darat (WS 3/WS 4) :' });
+    blocks.push({ kind: 'bullets', items: bullets });
+    sectionNumber += 1;
+  }
+
   // ── Bagian terakhir: arus, angin, gelombang, SRU ──
   const seaBullets: string[] = [];
   if (sarCase.sea?.current) {
@@ -446,7 +587,9 @@ export function renderCaseNaskah(
   blocks.push({
     kind: 'section',
     number: sectionNumber,
-    title: `Data arus${sarCase.sea?.waveHeightM !== undefined ? ', gelombang,' : ''} angin, dan asset SRU :`,
+    title: isLand
+      ? 'Data angin, dan asset SRU :'
+      : `Data arus${sarCase.sea?.waveHeightM !== undefined ? ', gelombang,' : ''} angin, dan asset SRU :`,
   });
   if (seaBullets.length > 0) blocks.push({ kind: 'bullets', items: seaBullets });
   const series = sarCase.sea?.surfaceWindSeries ?? [];

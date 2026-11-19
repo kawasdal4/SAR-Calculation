@@ -50,6 +50,11 @@ export interface CasePlannerInputs {
   /** Ketinggian terpilih WS 2 (default 1000 ft — konvensi app). */
   ws2SelectedHeight?: 500 | 1000 | 1500 | 2000;
   patternType?: SearchPatternType;
+  /** ── Pencarian darat WS 3/WS 4 (Fase 5b) ── */
+  /** Fix error dasar x₀ (Tabel J-2): GPS 5 NM / non-GPS 10 NM — pilihan planner. */
+  landX0Nm?: number;
+  /** Galat navigasi SRU y (Tabel J-1) — default GPS 0.1 NM. */
+  landYNm?: number;
 }
 
 /** Asumsi/catatan hasil pemetaan (audit trail Fase 1; menjadi change-log Fase 2). */

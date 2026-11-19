@@ -78,6 +78,10 @@ export const bankSpecsSchema = z.object({
   wingspanM: z.number().optional(),
   heightM: z.number().optional(),
   wingAreaM2: z.number().optional(),
+  /** Berat maksimum lepas landas (kg) — penentu kategori target darat WS 3 (< / ≥ 5700 kg). */
+  mtowKg: z.number().optional(),
+  /** Jumlah kursi/orang kapasitas pesawat (batas wajar POB soal). */
+  seatsPax: z.number().int().min(1).optional(),
   cabinHeightM: z.number().optional(),
   cabinWidthM: z.number().optional(),
   cruiseSpeedKts: z.number().optional(),
@@ -91,6 +95,24 @@ export const bankSpecsSchema = z.object({
   // Life raft (perlengkapan keselamatan insiden)
   lifeRaftCount: z.number().int().min(0).optional(),
   lifeRaftCapacityPerRaft: z.number().int().min(1).optional(),
+  // ── Armada ALUT Basarnas (update 1 Nov 2026) — Fase 5b ──
+  /** Nomor lambung, mis. "KN SAR 235 ABIMANYU". */
+  hullNo: z.string().optional(),
+  /** Pelabuhan/dermaga sandar (teks dari dokumen ALUT). */
+  homeBase: z.string().optional(),
+  /** Status kesapsiagaan snapshot dokumen: S = Serviceable, US = Unserviceable. */
+  readinessStatus: z.enum(['S', 'US']).optional(),
+  /** Tanggal snapshot kesapsiagaan (dokumen ALUT). */
+  readinessUpdatedAt: z.string().optional(),
+  /** BBM saat snapshot (%). */
+  fuelPercent: z.number().min(0).max(100).optional(),
+  /** Endurance saat snapshot (jam) — BUKAN endurance resmi SRU latihan. */
+  readinessEnduranceHours: z.number().min(0).optional(),
+  /** Kecepatan saat snapshot (kts) — bukan TAS pencarian tabel I-8. */
+  readinessSpeedKts: z.number().min(0).optional(),
+  /** Jangkauan saat snapshot (NM). */
+  readinessRangeNm: z.number().min(0).optional(),
+  // Catatan bebas (alamat/dua baris dokumen) sudah tersedia di `notes` bagian lokasi.
 });
 
 export const bankEntrySchema = z.object({

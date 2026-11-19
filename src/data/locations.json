@@ -4,7 +4,11 @@
     "kind": "location",
     "name": "Kantor SAR Banten",
     "category": "kantor-sar",
-    "specs": { "role": "Kantor SAR pelaksana (soal PK-TAL)", "region": "selat-sunda", "notes": "Nama kantor VERIFIED dari soal; koordinat kantor tidak disebut di soal — status MISSING, jangan menebak." },
+    "specs": {
+      "role": "Kantor SAR pelaksana (soal PK-TAL)",
+      "region": "selat-sunda",
+      "notes": "Nama kantor VERIFIED dari soal; koordinat kantor tidak disebut di soal — status MISSING, jangan menebak."
+    },
     "source": "Soal Final Test Diklat SAR Planning Angk. XL 2026 (PDF, lampiran pemilik)",
     "updatedRef": "2026-11-20",
     "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
@@ -16,7 +20,10 @@
     "kind": "location",
     "name": "Kantor SAR Jakarta",
     "category": "kantor-sar",
-    "specs": { "role": "Kantor SAR pelaksana", "region": "teluk-jakarta" },
+    "specs": {
+      "role": "Kantor SAR pelaksana",
+      "region": "teluk-jakarta"
+    },
     "source": "Struktur organisasi Basarnas (data publik); koordinat menunggu validasi instruktur",
     "updatedRef": "2026-11-20",
     "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
@@ -28,7 +35,10 @@
     "kind": "location",
     "name": "Kantor SAR Palembang",
     "category": "kantor-sar",
-    "specs": { "role": "Kantor SAR pelaksana", "region": "selat-bangka" },
+    "specs": {
+      "role": "Kantor SAR pelaksana",
+      "region": "selat-bangka"
+    },
     "source": "Struktur organisasi Basarnas (data publik); koordinat menunggu validasi instruktur",
     "updatedRef": "2026-11-20",
     "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
@@ -40,7 +50,10 @@
     "kind": "location",
     "name": "Kantor SAR Pontianak",
     "category": "kantor-sar",
-    "specs": { "role": "Kantor SAR pelaksana", "region": "selat-karimata" },
+    "specs": {
+      "role": "Kantor SAR pelaksana",
+      "region": "selat-karimata"
+    },
     "source": "Struktur organisasi Basarnas (data publik); koordinat menunggu validasi instruktur",
     "updatedRef": "2026-11-20",
     "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
@@ -52,7 +65,10 @@
     "kind": "location",
     "name": "Kantor SAR Balikpapan",
     "category": "kantor-sar",
-    "specs": { "role": "Kantor SAR pelaksana", "region": "selat-makassar" },
+    "specs": {
+      "role": "Kantor SAR pelaksana",
+      "region": "selat-makassar"
+    },
     "source": "Struktur organisasi Basarnas (data publik); koordinat menunggu validasi instruktur",
     "updatedRef": "2026-11-20",
     "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
@@ -64,7 +80,10 @@
     "kind": "location",
     "name": "Kantor SAR Banjarmasin",
     "category": "kantor-sar",
-    "specs": { "role": "Kantor SAR pelaksana", "region": "selat-makassar" },
+    "specs": {
+      "role": "Kantor SAR pelaksana",
+      "region": "selat-makassar"
+    },
     "source": "Struktur organisasi Basarnas (data publik); koordinat menunggu validasi instruktur",
     "updatedRef": "2026-11-20",
     "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
@@ -76,7 +95,10 @@
     "kind": "location",
     "name": "Kantor SAR Makassar",
     "category": "kantor-sar",
-    "specs": { "role": "Kantor SAR pelaksana", "region": "selat-makassar" },
+    "specs": {
+      "role": "Kantor SAR pelaksana",
+      "region": "selat-makassar"
+    },
     "source": "Struktur organisasi Basarnas (data publik); koordinat menunggu validasi instruktur",
     "updatedRef": "2026-11-20",
     "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
@@ -88,7 +110,10 @@
     "kind": "location",
     "name": "Kantor SAR Denpasar",
     "category": "kantor-sar",
-    "specs": { "role": "Kantor SAR pelaksana", "region": "selat-bali" },
+    "specs": {
+      "role": "Kantor SAR pelaksana",
+      "region": "selat-bali"
+    },
     "source": "Struktur organisasi Basarnas (data publik); koordinat menunggu validasi instruktur",
     "updatedRef": "2026-11-20",
     "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
@@ -100,7 +125,10 @@
     "kind": "location",
     "name": "Kantor SAR Tanjung Pinang",
     "category": "kantor-sar",
-    "specs": { "role": "Kantor SAR pelaksana", "region": "selat-bangka" },
+    "specs": {
+      "role": "Kantor SAR pelaksana",
+      "region": "selat-bangka"
+    },
     "source": "Struktur organisasi Basarnas (data publik); koordinat menunggu validasi instruktur",
     "updatedRef": "2026-11-20",
     "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
@@ -114,7 +142,10 @@
     "category": "bandara",
     "lat": -6.126,
     "lng": 106.657,
-    "specs": { "role": "Basis SRU udara / titik keberangkatan", "region": "selat-sunda" },
+    "specs": {
+      "role": "Basis SRU udara / titik keberangkatan",
+      "region": "selat-sunda"
+    },
     "source": "Data publik umum posisi bandara — DRAFT, perlu verifikasi instruktur",
     "updatedRef": "2026-11-20",
     "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
@@ -128,7 +159,10 @@
     "category": "bandara",
     "lat": -6.267,
     "lng": 106.891,
-    "specs": { "role": "Basis SRU udara", "region": "teluk-jakarta" },
+    "specs": {
+      "role": "Basis SRU udara",
+      "region": "teluk-jakarta"
+    },
     "source": "Data publik umum posisi bandara — DRAFT, perlu verifikasi instruktur",
     "updatedRef": "2026-11-20",
     "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
@@ -142,7 +176,10 @@
     "category": "bandara",
     "lat": -5.24,
     "lng": 105.178,
-    "specs": { "role": "Basis SRU udara / titik keberangkatan", "region": "selat-sunda" },
+    "specs": {
+      "role": "Basis SRU udara / titik keberangkatan",
+      "region": "selat-sunda"
+    },
     "source": "Data publik umum posisi bandara — DRAFT, perlu verifikasi instruktur",
     "updatedRef": "2026-11-20",
     "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
@@ -156,7 +193,10 @@
     "category": "bandara",
     "lat": -7.38,
     "lng": 112.787,
-    "specs": { "role": "Basis SRU udara", "region": "laut-jawa" },
+    "specs": {
+      "role": "Basis SRU udara",
+      "region": "laut-jawa"
+    },
     "source": "Data publik umum posisi bandara — DRAFT, perlu verifikasi instruktur",
     "updatedRef": "2026-11-20",
     "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
@@ -170,7 +210,10 @@
     "category": "bandara",
     "lat": -8.748,
     "lng": 115.167,
-    "specs": { "role": "Basis SRU udara", "region": "selat-bali" },
+    "specs": {
+      "role": "Basis SRU udara",
+      "region": "selat-bali"
+    },
     "source": "Data publik umum posisi bandara — DRAFT, perlu verifikasi instruktur",
     "updatedRef": "2026-11-20",
     "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
@@ -184,7 +227,10 @@
     "category": "bandara",
     "lat": -5.062,
     "lng": 119.554,
-    "specs": { "role": "Basis SRU udara", "region": "selat-makassar" },
+    "specs": {
+      "role": "Basis SRU udara",
+      "region": "selat-makassar"
+    },
     "source": "Data publik umum posisi bandara — DRAFT, perlu verifikasi instruktur",
     "updatedRef": "2026-11-20",
     "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
@@ -198,7 +244,10 @@
     "category": "bandara",
     "lat": -0.153,
     "lng": 109.403,
-    "specs": { "role": "Basis SRU udara", "region": "selat-karimata" },
+    "specs": {
+      "role": "Basis SRU udara",
+      "region": "selat-karimata"
+    },
     "source": "Data publik umum posisi bandara — DRAFT, perlu verifikasi instruktur",
     "updatedRef": "2026-11-20",
     "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
@@ -212,7 +261,10 @@
     "category": "bandara",
     "lat": -1.268,
     "lng": 116.894,
-    "specs": { "role": "Basis SRU udara", "region": "selat-makassar" },
+    "specs": {
+      "role": "Basis SRU udara",
+      "region": "selat-makassar"
+    },
     "source": "Data publik umum posisi bandara — DRAFT, perlu verifikasi instruktur",
     "updatedRef": "2026-11-20",
     "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
@@ -226,7 +278,10 @@
     "category": "pelabuhan",
     "lat": -6.095,
     "lng": 106.885,
-    "specs": { "role": "Pangkalan SRU laut", "region": "teluk-jakarta" },
+    "specs": {
+      "role": "Pangkalan SRU laut",
+      "region": "teluk-jakarta"
+    },
     "source": "Preset aplikasi SRU_BASE_PRESETS (AssetAllocationWorksheet.tsx) — sudah dipakai di aplikasi",
     "updatedRef": "2026-11-20",
     "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
@@ -240,7 +295,10 @@
     "category": "pelabuhan",
     "lat": -6.115,
     "lng": 106.802,
-    "specs": { "role": "Pangkalan SRU laut", "region": "teluk-jakarta" },
+    "specs": {
+      "role": "Pangkalan SRU laut",
+      "region": "teluk-jakarta"
+    },
     "source": "Preset aplikasi SRU_BASE_PRESETS (AssetAllocationWorksheet.tsx) — sudah dipakai di aplikasi",
     "updatedRef": "2026-11-20",
     "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
@@ -254,7 +312,10 @@
     "category": "pelabuhan",
     "lat": -5.932,
     "lng": 105.996,
-    "specs": { "role": "Pangkalan SRU laut", "region": "selat-sunda" },
+    "specs": {
+      "role": "Pangkalan SRU laut",
+      "region": "selat-sunda"
+    },
     "source": "Preset aplikasi SRU_BASE_PRESETS (AssetAllocationWorksheet.tsx) — sudah dipakai di aplikasi",
     "updatedRef": "2026-11-20",
     "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
@@ -268,7 +329,10 @@
     "category": "pelabuhan",
     "lat": -8.752,
     "lng": 115.215,
-    "specs": { "role": "Pangkalan SRU laut", "region": "selat-bali" },
+    "specs": {
+      "role": "Pangkalan SRU laut",
+      "region": "selat-bali"
+    },
     "source": "Preset aplikasi SRU_BASE_PRESETS (AssetAllocationWorksheet.tsx) — sudah dipakai di aplikasi",
     "updatedRef": "2026-11-20",
     "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
@@ -282,7 +346,10 @@
     "category": "pelabuhan",
     "lat": -5.122,
     "lng": 119.412,
-    "specs": { "role": "Pangkalan SRU laut", "region": "selat-makassar" },
+    "specs": {
+      "role": "Pangkalan SRU laut",
+      "region": "selat-makassar"
+    },
     "source": "Preset aplikasi SRU_BASE_PRESETS (AssetAllocationWorksheet.tsx) — sudah dipakai di aplikasi",
     "updatedRef": "2026-11-20",
     "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
@@ -296,7 +363,10 @@
     "category": "pelabuhan",
     "lat": -0.875,
     "lng": 131.255,
-    "specs": { "role": "Pangkalan SRU laut", "region": "selat-sorong" },
+    "specs": {
+      "role": "Pangkalan SRU laut",
+      "region": "selat-sorong"
+    },
     "source": "Preset aplikasi SRU_BASE_PRESETS (AssetAllocationWorksheet.tsx) — sudah dipakai di aplikasi",
     "updatedRef": "2026-11-20",
     "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
@@ -312,7 +382,10 @@
     "lng": 105.261389,
     "dmsLat": "06° 52′ 46″ S",
     "dmsLng": "105° 15′ 41″ E",
-    "specs": { "role": "Titik referensi soal Final Test XL 2026", "region": "selat-sunda" },
+    "specs": {
+      "role": "Titik referensi soal Final Test XL 2026",
+      "region": "selat-sunda"
+    },
     "source": "Soal Final Test Diklat SAR Planning Angk. XL 2026 (PDF, lampiran pemilik)",
     "updatedRef": "2026-11-20",
     "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
@@ -328,7 +401,10 @@
     "lng": 105.491667,
     "dmsLat": "6° 50,5′ S",
     "dmsLng": "105° 29,5′ E",
-    "specs": { "role": "Posisi awal SRU udara pada soal Final Test XL 2026", "region": "selat-sunda" },
+    "specs": {
+      "role": "Posisi awal SRU udara pada soal Final Test XL 2026",
+      "region": "selat-sunda"
+    },
     "source": "Soal Final Test Diklat SAR Planning Angk. XL 2026 (PDF, lampiran pemilik)",
     "updatedRef": "2026-11-20",
     "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
@@ -344,11 +420,986 @@
     "lng": 105.266667,
     "dmsLat": "6° 50,75′ S",
     "dmsLng": "105° 16′ E",
-    "specs": { "role": "Posisi awal SRU laut pada soal Final Test XL 2026", "region": "selat-sunda" },
+    "specs": {
+      "role": "Posisi awal SRU laut pada soal Final Test XL 2026",
+      "region": "selat-sunda"
+    },
     "source": "Soal Final Test Diklat SAR Planning Angk. XL 2026 (PDF, lampiran pemilik)",
     "updatedRef": "2026-11-20",
     "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
     "verification": "VERIFIED",
     "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-banda-aceh",
+    "kind": "location",
+    "name": "Kantor SAR Banda Aceh",
+    "category": "kantor-sar",
+    "lat": 5.520011,
+    "lng": 95.322769,
+    "dmsLat": "05° 31′ 12.0″ N",
+    "dmsLng": "95° 19′ 22.0″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Jl. Sultan Malikul Saleh No. 108, Lhong Raya, Banda Aceh - 23238. Kode sumber koordinat: H13 (historis LAKIP Basarnas 2013). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi."
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-kansar-medan",
+    "kind": "location",
+    "name": "Kantor SAR Medan",
+    "category": "kantor-sar",
+    "lat": 3.5033,
+    "lng": 98.6124,
+    "dmsLat": "03° 30′ 11.9″ N",
+    "dmsLng": "98° 36′ 44.6″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Jl. Jamin Ginting No. 99, Padang Bulan, Medan - 20136. Kode sumber koordinat: EST (estimasi area alamat). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi.",
+      "region": "selat-karimata"
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-kansar-padang",
+    "kind": "location",
+    "name": "Kantor SAR Padang",
+    "category": "kantor-sar",
+    "lat": -0.83,
+    "lng": 100.341,
+    "dmsLat": "00° 49′ 48.0″ S",
+    "dmsLng": "100° 20′ 27.6″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Jl. By Pass Km. 25, Anak Air, Batipuh Panjang, Koto Tangah, Padang, Sumatera Barat - 25139. Kode sumber koordinat: EST (estimasi area alamat). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi.",
+      "region": "selat-karimata"
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-kansar-pekanbaru",
+    "kind": "location",
+    "name": "Kantor SAR Pekanbaru",
+    "category": "kantor-sar",
+    "lat": 0.469444,
+    "lng": 101.451389,
+    "dmsLat": "00° 28′ 10.0″ N",
+    "dmsLng": "101° 27′ 05.0″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Jl. Jenderal Sudirman - Jl. Reformasi, Simpang Tiga, Perhentian Marpoyan, Marpoyan Damai, Pekanbaru,. Kode sumber koordinat: H13 (historis LAKIP Basarnas 2013). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi.",
+      "region": "selat-karimata"
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-kansar-tanjung-pinang",
+    "kind": "location",
+    "name": "Kantor SAR Tanjung Pinang",
+    "category": "kantor-sar",
+    "lat": 0.9026,
+    "lng": 104.486667,
+    "dmsLat": "00° 54′ 09.4″ N",
+    "dmsLng": "104° 29′ 12.0″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Jl. Raja H. Fisabililah, Batu IX, Tanjungpinang Timur, Kota Tanjung Pinang, Kepulauan Riau 29124. Kode sumber koordinat: H13 (historis LAKIP Basarnas 2013). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi."
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-kansar-palembang",
+    "kind": "location",
+    "name": "Kantor SAR Palembang",
+    "category": "kantor-sar",
+    "lat": -2.898333,
+    "lng": 104.715556,
+    "dmsLat": "02° 53′ 54.0″ S",
+    "dmsLng": "104° 42′ 56.0″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Jl. Gubernur H. Asnawi Mangku Alam, Kebun Bunga, Sukarami, Palembang, Sumatera Selatan 30155. Kode sumber koordinat: H13 (historis LAKIP Basarnas 2013). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi.",
+      "region": "selat-bangka"
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-kansar-lampung",
+    "kind": "location",
+    "name": "Kantor SAR Lampung",
+    "category": "kantor-sar",
+    "lat": -5.242,
+    "lng": 105.188,
+    "dmsLat": "05° 14′ 31.2″ S",
+    "dmsLng": "105° 11′ 16.8″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Jl. Branti Raya, Bumisari, Natar, Kabupaten Lampung Selatan, Lampung 35362. Kode sumber koordinat: EST (estimasi area alamat). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi.",
+      "region": "selat-sunda"
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-kansar-jakarta",
+    "kind": "location",
+    "name": "Kantor SAR Jakarta",
+    "category": "kantor-sar",
+    "lat": -6.126389,
+    "lng": 106.655556,
+    "dmsLat": "06° 07′ 35.0″ S",
+    "dmsLng": "106° 39′ 20.0″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Jl. Marsekal Suryadarma No. 115, Selapajang Jaya, Neglasari, Kota Tangerang, Banten 15127. Kode sumber koordinat: H13 (historis LAKIP Basarnas 2013). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi.",
+      "region": "teluk-jakarta"
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-kansar-bandung",
+    "kind": "location",
+    "name": "Kantor SAR Bandung",
+    "category": "kantor-sar",
+    "lat": -6.966111,
+    "lng": 107.675,
+    "dmsLat": "06° 57′ 58.0″ S",
+    "dmsLng": "107° 40′ 30.0″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Jl. Raya Bandung - Garut Km. 27, Sindangpakuon, Cimanggung, Kabupaten Sumedang, Jawa Barat 45364. Kode sumber koordinat: H13 (historis LAKIP Basarnas 2013). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi.",
+      "region": "teluk-jakarta"
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-kansar-semarang",
+    "kind": "location",
+    "name": "Kantor SAR Semarang",
+    "category": "kantor-sar",
+    "lat": -7.000833,
+    "lng": 110.339956,
+    "dmsLat": "07° 00′ 03.0″ S",
+    "dmsLng": "110° 20′ 23.8″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Perumahan Permata Puri, Jl. Bukit Barisan Blok A IV No. 9, Bringin, Ngaliyan, Semarang, Jawa Tengah. Kode sumber koordinat: H13 (historis LAKIP Basarnas 2013). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi.",
+      "region": "laut-jawa"
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-kansar-surabaya",
+    "kind": "location",
+    "name": "Kantor SAR Surabaya",
+    "category": "kantor-sar",
+    "lat": -7.371053,
+    "lng": 112.778283,
+    "dmsLat": "07° 22′ 15.8″ S",
+    "dmsLng": "112° 46′ 41.8″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Jl. Ir. Haji Juanda, Bandara Juanda Baru, Sedati, Kabupaten Sidoarjo, Jawa Timur. Kode sumber koordinat: H13 (historis LAKIP Basarnas 2013). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi.",
+      "region": "laut-jawa"
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-kansar-denpasar",
+    "kind": "location",
+    "name": "Kantor SAR Denpasar",
+    "category": "kantor-sar",
+    "lat": -8.790278,
+    "lng": 115.163333,
+    "dmsLat": "08° 47′ 25.0″ S",
+    "dmsLng": "115° 09′ 48.0″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Jl. Raya Uluwatu No. 201, Jimbaran, Kuta Selatan, Badung, Bali. Kode sumber koordinat: H13 (historis LAKIP Basarnas 2013). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi.",
+      "region": "selat-bali"
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-kansar-mataram",
+    "kind": "location",
+    "name": "Kantor SAR Mataram",
+    "category": "kantor-sar",
+    "lat": -8.631389,
+    "lng": 116.126111,
+    "dmsLat": "08° 37′ 53.0″ S",
+    "dmsLng": "116° 07′ 34.0″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Jl. TGH. Lopan, Labu Api, Lombok Barat, Nusa Tenggara Barat 83361. Kode sumber koordinat: H13 (historis LAKIP Basarnas 2013). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi.",
+      "region": "selat-bali"
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-kansar-kupang",
+    "kind": "location",
+    "name": "Kantor SAR Kupang",
+    "category": "kantor-sar",
+    "lat": -10.172,
+    "lng": 123.655183,
+    "dmsLat": "10° 10′ 19.2″ S",
+    "dmsLng": "123° 39′ 18.7″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Jl. Adisucipto, Benfui, Kupang, Nusa Tenggara Timur 85361. Kode sumber koordinat: H13 (historis LAKIP Basarnas 2013). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi.",
+      "region": "selat-bali"
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-kansar-balikpapan",
+    "kind": "location",
+    "name": "Kantor SAR Balikpapan",
+    "category": "kantor-sar",
+    "lat": -1.2597,
+    "lng": 116.8981,
+    "dmsLat": "01° 15′ 34.9″ S",
+    "dmsLng": "116° 53′ 53.2″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Jl. Marsma R. Iswahyudi RT. 10 No. 03, Sepinggan Raya, Balikpapan Selatan. Kode sumber koordinat: EST (estimasi area alamat). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi.",
+      "region": "selat-makassar"
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-kansar-pontianak",
+    "kind": "location",
+    "name": "Kantor SAR Pontianak",
+    "category": "kantor-sar",
+    "lat": -0.136217,
+    "lng": 109.407417,
+    "dmsLat": "00° 08′ 10.4″ S",
+    "dmsLng": "109° 24′ 26.7″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Jl. Adisucipto Km. 15.6, Desa Limbung, Sungai Raya, Kabupaten Kubu Raya. Kode sumber koordinat: H13 (historis LAKIP Basarnas 2013). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi.",
+      "region": "selat-karimata"
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-kansar-banjarmasin",
+    "kind": "location",
+    "name": "Kantor SAR Banjarmasin",
+    "category": "kantor-sar",
+    "lat": -3.45,
+    "lng": 114.766667,
+    "dmsLat": "03° 27′ 00.0″ S",
+    "dmsLng": "114° 46′ 00.0″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Jl. A. Yani No. 29, Landasan Ulin Timur, Landasan Ulin, Kota Banjarbaru, Kalimantan Selatan 70721. Kode sumber koordinat: H13 (historis LAKIP Basarnas 2013). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi.",
+      "region": "selat-makassar"
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-kansar-makassar",
+    "kind": "location",
+    "name": "Kantor SAR Makassar",
+    "category": "kantor-sar",
+    "lat": -5.072017,
+    "lng": 119.544283,
+    "dmsLat": "05° 04′ 19.3″ S",
+    "dmsLng": "119° 32′ 39.4″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Jl. Bandar Udara Internasional Sultan Hasanuddin, Makassar 90552. Kode sumber koordinat: H13 (historis LAKIP Basarnas 2013). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi.",
+      "region": "selat-makassar"
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-kansar-kendari",
+    "kind": "location",
+    "name": "Kantor SAR Kendari",
+    "category": "kantor-sar",
+    "lat": -4.040639,
+    "lng": 122.488625,
+    "dmsLat": "04° 02′ 26.3″ S",
+    "dmsLng": "122° 29′ 19.1″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Jl. Kapten Pierre Tendean, Baruga, Kota Kendari, Sulawesi Tenggara 93116. Kode sumber koordinat: H13 (historis LAKIP Basarnas 2013). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi.",
+      "region": "selat-makassar"
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-kansar-manado",
+    "kind": "location",
+    "name": "Kantor SAR Manado",
+    "category": "kantor-sar",
+    "lat": 1.401433,
+    "lng": 125.014444,
+    "dmsLat": "01° 24′ 05.2″ N",
+    "dmsLng": "125° 00′ 52.0″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Jl. Worang Bypass, Desa Kaasar, Kauditan, Kabupaten Minahasa Utara, Sulawesi Utara. Kode sumber koordinat: H13 (historis LAKIP Basarnas 2013). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi.",
+      "region": "selat-sorong"
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-kansar-ambon",
+    "kind": "location",
+    "name": "Kantor SAR Ambon",
+    "category": "kantor-sar",
+    "lat": -3.645,
+    "lng": 128.189,
+    "dmsLat": "03° 38′ 42.0″ S",
+    "dmsLng": "128° 11′ 20.4″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Jl. Dr. J. Leimena, Hative Besar, Ambon. Kode sumber koordinat: EST (estimasi area alamat). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi.",
+      "region": "selat-sorong"
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-kansar-biak",
+    "kind": "location",
+    "name": "Kantor SAR Biak",
+    "category": "kantor-sar",
+    "lat": -1.188056,
+    "lng": 136.118611,
+    "dmsLat": "01° 11′ 17.0″ S",
+    "dmsLng": "136° 07′ 07.0″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Jl. Bosnik Raya No. 111, Biak, Papua 98117. Kode sumber koordinat: H13 (historis LAKIP Basarnas 2013). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi.",
+      "region": "selat-sorong"
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-kansar-sorong",
+    "kind": "location",
+    "name": "Kantor SAR Sorong",
+    "category": "kantor-sar",
+    "lat": -0.889806,
+    "lng": 131.323111,
+    "dmsLat": "00° 53′ 23.3″ S",
+    "dmsLng": "131° 19′ 23.2″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Jl. Avignam No. 115, Klawuyuk, Sorong. Kode sumber koordinat: H13 (historis LAKIP Basarnas 2013). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi.",
+      "region": "selat-sorong"
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-kansar-jayapura",
+    "kind": "location",
+    "name": "Kantor SAR Jayapura",
+    "category": "kantor-sar",
+    "lat": -2.58,
+    "lng": 140.52,
+    "dmsLat": "02° 34′ 48.0″ S",
+    "dmsLng": "140° 31′ 12.0″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Jl. Raya Hawai No. 115, Sentani, Kabupaten Jayapura, Papua 99352. Kode sumber koordinat: EST (estimasi area alamat). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi.",
+      "region": "selat-sorong"
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-kansar-nias",
+    "kind": "location",
+    "name": "Kantor SAR Nias",
+    "category": "kantor-sar",
+    "lat": 1.257,
+    "lng": 97.602,
+    "dmsLat": "01° 15′ 25.2″ N",
+    "dmsLng": "97° 36′ 07.2″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Jl. Pelabuhan Udara Binaka Km. 9, Desa Ononamolo I Lot, Gunungsitoli Selatan, Kota Gunungsitoli. Kode sumber koordinat: EST (estimasi area alamat). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi.",
+      "region": "selat-karimata"
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-kansar-mentawai",
+    "kind": "location",
+    "name": "Kantor SAR Mentawai",
+    "category": "kantor-sar",
+    "lat": -2.021,
+    "lng": 99.642,
+    "dmsLat": "02° 01′ 15.6″ S",
+    "dmsLng": "99° 38′ 31.2″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Jl. Raya Tuapejat Km. 9, Dusun Karya Bakti, Desa Siporajaya, Sipora Utara, Kabupaten Kepulauan. Kode sumber koordinat: EST (estimasi area alamat). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi.",
+      "region": "selat-karimata"
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-kansar-jambi",
+    "kind": "location",
+    "name": "Kantor SAR Jambi",
+    "category": "kantor-sar",
+    "lat": -1.633067,
+    "lng": 103.647617,
+    "dmsLat": "01° 37′ 59.0″ S",
+    "dmsLng": "103° 38′ 51.4″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Jl. Jawa RT 07, Kelurahan Talang Bakung, Kecamatan Jambi Selatan. Kode sumber koordinat: H13 (historis LAKIP Basarnas 2013). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi.",
+      "region": "selat-karimata"
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-kansar-natuna",
+    "kind": "location",
+    "name": "Kantor SAR Natuna",
+    "category": "kantor-sar",
+    "lat": 3.95,
+    "lng": 108.38,
+    "dmsLat": "03° 57′ 00.0″ N",
+    "dmsLng": "108° 22′ 48.0″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Jl. Adam Malik, Ranai Kota, Bunguran Timur, Kabupaten Natuna, Kepulauan Riau 29783. Kode sumber koordinat: EST (estimasi area alamat). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi.",
+      "region": "selat-karimata"
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-kansar-pangkalpinang",
+    "kind": "location",
+    "name": "Kantor SAR Pangkalpinang",
+    "category": "kantor-sar",
+    "lat": -2.116667,
+    "lng": 106.104722,
+    "dmsLat": "02° 07′ 00.0″ S",
+    "dmsLng": "106° 06′ 17.0″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Jl. Pulau Pelepas, Desa Beluluk, Pangkalanbaru, Kabupaten Bangka Tengah, Kepulauan Bangka Belitung. Kode sumber koordinat: H13 (historis LAKIP Basarnas 2013). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi.",
+      "region": "selat-bangka"
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-kansar-bengkulu",
+    "kind": "location",
+    "name": "Kantor SAR Bengkulu",
+    "category": "kantor-sar",
+    "lat": -3.878417,
+    "lng": 102.347917,
+    "dmsLat": "03° 52′ 42.3″ S",
+    "dmsLng": "102° 20′ 52.5″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Jl. Soeprapto Dalam No. 10 RT. 17, Betungan, Bengkulu. Kode sumber koordinat: H13 (historis LAKIP Basarnas 2013). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi.",
+      "region": "selat-karimata"
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-kansar-banten",
+    "kind": "location",
+    "name": "Kantor SAR Banten",
+    "category": "kantor-sar",
+    "lat": -6.04,
+    "lng": 106.12,
+    "dmsLat": "06° 02′ 24.0″ S",
+    "dmsLng": "106° 07′ 12.0″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Jl. Raya Serang - Cilegon Km. 70, Wanayasa, Kramatwatu, Kabupaten Serang, Banten 42616. Kode sumber koordinat: EST (estimasi area alamat). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi.",
+      "region": "selat-sunda"
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-kansar-cilacap",
+    "kind": "location",
+    "name": "Kantor SAR Cilacap",
+    "category": "kantor-sar",
+    "lat": -7.74,
+    "lng": 109.01,
+    "dmsLat": "07° 44′ 24.0″ S",
+    "dmsLng": "109° 00′ 36.0″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Jl. Penyu No. 115, Pandanarang, Cilacap Selatan, Kabupaten Cilacap, Jawa Tengah. Kode sumber koordinat: EST (estimasi area alamat). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi.",
+      "region": "laut-jawa"
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-kansar-yogyakarta",
+    "kind": "location",
+    "name": "Kantor SAR Yogyakarta",
+    "category": "kantor-sar",
+    "lat": -7.8136,
+    "lng": 110.2623,
+    "dmsLat": "07° 48′ 49.0″ S",
+    "dmsLng": "110° 15′ 44.3″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Jl. Raya Yogyakarta - Wates Km. 11,5, Argorejo, Sedayu, Kabupaten Bantul, DI Yogyakarta 55752. Kode sumber koordinat: EST (estimasi area alamat). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi.",
+      "region": "laut-jawa"
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-kansar-palangkaraya",
+    "kind": "location",
+    "name": "Kantor SAR Palangkaraya",
+    "category": "kantor-sar",
+    "lat": -2.223,
+    "lng": 113.944,
+    "dmsLat": "02° 13′ 22.8″ S",
+    "dmsLng": "113° 56′ 38.4″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Jl. Adonis Samad, Panarung, Pahandut, Kota Palangka Raya, Kalimantan Tengah 74874. Kode sumber koordinat: EST (estimasi area alamat). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi.",
+      "region": "selat-makassar"
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-kansar-tarakan",
+    "kind": "location",
+    "name": "Kantor SAR Tarakan",
+    "category": "kantor-sar",
+    "lat": 3.385,
+    "lng": 117.565,
+    "dmsLat": "03° 23′ 06.0″ N",
+    "dmsLng": "117° 33′ 54.0″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Jl. Lestari No. 102 RT. 002, Karang Harapan, Tarakan Barat, Kota Tarakan, Kalimantan Utara. Kode sumber koordinat: EST (estimasi area alamat). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi.",
+      "region": "selat-sorong"
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-kansar-maumere",
+    "kind": "location",
+    "name": "Kantor SAR Maumere",
+    "category": "kantor-sar",
+    "lat": -8.62,
+    "lng": 122.21,
+    "dmsLat": "08° 37′ 12.0″ S",
+    "dmsLng": "122° 12′ 36.0″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Jl. Diponegoro, Wolomarang, Alok Barat, Kabupaten Sikka, Nusa Tenggara Timur. Kode sumber koordinat: EST (estimasi area alamat). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi.",
+      "region": "selat-bali"
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-kansar-mamuju",
+    "kind": "location",
+    "name": "Kantor SAR Mamuju",
+    "category": "kantor-sar",
+    "lat": -2.58,
+    "lng": 118.85,
+    "dmsLat": "02° 34′ 48.0″ S",
+    "dmsLng": "118° 50′ 60.0″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Jl. Poros Trans Sulawesi Barat Lingkar Dua Bandara Tampa Padang, Kalukku, Kabupaten Mamuju,. Kode sumber koordinat: EST (estimasi area alamat). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi.",
+      "region": "selat-makassar"
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-kansar-gorontalo",
+    "kind": "location",
+    "name": "Kantor SAR Gorontalo",
+    "category": "kantor-sar",
+    "lat": 0.556072,
+    "lng": 123.066564,
+    "dmsLat": "00° 33′ 21.9″ N",
+    "dmsLng": "123° 03′ 59.6″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Jl. Pangeran Hidayat II, Kelurahan Pulubala, Kota Tengah, Kota Gorontalo. Kode sumber koordinat: H13 (historis LAKIP Basarnas 2013). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi.",
+      "region": "selat-makassar"
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-kansar-palu",
+    "kind": "location",
+    "name": "Kantor SAR Palu",
+    "category": "kantor-sar",
+    "lat": -0.918,
+    "lng": 119.895,
+    "dmsLat": "00° 55′ 04.8″ S",
+    "dmsLng": "119° 53′ 42.0″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Jl. Elang No. 12, Birobuli Utara, Palu Selatan, Kota Palu, Sulawesi Tengah. Kode sumber koordinat: EST (estimasi area alamat). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi.",
+      "region": "selat-makassar"
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-kansar-ternate",
+    "kind": "location",
+    "name": "Kantor SAR Ternate",
+    "category": "kantor-sar",
+    "lat": 0.7621,
+    "lng": 127.3169,
+    "dmsLat": "00° 45′ 43.6″ N",
+    "dmsLng": "127° 19′ 00.8″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Jl. Depot Pertamina, Jambula, Ternate 97751. Kode sumber koordinat: EST (estimasi area alamat). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi.",
+      "region": "selat-sorong"
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-kansar-manokwari",
+    "kind": "location",
+    "name": "Kantor SAR Manokwari",
+    "category": "kantor-sar",
+    "lat": -0.891467,
+    "lng": 134.043283,
+    "dmsLat": "00° 53′ 29.3″ S",
+    "dmsLng": "134° 02′ 35.8″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Jl. Drs. Essau Sesa, Sowi Gunung, Manokwari Selatan, Papua Barat 98315. Kode sumber koordinat: H13 (historis LAKIP Basarnas 2013). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi.",
+      "region": "selat-sorong"
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-kansar-timika",
+    "kind": "location",
+    "name": "Kantor SAR Timika",
+    "category": "kantor-sar",
+    "lat": -4.525,
+    "lng": 136.868611,
+    "dmsLat": "04° 31′ 30.0″ S",
+    "dmsLng": "136° 52′ 07.0″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Jl. Yos Sudarso Km. 5, Wania, Kabupaten Mimika, Papua Tengah. Kode sumber koordinat: H13 (historis LAKIP Basarnas 2013). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi.",
+      "region": "selat-sorong"
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-kansar-merauke",
+    "kind": "location",
+    "name": "Kantor SAR Merauke",
+    "category": "kantor-sar",
+    "lat": -8.518633,
+    "lng": 140.41215,
+    "dmsLat": "08° 31′ 07.1″ S",
+    "dmsLng": "140° 24′ 43.7″ E",
+    "specs": {
+      "role": "Kantor SAR pelaksana — Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025",
+      "notes": "Alamat: Jl. R. E. Marthadinata, depan Bandara Mopah, Rimba Jaya, Merauke, Papua Selatan 99611. Kode sumber koordinat: H13 (historis LAKIP Basarnas 2013). Koordinat referensi — BUKAN titik dispatch/navigasi tersertifikasi; konfirmasi ke kantor setempat sebelum dipakai operasi.",
+      "region": "selat-sorong"
+    },
+    "source": "Koordinat_43_Kantor_SAR_Basarnas.pdf — daftar alamat resmi Lampiran XXXIII Perka Basarnas No. 2 Tahun 2025; koordinat H13 (LAKIP 2013) / EST (estimasi)",
+    "updatedRef": "2026-11-20",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-sandar-kn-sar-laksmana-banjarmasin",
+    "kind": "location",
+    "name": "Titik sandar KN SAR LAKSMANA BANJARMASIN",
+    "category": "titik-referensi",
+    "lat": -6.863583,
+    "lng": 112.367467,
+    "dmsLat": "06° 51′ 48.9″ S",
+    "dmsLng": "112° 22′ 02.9″ E",
+    "specs": {
+      "role": "Sandar kapal SAR Banjarmasin — snapshot kesapsiagaan 2 Nov 2026",
+      "notes": "Lokasi: DERMAGA SAR BASIRIH. KANTOR SAR BANJARMASIN, BASIRIH, BANJARMASIN CITY, SOUTH KALIMANTAN, INDONESIA. 6°51-48.90\"S 112°22-2.88\"E (POSISI SEKARANG DOCKING DI PELABUHAN/DERMAGA FERY DI LAMONGAN, JAWA TIMUR)"
+    },
+    "source": "UPDATE ALUT 1 NOVEMBER 2026 (PDF kesapsiagaan KN-RB Basarnas) — koordinat posisi sandar tertulis",
+    "updatedRef": "2026-11-01",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-sandar-rb-407-sampit",
+    "kind": "location",
+    "name": "Titik sandar RB 407 SAMPIT",
+    "category": "titik-referensi",
+    "lat": -3.346731,
+    "lng": 114.562508,
+    "dmsLat": "03° 20′ 48.2″ S",
+    "dmsLng": "114° 33′ 45.0″ E",
+    "specs": {
+      "role": "Sandar kapal SAR Banjarmasin — snapshot kesapsiagaan 2 Nov 2026",
+      "notes": "Lokasi: DERMAGA SAR BASIRIH. KANTOR SAR BANJARMASIN, BASIRIH, BANJARMASIN. 3°20-48.23\"S 114°33-45.03\"E"
+    },
+    "source": "UPDATE ALUT 1 NOVEMBER 2026 (PDF kesapsiagaan KN-RB Basarnas) — koordinat posisi sandar tertulis",
+    "updatedRef": "2026-11-01",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-sandar-rb-404-banjarmasin",
+    "kind": "location",
+    "name": "Titik sandar RB 404 BANJARMASIN",
+    "category": "titik-referensi",
+    "lat": -3.346731,
+    "lng": 114.562508,
+    "dmsLat": "03° 20′ 48.2″ S",
+    "dmsLng": "114° 33′ 45.0″ E",
+    "specs": {
+      "role": "Sandar kapal SAR Banjarmasin — snapshot kesapsiagaan 2 Nov 2026",
+      "notes": "Lokasi: DERMAGA SAR BASIRIH. KANTOR SAR BANJARMASIN, BASIRIH, BANJARMASIN. 3°20-48.23\"S 114°33-45.03\"E"
+    },
+    "source": "UPDATE ALUT 1 NOVEMBER 2026 (PDF kesapsiagaan KN-RB Basarnas) — koordinat posisi sandar tertulis",
+    "updatedRef": "2026-11-01",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-sandar-kn-sar-ganesha-jakarta",
+    "kind": "location",
+    "name": "Titik sandar KN SAR GANESHA JAKARTA",
+    "category": "titik-referensi",
+    "lat": -6.094639,
+    "lng": 106.882333,
+    "dmsLat": "06° 05′ 40.7″ S",
+    "dmsLng": "106° 52′ 56.4″ E",
+    "specs": {
+      "role": "Sandar kapal SAR Jakarta — snapshot kesapsiagaan 2 Nov 2026",
+      "notes": "Lokasi: KADE 100 TANJUNG PRIOK. 6°05-40.7\"S 106°52-56.4\"E"
+    },
+    "source": "UPDATE ALUT 1 NOVEMBER 2026 (PDF kesapsiagaan KN-RB Basarnas) — koordinat posisi sandar tertulis",
+    "updatedRef": "2026-11-01",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-sandar-kn-sar-246-karna",
+    "kind": "location",
+    "name": "Titik sandar KN SAR 246 KARNA",
+    "category": "titik-referensi",
+    "lat": -2.084331,
+    "lng": 106.148008,
+    "dmsLat": "02° 05′ 03.6″ S",
+    "dmsLng": "106° 08′ 52.8″ E",
+    "specs": {
+      "role": "Sandar kapal SAR Pangkal Pinang — snapshot kesapsiagaan 2 Nov 2026",
+      "notes": "Lokasi: 2° 5-3.59\"S 106° 8-52.83\"E. "
+    },
+    "source": "UPDATE ALUT 1 NOVEMBER 2026 (PDF kesapsiagaan KN-RB Basarnas) — koordinat posisi sandar tertulis",
+    "updatedRef": "2026-11-01",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "APPROVED"
+  },
+  {
+    "id": "loc-sandar-kn-sar-201-pangkalpinang",
+    "kind": "location",
+    "name": "Titik sandar KN SAR 201 PANGKALPINANG",
+    "category": "titik-referensi",
+    "lat": -2.084378,
+    "lng": 106.148081,
+    "dmsLat": "02° 05′ 03.8″ S",
+    "dmsLng": "106° 08′ 53.1″ E",
+    "specs": {
+      "role": "Sandar kapal SAR Pangkal Pinang — snapshot kesapsiagaan 2 Nov 2026",
+      "notes": "Lokasi: 2° 5-3.76\"S 106° 8-53.09\"E. "
+    },
+    "source": "UPDATE ALUT 1 NOVEMBER 2026 (PDF kesapsiagaan KN-RB Basarnas) — koordinat posisi sandar tertulis",
+    "updatedRef": "2026-11-01",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "APPROVED"
   }
 ]

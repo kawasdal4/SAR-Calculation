@@ -41,10 +41,13 @@ import type { BankEntryApi } from '@/lib/sar/scenarioBank';
 // ---------------------------------------------------------------------------
 
 interface Capabilities {
+  version?: string;
   difficulties: string[];
   traps: Array<{ id: string; label: string; minDifficulty: string }>;
+  knobs?: Record<string, { min: number; max: number; label: string }>;
   regions: Array<{ id: string; name: string; timeZone: string }>;
-  incidentTypes: string[];
+  incidentTypes: Array<{ id: string; label: string }>;
+  narrativeStyles?: Array<{ id: string; label: string }>;
   defaultIncidentDateISO: string;
   bank: {
     sruUsableAssets: Array<{ id: string; name: string; category: string; verification: string }>;
@@ -53,21 +56,56 @@ interface Capabilities {
   };
 }
 
+interface AnswerKeyStageUi {
+  no: number;
+  worksheet: string;
+  title: string;
+  inputs: Array<{ label: string; value: string; refTable?: string }>;
+  steps: Array<{ label: string; formula?: string; result: string; unit?: string; refTable?: string }>;
+  resultSummary: string;
+}
+
+interface AnswerKeyUi {
+  caseTitle: string;
+  incidentType: string;
+  generatorVersion: string;
+  seed: string;
+  stages: AnswerKeyStageUi[];
+  references: Array<{ id: string; title: string; usage: string }>;
+  rubric: Array<{ item: string; worksheet: string; weight: number; criteria: string }>;
+  totalScore: number;
+  notes: string[];
+}
+
 interface GenerateResponse {
   case: Record<string, unknown>;
   naskah: { caseTitle: string; blocks: NaskahBlock[]; text: string; coveredFields: Record<string, string> };
+  narrative?: { style: string; text: string; requestedStyle: string };
   coverage: { covered: boolean; total: number; coveredCount: number; issues: Array<{ field: string; expected: string; reason: string }> };
   completeness: { complete: boolean; missingCount: number; assumedCount: number; issues: Array<{ field: string; worksheet: string; status: string; reason: string }> };
   applyPlan: { steps: CaseApplyStep[]; skipped: Array<{ worksheet: string; reason: string }> };
+  planValidation?: { ok: boolean; errorCount: number; warningCount: number; infoCount: number; issues: Array<{ level: string; field: string; message: string }> };
   appliedTraps: string[];
   skippedTraps: Array<{ trap: string; reason: string }>;
+  resolvedKnobs?: { sruCount: number; stagesBefore: number; envDataPoints: number; districtDataCount: number; trapCount: number };
   warnings: string[];
   params: { seed: string; incidentType: string; regionId: string; difficulty: string; incidentDateISO: string; sruCount: number };
+  answerKey?: AnswerKeyUi | null;
 }
 
 const INCIDENT_LABELS: Record<string, string> = {
-  'aircraft-ditching': 'Pesawat ditching di laut (gaya PK-TAL)',
+  'aircraft-ditching': 'Pesawat ditching di laut',
+  'aircraft-land-crash': 'Pesawat jatuh di darat',
   'vessel-sinking': 'Kapal darurat / tenggelam',
+  'person-overboard': 'Man Overboard (orang jatuh ke laut)',
+  'missing-person-land': 'Orang hilang / pencarian darat',
+};
+
+const STYLE_LABELS: Record<string, string> = {
+  'formal-ujian': 'Formal ujian kedinasan',
+  'narasi-operasional': 'Narasi operasional',
+  'skenario-simulasi': 'Skenario simulasi kejadian',
+  'otomatis': 'Variasi otomatis (dari seed)',
 };
 
 const DIFFICULTY_LABELS: Record<string, string> = {
@@ -100,7 +138,12 @@ export default function ScenarioGeneratorPanel({ onApplyCaseSteps }: ScenarioGen
   const [incidentType, setIncidentType] = useState('aircraft-ditching');
   const [regionId, setRegionId] = useState('selat-sunda');
   const [difficulty, setDifficulty] = useState('sedang');
+  const [style, setStyle] = useState('otomatis');
   const [sruCount, setSruCount] = useState('3');
+  const [stagesBefore, setStagesBefore] = useState('');
+  const [envDataPoints, setEnvDataPoints] = useState('');
+  const [districtDataCount, setDistrictDataCount] = useState('');
+  const [trapCount, setTrapCount] = useState('');
   const [incidentDate, setIncidentDate] = useState('2026-11-18');
   const [examTitle, setExamTitle] = useState('SOAL LATIHAN');
   const [angkatan, setAngkatan] = useState('');
@@ -108,6 +151,9 @@ export default function ScenarioGeneratorPanel({ onApplyCaseSteps }: ScenarioGen
 
   // ── Hasil ──
   const [result, setResult] = useState<GenerateResponse | null>(null);
+  const [showAnswerKey, setShowAnswerKey] = useState(false);
+  const [llmNarrative, setLlmNarrative] = useState<{ text: string; style: string; fallback?: boolean; detail?: string } | null>(null);
+  const [llmLoading, setLlmLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -149,6 +195,7 @@ export default function ScenarioGeneratorPanel({ onApplyCaseSteps }: ScenarioGen
     setLoading(true);
     setError(null);
     setApplyResult(null);
+    setLlmNarrative(null);
     try {
       const res = await fetch('/api/case-generator', {
         method: 'POST',
@@ -158,7 +205,13 @@ export default function ScenarioGeneratorPanel({ onApplyCaseSteps }: ScenarioGen
           incidentType,
           regionId,
           difficulty,
-          sruCount: Number(sruCount) || undefined,
+          style,
+          includeAnswerKey: true,
+          sruCount: sruCount === '' ? undefined : Number(sruCount),
+          stagesBefore: stagesBefore === '' ? undefined : Number(stagesBefore),
+          envDataPoints: envDataPoints === '' ? undefined : Number(envDataPoints),
+          districtDataCount: districtDataCount === '' ? undefined : Number(districtDataCount),
+          trapCount: trapCount === '' ? undefined : Number(trapCount),
           incidentDateISO: incidentDate,
           traps: traps.length > 0 ? traps : undefined,
           examHeader: {
@@ -170,13 +223,50 @@ export default function ScenarioGeneratorPanel({ onApplyCaseSteps }: ScenarioGen
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'Generate gagal.');
       setResult(data as GenerateResponse);
+      setShowAnswerKey(false);
     } catch (e) {
       setError((e as Error).message);
       setResult(null);
     } finally {
       setLoading(false);
     }
-  }, [seed, incidentType, regionId, difficulty, sruCount, incidentDate, examTitle, angkatan, traps]);
+  }, [seed, incidentType, regionId, difficulty, style, sruCount, stagesBefore, envDataPoints, districtDataCount, trapCount, incidentDate, examTitle, angkatan, traps]);
+
+  /** Variasi narasi via LLM (ter-guard: coverage + parse-back + daftar putih
+   *  angka; gagal → kembali ke narasi deterministik). */
+  const handleLlmNarrative = useCallback(async () => {
+    if (!result) return;
+    setLlmLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/case-generator/narrative', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          case: result.case,
+          style,
+          seed: result.params.seed,
+          explicitSearchNumber: !result.appliedTraps.includes('search-number-inference'),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        const fallback = data.fallback as { narrative: string; style: string } | undefined;
+        setLlmNarrative({
+          text: fallback?.narrative ?? '',
+          style: fallback?.style ?? style,
+          fallback: true,
+          detail: data.checks ? `guardrail: ${JSON.stringify(data.checks).slice(0, 220)}` : (data.error ?? 'LLM gagal.'),
+        });
+        return;
+      }
+      setLlmNarrative({ text: data.narrative, style: data.style });
+    } catch (e) {
+      setLlmNarrative({ text: '', style, fallback: true, detail: (e as Error).message });
+    } finally {
+      setLlmLoading(false);
+    }
+  }, [result, style]);
 
   const handleApply = useCallback(() => {
     if (!result || !onApplyCaseSteps) return;
@@ -280,12 +370,23 @@ export default function ScenarioGeneratorPanel({ onApplyCaseSteps }: ScenarioGen
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Jenis insiden</Label>
+              <Label className="text-xs">Jenis kejadian</Label>
               <Select value={incidentType} onValueChange={setIncidentType}>
                 <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {Object.entries(INCIDENT_LABELS).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>{label}</SelectItem>
+                  {(caps?.incidentTypes?.length ? caps.incidentTypes.map((t) => ({ value: t.id, label: t.label })) : Object.entries(INCIDENT_LABELS).map(([value, label]) => ({ value, label }))).map((t) => (
+                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Gaya bahasa narasi</Label>
+              <Select value={style} onValueChange={setStyle}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {(caps?.narrativeStyles?.length ? caps.narrativeStyles.map((s) => ({ value: s.id, label: s.label })) : Object.entries(STYLE_LABELS).map(([value, label]) => ({ value, label }))).map((s) => (
+                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -315,6 +416,22 @@ export default function ScenarioGeneratorPanel({ onApplyCaseSteps }: ScenarioGen
             <div className="space-y-1.5">
               <Label className="text-xs">Jumlah SRU (2-4)</Label>
               <Input type="number" min={2} max={4} value={sruCount} onChange={(e) => setSruCount(e.target.value)} className="h-8 text-xs" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs" title="Kosong = default kesulitan">Stage pencarian sebelumnya (0-4)</Label>
+              <Input type="number" min={0} max={4} value={stagesBefore} onChange={(e) => setStagesBefore(e.target.value)} placeholder="default" className="h-8 text-xs" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs" title="Kosong = default kesulitan (grid 6 jam, otomatis ke 3 jam bila > 6)">Data lingkungan (4-12)</Label>
+              <Input type="number" min={4} max={12} value={envDataPoints} onChange={(e) => setEnvDataPoints(e.target.value)} placeholder="default" className="h-8 text-xs" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs" title="Kantor SAR/instansi pendukung yang disebut di naskah">Distrik data (0-5)</Label>
+              <Input type="number" min={0} max={5} value={districtDataCount} onChange={(e) => setDistrictDataCount(e.target.value)} placeholder="default" className="h-8 text-xs" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs" title="Kosong = default kesulitan; sulit mendukung 4-5">Jumlah jebakan analisis (0-6)</Label>
+              <Input type="number" min={0} max={6} value={trapCount} onChange={(e) => setTrapCount(e.target.value)} placeholder="default" className="h-8 text-xs" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Tanggal kejadian</Label>
@@ -365,6 +482,27 @@ export default function ScenarioGeneratorPanel({ onApplyCaseSteps }: ScenarioGen
                 <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={() => window.print()}>
                   <Printer className="h-3.5 w-3.5 mr-1" /> Cetak Pratinjau
                 </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs border-amber-300 text-amber-800 hover:bg-amber-50"
+                  onClick={handleLlmNarrative}
+                  disabled={llmLoading}
+                  title="LLM menulis ulang paragraf narasi — nilai dikunci oleh guardrail (coverage + parse-back + daftar putih angka)"
+                >
+                  {llmLoading ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 mr-1" />}
+                  Variasi Narasi LLM
+                </Button>
+                <Button
+                  type="button"
+                  variant={showAnswerKey ? 'default' : 'outline'}
+                  size="sm"
+                  className={`h-8 text-xs ${showAnswerKey ? 'bg-slate-800 text-white' : 'border-slate-300'}`}
+                  onClick={() => setShowAnswerKey((v) => !v)}
+                >
+                  {showAnswerKey ? 'Sembunyikan Kunci Jawaban' : 'Kunci Jawaban Instruktur'}
+                </Button>
               </>
             )}
           </div>
@@ -387,6 +525,12 @@ export default function ScenarioGeneratorPanel({ onApplyCaseSteps }: ScenarioGen
             <Badge variant="outline" className="bg-white">Seed: {result.params.seed}</Badge>
             <Badge variant="outline" className="bg-white">Wilayah: {result.params.regionId}</Badge>
             <Badge variant="outline" className="bg-white">Kesulitan: {result.params.difficulty}</Badge>
+            {result.narrative && <Badge variant="outline" className="bg-fuchsia-50 text-fuchsia-800 border-fuchsia-300">gaya: {STYLE_LABELS[result.narrative.style] ?? result.narrative.style}</Badge>}
+            {result.resolvedKnobs && (
+              <Badge variant="outline" className="bg-white">
+                knob: SRU {result.resolvedKnobs.sruCount} · stage {result.resolvedKnobs.stagesBefore} · lingkungan {result.resolvedKnobs.envDataPoints} · distrik {result.resolvedKnobs.districtDataCount} · jebakan {result.resolvedKnobs.trapCount}
+              </Badge>
+            )}
             <Badge variant="outline" className="bg-white">SRU: {result.params.sruCount}</Badge>
             {result.appliedTraps.length > 0 ? (
               result.appliedTraps.map((t) => (
@@ -401,6 +545,11 @@ export default function ScenarioGeneratorPanel({ onApplyCaseSteps }: ScenarioGen
             <Badge variant="outline" className={result.coverage.covered ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : 'bg-rose-50 text-rose-800 border-rose-300'}>
               coverage naskah: {result.coverage.coveredCount}/{result.coverage.total}
             </Badge>
+            {result.planValidation && (
+              <Badge variant="outline" className={result.planValidation.ok ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : 'bg-rose-50 text-rose-800 border-rose-300'}>
+                validate_plan: {result.planValidation.ok ? 'OK' : `${result.planValidation.errorCount} error`}
+              </Badge>
+            )}
             <Badge variant="outline" className="bg-sky-50 text-sky-800 border-sky-300">SIMULATION — data latihan</Badge>
           </div>
 
@@ -519,6 +668,16 @@ export default function ScenarioGeneratorPanel({ onApplyCaseSteps }: ScenarioGen
                   }
                 })}
               </div>
+              {llmNarrative && (
+                <div className={`mt-3 rounded border p-3 text-sm leading-relaxed ${llmNarrative.fallback ? 'border-amber-300 bg-amber-50' : 'border-fuchsia-300 bg-fuchsia-50'}`}>
+                  <div className="mb-1.5 text-xs font-semibold text-slate-700">
+                    {llmNarrative.fallback
+                      ? `Narasi LLM ditolak guardrail — memakai narasi deterministik. ${llmNarrative.detail ?? ''}`
+                      : `Narasi LLM (gaya ${STYLE_LABELS[llmNarrative.style] ?? llmNarrative.style}) — lulus guardrail coverage + parse-back + daftar putih angka`}
+                  </div>
+                  <p className="whitespace-pre-line">{llmNarrative.text}</p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -529,6 +688,83 @@ export default function ScenarioGeneratorPanel({ onApplyCaseSteps }: ScenarioGen
                 {result.coverage.issues.map((i) => (
                   <div key={i.field}><strong>{i.field}</strong>: {i.reason}</div>
                 ))}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Kunci jawaban instruktur */}
+          {showAnswerKey && result.answerKey && (
+            <Card className="border-slate-400">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-semibold flex flex-wrap items-center gap-2">
+                  <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-slate-800 text-white text-xs font-bold">K</span>
+                  Kunci Jawaban Instruktur — {result.answerKey.stages.length} tahapan, rubrik {result.answerKey.totalScore} poin
+                  <Badge variant="outline" className="bg-amber-50 text-amber-900 border-amber-300">rahasia — untuk instruktur</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 text-xs">
+                {result.answerKey.notes.map((n, i) => (
+                  <div key={`n-${i}`} className="text-slate-600 bg-slate-50 border border-slate-200 rounded p-1.5">{n}</div>
+                ))}
+                {result.answerKey.stages.map((stage) => (
+                  <div key={`s-${stage.no}`} className="rounded border border-slate-200 overflow-hidden">
+                    <div className="bg-slate-100 px-3 py-1.5 font-semibold text-slate-800">
+                      {stage.no}. {stage.worksheet} — {stage.title}
+                    </div>
+                    <div className="p-3 space-y-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
+                        {stage.inputs.map((inp, ii) => (
+                          <div key={`i-${ii}`} className="flex justify-between gap-3 border-b border-dashed border-slate-100 pb-0.5">
+                            <span className="text-slate-600">{inp.label}{inp.refTable ? ` (${inp.refTable})` : ''}</span>
+                            <span className="font-medium text-right">{inp.value}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="space-y-1">
+                        {stage.steps.map((st, si) => (
+                          <div key={`st-${si}`} className="flex flex-wrap items-baseline gap-x-2">
+                            <span className="font-medium text-slate-800">{st.label}</span>
+                            {st.formula && <span className="text-slate-500 font-mono">= {st.formula}</span>}
+                            <span className="font-bold text-slate-900">{st.result}{st.unit ? ` ${st.unit}` : ''}</span>
+                            {st.refTable && <Badge variant="outline" className="h-4 px-1 text-[10px] bg-slate-50">{st.refTable}</Badge>}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="bg-emerald-50 border border-emerald-200 rounded px-2 py-1 text-emerald-900 font-medium">{stage.resultSummary}</div>
+                    </div>
+                  </div>
+                ))}
+                <div className="rounded border border-slate-200 overflow-hidden">
+                  <div className="bg-slate-100 px-3 py-1.5 font-semibold text-slate-800">Sumber referensi tabel</div>
+                  <div className="p-3 space-y-1">
+                    {result.answerKey.references.map((ref) => (
+                      <div key={ref.id}><Badge variant="outline" className="h-4 px-1 text-[10px] bg-slate-50 mr-1">{ref.id}</Badge><span className="font-medium">{ref.title}</span> — {ref.usage}</div>
+                    ))}
+                  </div>
+                </div>
+                <div className="rounded border border-slate-200 overflow-hidden">
+                  <div className="bg-slate-100 px-3 py-1.5 font-semibold text-slate-800">Rubrik penilaian (total {result.answerKey.totalScore})</div>
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="bg-slate-50">
+                        <th className="text-left px-2 py-1 font-semibold">Tugas</th>
+                        <th className="text-left px-2 py-1 font-semibold">Worksheet</th>
+                        <th className="text-right px-2 py-1 font-semibold w-16">Bobot</th>
+                        <th className="text-left px-2 py-1 font-semibold">Kriteria</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {result.answerKey.rubric.map((r) => (
+                        <tr key={r.item} className="border-t border-slate-100">
+                          <td className="px-2 py-1 font-mono">{r.item}</td>
+                          <td className="px-2 py-1">{r.worksheet}</td>
+                          <td className="px-2 py-1 text-right font-bold">{r.weight}</td>
+                          <td className="px-2 py-1 text-slate-600">{r.criteria}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </CardContent>
             </Card>
           )}
