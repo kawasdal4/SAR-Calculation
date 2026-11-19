@@ -1400,16 +1400,9 @@ export function computeEffortAllocation(
 // POD
 // ============================================================================
 
-export type SearchConditions = 'ideal' | 'normal';
-
-export function computePOD(C: number, conditions: SearchConditions): number {
-  if (C <= 0) return 0;
-  if (conditions === 'ideal') {
-    return Math.min(0.99, 1 - Math.exp(-C * 1.6));
-  } else {
-    return Math.min(0.99, 1 - Math.exp(-C));
-  }
-}
+// computePOD pindah ke wscPodTables.ts (berdampingan dengan readFigureI12,
+// rumus polinomial Excel POD.xls) agar berkas ini tetap bebas dependensi
+// internal dan aman diimpor langsung oleh node --test tests/*.test.mjs.
 
 // ============================================================================
 // FORMATTING HELPERS

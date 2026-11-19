@@ -21,11 +21,11 @@ import {
   computeDatum,
   computeE,
   computeEffortAllocation,
-  computePOD,
   LEEWAY_OBJECT_TYPES,
   type LeewayObjectType,
   dirToCompass,
 } from '@/lib/sar/sarCalculations';
+import { computePOD } from '@/lib/sar/wscPodTables';
 import { cn } from '@/lib/utils';
 import { formatDMS } from '@/lib/sar/coordFormat';
 
@@ -245,7 +245,7 @@ function computeScenario(s: Scenario): ComputedScenario {
     Zta: s.Zta,
     DD: datum.divergenceDistance,
   });
-  const pod = computePOD(effort.C, 'normal');
+  const pod = computePOD(effort.C);
 
   return {
     ...s,

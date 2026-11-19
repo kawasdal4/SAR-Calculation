@@ -24,15 +24,14 @@ import {
   computeSweepWidth,
   computeTotalSearchEffort,
   computeEffortAllocation,
-  computePOD,
   type SearchFacilityType,
   type SearchObjectCategory,
   type DatumType,
-  type SearchConditions,
   type SearchFacilityInput,
   type LatLng,
   dirToCompass,
 } from '@/lib/sar/sarCalculations';
+import { computePOD, type SearchNumber } from '@/lib/sar/wscPodTables';
 import { cn } from '@/lib/utils';
 import { formatDMS } from '@/lib/sar/coordFormat';
 
@@ -58,7 +57,7 @@ export interface SearchPlanInitialState {
   visibility?: number;
   windSpeed?: number;
   altitudeFt?: number;
-  conditions?: SearchConditions;
+  searchNumber?: SearchNumber;
   datumType?: DatumType;
   facilities?: FacilityRow[];
 }
@@ -116,7 +115,7 @@ export default function SearchPlanWorksheet({
   const [visibility, setVisibility] = useState<number>(initialState?.visibility ?? 0);
   const [windSpeed, setWindSpeed] = useState<number>(initialState?.windSpeed ?? 0);
   const [altitudeFt, setAltitudeFt] = useState<number>(initialState?.altitudeFt ?? 0);
-  const [conditions, setConditions] = useState<SearchConditions>(initialState?.conditions ?? 'normal');
+  const [searchNumber, setSearchNumber] = useState<SearchNumber>(initialState?.searchNumber ?? 1);
   const [datumType, setDatumType] = useState<DatumType>(initialState?.datumType ?? 'leeway-divergence');
   const [facilities, setFacilities] = useState<FacilityRow[]>(
     initialState?.facilities ?? [],
@@ -138,7 +137,7 @@ export default function SearchPlanWorksheet({
       visibility,
       windSpeed,
       altitudeFt,
-      conditions,
+      searchNumber,
       datumType,
       facilities,
     });
@@ -189,7 +188,7 @@ export default function SearchPlanWorksheet({
     [datumType, E, Zta, divergenceDistance],
   );
 
-  const POD = useMemo(() => computePOD(effort.C, conditions), [effort.C, conditions]);
+  const POD = useMemo(() => computePOD(effort.C, searchNumber), [effort.C, searchNumber]);
 
   // Compute search area center: midpoint between left and right datum (leeway-divergence)
   // or just datumLeft (point), or along datum line (line datum)
@@ -307,14 +306,15 @@ export default function SearchPlanWorksheet({
             <NumberInput value={altitudeFt} onChange={setAltitudeFt} />
           </div>
           <div>
-            <Label className="text-xs">Search Conditions</Label>
-            <Select value={conditions} onValueChange={(v) => setConditions(v as SearchConditions)}>
+            <Label className="text-xs">Search Number (Figure I-12)</Label>
+            <Select value={String(searchNumber)} onValueChange={(v) => setSearchNumber(Number(v) as SearchNumber)}>
               <SelectTrigger className="h-9">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ideal">Ideal (calm, vis &gt; 20NM)</SelectItem>
-                <SelectItem value="normal">Normal (any other)</SelectItem>
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <SelectItem key={n} value={String(n)}>{['First', 'Second', 'Third', 'Fourth', 'Fifth'][n - 1]} Search</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

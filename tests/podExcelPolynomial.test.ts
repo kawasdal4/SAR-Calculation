@@ -5,7 +5,7 @@
  * Jalankan: bun test tests/podExcelPolynomial.test.ts
  */
 import { test, expect } from 'bun:test';
-import { readFigureI12, computeW2Row } from '../src/lib/sar/wscPodTables';
+import { readFigureI12, computeW2Row, computePOD } from '../src/lib/sar/wscPodTables';
 
 test('readFigureI12: nilai eksak Excel pada C = 1.068 (T33–T37)', () => {
   expect(readFigureI12(1.068, 1)).toBeCloseTo(81.9592570565795, 9);
@@ -60,4 +60,25 @@ test('computeW2Row memakai rumus Excel: baris siap → POD sesuai polinomial C b
   expect(row.ready).toBe(true);
   expect(row.C).toBeGreaterThan(0);
   expect(row.POD).toBeCloseTo(readFigureI12(row.C, 1), 9);
+});
+
+test('computePOD (Search Plan): fraksi 0–1 dari polinomial Excel sesuai urutan pencarian kasus', () => {
+  // Eksak Excel C=1.068 dibagi 100: First 0.819592570565795 / Second 0.969635037348582 / Third 0.995712595964259
+  expect(computePOD(1.068, 1)).toBeCloseTo(0.819592570565795, 9);
+  expect(computePOD(1.068, 2)).toBeCloseTo(0.969635037348582, 9);
+  expect(computePOD(1.068, 3)).toBeCloseTo(0.995712595964259, 9);
+  expect(computePOD(1.068, 4)).toBe(1);
+  expect(computePOD(1.068, 5)).toBe(1);
+  // Default = pencarian pertama (1)
+  expect(computePOD(1.068)).toBe(computePOD(1.068, 1));
+  // Tepi domain
+  expect(computePOD(0)).toBe(0);
+  expect(computePOD(-0.5, 2)).toBe(0);
+  expect(computePOD(2, 3)).toBe(1);
+  expect(computePOD(2.5, 1)).toBe(computePOD(2, 1));
+  // Selalu 0–1 pada domain
+  for (let c = 0.01; c <= 2.0001; c += 0.1) {
+    expect(computePOD(c, 1)).toBeGreaterThanOrEqual(0);
+    expect(computePOD(c, 1)).toBeLessThanOrEqual(1);
+  }
 });

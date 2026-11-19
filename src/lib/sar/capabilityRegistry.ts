@@ -26,13 +26,11 @@ import {
   computeSweepWidth,
   computeTotalSearchEffort,
   computeEffortAllocation,
-  computePOD,
   distanceNm,
   computeWs1SearchArea,
   getLeewayObjectById,
   type DatumType,
   type LatLng,
-  type SearchConditions,
   type SearchFacilityType,
   type SearchObjectCategory,
 } from './sarCalculations';
@@ -79,6 +77,8 @@ import {
   computeW2Row,
   computeW8Row,
   readFigureI12,
+  computePOD,
+  type SearchNumber,
   type W2Target,
   type W8Target,
 } from './wscPodTables';
@@ -698,7 +698,7 @@ export const SAR_CAPABILITY_REGISTRY: SARCapability[] = [
     executionMode: 'lib',
     implementation: [
       'src/lib/sar/sarCalculations.ts#computeSweepWidth', 'src/lib/sar/sarCalculations.ts#computeTotalSearchEffort',
-      'src/lib/sar/sarCalculations.ts#computeEffortAllocation', 'src/lib/sar/sarCalculations.ts#computePOD',
+      'src/lib/sar/sarCalculations.ts#computeEffortAllocation', 'src/lib/sar/wscPodTables.ts#computePOD',
       'src/components/sar/SearchPlanWorksheet.tsx',
     ],
     inputSchema: schema({
@@ -712,15 +712,15 @@ export const SAR_CAPABILITY_REGISTRY: SARCapability[] = [
       L: f('number', 'Panjang datum line (untuk type line)', { unit: 'NM' }),
       DD: f('number', 'Divergensi datum (untuk SR)', { unit: 'NM' }),
       previousZr: f('number', 'Zr kumulatif pencarian sebelumnya'),
-      conditions: f('string', "'ideal' | 'normal'"),
-    }, ['facility', 'object', 'visibility', 'windSpeed', 'facilities', 'datumType', 'E', 'conditions']),
+      searchNumber: f('number', 'Urutan pencarian dari kasus: pencarian pertama → 1, kedua → 2, dst.; bila tidak dikirim dipakai 1'),
+    }, ['facility', 'object', 'visibility', 'windSpeed', 'facilities', 'datumType', 'E']),
     outputSchema: schema({
       perFacility: f('array', 'Effort per fasilitas {T, Z}'),
       Zta: f('number', 'Total search effort'),
       fs: f('number', 'Faktor keselamatan dari figure N-5..N-8'),
       Ro: f('number', 'Radius pencarian', { unit: 'NM' }),
       Ao: f('number', 'Luas area hasil alokasi', { unit: 'NM²' }),
-      C: f('number', 'Coverage factor'), POD: f('number', 'POD fraksi 0–0,99 (kurva eksponensial App. L, computePOD)'),
+      C: f('number', 'Coverage factor'), POD: f('number', 'POD fraksi 0–1 (polinomial Excel POD.xls pada kurva Figure I-12, sesuai searchNumber)'),
     }),
     validateInput: (input) => {
       const i = input as { facilities?: unknown[]; E?: number };
@@ -732,14 +732,14 @@ export const SAR_CAPABILITY_REGISTRY: SARCapability[] = [
       const i = input as {
         facility: SearchFacilityType; object: SearchObjectCategory; visibility: number; windSpeed: number;
         altitudeFt?: number; facilities: Array<{ id: string; name: string; speed: number; endurance: number; daylightHours: number; W: number }>;
-        datumType: DatumType; E: number; L?: number; DD?: number; previousZr?: number; conditions: SearchConditions;
+        datumType: DatumType; E: number; L?: number; DD?: number; previousZr?: number; searchNumber?: number;
       };
       const sw = computeSweepWidth({ facility: i.facility, object: i.object, visibility: i.visibility, windSpeed: i.windSpeed, altitudeFt: i.altitudeFt });
       const effort = computeTotalSearchEffort(i.facilities);
       const alloc = computeEffortAllocation({
         type: i.datumType, E: i.E, Zta: effort.Zta, L: i.L, DD: i.DD, previousZr: i.previousZr,
       });
-      const POD = computePOD(alloc.C, i.conditions);
+      const POD = computePOD(alloc.C, (i.searchNumber ?? 1) as SearchNumber);
       return { sweepWidth: sw, ...effort, ...alloc, POD };
     },
     requiresConfirmation: false,

@@ -159,6 +159,16 @@ export function readFigureI12(coverage: number, search: SearchNumber): number {
   return pod > 99.7 ? 100 : pod;
 }
 
+/**
+ * POD (fraksi 0–1) untuk Search Plan Worksheet — rumus polinomial Excel POD.xls
+ * yang sama dengan Worksheet 2/3/8 (satu sumber kebenaran dengan readFigureI12).
+ * searchNumber = urutan pencarian dari kasus: pencarian pertama → 1, kedua → 2,
+ * dst.; bila tidak diberikan dipakai kurva pencarian pertama.
+ */
+export function computePOD(C: number, searchNumber: SearchNumber = 1): number {
+  return readFigureI12(C, searchNumber) / 100;
+}
+
 export const W2_VISIBILITY_LABELS = ['2','5','10','20','30','>40'] as const;
 export const W8_VISIBILITY_LABELS = ['2','5','10','15','20','>25'] as const;
 
