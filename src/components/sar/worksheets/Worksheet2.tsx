@@ -21,6 +21,11 @@ export interface Worksheet2InitialState {
   piwFlotationKnown?: boolean;
   searchNumber?: SearchNumber;
   selectedHeight?: 500 | 1000 | 1500 | 2000;
+  /** Angin permukaan SESUAI SOAL KASUS (analisa AI Asisten) untuk header.
+   *  Bila ada, header menampilkan nilai ini (label "Kasus"); bila tidak,
+   *  header fallback ke angin ASW. Kalkulasi WSC/POD tetap memakai ASW. */
+  caseWindDirFrom?: number;
+  caseWindSpeed?: number;
 }
 
 interface Worksheet2Props {
@@ -57,6 +62,13 @@ export default function Worksheet2({
   const [searchNumber, setSearchNumber] = useState<SearchNumber | 0>(initialState?.searchNumber ?? 0);
   const [selectedHeight, setSelectedHeight] = useState<500 | 1000 | 1500 | 2000 | 0>(initialState?.selectedHeight ?? 0);
   const windKts = datumData?.aswSpeed ?? 0;
+  // Header wind: prioritas angin dari soal kasus (analisa AI Asisten),
+  // fallback ke angin ASW bila kasus tidak menyebut angin permukaan.
+  const caseWindDirFrom = initialState?.caseWindDirFrom;
+  const caseWindSpeed = initialState?.caseWindSpeed;
+  const hasCaseWind = caseWindDirFrom !== undefined || caseWindSpeed !== undefined;
+  const headerWindDir = hasCaseWind ? (caseWindDirFrom ?? aswDirFrom) : aswDirFrom;
+  const headerWindKts = hasCaseWind ? (caseWindSpeed ?? windKts) : windKts;
   const heights = [500, 1000, 1500, 2000];
   const targetMeta = W2_TARGET_OPTIONS.find((target) => target.id === searchObject); // UI: ceklis PIW
   // Math diekstraksi ke lib (PHASE 3): computeW2Row — rumus identik dengan versi inline sebelumnya.
@@ -258,9 +270,9 @@ export default function Worksheet2({
             <div>
               <span className="text-slate-600">Wind: </span>
               <span className="font-bold text-blue-900 font-mono px-1">
-                {aswDirFrom.toString().padStart(3, '0')}°
+                {headerWindDir.toString().padStart(3, '0')}°
               </span>{' '}
-              / <span className="font-bold text-blue-900 font-mono">{windKts.toFixed(1)}</span> <span className="font-semibold text-slate-700">Kts (ASW)</span>
+              / <span className="font-bold text-blue-900 font-mono">{headerWindKts.toFixed(1)}</span> <span className="font-semibold text-slate-700">Kts ({hasCaseWind ? 'Kasus' : 'ASW'})</span>
             </div>
             <div>
               <span className="text-slate-600">Fatigue Factor: </span>

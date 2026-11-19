@@ -999,7 +999,8 @@ export default function AIChatPanel({
       }
       case 'set_ws2_case': {
         const a = fc.args as Worksheet2InitialState;
-        return `✈️ WS 2: ${a.searchPlatform ?? 'platform?'} · ${a.searchObject ?? 'objek?'} · visibilitas kolom ${a.visibilityIndex ?? '?'} · ${a.selectedHeight ?? '?'} ft`;
+        const wind = a.caseWindSpeed !== undefined ? ` · wind kasus ${a.caseWindDirFrom !== undefined ? `${a.caseWindDirFrom}° / ` : ''}${a.caseWindSpeed} kt` : '';
+        return `✈️ WS 2: ${a.searchPlatform ?? 'platform?'} · ${a.searchObject ?? 'objek?'} · visibilitas kolom ${a.visibilityIndex ?? '?'} · ${a.selectedHeight ?? '?'} ft${wind}`;
       }
       case 'set_ws3_case': {
         const a = fc.args as Worksheet3InitialState;
@@ -1011,7 +1012,8 @@ export default function AIChatPanel({
       }
       case 'set_ws8_case': {
         const a = fc.args as Worksheet8InitialState;
-        return `🚢 WS 8: ${a.searchObject ?? 'objek?'} · mata ${a.eyeHeight ?? '?'} ft · visibilitas ${a.visibilityKm ?? '?'} km`;
+        const wind = a.caseWindSpeed !== undefined ? ` · wind kasus ${a.caseWindDirFrom !== undefined ? `${a.caseWindDirFrom}° / ` : ''}${a.caseWindSpeed} kt` : '';
+        return `🚢 WS 8: ${a.searchObject ?? 'objek?'} · mata ${a.eyeHeight ?? '?'} ft · visibilitas ${a.visibilityKm ?? '?'} km${wind}`;
       }
       case 'set_intercept_case': {
         const a = fc.args as unknown as InterceptInput;

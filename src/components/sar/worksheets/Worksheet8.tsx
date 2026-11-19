@@ -17,6 +17,11 @@ export interface Worksheet8InitialState {
   isFatigue?: 'Yes' | 'No';
   searchNumber?: SearchNumber;
   vesselSpeedKts?: number;
+  /** Angin permukaan SESUAI SOAL KASUS (analisa AI Asisten) untuk header.
+   *  Bila ada, header menampilkan nilai ini (label "Kasus"); bila tidak,
+   *  header fallback ke angin ASW. Kalkulasi WSC/POD tetap memakai ASW. */
+  caseWindDirFrom?: number;
+  caseWindSpeed?: number;
 }
 
 interface Worksheet8Props {
@@ -233,7 +238,7 @@ export default function Worksheet8({
             </div>
             <div>
               <span className="text-slate-600">Wind: </span>
-              <span className="font-bold text-blue-900">{windKts.toFixed(1)} Kts (ASW)</span>
+              <span className="font-bold text-blue-900">{(initialState?.caseWindSpeed ?? windKts).toFixed(1)} Kts{initialState?.caseWindDirFrom !== undefined ? ` · ${initialState.caseWindDirFrom.toString().padStart(3, '0')}°` : ''} ({initialState?.caseWindSpeed !== undefined ? 'Kasus' : 'ASW'})</span>
             </div>
             <div>
               <span className="text-slate-600">Fatigue Factor: </span>

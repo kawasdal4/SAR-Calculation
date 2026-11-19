@@ -1076,13 +1076,41 @@ export default function Home() {
 
   // Hasil Track Spacing dicatat per lembar pemiliknya (bukan satu slot global).
   const handleWS2TrackSpacingChange = useCallback((sheetKey: string, result: { platform: 'fixed-wing' | 'helicopter' | null; spacingNm: number; selection: string }) => {
-    setWs2TrackSpacings((prev) => ({ ...prev, [sheetKey]: result }));
+    setWs2TrackSpacings((prev) => {
+      const current = prev[sheetKey];
+      // Bail out bila nilainya sama: prop onTrackSpacingChange adalah arrow
+      // inline (identitas baru tiap render), tanpa guard ini effect worksheet
+      // menembak ulang setiap render → loop update tak berhingga (React #185)
+      // saat lembar dimuat dari kasus tersimpan.
+      if (current && current.platform === result.platform && current.spacingNm === result.spacingNm && current.selection === result.selection) {
+        return prev;
+      }
+      return { ...prev, [sheetKey]: result };
+    });
   }, []);
   const handleWS3TrackSpacingChange = useCallback((sheetKey: string, result: { platform: 'fixed-wing' | 'helicopter' | null; heights: readonly number[]; spacingByHeight: Array<number | null> }) => {
-    setWs3TrackSpacings((prev) => ({ ...prev, [sheetKey]: result }));
+    setWs3TrackSpacings((prev) => {
+      const current = prev[sheetKey];
+      const sameHeights = current
+        && current.heights.length === result.heights.length
+        && result.heights.every((value, index) => value === current.heights[index]);
+      const sameSpacing = current
+        && current.spacingByHeight.length === result.spacingByHeight.length
+        && result.spacingByHeight.every((value, index) => value === current.spacingByHeight[index]);
+      if (current && sameHeights && sameSpacing && current.platform === result.platform) {
+        return prev;
+      }
+      return { ...prev, [sheetKey]: result };
+    });
   }, []);
   const handleWS8TrackSpacingChange = useCallback((sheetKey: string, result: { spacingNm: number; selection: string }) => {
-    setWs8TrackSpacings((prev) => ({ ...prev, [sheetKey]: result }));
+    setWs8TrackSpacings((prev) => {
+      const current = prev[sheetKey];
+      if (current && current.spacingNm === result.spacingNm && current.selection === result.selection) {
+        return prev;
+      }
+      return { ...prev, [sheetKey]: result };
+    });
   }, []);
 
   const handleApplyIntercept = useCallback((data: InterceptInput) => {
