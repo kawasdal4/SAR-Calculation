@@ -667,6 +667,11 @@ export default function Worksheet4MapLibre({
       setKansarHover(typeof name === 'string' ? name : null);
     });
     map.on('mouseout', KANSAR_FILL_LAYER_ID, () => setKansarHover(null));
+    // Zoom tanpa gerak mouse (wheel/keyboard) memindahkan poligon dari bawah
+    // kursor tanpa memicu mousemove/mouseout — bar hover basi menempel. Bersihkan
+    // saat transform peta berakhir; bar muncul lagi saat kursor bergerak di atas
+    // poligon.
+    map.on('moveend', () => setKansarHover(null));
     map.on('mouseout', () => setCursor(''));
     map.on('error', (event) => {
       const detail = event as unknown as { sourceId?: string; error?: Error; url?: string; request?: { url?: string } };

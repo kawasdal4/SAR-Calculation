@@ -132,6 +132,15 @@
   border: none !important;
 }
 
+/* Tooltip Leaflet TIDAK boleh menangkap pointer: tooltip sticky pada poligon
+   besar (batas wilayah KANSAR) mengikuti kursor dan menutupinya, sehingga
+   path di bawahnya kehilangan event mouseout — tooltip muncul terus dan tak
+   pernah hilang. Dengan pointer-events none, kursor "menembus" tooltip dan
+   mouseout poligon bekerja normal. Tooltip interactive (klik) dikecualikan. */
+.leaflet-tooltip:not(.leaflet-interactive) {
+  pointer-events: none;
+}
+
 .leaflet-tooltip.sar-label,
 .leaflet-tooltip.sar-point-label,
 .leaflet-tooltip.sar-area-label,

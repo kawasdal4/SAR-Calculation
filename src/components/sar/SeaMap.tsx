@@ -1302,7 +1302,12 @@ export default function SeaMap({
               style: () => ({ color: '#92400e', weight: 1.5, opacity: 0.8, dashArray: '5 4', fillColor: '#f59e0b', fillOpacity: 0.05 }),
               onEachFeature: (feature, layer) => {
                 const name = (feature?.properties?.kansar ?? '') as string;
-                (layer as unknown as L.Path).bindTooltip(`Batas wilayah KANSAR ${name}`, { sticky: true });
+                const path = layer as unknown as L.Path;
+                path.bindTooltip(`Batas wilayah KANSAR ${name}`, { sticky: true });
+                // Pengaman tambahan: tutup tooltip saat kursor keluar poligon.
+                // Tanpa ini (plus pointer-events:none di globals.css) tooltip
+                // sticky yang menutupi kursor bisa menempel terus.
+                path.on('mouseout', () => path.closeTooltip());
               },
             });
           } catch {
@@ -1327,9 +1332,22 @@ export default function SeaMap({
                 if (layer && !map.hasLayer(layer)) map.addLayer(layer);
               });
             } else if (kansarLayer && map.hasLayer(kansarLayer)) {
+              // Tutup semua tooltip anak sebelum layer dilepas — tooltip yang
+              // tertinggal tanpa layer induknya tak akan tertutup mouseout.
+              kansarLayer.eachLayer((child) => child.closeTooltip());
               map.removeLayer(kansarLayer);
             }
           });
+          // Tooltip sticky yang tertinggal saat peta bergerak di bawah kursor
+          // (drag/zoom): event mouseout path tidak terpicu karena yang bergerak
+          // peta, bukan kursor — tooltip KANSAR menempel terus. Tutup paksa
+          // semua tooltip KANSAR saat transform peta berakhir / kursor keluar
+          // dari area peta; tooltip aktif akan terbuka lagi saat kursor bergerak.
+          const closeKansarTooltips = () => {
+            if (kansarLayer) kansarLayer.eachLayer((child) => child.closeTooltip());
+          };
+          map.on('moveend', closeKansarTooltips);
+          map.on('mouseout', closeKansarTooltips);
         }
 
         // Fasilitas transportasi + Kantor SAR & Kantor Pusat Basarnas —
