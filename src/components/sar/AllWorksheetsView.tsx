@@ -30,6 +30,8 @@ interface AllWorksheetsViewProps {
   searchResults: SearchPlanResults | null;
   ws1Ao: number;
   onWorksheet1AoChange?: (ao: number) => void;
+  /** Buka Appendix I (Table I-1/I-2 leeway) di dialog Manual SAR AUS. */
+  onOpenManualAppendix?: () => void;
   selectedFs: number;
   aswDirFrom: number;
   aswSpeed: number;
@@ -59,6 +61,7 @@ export default function AllWorksheetsView({
   searchResults,
   ws1Ao,
   onWorksheet1AoChange,
+  onOpenManualAppendix,
   selectedFs,
   aswDirFrom,
   aswSpeed,
@@ -270,6 +273,7 @@ export default function AllWorksheetsView({
             readOnly
             selectedFs={selectedFs}
             onAoChange={onWorksheet1AoChange}
+            onOpenManualAppendix={onOpenManualAppendix}
           />
         </section>
 

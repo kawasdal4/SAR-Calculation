@@ -309,6 +309,9 @@ export default function Home() {
   const [tabClearVersions, setTabClearVersions] = useState<Record<string, number>>({});
   const [isPrintA3Open, setIsPrintA3Open] = useState<boolean>(false);
   const [isAusSarManualOpen, setIsAusSarManualOpen] = useState<boolean>(false);
+  /** Dokumen yang ditampilkan saat dialog Manual SAR AUS dibuka dari rujukan
+   *  worksheet (mis. Table I-1/I-2 leeway di Worksheet 1 → 'appendix-i'). */
+  const [ausSarManualInitialDoc, setAusSarManualInitialDoc] = useState<string | undefined>(undefined);
   const [isAiChatOpen, setIsAiChatOpen] = useState<boolean>(false);
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState<boolean>(false);
 
@@ -2090,6 +2093,10 @@ export default function Home() {
                 lkp={lkp}
                 datumData={datumData}
                 datumResults={datumResults}
+                onOpenManualAppendix={() => {
+                  setAusSarManualInitialDoc('appendix-i');
+                  setIsAusSarManualOpen(true);
+                }}
                 searchResults={searchResults}
                 ws1Ao={ws1Ao}
                 onWorksheet1AoChange={setWorksheet1Ao}
@@ -2274,6 +2281,10 @@ export default function Home() {
                 onMeasuredChange={setWs1Measured}
                 selectedFs={worksheet1Fs}
                 onFsChange={setWorksheet1Fs}
+                onOpenManualAppendix={() => {
+                  setAusSarManualInitialDoc('appendix-i');
+                  setIsAusSarManualOpen(true);
+                }}
               />
               <DatumWorksheet
                 aswDirFrom={asw.aswDirFrom}
@@ -3062,7 +3073,7 @@ export default function Home() {
       />
 
       {/* Manual SAR Australia (Combined + Appendix I/J/K) — referensi tabel worksheet */}
-      <AusSarManualDialog open={isAusSarManualOpen} onOpenChange={setIsAusSarManualOpen} />
+      <AusSarManualDialog open={isAusSarManualOpen} onOpenChange={setIsAusSarManualOpen} initialDocId={ausSarManualInitialDoc} />
 
       {/* Dialog Konfirmasi Bersihkan Semua Lembar Kerja */}
       {isClearConfirmOpen && (

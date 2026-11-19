@@ -82,6 +82,9 @@ interface Worksheet1Props {
    *  hitungan gambar peta di sisi halaman memakai nilai yang sama selagi
    *  tab ini terpasang; null saat unmount. */
   onMeasuredChange?: (measured: Ws1Measured | null) => void;
+  /** Buka Appendix I (Table I-1/I-2 leeway) di dialog Manual SAR AUS pada
+   *  halaman — rujukan nilai Multiplier/Modifier/Divergence. */
+  onOpenManualAppendix?: () => void;
 }
 
 /** Format derajat-menit (Panduan bagian 5: posisi datum dalam derajat-menit dan desimal). */
@@ -106,6 +109,7 @@ export default function Worksheet1({
   onMeasuredChange,
   selectedFs,
   onFsChange,
+  onOpenManualAppendix,
 }: Worksheet1Props) {
   const [localFs, setLocalFs] = useState(1.1);
   const fsSelected = selectedFs ?? localFs;
@@ -589,6 +593,20 @@ export default function Worksheet1({
                       Peringatan: hasil hitung leeway negatif pada angin lemah — dijadikan 0 (asumsi panduan bagian 10 no. 6).
                     </div>
                   )}
+                  <div className="mt-1 flex items-center gap-2 flex-wrap">
+                    <span className="text-[10px] text-slate-500 font-sans">
+                      Multiplier, Modifier &amp; Divergence {lwDivAngle}° dari Table I-1/I-2 (Appendix I — Leeway tables) baris “{targetDesc}” sesuai Search target (description).
+                    </span>
+                    {onOpenManualAppendix && (
+                      <button
+                        type="button"
+                        onClick={onOpenManualAppendix}
+                        className="text-[10px] font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded px-1.5 py-0.5 transition-colors"
+                      >
+                        Lihat Table I-1/I-2
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
               <tr className="border-b-2 border-slate-700">

@@ -458,7 +458,7 @@ export const LEEWAY_OBJECT_TYPES: LeewayObjectType[] = [
   // ── PIW (Persons In Water) — Table I-1 ──
   {
     id: 'piw-novice',
-    label: 'PIW – Vertical (general)',
+    label: 'PIW – Umum / general (Table I-1)',
     leewayRate: 0.011,
     leewayModifier: 0.07,
     divergenceAngle: 30,
@@ -467,16 +467,16 @@ export const LEEWAY_OBJECT_TYPES: LeewayObjectType[] = [
   {
     id: 'piw-sitting',
     label: 'PIW – Sitting (posisi fetal)',
-    leewayRate: 0.005,
-    leewayModifier: 0.07,
+    leewayRate: 0.012,
+    leewayModifier: 0.00,
     divergenceAngle: 18,
     probableError: 0.07,
   },
   {
     id: 'piw-vertical-2',
-    label: 'PIW – Vertical (variant 2)',
-    leewayRate: 0.012,
-    leewayModifier: 0.00,
+    label: 'PIW – Vertical',
+    leewayRate: 0.005,
+    leewayModifier: 0.07,
     divergenceAngle: 18,
     probableError: 0.07,
   },
@@ -507,7 +507,7 @@ export const LEEWAY_OBJECT_TYPES: LeewayObjectType[] = [
   // ── Survival Craft: Maritime Life Rafts, No Ballast Systems — Table I-1 ──
   {
     id: 'raft-1520-person',
-    label: 'Maritime life raft – No ballast systems (general, 15-20 person)',
+    label: 'Maritime life raft – Umum / avg (Table I-1)',
     leewayRate: 0.042,
     leewayModifier: 0.03,
     divergenceAngle: 28,
@@ -515,7 +515,7 @@ export const LEEWAY_OBJECT_TYPES: LeewayObjectType[] = [
   },
   {
     id: 'raft-46-person',
-    label: 'Liferaft no ballast, no canopy, no drogue (4-6 person)',
+    label: 'Liferaft no ballast systems, no canopy, no drogue',
     leewayRate: 0.057,
     leewayModifier: 0.21,
     divergenceAngle: 24,
@@ -695,7 +695,7 @@ export const LEEWAY_OBJECT_TYPES: LeewayObjectType[] = [
   },
   {
     id: 'raft-evac-slide',
-    label: 'Aviation evac/slide raft, 4-6 person',
+    label: 'Aviation life raft – Evac/Slide, 46-person',
     leewayRate: 0.028,
     leewayModifier: -0.01,
     divergenceAngle: 15,
@@ -879,6 +879,114 @@ export const LEEWAY_OBJECT_TYPES: LeewayObjectType[] = [
 
 export function getLeewayObjectById(id: string): LeewayObjectType {
   return LEEWAY_OBJECT_TYPES.find((t) => t.id === id) ?? LEEWAY_OBJECT_TYPES[0];
+}
+
+/**
+ * Kata kunci 'Search target (description)' per baris Table I-1/I-2 (Appendix I).
+ * Skor kecocokan = total panjang kata kunci yang ditemukan pada deskripsi
+ * (kata kunci lebih panjang = lebih spesifik = skor lebih besar), sehingga
+ * frasa gabungan (mis. 'no canopy no drogue') selalu mengalahkan kata umum
+ * (mis. 'raft'). Terdiri atas istilah Table I-1 asli + padanan bahasa
+ * Indonesia yang lazim dipakai pada soal kasus Basarnas.
+ */
+const LEEWAY_DESC_KEYWORDS: Record<string, string[]> = {
+  // ── PIW (Table I-1) ──
+  'piw-novice': ['piw', 'person in water', 'orang di air', 'man overboard', 'non-swimmer'],
+  'piw-vertical-2': ['piw vertical', 'piw tegak', 'vertical', 'tegak'],
+  'piw-sitting': ['piw sitting', 'sitting', 'duduk', 'fetal'],
+  'piw-lifejacket': ['survival suit', 'life jacket', 'lifejacket', 'pelampung', 'piw horizontal'],
+  'piw-scuba': ['scuba', 'wetsuit'],
+  'piw-deceased': ['deceased', 'meninggal', 'jenazah', 'korban jiwa', 'tewas'],
+  // ── Maritime life rafts (Table I-1) ──
+  'raft-1520-person': ['life raft', 'liferaft', 'rakit penyelamat', 'rakit', 'raft'],
+  'raft-46-person': ['no canopy, no drogue', 'no canopy no drogue', 'tanpa canopy tanpa drogue', 'tanpa kanopi tanpa drogue', 'no canopy', 'tanpa canopy', 'tanpa kanopi'],
+  'raft-noballast-drogue': ['no canopy, w/ drogue', 'no canopy with drogue', 'no canopy drogue', 'tanpa canopy dengan drogue', 'with drogue', 'dengan drogue', 'drogue'],
+  'raft-canopy-no-drogue': ['canopy, no drogue', 'canopy no drogue', 'canopy without drogue', 'canopy tanpa drogue', 'kanopi tanpa drogue', 'canopy', 'kanopi'],
+  'raft-canopy-drogue': ['canopy, w/ drogue', 'canopy with drogue', 'canopy drogue', 'canopy and drogue', 'canopy dan drogue', 'canopy dengan drogue', 'kanopi dengan drogue', 'kanopi dan drogue', 'kanopi drogue', 'canopy', 'kanopi'],
+  'dinghy-upright': ['shallow ballast', 'ballast dangkal'],
+  'raft-shallow-ballast-nodrogue': ['shallow ballast no drogue', 'shallow ballast, no drogue', 'shallow ballast without drogue', 'ballast dangkal tanpa drogue', 'ballast dangkal, tanpa drogue'],
+  'raft-shallow-ballast-drogue': ['shallow ballast with drogue', 'shallow ballast, with drogue', 'shallow ballast drogue', 'ballast dangkal dengan drogue', 'ballast dangkal, dengan drogue'],
+  'dinghy-fibreglass': ['shallow ballast capsized', 'shallow ballast terbalik', 'rakit terbalik', 'capsized', 'terbalik'],
+  'raft-deep-ballast': ['deep ballast life raft', 'deep ballast', 'ballast dalam'],
+  'deep-ballast-raft-default': ['deep ballast default', 'deep ballast umum'],
+  'deep-ballast-46-wodrogue-light': ['4-6 person without drogue light', '4-6 orang tanpa drogue ringan', '4-6 person', '4-6 orang', '4-6'],
+  'deep-ballast-46-wodrogue-heavy': ['4-6 person without drogue heavy', '4-6 orang tanpa drogue berat', 'without drogue heavy', 'tanpa drogue berat'],
+  'deep-ballast-46-drogue-light': ['4-6 person with drogue light', '4-6 orang dengan drogue ringan', 'with drogue light', 'dengan drogue ringan'],
+  'deep-ballast-46-drogue-heavy': ['4-6 person with drogue heavy', '4-6 orang dengan drogue berat', 'with drogue heavy', 'dengan drogue berat'],
+  'deep-ballast-1525-default': ['15-25 person', '15-25 orang', '15-25'],
+  'deep-ballast-1525-wodrogue-light': ['15-25 person w/o drogue light', '15-25 w/o drogue', '15-25 tanpa drogue ringan', '15-25 person', '15-25', 'w/o drogue'],
+  'deep-ballast-1525-drogue': ['15-25 person with drogue', '15-25 dengan drogue', '15-25 person', '15-25', 'with drogue'],
+  'deep-ballast-capsized': ['deep ballast capsized', 'deep ballast terbalik'],
+  'deep-ballast-swamped': ['deep ballast swamped', 'deep ballast terisi air'],
+  // ── Other maritime survival craft & aviation rafts (Table I-1) ──
+  'life-capsule': ['capsule', 'kapsul'],
+  'uscg-sea-rescue-kit': ['uscg', 'sea rescue kit'],
+  'raft-aviation-46': ['aviation', 'raft pesawat', 'no ballast w/ canopy', 'aircraft raft'],
+  'raft-evac-slide': ['evac', 'evacuation slide', 'slide raft', '46-person', '46 person'],
+  // ── Person-powered craft (Table I-1) ──
+  'sea-kayak': ['kayak'],
+  'surf-board': ['surf board', 'surfboard', 'papan selancar'],
+  'windsurfer': ['windsurfer', 'sailboard'],
+  // ── Sailing vessels (Table I-1) ──
+  'sailboat': ['full keel', 'mono-hull', 'monohull', 'sailing', 'yacht', 'kapal layar', 'layar'],
+  'sailboat-fin-keel': ['fin keel'],
+  // ── Power vessels (Table I-1) ──
+  'skiff-flat-bottom': ['flat bottom', 'boston whaler', 'whaler'],
+  'skiff-v-hull': ['v-hull', 'v hull', 'skiff'],
+  'skiff-swamped': ['skiff swamped', 'perahu swamped', 'swamped', 'terisi air'],
+  'sport-boat-cuddy': ['cuddy', 'sport boat'],
+  'sport-fisher-center-console': ['center console', 'sport fisher', 'sportfisher'],
+  'small-fishing': ['fishing vessel', 'kapal nelayan', 'kapal ikan', 'fishing'],
+  'fishing-sampans': ['sampan'],
+  'commercial-fishing': ['side-stern', 'side stern', 'trawler', 'pukat'],
+  'fishing-longliners': ['longliner', 'longline'],
+  'fishing-junk': ['junk', 'junco'],
+  'fishing-gill-netter': ['gill-netter', 'gillnetter', 'gill netter', 'rear reel', 'gill'],
+  'merchant-vessel': ['coastal freighter', 'freighter', 'merchant'],
+  // ── Boating debris (Table I-1) ──
+  'debris-fv': ['fishing vessel debris', 'f/v debris', 'fv debris', 'debris kapal nelayan', 'debris', 'puing'],
+  'debris-bait-box': ['bait/wharf', 'bait box', 'kotak umpan', 'bait', 'wharf'],
+  'debris-bait-box-light': ['bait box lightly', 'lightly loaded', 'beban ringan', 'bait/wharf', 'bait', 'wharf'],
+  'debris-bait-box-full': ['bait box fully', 'fully loaded', 'beban penuh', 'bait/wharf', 'bait', 'wharf'],
+};
+
+/**
+ * Hasil resolusi deskripsi 'Search target (description)' ke baris Table I-1/I-2.
+ */
+export interface LeewayDescriptionMatch {
+  object: LeewayObjectType;
+  score: number;
+  matchedTerms: string[];
+}
+
+/**
+ * Pilih baris Table I-1/I-2 (Appendix I) untuk Worksheet 1 dari keterangan
+ * 'Search target (description)' — nilai Leeway speed = (Multiplier × Wind
+ * Speed) ± Modifier WAJIB mengikuti baris ini. Pencocokan kata kunci
+ * deterministik (tanpa AI): skor = total panjang kata kunci yang cocok;
+ * bila tidak ada kata kunci yang cocok → undefined (pemilihan manual di
+ * DatumWorksheet tetap berlaku; tidak mengarang baris Table I-1).
+ */
+export function resolveLeewayObjectFromDescription(description?: string | null): LeewayDescriptionMatch | undefined {
+  const text = typeof description === 'string' ? description.toLowerCase() : '';
+  if (text.trim() === '') return undefined;
+  let best: { id: string; score: number; matched: string[] } | null = null;
+  for (const entry of LEEWAY_OBJECT_TYPES) {
+    const terms = LEEWAY_DESC_KEYWORDS[entry.id];
+    if (!terms) continue;
+    let score = 0;
+    const matched: string[] = [];
+    for (const term of terms) {
+      if (text.includes(term)) {
+        score += term.length;
+        matched.push(term);
+      }
+    }
+    if (score <= 0) continue;
+    if (!best || score > best.score) best = { id: entry.id, score, matched };
+  }
+  if (!best) return undefined;
+  return { object: getLeewayObjectById(best.id), score: best.score, matchedTerms: best.matched };
 }
 
 export interface LWResult {

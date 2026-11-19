@@ -75,8 +75,10 @@ describe('Ketentuan 4 & 5 — Leeway Table I-1/I-2 per Search target', () => {
 
   test('nilai persis dari Table I-1 (PDF)', () => {
     expect(getLeewayObjectById('piw-novice')).toMatchObject({ leewayRate: 0.011, leewayModifier: 0.07, divergenceAngle: 30 });
-    expect(getLeewayObjectById('piw-sitting')).toMatchObject({ leewayRate: 0.005, leewayModifier: 0.07, divergenceAngle: 18 });
-    expect(getLeewayObjectById('piw-vertical-2')).toMatchObject({ leewayRate: 0.012, leewayModifier: 0.00, divergenceAngle: 18 });
+    // FIX: nilai sitting/vertical sebelumnya tertukar — Table I-1 (I-3, AL1/04):
+    // Sitting = 0.012/0.00/18, Vertical = 0.005/0.07/18.
+    expect(getLeewayObjectById('piw-sitting')).toMatchObject({ leewayRate: 0.012, leewayModifier: 0.00, divergenceAngle: 18 });
+    expect(getLeewayObjectById('piw-vertical-2')).toMatchObject({ leewayRate: 0.005, leewayModifier: 0.07, divergenceAngle: 18 });
     expect(getLeewayObjectById('piw-lifejacket')).toMatchObject({ leewayRate: 0.014, leewayModifier: 0.10, divergenceAngle: 30 });
     expect(getLeewayObjectById('piw-scuba')).toMatchObject({ leewayRate: 0.007, leewayModifier: 0.08, divergenceAngle: 30 });
     expect(getLeewayObjectById('piw-deceased')).toMatchObject({ leewayRate: 0.015, leewayModifier: 0.08, divergenceAngle: 30 });

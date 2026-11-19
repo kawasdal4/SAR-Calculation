@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { BookOpen, ExternalLink, FileText, Table2 } from 'lucide-react';
 import {
   Dialog,
@@ -102,10 +102,20 @@ const WORKSHEET_REFS: { ws: string; refs: string; docIds: string[] }[] = [
 interface AusSarManualDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Dokumen yang dipilih saat dialog dibuka (mis. 'appendix-i' untuk Table I-1/I-2 leeway dari Worksheet 1). */
+  initialDocId?: string;
 }
 
-export default function AusSarManualDialog({ open, onOpenChange }: AusSarManualDialogProps) {
+export default function AusSarManualDialog({ open, onOpenChange, initialDocId }: AusSarManualDialogProps) {
   const [selectedDocId, setSelectedDocId] = useState<string>('combined');
+  // Rujukan dari worksheet (mis. tombol "Lihat Table I-1/I-2" Worksheet 1):
+  // saat dialog dibuka dengan initialDocId yang dikenal, langsung tampilkan
+  // dokumen yang dirujuk; bila tidak, pilihan sebelumnya tetap berlaku.
+  useEffect(() => {
+    if (open && initialDocId && MANUAL_DOCS.some((doc) => doc.id === initialDocId)) {
+      setSelectedDocId(initialDocId);
+    }
+  }, [open, initialDocId]);
   const selectedDoc = MANUAL_DOCS.find((doc) => doc.id === selectedDocId) ?? MANUAL_DOCS[0];
   const selectedUrl = `${R2_BASE}/${selectedDoc.file}`;
 

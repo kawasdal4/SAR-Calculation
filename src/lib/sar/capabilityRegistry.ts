@@ -371,7 +371,7 @@ export const SAR_CAPABILITY_REGISTRY: SARCapability[] = [
       latitude: f('number', 'Lintang absolut (untuk divergensi WC)'),
       seaCurrentDir: f('number', 'Arah arus laut (SET, °T)'),
       seaCurrentSpeed: f('number', 'Kecepatan arus laut', { unit: 'kts' }),
-      leewayObjectId: f('string', 'ID objek Table I-1 (13 jenis, mis. raft-noballast-drogue)'),
+      leewayObjectId: f('string', 'ID baris objek Table I-1/I-2 Appendix I (51 jenis — lihat daftar di skema tool set_datum_case; mis. raft-noballast-drogue)'),
       X: f('number', 'Error posisi target (NM, Table J-1 — GPS 0.1, Radar/Visual/LORAN C 1.0, Celestial 2.0, MRB 4.0, INS/VOR-TACAN 0.5)'),
       Y: f('number', 'Error posisi SRU (NM, Table J-1 — SRU pencari pakai GPS → 0.1, Radar/Visual/LORAN C 1.0, Celestial 2.0, MRB 4.0, INS/VOR-TACAN 0.5)'),
     }, ['start', 'driftInterval', 'aswDirFrom', 'aswSpeed', 'seaCurrentDir', 'seaCurrentSpeed', 'leewayObjectId']),
