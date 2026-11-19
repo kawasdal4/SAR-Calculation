@@ -561,6 +561,11 @@ export default function Home() {
     };
   }, [awaObservations, awaContext, aswState, loadedInitialState, aeroDraft, datumState, searchState, worksheet1Fs, ws1Measured, lkp, assets, patternType, patternAssetId, patternTurn, tsReturn, patternOrientationText, patternEnvironment, patternWorksheetSource, patternLandHeight, sectorAngleText, sectorLegLengthText, sectorLegCountText, trackLineLengthText, tsReturnOffsetText, windOverride, seaCurrentOverride, visibilityOverride, driftIntervalForWeather, adwSyncLkp, ws2Sheets, ws3Sheets, ws8Sheets, ws2TrackSpacings, ws3TrackSpacings, ws8TrackSpacings, ws4State, interceptState, aiInterceptInput, briefingState, renopsState]);
 
+  // Fase 2 AI Copilot: snapshot state untuk tool server-side (get_state /
+  // run_pipeline / validate_plan). Stabil per perubahan state — identitas
+  // objek hanya berubah bila salah satu dependensi buildState berubah.
+  const aiStateSnapshot = useMemo(() => buildState().state, [buildState]);
+
   /** Apply loaded state */
   const applyState = useCallback((state: Record<string, unknown>) => {
     const awa = (state.awa ?? {}) as AWAInitialState;
@@ -3531,6 +3536,7 @@ export default function Home() {
         onApplySearchPattern={handleApplySearchPattern}
         onApplyIntercept={handleApplyIntercept}
         onApplySetFields={handleApplySetFields}
+        stateSnapshot={aiStateSnapshot}
         onFocusWorksheet={(worksheet) => setActiveTab(worksheet === 'datum' ? 'ws1' : worksheet)}
         activeWorkspace={activeSarCase}
         workspaceEntries={wsContextEntries}

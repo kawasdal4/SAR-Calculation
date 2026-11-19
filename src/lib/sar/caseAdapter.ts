@@ -380,25 +380,34 @@ export function buildCaseWorksheetSeeds(
       const target = incident.type === 'person-overboard'
         ? 'piw' as W2Target
         : w2TargetFromRaftCapacity(incident.lifeRaftCapacityPerRaft, incident.pob);
-      if (sru.visibilityKm === undefined) {
+      if (sru.visibilityKm === undefined && sru.sheet?.visibilityIndex === undefined) {
         assumptions.push({ field: `ws2[${sru.callsign}].visibilityIndex`, reason: 'Visibility SRU tidak disebut — lembar belum siap dihitung (MISSING).' });
       }
+      // Fase 2: data lembar live (sru.sheet) MENANG atas derivation — input
+      // worksheet persis seperti tampil di aplikasi (stateToCase). Tanpa
+      // sheet, derivation lama dipakai apa adanya (fixture Fase 1 tak berubah).
+      const sheet = sru.sheet;
       seeds.ws2Sheets.push({
         sruName: sru.callsign,
         data: {
           caseTitle: sarCase.caseTitle,
           sruName: sru.callsign,
-          searchPlatform: sru.kind === 'helicopter' ? 'helicopter' : 'fixed-wing',
+          searchPlatform: sheet?.searchPlatform ?? (sru.kind === 'helicopter' ? 'helicopter' : 'fixed-wing'),
           searchTas: sru.tasSearchKts ?? sru.tasMaxKts,
-          searchObject: target,
-          visibilityIndex,
-          isFatigue: fatigue,
-          piwFlotationKnown: false,
-          searchNumber,
-          selectedHeight,
-          caseWindDirFrom: caseWind.caseWindDirFrom,
-          caseWindSpeed: caseWind.caseWindSpeed,
-          ...(sarCase.sea?.waveHeightM !== undefined ? { caseWaveHeightM: sarCase.sea.waveHeightM } : {}),
+          searchObject: sheet?.searchObject ?? target,
+          visibilityIndex: sheet?.visibilityIndex ?? visibilityIndex,
+          isFatigue: sheet?.isFatigue ?? fatigue,
+          piwFlotationKnown: sheet?.piwFlotationKnown ?? false,
+          searchNumber: sheet?.searchNumber ?? searchNumber,
+          selectedHeight: (sheet?.selectedHeightFt as 500 | 1000 | 1500 | 2000 | undefined) ?? selectedHeight,
+          hoursAvailable: sheet?.hoursAvailable,
+          caseWindDirFrom: sheet?.caseWindDirFrom ?? caseWind.caseWindDirFrom,
+          caseWindSpeed: sheet?.caseWindSpeed ?? caseWind.caseWindSpeed,
+          ...(sheet?.caseWaveHeightM !== undefined || sarCase.sea?.waveHeightM !== undefined
+            ? { caseWaveHeightM: sheet?.caseWaveHeightM ?? sarCase.sea?.waveHeightM }
+            : {}),
+          ...(sheet?.fwOverride !== undefined ? { fwOverride: sheet.fwOverride } : {}),
+          ...(sheet?.fsOverride !== undefined ? { fsOverride: sheet.fsOverride } : {}),
         },
       });
     } else {
@@ -406,24 +415,29 @@ export function buildCaseWorksheetSeeds(
       const target = incident.type === 'person-overboard'
         ? 'person' as W8Target
         : w8TargetFromRaftCapacity(incident.lifeRaftCapacityPerRaft, incident.pob);
-      if (sru.visibilityKm === undefined) {
+      if (sru.visibilityKm === undefined && sru.sheet?.visibilityKm === undefined) {
         assumptions.push({ field: `ws8[${sru.callsign}].visibilityKm`, reason: 'Visibility SRU tidak disebut — lembar belum siap dihitung (MISSING).' });
       }
+      const sheet = sru.sheet;
       seeds.ws8Sheets.push({
         sruName: sru.callsign,
         data: {
           caseTitle: sarCase.caseTitle,
           sruName: sru.callsign,
-          sruType: sruTypeFromCase(sru),
-          eyeHeight: eyeHeightForVessel(sru),
-          searchObject: target,
-          visibilityKm,
-          isFatigue: fatigue,
-          searchNumber,
-          vesselSpeedKts: sru.tasSearchKts ?? sru.tasMaxKts,
-          caseWindDirFrom: caseWind.caseWindDirFrom,
-          caseWindSpeed: caseWind.caseWindSpeed,
-          ...(sarCase.sea?.waveHeightM !== undefined ? { caseWaveHeightM: sarCase.sea.waveHeightM } : {}),
+          sruType: sheet?.sruType ?? sruTypeFromCase(sru),
+          eyeHeight: sheet?.eyeHeight ?? eyeHeightForVessel(sru),
+          searchObject: sheet?.searchObject ?? target,
+          visibilityKm: sheet?.visibilityKm ?? visibilityKm,
+          isFatigue: sheet?.isFatigue ?? fatigue,
+          searchNumber: sheet?.searchNumber ?? searchNumber,
+          vesselSpeedKts: sheet?.vesselSpeedKts ?? (sru.tasSearchKts ?? sru.tasMaxKts),
+          hoursAvailable: sheet?.hoursAvailable,
+          caseWindDirFrom: sheet?.caseWindDirFrom ?? caseWind.caseWindDirFrom,
+          caseWindSpeed: sheet?.caseWindSpeed ?? caseWind.caseWindSpeed,
+          ...(sheet?.caseWaveHeightM !== undefined || sarCase.sea?.waveHeightM !== undefined
+            ? { caseWaveHeightM: sheet?.caseWaveHeightM ?? sarCase.sea?.waveHeightM }
+            : {}),
+          ...(sheet?.fwOverride !== undefined ? { fwOverride: sheet.fwOverride } : {}),
         },
       });
     }

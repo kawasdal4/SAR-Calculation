@@ -204,6 +204,47 @@ export const searchSchema = z.object({
 });
 export type CaseSearch = z.infer<typeof searchSchema>;
 
+/** Data lembar worksheet live (WS 2 udara / WS 8 laut) yang menyertai SRU.
+ *  Dipetakan VERBATIM dari state worksheet oleh `stateToCase()` (Fase 2) agar
+ *  `run_pipeline`/`run_worksheet` memakai input worksheet PERSIS seperti yang
+ *  tampil di aplikasi — bukan re-derivation dari data soal. Semua field
+ *  opsional; `buildCaseWorksheetSeeds()` memakai nilai ini bila ada dan
+ *  kembali ke derivation lama bila tidak (perilaku fixture Fase 1 tak berubah). */
+export const sruSheetSchema = z.object({
+  /** Jenis lembar worksheet asal data. */
+  kind: z.enum(['ws2', 'ws8']).optional(),
+  /** WS 8: jenis kapal (mata gambar/label Tabel I-3/I-4). */
+  sruType: z.enum(['rescue-vessel', 'patrol-boat', 'rib', 'sea-rider']).optional(),
+  /** WS 2: platform pencari udara. */
+  searchPlatform: z.enum(['fixed-wing', 'helicopter']).optional(),
+  /** Id objek pencarian Tabel I-3..I-6 (mis. raft6, piw, ship27). */
+  searchObject: z.string().optional(),
+  /** WS 2: indeks kolom visibility (0=2 km … 5=>40 km). */
+  visibilityIndex: z.number().int().min(0).max(5).optional(),
+  /** WS 8: label visibility (mis. "10", ">25"). */
+  visibilityKm: z.string().optional(),
+  /** WS 2: ketinggian terpilih (ft). */
+  selectedHeightFt: z.number().optional(),
+  isFatigue: z.enum(['Yes', 'No']).optional(),
+  /** WS 2: flotation PIW diketahui (Wu ×4 @500 ft). */
+  piwFlotationKnown: z.boolean().optional(),
+  /** Nomor pencarian 1–5. */
+  searchNumber: z.number().int().min(1).max(5).optional(),
+  hoursAvailable: z.number().min(0).optional(),
+  /** WS 8: eye height (8=Small craft, 14=Patrol boat, MERSHIP). */
+  eyeHeight: z.enum(['8', '14', 'MERSHIP']).optional(),
+  vesselSpeedKts: z.number().min(0).optional(),
+  /** Angin kasus header (arah DARI, °T) — penentu baris Fw Table I-7. */
+  caseWindDirFrom: z.number().min(0).max(360).optional(),
+  caseWindSpeed: z.number().min(0).optional(),
+  /** Tinggi gelombang kasus (m) — penentu baris Fw. */
+  caseWaveHeightM: z.number().min(0).optional(),
+  /** Override planner atas nilai tabel (0 = kembali ke tabel). */
+  fwOverride: z.number().min(0).optional(),
+  fsOverride: z.number().min(0).optional(),
+});
+export type CaseSruSheet = z.infer<typeof sruSheetSchema>;
+
 /** Satu SRU/alut — memetakan baris tabel "Data asset SRU" soal. */
 export const sruSchema = z.object({
   callsign: z.string(),
@@ -225,6 +266,9 @@ export const sruSchema = z.object({
   captain: z.string().optional(),
   phoneSatellite: z.string().optional(),
   navigation: z.array(z.string()).optional(),
+  /** Data lembar worksheet live (WS 2/WS 8) bila kasus berasal dari snapshot
+   *  aplikasi — dipakai verbatim oleh seeds/pipeline (lihat sruSheetSchema). */
+  sheet: sruSheetSchema.optional(),
 });
 export type CaseSru = z.infer<typeof sruSchema>;
 

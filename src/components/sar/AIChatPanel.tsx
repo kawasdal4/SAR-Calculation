@@ -53,6 +53,9 @@ interface ChatMessage {
   applied?: boolean;
   /** PHASE 5: pengguna membatalkan pratinjau — tidak ada data diterapkan. */
   dismissed?: boolean;
+  /** Fase 2: hasil tool server-side (get_state, lookup_table, run_worksheet,
+   *  run_pipeline, validate_plan) — informasi saja; tool ini tidak mengubah state. */
+  serverToolCalls?: Array<{ name: string; ok: boolean; summary: string }>;
 }
 
 interface AIChatPanelProps {
@@ -100,6 +103,9 @@ interface AIChatPanelProps {
    *  no.5). Validasi registry dilakukan di sini dengan parseSetFieldsArgs;
    *  applier di page menulis state via setter yang sama dengan handler lain. */
   onApplySetFields?: (applied: SetFieldsApplied) => boolean;
+  /** Fase 2: snapshot state worksheet (buildState().state) untuk tool server-side
+   *  get_state/run_pipeline/validate_plan — hanya-dibaca di server. */
+  stateSnapshot?: Record<string, unknown> | null;
   onFocusWorksheet?: (worksheet: string) => void;
   isOpen?: boolean;
   onToggle?: (open: boolean) => void;
@@ -801,6 +807,12 @@ export default function AIChatPanel({
         };
         if (sessionId) requestPayload.sessionId = sessionId;
         if (activeWorkspace?.id) requestPayload.caseId = activeWorkspace.id;
+        // Fase 2: snapshot state worksheet (get_state/run_pipeline/validate_plan
+        // di server memakai data TERKONFIRMASI — tanpa ini tool mengembalikan
+        // pesan "state tidak tersedia").
+        if (stateSnapshot && Object.keys(stateSnapshot).length > 0) {
+          requestPayload.state = stateSnapshot;
+        }
         // SAR Workflow Memory: blok konteks selektif workspace aktif ikut dikirim
         // (retrieval selektif — bukan seluruh DB/riwayat).
         if (workspaceContextBlock) requestPayload.workspaceContext = workspaceContextBlock;
@@ -835,6 +847,7 @@ export default function AIChatPanel({
               error?: string;
               text?: string;
               functionCalls?: ChatMessage['functionCalls'];
+              serverToolCalls?: ChatMessage['serverToolCalls'];
               bankFallback?: Array<{ caseTitle?: string | null; incidentType?: string; rawText?: string; fields?: unknown[] }>;
             };
             try {
@@ -892,6 +905,9 @@ export default function AIChatPanel({
               role: 'assistant',
               content: data.text || 'Server tidak mengirim teks jawaban.',
               functionCalls: normalizedCalls,
+              ...(Array.isArray(data.serverToolCalls) && data.serverToolCalls.length > 0
+                ? { serverToolCalls: data.serverToolCalls }
+                : {}),
             };
             if (mutating.length > 0) {
               const targets = [...new Set(buildChatPreviewContracts(mutating).map((c) => c.target))];
@@ -1333,6 +1349,25 @@ export default function AIChatPanel({
                   )}
 
                   <div className="whitespace-pre-wrap">{msg.content}</div>
+
+                  {/* Fase 2: hasil tool server-side (hanya-dibaca) — transparansi
+                      bahwa angka berasal dari engine aplikasi, bukan karangan. */}
+                  {msg.serverToolCalls && msg.serverToolCalls.length > 0 && (
+                    <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 space-y-1">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                        Hasil tool aplikasi (server)
+                      </p>
+                      {msg.serverToolCalls.map((tool, ti) => (
+                        <div key={ti} className="text-[11px] leading-snug text-slate-700 flex gap-1.5">
+                          <span className={tool.ok ? 'text-emerald-600' : 'text-amber-600'}>
+                            {tool.ok ? 'OK' : 'GAGAL'}
+                          </span>
+                          <span className="font-mono text-[10px] text-slate-500">{tool.name}</span>
+                          <span className="flex-1">{tool.summary}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Function Call / Action Card */}
                   {msg.functionCalls && msg.functionCalls.length > 0 && (

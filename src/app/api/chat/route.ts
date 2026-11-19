@@ -23,6 +23,23 @@ import { processUploadedFile } from '@/lib/sar/fileExtractor';
 import type { DataBankField, RawQuestion } from '@/lib/sar/dataBank';
 import { buildChainCompletionInstruction, computeMissingWorksheetTools, matchWorksheetToolNames, parseDeclaredWorksheetTools, type WorksheetToolName } from '@/lib/sar/caseChain';
 import { setFieldsToolDescription, setFieldsToolParameters } from '@/lib/ai/tools/setFields';
+import { SERVER_TOOL_DECLARATIONS, SERVER_EXECUTABLE_TOOL_NAMES, executeServerTool } from '@/lib/ai/tools/serverTools';
+
+/** Gabungkan pemakaian token beberapa putaran interaction (penjumlahan aman). */
+function mergeInteractionUsage(
+  base: InteractionUsage | undefined,
+  addition: InteractionUsage | undefined,
+): InteractionUsage | undefined {
+  if (!base) return addition;
+  if (!addition) return base;
+  const sum = (a?: number, b?: number): number | undefined =>
+    a !== undefined || b !== undefined ? (a ?? 0) + (b ?? 0) : undefined;
+  return {
+    inputTokens: sum(base.inputTokens, addition.inputTokens),
+    outputTokens: sum(base.outputTokens, addition.outputTokens),
+    totalTokens: sum(base.totalTokens, addition.totalTokens),
+  };
+}
 
 const SYSTEM_PROMPT = `Kamu adalah Asisten SAR Planner AI untuk Badan SAR Nasional (Basarnas) Indonesia.
 Kamu membantu dalam perhitungan dan analisis operasi SAR berdasarkan panduan operasi SAR dan Peraturan No. 3 Tahun 2020.
@@ -117,6 +134,13 @@ FORMAT TANGGAL-WAKTU (TW / DTG) — WAJIB dipahami untuk menafsirkan soal kasus:
 - DTG tanpa tahun berarti tahun berjalan (mis. NOV 2026 = November 2026); bila tanggalnya 29-31 periksa kecocokan dengan bulannya. Jangan mengarang tanggal/tahun yang tidak tertulis di soal.
 - Saat mengisi tool worksheet (distressTime, datumTime, incidentTime, date, dll), tuliskan waktu dalam bentuk yang SUDAH ditafsirkan, mis. "17 Nov 2026 18:47 WIB (DTG 171847G NOV 2026)", agar worksheet memakai tanggal-waktu yang benar dan jejak format asal tetap tersimpan. Format apa pun diterima — aplikasi otomatis mengonversinya ke format Basarnas MMDD.HHMM Z di worksheet.
 - Waktu distress worksheet ASW dihitung aplikasi otomatis dari ADW: A.1 (waktu insiden) + B.7 (menit turun seluruh segmen aktif, dibulatkan setengah-ke-atas ke menit utuh). Kirim distressTime dari soal apa adanya; bila kasus dihitung ADW, nilai turunan ADW yang dipakai worksheet.
+
+TOOL SERVER-SIDE (baca/hitung — hasil langsung dari aplikasi, TIDAK mengubah state):
+- get_state: lihat field worksheet yang SUDAH terisi (state terkonfirmasi pengguna) + kelengkapan data wajib. Gunakan SEBELUM menyarankan pengisian bila keadaan worksheet belum diketahui.
+- lookup_table: nilai TABEL REFERENSI resmi (leeway I-1/I-2, Wu I-3..I-6, Fw I-7, Fs I-8, fs pencarian, darat I-9/I-10, galat J-1..J-3, ROD N-13, drift N-14, POD Fig I-12, arus angin Fig I-1). WAJIB dipakai untuk nilai tabel — DILARANG mengarang nilai appendix. Hasil menyertakan status VERIFIED/UNVERIFIED/MISSING: nilai UNVERIFIED/MISSING TIDAK BOLEH dinyatakan resmi/final — minta sumber atau konfirmasi planner.
+- run_worksheet / run_pipeline: jalankan ENGINE RESMI aplikasi atas state terkonfirmasi (ASW → AWA → ADW → Datum → WS 2/WS 8 → pola → alokasi aset). Sampaikan angka hasil apa adanya sebagai "hasil engine aplikasi" — JANGAN menghitung ulang dan JANGAN mengarang angka. WS 3/WS 4/Intercept belum didukung pipeline — angkanya dihasilkan worksheet aplikasi.
+- validate_plan: periksa konsistensi kasus (koordinat, sudut 0–360, konvensi arah angin DARI/arus KE, satuan, endurance, kategori leeway) SEBELUM menyarankan pengisian; issue error diperbaiki lewat set_*, warning dikonfirmasi ke pengguna.
+- Semua tool ini HANYA MEMBACA. Mengubah worksheet tetap lewat set_*/set_fields dengan konfirmasi pengguna. Hasilnya berdasarkan state SAAT PESAN DIKIRIM — tool set_* yang baru dipanggil belum termasuk sampai pengguna menekan "Terapkan ke Worksheet".
 
 WORKSHEET YANG TERSEDIA:
 - ASW (Average Surface Wind): Menghitung rata-rata angin permukaan. Observasi per 3 atau 6 jam dari BMKG.
@@ -730,6 +754,10 @@ const tools: FunctionDeclaration[] = [
     description: setFieldsToolDescription(),
     parameters: setFieldsToolParameters() as FunctionDeclaration['parameters'],
   },
+  // Fase 2 (keputusan no.5/6): tool server-side baca/hitung — dieksekusi DI
+  // SERVER dengan engine resmi (stateTools/lookupTable), hasil dikembalikan
+  // ke model sebagai function_result; DILARANG dipakai menulis state.
+  ...SERVER_TOOL_DECLARATIONS as FunctionDeclaration[],
 ];
 
 // Rantai fallback default (Nov 2026): urutan menurut ketersediaan kuota Free
@@ -1033,7 +1061,7 @@ export async function POST(req: NextRequest) {
   try {
     // Fase 2 (keputusan no.1): API key HANYA dari env server-side — key dari
     // client (kalau masih dikirim versi lama) DIABAIKAN dan tidak pernah dipakai.
-    const { messages, files, workspaceContext, sessionId, caseId } = await req.json();
+    const { messages, files, workspaceContext, sessionId, caseId, state } = await req.json();
 
     const apiKey = getGeminiApiKey();
     if (!apiKey) {
@@ -1046,6 +1074,12 @@ export async function POST(req: NextRequest) {
     hoistedSessionId = typeof sessionId === 'string' && /^[\w\-]{8,64}$/.test(sessionId) ? sessionId : null;
     hoistedCaseId = typeof caseId === 'string' && caseId.length > 0 && caseId.length <= 64 ? caseId : null;
     hoistedStartedAt = Date.now();
+    // Fase 2: snapshot state worksheet dari client (bentuk buildState().state).
+    // Bahan tool server-side get_state/run_worksheet/run_pipeline/validate_plan;
+    // hanya-dibaca — tool server TIDAK pernah menulis state worksheet.
+    const appState = state && typeof state === 'object' && !Array.isArray(state)
+      ? (state as Record<string, unknown>)
+      : undefined;
 
     // SAR Workflow Memory: konteks terstruktur workspace aktif (retrieval
     // selektif sudah dilakukan klien — hanya blok ringkas yang dikirim).
@@ -1272,10 +1306,14 @@ ATURAN MEMORI WORKSPACE:
             })),
             timeoutMs: attemptTimeoutMs,
           });
+          // store:true juga bila snapshot state ada — putaran lanjutan tool
+          // server-side (function_result) membutuhkan interaction tersimpan.
+          // Keputusan no.4 sudah menyetujui chaining server-side.
+          const shouldStore = useChain || appState !== undefined;
           let callResult = await callGeminiInteraction({
             ...buildCallArgs(useChain ? chainedInput : input),
             previousInteractionId: useChain ? (prevInteractionId ?? undefined) : undefined,
-            store: useChain,
+            store: shouldStore,
           });
           if (useChain) usedPrevInteractionId = prevInteractionId;
           // Keputusan no.4: interaction ID kedaluwarsa/invalid → REBUILD konteks
@@ -1392,6 +1430,84 @@ ATURAN MEMORI WORKSPACE:
     let functionCalls: GeminiFunctionCallStep[] = steps.filter((step): step is GeminiFunctionCallStep =>
       step.type === 'function_call' && typeof step.name === 'string'
     );
+
+    // ── Fase 2: loop eksekusi tool server-side ────────────────────────────────
+    // get_state/lookup_table/run_worksheet/run_pipeline/validate_plan dibaca/
+    // dihitung DI SERVER dengan engine resmi; hasil dikembalikan ke model
+    // (function_result + previous_interaction_id, keputusan no.4) sampai model
+    // berhenti memanggil tool ini (maks 4 putaran; anggaran waktu dijaga).
+    // Tool ini TIDAK PERNAH menulis state — pengisian tetap lewat set_*/set_fields
+    // dengan pratinjau + konfirmasi pengguna (kontrak apply).
+    const serverToolLog: Array<{ name: string; ok: boolean; summary: string }> = [];
+    if (resultInteractionId && !interceptCaseDetected) {
+      for (let serverRound = 1; serverRound <= 4; serverRound += 1) {
+        const serverCalls = functionCalls.filter((fc) =>
+          (SERVER_EXECUTABLE_TOOL_NAMES as readonly string[]).includes(fc.name));
+        if (serverCalls.length === 0) break;
+        const remainingMs = geminiDeadlineMs - Date.now();
+        if (remainingMs < 45_000) {
+          console.warn('[AI chat] Putaran tool server dihentikan: anggaran waktu menipis.');
+          break;
+        }
+        const functionResultInput = serverCalls.map((fc) => {
+          const callId = typeof fc.call_id === 'string' ? fc.call_id
+            : typeof fc.id === 'string' ? fc.id : undefined;
+          const toolResult = executeServerTool(fc.name, fc.arguments, { state: appState });
+          serverToolLog.push({ name: fc.name, ok: toolResult.ok, summary: toolResult.summary });
+          return {
+            type: 'function_result',
+            name: fc.name,
+            ...(callId ? { call_id: callId } : {}),
+            result: [{ type: 'text', text: toolResult.json }],
+          };
+        });
+        console.info(`[AI chat] Putaran tool server ${serverRound}: ${serverCalls.map((fc) => fc.name).join(', ')}.`);
+        const contResult = await callGeminiInteraction({
+          model: usedModel,
+          input: functionResultInput as Array<Record<string, unknown>>,
+          systemInstruction: effectiveSystemPrompt,
+          generationConfig: {
+            max_output_tokens: 32768,
+            ...(getThinkingLevel(usedModel) ? { thinking_level: getThinkingLevel(usedModel) } : {}),
+          },
+          tools: tools.map((tool) => ({
+            type: 'function',
+            name: tool.name,
+            description: tool.description,
+            parameters: normalizeSchema(tool.parameters),
+          })),
+          previousInteractionId: resultInteractionId ?? undefined,
+          store: true,
+          timeoutMs: Math.min(GEMINI_REQUEST_TIMEOUT_MS, remainingMs - 8_000),
+        });
+        if (!contResult.ok) {
+          console.warn(`[AI chat] Lanjutan function_result gagal (HTTP ${contResult.status}); pakai hasil yang sudah terkumpul.`);
+          break;
+        }
+        steps = steps.concat(contResult.steps as RawGeminiStep[]);
+        resultInteractionId = contResult.interactionId ?? resultInteractionId;
+        resultUsage = mergeInteractionUsage(resultUsage, contResult.usage);
+        // Panggilan baru dari putaran lanjutan: dedupe per nama+argumen
+        // (lembar per-SRU dibedakan sruName); server tool diberi kesempatan
+        // dieksekusi di putaran berikutnya.
+        for (const call of contResult.steps) {
+          if (call.type !== 'function_call' || typeof call.name !== 'string') continue;
+          const args = (call.arguments ?? {}) as { sruName?: unknown };
+          const isSheetTool = ['set_ws2_case', 'set_ws3_case', 'set_ws8_case'].includes(call.name);
+          const dedupeKey = isSheetTool
+            ? `${call.name}::${(typeof args.sruName === 'string' ? args.sruName : '').trim().toLowerCase()}`
+            : `${call.name}::${JSON.stringify(call.arguments ?? {})}`;
+          const duplicate = functionCalls.some((fc) => {
+            const fcArgs = (fc.arguments ?? {}) as { sruName?: unknown };
+            const fcKey = ['set_ws2_case', 'set_ws3_case', 'set_ws8_case'].includes(fc.name)
+              ? `${fc.name}::${(typeof fcArgs.sruName === 'string' ? fcArgs.sruName : '').trim().toLowerCase()}`
+              : `${fc.name}::${JSON.stringify(fc.arguments ?? {})}`;
+            return fcKey === dedupeKey;
+          });
+          if (!duplicate) functionCalls.push(call as GeminiFunctionCallStep);
+        }
+      }
+    }
 
     // Jaring pengaman: permintaan yang tampak seperti soal kasus tetapi tidak
     // menghasilkan SATU PUN panggilan worksheet diulang dengan tool_choice
@@ -1540,7 +1656,10 @@ ATURAN MEMORI WORKSPACE:
         args: fc.arguments || {},
       }));
       const clarificationCalls = calls.filter((call) => call.name === 'ask_for_case_data');
-      const worksheetCalls = calls.filter((call) => call.name !== 'ask_for_case_data' && call.name !== 'save_case_data_bank');
+      // Tool server-side (get_state/lookup_table/run_*/validate_plan) sudah
+      // dieksekusi di server — TIDAK dikirim ke client untuk di-apply.
+      const worksheetCalls = calls.filter((call) => call.name !== 'ask_for_case_data' && call.name !== 'save_case_data_bank'
+        && !(SERVER_EXECUTABLE_TOOL_NAMES as readonly string[]).includes(call.name));
 
       // BANK DATA: persist hanya bila ada maksud penyusunan dokumen. Soal
       // perhitungan biasa tidak perlu Bank Data (permintaan pengguna aplikasi);
@@ -1619,6 +1738,7 @@ ATURAN MEMORI WORKSPACE:
       return NextResponse.json({
         text: `${usedModel !== modelChain[0] ? 'Model utama sedang sibuk; jawaban diproses dengan model cadangan.\n\n' : ''}${responseText}${bankSavedText}${clarificationText}`,
         functionCalls: worksheetCalls.length ? worksheetCalls : null,
+        ...(serverToolLog.length > 0 ? { serverToolCalls: serverToolLog } : {}),
         ...(bankFallback ? { bankFallback } : {}),
       });
     }
