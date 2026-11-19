@@ -83,7 +83,7 @@ implementasi; setiap fase wajib mematuhi daftar ini. Laporan eksplorasi:
 | Fase | Ruang lingkup | Status |
 |---|---|---|
 | 0 | Eksplorasi + laporan + keputusan | SELESAI (laporan disetujui) |
-| 1 | `CaseSchema` + adapter + pipeline headless + fixture PK-TAL + test regresi (aditif) | BERJALAN |
+| 1 | `CaseSchema` + adapter + pipeline headless + fixture PK-TAL + test regresi (aditif) | SELESAI — `caseSchema.ts`, `caseAdapter.ts`, `casePipeline.ts`, `referenceTables.ts`, `tests/golden/pk-tal.case.json`, 48 test baru (bun test 408 lulus, lint bersih, build sukses) |
 | 2 | SDK `@google/genai` + env key + tool layer (`get_state`, `set_fields`, `run_worksheet`, `run_pipeline`, `lookup_table`, `validate_plan`, `undo`) + `CaseChangeLog`/`AiSessionLog` + riwayat interaction | MENUNGGU |
 | 3 | `parse_case` + panel pratinjau per-field + auto-fill + validator | MENUNGGU |
 | 4 | fill_form Rencops/Briefing/De-briefing + POD kumulatif | MENUNGGU |
