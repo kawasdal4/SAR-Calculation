@@ -108,7 +108,7 @@ export function PodChart({ currentCoverage, currentPod, conditions }: PodChartPr
           </LineChart>
         </ResponsiveContainer>
         <p className="text-[10px] text-slate-500 mt-2 leading-snug">
-          Current operating point: <span className="font-semibold text-slate-700">C = {currentCoverage.toFixed(2)}, POD = {(currentPod * 100).toFixed(1)}%</span>{' '}
+          Current operating point: <span className="font-semibold text-slate-700">C = {currentCoverage.toFixed(2)}, POD = {(currentPod * 100).toFixed(2)}%</span>{' '}
           ({conditions} conditions).
         </p>
       </CardContent>

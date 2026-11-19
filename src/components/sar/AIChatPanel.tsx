@@ -26,7 +26,7 @@ import { toBasarnasTimeFormat } from '@/lib/sar/aswTime';
 import { buildChatPreviewContract, buildChatPreviewContracts, CHAT_NON_MUTATING_TOOLS, TARGET_LABELS } from '@/lib/sar/chatPreview';
 import { nextWorkflowSteps, selectiveWorkspaceContext, workflowPlanText, type ContextEntry } from '@/lib/sar/workspaceContext';
 import type { InterceptInput } from '@/lib/sar/interceptCalculations';
-import type { AssetAllocationCaseInput } from '@/lib/sar/assetAllocation';
+import { normalizeTafCondition, type AssetAllocationCaseInput } from '@/lib/sar/assetAllocation';
 import type { Worksheet2InitialState } from '@/components/sar/worksheets/Worksheet2';
 import type { Worksheet3InitialState } from '@/components/sar/worksheets/Worksheet3';
 import type { Worksheet4InitialState } from '@/components/sar/worksheets/Worksheet4';
@@ -528,7 +528,10 @@ export default function AIChatPanel({
           break;
         }
         case 'set_asset_allocation_case': {
-          const data = args as unknown as AssetAllocationCaseInput;
+          // TAF dari soal kasus (analisa AI) dinormalisasi dulu: terima variasi
+          // tulisan seperti "Cerah"/"CLEAR"/"INTER"/"intermittent"/"temporary"
+          // agar lembar tetap diterapkan dan TAF terisi, bukan ditolak.
+          const data: AssetAllocationCaseInput = { ...(args as unknown as AssetAllocationCaseInput), tafCondition: normalizeTafCondition((args as unknown as AssetAllocationCaseInput).tafCondition) };
           attempted = true;
           const validType = ['rescue-vessel', 'patrol-boat', 'rib', 'sea-rider', 'helicopter', 'fixed-wing-aircraft'].includes(data.sruType ?? '');
           const validBaseName = typeof data.homeBaseName === 'string' && data.homeBaseName.trim() !== '';

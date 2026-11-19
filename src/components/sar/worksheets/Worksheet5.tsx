@@ -136,7 +136,7 @@ export default function Worksheet5({
                 </td>
                 <td className="py-2 px-3 text-slate-600 font-bold">Rasio / %</td>
                 <td className="py-2 px-3 text-right font-bold text-base text-teal-900">
-                  C = {C.toFixed(2)} | POD = {(POD * 100).toFixed(0)}%
+                  C = {C.toFixed(2)} | POD = {(POD * 100).toFixed(2)}%
                 </td>
               </tr>
             </tbody>

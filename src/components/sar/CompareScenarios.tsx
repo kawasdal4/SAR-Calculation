@@ -183,7 +183,7 @@ export default function CompareScenarios({
               Best scenario (highest POD)
             </div>
             <div className="text-sm font-semibold text-emerald-900">
-              {bestScenario.name} — POD {(bestScenario.POD * 100).toFixed(1)}%
+              {bestScenario.name} — POD {(bestScenario.POD * 100).toFixed(2)}%
             </div>
             <div className="text-xs text-emerald-700 mt-1">
               Ro = {bestScenario.Ro.toFixed(2)} NM · Ao = {bestScenario.Ao.toFixed(0)} NM² · C = {bestScenario.C.toFixed(2)}
@@ -382,7 +382,7 @@ function ScenarioCard({
         <Stat label="DD (NM)" value={scenario.divergenceDistance.toFixed(2)} />
         <Stat label="Ro (NM)" value={scenario.Ro.toFixed(2)} accent />
         <Stat label="C" value={scenario.C.toFixed(2)} />
-        <Stat label="POD" value={`${(scenario.POD * 100).toFixed(1)}%`} accent={isBest} />
+        <Stat label="POD" value={`${(scenario.POD * 100).toFixed(2)}%`} accent={isBest} />
       </div>
 
       <div className="text-[10px] text-slate-500">

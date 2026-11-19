@@ -86,7 +86,7 @@ export default function Worksheet7({ readOnly = false }: Worksheet7Props) {
             </div>
           </div>
           <span className="text-xs bg-indigo-100 text-indigo-800 font-bold px-2.5 py-1 rounded border border-indigo-300">
-            Composite POD: {(compositePOD * 100).toFixed(1)}% | Luas Total: {totalArea.toFixed(0)} NM²
+            Composite POD: {(compositePOD * 100).toFixed(2)}% | Luas Total: {totalArea.toFixed(0)} NM²
           </span>
         </div>
       </CardHeader>
@@ -181,7 +181,7 @@ export default function Worksheet7({ readOnly = false }: Worksheet7Props) {
                     {r.C.toFixed(2)}
                   </td>
                   <td className="py-1.5 px-3 text-right font-bold text-emerald-700">
-                    {(r.POD * 100).toFixed(1)}%
+                    {(r.POD * 100).toFixed(2)}%
                   </td>
                   {!readOnly && (
                     <td className="py-1.5 px-3 text-center">
@@ -211,7 +211,7 @@ export default function Worksheet7({ readOnly = false }: Worksheet7Props) {
                   {weightedCoverage.toFixed(2)}
                 </td>
                 <td className="py-2 px-3 text-right font-mono text-base text-emerald-800">
-                  {(compositePOD * 100).toFixed(1)}%
+                  {(compositePOD * 100).toFixed(2)}%
                 </td>
                 {!readOnly && <td />}
               </tr>
@@ -231,7 +231,7 @@ export default function Worksheet7({ readOnly = false }: Worksheet7Props) {
             <div className="text-[11px] text-slate-500 font-mono">
               Jika mencari area yang sama tumpang-tindih (Overlapping): Cumulative POD ={' '}
               <span className="font-bold text-emerald-700">
-                {(cumulativeOverlapPOD * 100).toFixed(1)}%
+                {(cumulativeOverlapPOD * 100).toFixed(2)}%
               </span>
             </div>
           </div>

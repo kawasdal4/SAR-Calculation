@@ -425,7 +425,7 @@ export default function SearchPlanWorksheet({
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-slate-200">
           <StatBox label="Optimal Area (Ao)" value={`${effort.Ao.toFixed(0)} NM²`} accent />
           <StatBox label="Coverage Factor (C)" value={effort.C.toFixed(2)} />
-          <StatBox label="POD (probability of detection)" value={`${(POD * 100).toFixed(1)}%`} accent />
+          <StatBox label="POD (probability of detection)" value={`${(POD * 100).toFixed(2)}%`} accent />
           <StatBox label="Track Spacing (S = W/C)" value={`${trackSpacing.toFixed(2)} NM`} />
         </div>
 

@@ -366,7 +366,7 @@ export default function Worksheet8({
                 </td>
                 {pods.map((p, i) => (
                   <td key={i} className="py-1.5 px-2 text-center border-r border-slate-300 last:border-r-0 font-mono font-black text-emerald-900">
-                    {p}%
+                    {p.toFixed(2)}%
                   </td>
                 ))}
               </tr>

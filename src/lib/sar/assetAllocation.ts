@@ -35,6 +35,25 @@ export function assetDomain(type: SruType): 'udara' | 'laut' {
 }
 
 /**
+ * Normalisasi kondisi TAF dari narasi soal yang dianalisa AI asisten.
+ * Menerima variasi tulisan (huruf besar/kecil, istilah ICAO/Inggris) dan
+ * memetakannya ke salah satu nilai worksheet: cerah (0'), inter (30'),
+ * tempo (60'). Bila tidak dikenali → undefined (tidak mengarang).
+ *  - cerah:  "cerah", "CLEAR", "CAVOK", "clear"
+ *  - inter:  "INTER", "intermittent", "inter 30"
+ *  - tempo:  "TEMPO", "temporary", "tempo 60", "shower"
+ */
+export function normalizeTafCondition(value?: string | null): 'cerah' | 'inter' | 'tempo' | undefined {
+  if (typeof value !== 'string') return undefined;
+  const raw = value.toLowerCase().trim();
+  if (raw === '') return undefined;
+  if (raw.includes('inter')) return 'inter';
+  if (raw.includes('tempo') || raw.includes('temporary') || raw.includes('shower')) return 'tempo';
+  if (raw.includes('cerah') || raw.includes('clear') || raw.includes('cavok')) return 'cerah';
+  return undefined;
+}
+
+/**
  * Payload tool AI `set_asset_allocation_case` untuk SATU lembar Worksheet
  * Alokasi Aset (1 alut = 1 lembar). AI asisten mengklasifikasi alut udara/laut
  * dari `sruType` dan menentukan posisi pangkalan (bandara/dermaga/pelabuhan)
