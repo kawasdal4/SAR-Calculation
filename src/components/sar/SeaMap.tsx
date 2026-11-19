@@ -31,6 +31,7 @@ import {
   facilityTooltip,
   type TransportFacilityEntry,
 } from '@/lib/sar/transportFacilities';
+import { SRU_BASES, SRU_BASE_COLOR, sruBaseTooltip } from '@/lib/sar/sruBases';
 
 // ============================================================================
 // Public types — kept stable with the SeaMap API so callers (page.tsx)
@@ -274,6 +275,33 @@ function saveDepthDensity(d: Density, storageKey = DEPTH_DENSITY_KEY): void {
   try {
     if (typeof window === 'undefined') return;
     window.localStorage.setItem(storageKey, d);
+  } catch {
+    // ignore
+  }
+}
+
+// ---- Layer fasilitas/SRU: default TAMPIL, pilihan matikan diingat per scope ----
+// Permintaan pemilik: posisi Kantor SAR/dermaga/pelabuhan/bandara + pangkalan
+// SRU Basarnas harus muncul di peta laut & ONC tanpa disetel dulu. Checkbox
+// tetap bisa dimatikan; pilihan "off" disimpan agar tidak menyala lagi.
+const LAYER_PREF_PREFIX = 'seamap:layerPref:';
+
+function loadLayerPref(mapScope: string, layer: string, fallback = true): boolean {
+  try {
+    if (typeof window === 'undefined') return fallback;
+    const raw = window.localStorage.getItem(`${LAYER_PREF_PREFIX}${layer}:${mapScope}`);
+    if (raw === 'on') return true;
+    if (raw === 'off') return false;
+  } catch {
+    // ignore
+  }
+  return fallback;
+}
+
+function saveLayerPref(mapScope: string, layer: string, value: boolean): void {
+  try {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(`${LAYER_PREF_PREFIX}${layer}:${mapScope}`, value ? 'on' : 'off');
   } catch {
     // ignore
   }
@@ -1149,6 +1177,11 @@ export default function SeaMap({
     new DisclaimerControl({ position: 'topright' }).addTo(map);
 
     // ---- Custom layer-control panel ----
+    // Fasilitas, pangkalan SRU, & batas KANSAR default TAMPIL (permintaan
+    // pemilik); pref "off" per scope disimpan di localStorage.
+    const facilitiesDefaultOn = loadLayerPref(mapScope, 'facilities');
+    const sruBasesDefaultOn = loadLayerPref(mapScope, 'sru-bases');
+    const kansarDefaultOn = loadLayerPref(mapScope, 'kansar');
     const LayerPanelControl = L.Control.extend({
       onAdd: () => {
         const div = L.DomUtil.create('div', 'sar-layer-controls');
@@ -1163,10 +1196,13 @@ export default function SeaMap({
             <label><input type="checkbox" id="${mapControlId(mapScope, 'grid')}" checked suppressHydrationWarning /> Bingkai skala</label>
           </div>
           <div class="layer-row">
-            <label><input type="checkbox" id="${mapControlId(mapScope, 'kansar')}" suppressHydrationWarning /> Batas wilayah KANSAR (43)</label>
+            <label><input type="checkbox" id="${mapControlId(mapScope, 'kansar')}" ${kansarDefaultOn ? 'checked' : ''} suppressHydrationWarning /> Batas wilayah KANSAR (43)</label>
           </div>
           <div class="layer-row">
-            <label><input type="checkbox" id="${mapControlId(mapScope, 'facilities')}" suppressHydrationWarning /> Fasilitas transportasi &amp; Kantor SAR (214)</label>
+            <label><input type="checkbox" id="${mapControlId(mapScope, 'facilities')}" ${facilitiesDefaultOn ? 'checked' : ''} suppressHydrationWarning /> Fasilitas transportasi &amp; Kantor SAR (214)</label>
+          </div>
+          <div class="layer-row">
+            <label><input type="checkbox" id="${mapControlId(mapScope, 'sru-base')}" ${sruBasesDefaultOn ? 'checked' : ''} suppressHydrationWarning /> Pangkalan SRU Basarnas (${SRU_BASES.length})</label>
           </div>
           ${basemap !== 'onc' ? `<div class="layer-row">
             <label><input type="checkbox" id="${mapControlId(mapScope, 'depth')}" suppressHydrationWarning /> Angka kedalaman</label>
@@ -1277,7 +1313,15 @@ export default function SeaMap({
           return kansarLayer;
         };
         if (kansarCb) {
+          // Default TAMPIL (permintaan pemilik): bila pref menyala, batas
+          // KANSAR langsung dimuat saat init — tidak menunggu event change.
+          if (kansarCb.checked) {
+            void ensureKansarLayer().then((layer) => {
+              if (isMapActive() && layer && !map.hasLayer(layer)) map.addLayer(layer);
+            });
+          }
           kansarCb.addEventListener('change', () => {
+            saveLayerPref(mapScope, 'kansar', kansarCb.checked);
             if (kansarCb.checked) {
               void ensureKansarLayer().then((layer) => {
                 if (layer && !map.hasLayer(layer)) map.addLayer(layer);
@@ -1290,6 +1334,8 @@ export default function SeaMap({
 
         // Fasilitas transportasi + Kantor SAR & Kantor Pusat Basarnas —
         // data kecil di-bundle (import JSON), marker bulat berwarna per kategori.
+        // Default TAMPIL (permintaan pemilik): kalau pref menyala, layer
+        // langsung ditambahkan saat init — tidak menunggu event change.
         const facilitiesCb = document.getElementById(mapControlId(mapScope, 'facilities')) as HTMLInputElement | null;
         let facilitiesLayer: L.LayerGroup | null = null;
         const ensureFacilitiesLayer = (): L.LayerGroup => {
@@ -1312,12 +1358,53 @@ export default function SeaMap({
           return group;
         };
         if (facilitiesCb) {
+          if (facilitiesCb.checked) {
+            const layer = ensureFacilitiesLayer();
+            if (!map.hasLayer(layer)) map.addLayer(layer);
+          }
           facilitiesCb.addEventListener('change', () => {
+            saveLayerPref(mapScope, 'facilities', facilitiesCb.checked);
             if (facilitiesCb.checked) {
               const layer = ensureFacilitiesLayer();
               if (!map.hasLayer(layer)) map.addLayer(layer);
             } else if (facilitiesLayer && map.hasLayer(facilitiesLayer)) {
               map.removeLayer(facilitiesLayer);
+            }
+          });
+        }
+
+        // Pangkalan SRU Basarnas (6 preset aplikasi) — marker oranye, default TAMPIL.
+        const sruBaseCb = document.getElementById(mapControlId(mapScope, 'sru-base')) as HTMLInputElement | null;
+        let sruBaseLayer: L.LayerGroup | null = null;
+        const ensureSruBaseLayer = (): L.LayerGroup => {
+          if (sruBaseLayer) return sruBaseLayer;
+          const group = L.layerGroup();
+          for (const entry of SRU_BASES) {
+            const marker = L.circleMarker([entry.lat, entry.lng], {
+              radius: 5.5,
+              color: '#ffffff',
+              weight: 1,
+              fillColor: SRU_BASE_COLOR,
+              fillOpacity: 0.9,
+            });
+            marker.bindTooltip(sruBaseTooltip(entry), { direction: 'top', offset: [0, -4] });
+            group.addLayer(marker);
+          }
+          sruBaseLayer = group;
+          return group;
+        };
+        if (sruBaseCb) {
+          if (sruBaseCb.checked) {
+            const layer = ensureSruBaseLayer();
+            if (!map.hasLayer(layer)) map.addLayer(layer);
+          }
+          sruBaseCb.addEventListener('change', () => {
+            saveLayerPref(mapScope, 'sru-base', sruBaseCb.checked);
+            if (sruBaseCb.checked) {
+              const layer = ensureSruBaseLayer();
+              if (!map.hasLayer(layer)) map.addLayer(layer);
+            } else if (sruBaseLayer && map.hasLayer(sruBaseLayer)) {
+              map.removeLayer(sruBaseLayer);
             }
           });
         }

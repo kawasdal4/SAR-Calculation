@@ -13,6 +13,7 @@ import {
   FACILITY_LAYER_COLORS,
   FACILITY_LAYER_LABELS,
 } from '@/lib/sar/transportFacilities';
+import { SRU_BASES, SRU_BASE_COLOR } from '@/lib/sar/sruBases';
 import type { MapCircle, MapLine, MapMarker, MapPolygon } from '@/components/sar/SeaMap';
 
 // MapLibre GL JS v6 needs an explicit worker URL with Next.js/Turbopack.
@@ -120,6 +121,50 @@ function facilityDescription(properties: Record<string, unknown>): HTMLElement {
     root.appendChild(row);
   }
   return root;
+}
+
+const SRU_BASE_SOURCE_ID = 'worksheet4-sru-bases';
+const SRU_BASE_POINT_LAYER_ID = 'worksheet4-sru-bases-points';
+
+/** GeoJSON pangkalan SRU Basarnas (6 preset aplikasi). */
+const SRU_BASES_GEOJSON: FeatureCollection<Geometry, GeoJsonProperties> = {
+  type: 'FeatureCollection',
+  features: SRU_BASES.map((entry) => ({
+    type: 'Feature',
+    geometry: { type: 'Point', coordinates: [entry.lng, entry.lat] },
+    properties: {
+      name: entry.name,
+      category: 'pangkalan-sru',
+      cityRegion: entry.region,
+      color: SRU_BASE_COLOR,
+      categoryLabel: 'Pangkalan SRU Basarnas',
+      verification: entry.verification,
+      source: entry.source,
+    },
+  })),
+};
+
+/** Pangkalan SRU Basarnas — titik oranye, popup click memakai facilityDescription. */
+function addSruBaseLayers(map: maplibregl.Map, visible: boolean): void {
+  if (!map.getSource(SRU_BASE_SOURCE_ID)) {
+    map.addSource(SRU_BASE_SOURCE_ID, { type: 'geojson', data: SRU_BASES_GEOJSON });
+  }
+  const visibility = visible ? 'visible' : 'none';
+  if (!map.getLayer(SRU_BASE_POINT_LAYER_ID)) {
+    map.addLayer({
+      id: SRU_BASE_POINT_LAYER_ID,
+      type: 'circle',
+      source: SRU_BASE_SOURCE_ID,
+      paint: {
+        'circle-radius': 5.5,
+        'circle-color': ['get', 'color'],
+        'circle-stroke-color': '#ffffff',
+        'circle-stroke-width': 1,
+        'circle-opacity': 0.9,
+      },
+      layout: { visibility },
+    });
+  }
 }
 
 /** Batas wilayah 43 KANSAR (referensi latihan, sumber upload KMZ 9 Okt 2021). */
@@ -530,14 +575,16 @@ export default function Worksheet4MapLibre({
   const [mefData, setMefData] = useState<FeatureCollection<Geometry, GeoJsonProperties> | null>(null);
   const [mefStatus, setMefStatus] = useState('');
   const [scanVisible, setScanVisible] = useState(false);
-  const [kansarVisible, setKansarVisible] = useState(false);
-  const [facilitiesVisible, setFacilitiesVisible] = useState(false);
+  const [kansarVisible, setKansarVisible] = useState(true);
+  const [facilitiesVisible, setFacilitiesVisible] = useState(true);
+  const [sruBasesVisible, setSruBasesVisible] = useState(true);
   const [kansarHover, setKansarHover] = useState<string | null>(null);
   const [kansarStatus, setKansarStatus] = useState('');
   const [scanOpacity, setScanOpacity] = useState(0.55);
   const [hideAll, setHideAll] = useState(false);
   const mefVisibleRef = useRef(mefVisible);
   const facilitiesVisibleRef = useRef(facilitiesVisible);
+  const sruBasesVisibleRef = useRef(sruBasesVisible);
   const [cursor, setCursor] = useState('');
   const [tileError, setTileError] = useState('');
 
@@ -551,7 +598,8 @@ export default function Worksheet4MapLibre({
 
   useEffect(() => {
     facilitiesVisibleRef.current = facilitiesVisible;
-  }, [facilitiesVisible]);
+    sruBasesVisibleRef.current = sruBasesVisible;
+  }, [facilitiesVisible, sruBasesVisible]);
 
   useEffect(() => {
     const handleShortcut = (event: KeyboardEvent) => {
@@ -601,6 +649,7 @@ export default function Worksheet4MapLibre({
       addAirportLayers(map, airportsVisible);
       addKansarLayers(map, kansarVisible);
       addFacilityLayers(map, facilitiesVisible);
+      addSruBaseLayers(map, sruBasesVisible);
       setStyleReady((current) => current + 1);
       updateGraticule();
     });
@@ -659,10 +708,24 @@ export default function Worksheet4MapLibre({
         .setDOMContent(facilityDescription((feature.properties ?? {}) as Record<string, unknown>))
         .addTo(map);
     });
+    // Pangkalan SRU Basarnas — popup click (facilityDescription dipakai ulang;
+    // properties feature membawa name/categoryLabel/cityRegion/verification/source).
+    map.on('click', (event) => {
+      if (!sruBasesVisibleRef.current || !map.getLayer(SRU_BASE_POINT_LAYER_ID)) return;
+      const feature = map.queryRenderedFeatures(event.point, { layers: [SRU_BASE_POINT_LAYER_ID] })[0];
+      if (!feature) return;
+      new maplibregl.Popup({ closeButton: true, maxWidth: '320px' })
+        .setLngLat(event.lngLat)
+        .setDOMContent(facilityDescription((feature.properties ?? {}) as Record<string, unknown>))
+        .addTo(map);
+    });
     map.on('mousemove', (event) => {
       const facilities = Boolean(facilitiesVisibleRef.current
         && map.getLayer(FACILITIES_POINT_LAYER_ID)
-        && map.queryRenderedFeatures(event.point, { layers: [FACILITIES_POINT_LAYER_ID] }).length > 0);
+        && map.queryRenderedFeatures(event.point, { layers: [FACILITIES_POINT_LAYER_ID] }).length > 0)
+        || Boolean(sruBasesVisibleRef.current
+        && map.getLayer(SRU_BASE_POINT_LAYER_ID)
+        && map.queryRenderedFeatures(event.point, { layers: [SRU_BASE_POINT_LAYER_ID] }).length > 0);
       if (facilities) map.getCanvas().style.cursor = 'pointer';
     });
     map.on('mousemove', (event) => {
@@ -744,13 +807,24 @@ export default function Worksheet4MapLibre({
     if (map.getLayer(FACILITIES_POINT_LAYER_ID)) {
       map.setLayoutProperty(FACILITIES_POINT_LAYER_ID, 'visibility', facilitiesVisible ? 'visible' : 'none');
     }
+    if (map.getLayer(SRU_BASE_POINT_LAYER_ID)) {
+      map.setLayoutProperty(SRU_BASE_POINT_LAYER_ID, 'visibility', sruBasesVisible ? 'visible' : 'none');
+    }
     const minZoom = mefGridSize === '1deg' ? 2 : mefGridSize === '30min' ? 4 : 6;
     if (map.getLayer('worksheet4-mef-labels')) map.setLayerZoomRange('worksheet4-mef-labels', minZoom, 24);
-  }, [airportsVisible, facilitiesVisible, graticuleVisible, kansarVisible, mefGridSize, mefVisible, scanOpacity, scanVisible, styleReady]);
+  }, [airportsVisible, facilitiesVisible, sruBasesVisible, graticuleVisible, kansarVisible, mefGridSize, mefVisible, scanOpacity, scanVisible, styleReady]);
 
   // Batas KANSAR: muat FeatureCollection dari API saat layer diaktifkan.
+  // Data disimpan di ref dan diterapkan ke source hanya setelah style siap —
+  // fetch bisa resolve sebelum `style.load` membuat source; jika langsung
+  // setData, getSource() masih undefined dan datanya terbuang (layer kosong
+  // padahal checkbox nyala). Karena itu penerapan juga bergantung pada
+  // styleReady yang bertambah setiap kali style selesai dimuat.
+  const kansarDataRef = useRef<FeatureCollection<Geometry, GeoJsonProperties> | null>(null);
+  const [kansarApplyTick, setKansarApplyTick] = useState(0);
+
   useEffect(() => {
-    if (!kansarVisible) return;
+    if (!kansarVisible || kansarDataRef.current) return;
     const controller = new AbortController();
     fetch('/api/kansar-boundaries', { signal: controller.signal })
       .then((response) => {
@@ -758,13 +832,8 @@ export default function Worksheet4MapLibre({
         return response.json() as Promise<FeatureCollection<Geometry, GeoJsonProperties>>;
       })
       .then((collection) => {
-        const map = mapRef.current;
-        if (!map) return;
-        const source = map.getSource(KANSAR_SOURCE_ID);
-        if (source?.type === 'geojson') {
-          (source as maplibregl.GeoJSONSource).setData(collection);
-          setKansarStatus(`${collection.features.length} batas wilayah KANSAR dimuat.`);
-        }
+        kansarDataRef.current = collection;
+        setKansarApplyTick((current) => current + 1);
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
@@ -772,6 +841,18 @@ export default function Worksheet4MapLibre({
       });
     return () => controller.abort();
   }, [kansarVisible]);
+
+  useEffect(() => {
+    if (!kansarVisible || !styleReady) return;
+    const collection = kansarDataRef.current;
+    const map = mapRef.current;
+    if (!collection || !map) return;
+    const source = map.getSource(KANSAR_SOURCE_ID);
+    if (source?.type === 'geojson') {
+      (source as maplibregl.GeoJSONSource).setData(collection);
+      setKansarStatus(`${collection.features.length} batas wilayah KANSAR dimuat.`);
+    }
+  }, [kansarVisible, styleReady, kansarApplyTick]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -859,6 +940,10 @@ export default function Worksheet4MapLibre({
         <label className="flex items-center gap-1 px-1 text-xs text-slate-800" title="170 fasilitas transportasi (bandara/pelabuhan/dermaga) + 43 KANSAR + Kantor Pusat Basarnas — referensi, bukan data operasi resmi">
           <input type="checkbox" checked={facilitiesVisible} onChange={(event) => setFacilitiesVisible(event.target.checked)} />
           Fasilitas &amp; Kantor SAR
+        </label>
+        <label className="flex items-center gap-1 px-1 text-xs text-slate-800" title="6 pangkalan SRU Basarnas (preset aplikasi: Tanjung Priok, Muara Baru, Merak, Benoa, Makassar, Sorong)">
+          <input type="checkbox" checked={sruBasesVisible} onChange={(event) => setSruBasesVisible(event.target.checked)} />
+          Pangkalan SRU
         </label>
         {ONC_SCAN_TILE_URL ? <>
           <label className="flex items-center gap-1 px-1 text-xs text-slate-800">

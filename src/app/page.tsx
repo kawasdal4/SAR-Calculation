@@ -129,6 +129,7 @@ import {
 import AssetAllocationWorksheet, {
   SRU_BASE_PRESETS,
 } from '@/components/sar/AssetAllocationWorksheet';
+import { matchSruBaseFacility } from '@/lib/sar/sruBases';
 import {
   type SruAssetInput,
   type AssetAllocationCaseInput,
@@ -1376,6 +1377,11 @@ export default function Home() {
     const hasCoords = Number.isFinite(data.homeBaseLat) && Number.isFinite(data.homeBaseLng)
       && (data.homeBaseLat !== 0 || data.homeBaseLng !== 0);
     const preset = SRU_BASE_PRESETS.find((p) => p.name.toLowerCase() === data.homeBaseName.trim().toLowerCase());
+    // Pangkalan dari soal/AI yang bukan preset dipetakan ke bank data fasilitas
+    // (pelabuhan/dermaga/bandara VERIFIED dari CSV pemilik, lalu KANSAR
+    // representatif) supaya marker pangkalan SRU muncul di peta, bukan (0,0)
+    // yang di-skip. Tanpa kecocokan → null (perilaku lama: koordinat manual).
+    const facilityMatch = preset ? null : matchSruBaseFacility(data.homeBaseName);
     setAssets((prev) => {
       const existing = sruName !== ''
         ? prev.find((asset) => asset.name.trim().toLowerCase() === sruName.toLowerCase())
@@ -1387,7 +1393,10 @@ export default function Home() {
         homeBaseName: data.homeBaseName.trim(),
         homeBasePos: hasCoords
           ? { lat: data.homeBaseLat ?? 0, lng: data.homeBaseLng ?? 0 }
-          : existing?.homeBasePos ?? preset?.pos ?? { lat: 0, lng: 0 },
+          : existing?.homeBasePos
+            ?? preset?.pos
+            ?? (facilityMatch ? { lat: facilityMatch.entry.lat, lng: facilityMatch.entry.lng } : null)
+            ?? { lat: 0, lng: 0 },
         transitSpeedKts: data.transitSpeedKts ?? existing?.transitSpeedKts ?? 0,
         searchSpeedKts: data.searchSpeedKts ?? existing?.searchSpeedKts ?? 0,
         enduranceHours: data.enduranceHours ?? existing?.enduranceHours ?? 0,

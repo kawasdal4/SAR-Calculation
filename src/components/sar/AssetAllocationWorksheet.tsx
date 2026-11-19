@@ -26,16 +26,14 @@ import {
 import WorksheetSheetBar from './worksheets/WorksheetSheetBar';
 import AuthenticESTMaritimeWorksheet from './worksheets/AuthenticESTMaritimeWorksheet';
 import AuthenticESTAirWorksheet from './worksheets/AuthenticESTAirWorksheet';
+import { SRU_BASES } from '@/lib/sar/sruBases';
 
-// Preset Pangkalan Basarnas Populer
-export const SRU_BASE_PRESETS: { name: string; pos: LatLng }[] = [
-  { name: 'Pangkalan Tanjung Priok (Jakarta)', pos: { lat: -6.095, lng: 106.885 } },
-  { name: 'Pangkalan Muara Baru (Jakarta)', pos: { lat: -6.115, lng: 106.802 } },
-  { name: 'Pangkalan Merak (Banten)', pos: { lat: -5.932, lng: 105.996 } },
-  { name: 'Pangkalan Benoa (Bali)', pos: { lat: -8.752, lng: 115.215 } },
-  { name: 'Pangkalan Makassar (Sulsel)', pos: { lat: -5.122, lng: 119.412 } },
-  { name: 'Pangkalan Sorong (Papua)', pos: { lat: -0.875, lng: 131.255 } },
-];
+// Preset Pangkalan Basarnas Populer — data dipindah ke `src/lib/sar/sruBases.ts`
+// supaya layer peta laut & ONC memakai bank data yang sama (satu sumber kebenaran).
+export const SRU_BASE_PRESETS: { name: string; pos: LatLng }[] = SRU_BASES.map((base) => ({
+  name: base.name,
+  pos: { lat: base.lat, lng: base.lng },
+}));
 
 const SRU_TYPE_LABELS: Record<SruType, string> = {
   'rescue-vessel': 'Kapal Penyelamat (Rescue Vessel)',
