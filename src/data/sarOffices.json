@@ -1,0 +1,750 @@
+[
+  {
+    "id": "loc-basarnas-kantor-pusat",
+    "kind": "sar-office",
+    "name": "Kantor Pusat Basarnas",
+    "category": "kantor-pusat",
+    "lat": -6.157572,
+    "lng": 106.847747,
+    "specs": {
+      "address": "Jl. Angkasa Blok B.15 Kav 2-3, Kemayoran, Jakarta Pusat 10720",
+      "positionBasis": "geocode jalan alamat (indikatif, bukan titik gedung)"
+    },
+    "source": "Alamat resmi: Jl. Angkasa Blok B.15 Kav 2-3, Kemayoran, Jakarta Pusat 10720 (id.wikipedia.org / panduan BAPETEN 2024, dicek 19 Nov 2026); titik = geocode jalan alamat via OSM Nominatim (diakses 19 Nov 2026) — indikatif, bukan titik gedung",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-ambon",
+    "kind": "sar-office",
+    "name": "Kantor SAR Ambon",
+    "category": "kantor-sar",
+    "lat": -6.234379,
+    "lng": 130.231808,
+    "specs": {
+      "kansar": "Ambon",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-balikpapan",
+    "kind": "sar-office",
+    "name": "Kantor SAR Balikpapan",
+    "category": "kantor-sar",
+    "lat": 0.386556,
+    "lng": 117.079162,
+    "specs": {
+      "kansar": "Balikpapan",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-banda-aceh",
+    "kind": "sar-office",
+    "name": "Kantor SAR Banda Aceh",
+    "category": "kantor-sar",
+    "lat": 4.462106,
+    "lng": 95.087206,
+    "specs": {
+      "kansar": "Banda Aceh",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-bandung",
+    "kind": "sar-office",
+    "name": "Kantor SAR Bandung",
+    "category": "kantor-sar",
+    "lat": -8.303504,
+    "lng": 107.37919,
+    "specs": {
+      "kansar": "Bandung",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-banjarmasin",
+    "kind": "sar-office",
+    "name": "Kantor SAR Banjarmasin",
+    "category": "kantor-sar",
+    "lat": -3.780611,
+    "lng": 115.82962,
+    "specs": {
+      "kansar": "Banjarmasin",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-banten",
+    "kind": "sar-office",
+    "name": "Kantor SAR Banten",
+    "category": "kantor-sar",
+    "lat": -7.993485,
+    "lng": 104.823298,
+    "specs": {
+      "kansar": "Banten",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-bengkulu",
+    "kind": "sar-office",
+    "name": "Kantor SAR Bengkulu",
+    "category": "kantor-sar",
+    "lat": -5.568984,
+    "lng": 101.292207,
+    "specs": {
+      "kansar": "Bengkulu",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-biak",
+    "kind": "sar-office",
+    "name": "Kantor SAR Biak",
+    "category": "kantor-sar",
+    "lat": 0.357832,
+    "lng": 135.694804,
+    "specs": {
+      "kansar": "Biak",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-cilacap",
+    "kind": "sar-office",
+    "name": "Kantor SAR Cilacap",
+    "category": "kantor-sar",
+    "lat": -9.799128,
+    "lng": 108.699267,
+    "specs": {
+      "kansar": "Cilacap",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-denpasar",
+    "kind": "sar-office",
+    "name": "Kantor SAR Denpasar",
+    "category": "kantor-sar",
+    "lat": -9.802007,
+    "lng": 115.257997,
+    "specs": {
+      "kansar": "Denpasar",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-gorontalo",
+    "kind": "sar-office",
+    "name": "Kantor SAR Gorontalo",
+    "category": "kantor-sar",
+    "lat": 1.585397,
+    "lng": 122.553534,
+    "specs": {
+      "kansar": "Gorontalo",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-jakarta",
+    "kind": "sar-office",
+    "name": "Kantor SAR Jakarta",
+    "category": "kantor-sar",
+    "lat": -7.612239,
+    "lng": 106.189134,
+    "specs": {
+      "kansar": "Jakarta",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-jambi",
+    "kind": "sar-office",
+    "name": "Kantor SAR Jambi",
+    "category": "kantor-sar",
+    "lat": -1.638798,
+    "lng": 102.877668,
+    "specs": {
+      "kansar": "Jambi",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-jayapura",
+    "kind": "sar-office",
+    "name": "Kantor SAR Jayapura",
+    "category": "kantor-sar",
+    "lat": -0.66208,
+    "lng": 139.060059,
+    "specs": {
+      "kansar": "Jayapura",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-kendari",
+    "kind": "sar-office",
+    "name": "Kantor SAR Kendari",
+    "category": "kantor-sar",
+    "lat": -5.013616,
+    "lng": 123.110985,
+    "specs": {
+      "kansar": "Kendari",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-kupang",
+    "kind": "sar-office",
+    "name": "Kantor SAR Kupang",
+    "category": "kantor-sar",
+    "lat": -9.203624,
+    "lng": 124.281334,
+    "specs": {
+      "kansar": "Kupang",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-lampung",
+    "kind": "sar-office",
+    "name": "Kantor SAR Lampung",
+    "category": "kantor-sar",
+    "lat": -6.417275,
+    "lng": 103.847814,
+    "specs": {
+      "kansar": "Lampung",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-makassar",
+    "kind": "sar-office",
+    "name": "Kantor SAR Makassar",
+    "category": "kantor-sar",
+    "lat": -5.925265,
+    "lng": 119.680804,
+    "specs": {
+      "kansar": "Makassar",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-mamuju",
+    "kind": "sar-office",
+    "name": "Kantor SAR Mamuju",
+    "category": "kantor-sar",
+    "lat": -3.258039,
+    "lng": 118.207506,
+    "specs": {
+      "kansar": "Mamuju",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-manado",
+    "kind": "sar-office",
+    "name": "Kantor SAR Manado",
+    "category": "kantor-sar",
+    "lat": 2.96633,
+    "lng": 125.310448,
+    "specs": {
+      "kansar": "Manado",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-manokwari",
+    "kind": "sar-office",
+    "name": "Kantor SAR Manokwari",
+    "category": "kantor-sar",
+    "lat": 0.221721,
+    "lng": 133.706064,
+    "specs": {
+      "kansar": "Manokwari",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-mataram",
+    "kind": "sar-office",
+    "name": "Kantor SAR Mataram",
+    "category": "kantor-sar",
+    "lat": -10.030966,
+    "lng": 117.291081,
+    "specs": {
+      "kansar": "Mataram",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-maumere",
+    "kind": "sar-office",
+    "name": "Kantor SAR Maumere",
+    "category": "kantor-sar",
+    "lat": -8.339847,
+    "lng": 122.437162,
+    "specs": {
+      "kansar": "Maumere",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-medan",
+    "kind": "sar-office",
+    "name": "Kantor SAR Medan",
+    "category": "kantor-sar",
+    "lat": 2.757881,
+    "lng": 99.296788,
+    "specs": {
+      "kansar": "Medan",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-mentawai",
+    "kind": "sar-office",
+    "name": "Kantor SAR Mentawai",
+    "category": "kantor-sar",
+    "lat": -3.59229,
+    "lng": 98.499178,
+    "specs": {
+      "kansar": "Mentawai",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-merauke",
+    "kind": "sar-office",
+    "name": "Kantor SAR Merauke",
+    "category": "kantor-sar",
+    "lat": -8.17926,
+    "lng": 138.87481,
+    "specs": {
+      "kansar": "Merauke",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-natuna",
+    "kind": "sar-office",
+    "name": "Kantor SAR Natuna",
+    "category": "kantor-sar",
+    "lat": 4.519212,
+    "lng": 107.936009,
+    "specs": {
+      "kansar": "Natuna",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-nias",
+    "kind": "sar-office",
+    "name": "Kantor SAR Nias",
+    "category": "kantor-sar",
+    "lat": -0.261432,
+    "lng": 95.488654,
+    "specs": {
+      "kansar": "Nias",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-padang",
+    "kind": "sar-office",
+    "name": "Kantor SAR Padang",
+    "category": "kantor-sar",
+    "lat": -0.863848,
+    "lng": 100.422481,
+    "specs": {
+      "kansar": "Padang",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-palangkaraya",
+    "kind": "sar-office",
+    "name": "Kantor SAR Palangkaraya",
+    "category": "kantor-sar",
+    "lat": -2.308276,
+    "lng": 113.11421,
+    "specs": {
+      "kansar": "Palangkaraya",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-palembang",
+    "kind": "sar-office",
+    "name": "Kantor SAR Palembang",
+    "category": "kantor-sar",
+    "lat": -3.197599,
+    "lng": 104.380513,
+    "specs": {
+      "kansar": "Palembang",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-palu",
+    "kind": "sar-office",
+    "name": "Kantor SAR Palu",
+    "category": "kantor-sar",
+    "lat": -0.056076,
+    "lng": 121.592806,
+    "specs": {
+      "kansar": "Palu",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-pangkalpinang",
+    "kind": "sar-office",
+    "name": "Kantor SAR Pangkalpinang",
+    "category": "kantor-sar",
+    "lat": -2.944973,
+    "lng": 107.518117,
+    "specs": {
+      "kansar": "Pangkalpinang",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-pekanbaru",
+    "kind": "sar-office",
+    "name": "Kantor SAR Pekanbaru",
+    "category": "kantor-sar",
+    "lat": 0.727679,
+    "lng": 101.869311,
+    "specs": {
+      "kansar": "Pekanbaru",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-pontianak",
+    "kind": "sar-office",
+    "name": "Kantor SAR Pontianak",
+    "category": "kantor-sar",
+    "lat": -0.633954,
+    "lng": 110.385648,
+    "specs": {
+      "kansar": "Pontianak",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-semarang",
+    "kind": "sar-office",
+    "name": "Kantor SAR Semarang",
+    "category": "kantor-sar",
+    "lat": -6.074004,
+    "lng": 110.332421,
+    "specs": {
+      "kansar": "Semarang",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-sorong",
+    "kind": "sar-office",
+    "name": "Kantor SAR Sorong",
+    "category": "kantor-sar",
+    "lat": 0.418944,
+    "lng": 131.404468,
+    "specs": {
+      "kansar": "Sorong",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-surabaya",
+    "kind": "sar-office",
+    "name": "Kantor SAR Surabaya",
+    "category": "kantor-sar",
+    "lat": -8.351448,
+    "lng": 113.329931,
+    "specs": {
+      "kansar": "Surabaya",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-tanjung-pinang",
+    "kind": "sar-office",
+    "name": "Kantor SAR Tanjung Pinang",
+    "category": "kantor-sar",
+    "lat": 0.330534,
+    "lng": 105.893408,
+    "specs": {
+      "kansar": "Tanjung Pinang",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-tarakan",
+    "kind": "sar-office",
+    "name": "Kantor SAR Tarakan",
+    "category": "kantor-sar",
+    "lat": 3.030787,
+    "lng": 117.121685,
+    "specs": {
+      "kansar": "Tarakan",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-ternate",
+    "kind": "sar-office",
+    "name": "Kantor SAR Ternate",
+    "category": "kantor-sar",
+    "lat": 1.10804,
+    "lng": 127.691585,
+    "specs": {
+      "kansar": "Ternate",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-timika",
+    "kind": "sar-office",
+    "name": "Kantor SAR Timika",
+    "category": "kantor-sar",
+    "lat": -4.893448,
+    "lng": 136.178969,
+    "specs": {
+      "kansar": "Timika",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "loc-kansar-yogyakarta",
+    "kind": "sar-office",
+    "name": "Kantor SAR Yogyakarta",
+    "category": "kantor-sar",
+    "lat": -10.20127,
+    "lng": 110.156175,
+    "specs": {
+      "kansar": "Yogyakarta",
+      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
+    },
+    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
+    "updatedRef": "2026-11-19",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "UNVERIFIED",
+    "approval": "DRAFT"
+  }
+]

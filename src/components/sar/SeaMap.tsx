@@ -25,6 +25,12 @@ import {
   getDepthSourceLabel,
   type DepthStatus,
 } from '@/lib/sar/depthSources';
+import {
+  allFacilityPoints,
+  FACILITY_LAYER_COLORS,
+  facilityTooltip,
+  type TransportFacilityEntry,
+} from '@/lib/sar/transportFacilities';
 
 // ============================================================================
 // Public types — kept stable with the SeaMap API so callers (page.tsx)
@@ -1159,6 +1165,9 @@ export default function SeaMap({
           <div class="layer-row">
             <label><input type="checkbox" id="${mapControlId(mapScope, 'kansar')}" suppressHydrationWarning /> Batas wilayah KANSAR (43)</label>
           </div>
+          <div class="layer-row">
+            <label><input type="checkbox" id="${mapControlId(mapScope, 'facilities')}" suppressHydrationWarning /> Fasilitas transportasi &amp; Kantor SAR (214)</label>
+          </div>
           ${basemap !== 'onc' ? `<div class="layer-row">
             <label><input type="checkbox" id="${mapControlId(mapScope, 'depth')}" suppressHydrationWarning /> Angka kedalaman</label>
             <div class="layer-density" id="${mapControlId(mapScope, 'density-wrap')}" style="display:none; margin-top:4px;">
@@ -1275,6 +1284,40 @@ export default function SeaMap({
               });
             } else if (kansarLayer && map.hasLayer(kansarLayer)) {
               map.removeLayer(kansarLayer);
+            }
+          });
+        }
+
+        // Fasilitas transportasi + Kantor SAR & Kantor Pusat Basarnas —
+        // data kecil di-bundle (import JSON), marker bulat berwarna per kategori.
+        const facilitiesCb = document.getElementById(mapControlId(mapScope, 'facilities')) as HTMLInputElement | null;
+        let facilitiesLayer: L.LayerGroup | null = null;
+        const ensureFacilitiesLayer = (): L.LayerGroup => {
+          if (facilitiesLayer) return facilitiesLayer;
+          const group = L.layerGroup();
+          for (const entry of allFacilityPoints()) {
+            const color = FACILITY_LAYER_COLORS[entry.category];
+            const isOffice = entry.kind === 'sar-office';
+            const marker = L.circleMarker([entry.lat, entry.lng], {
+              radius: entry.category === 'kantor-pusat' ? 7 : isOffice ? 5.5 : 4,
+              color: '#ffffff',
+              weight: 1,
+              fillColor: color,
+              fillOpacity: 0.9,
+            });
+            marker.bindTooltip(facilityTooltip(entry), { direction: 'top', offset: [0, -4] });
+            group.addLayer(marker);
+          }
+          facilitiesLayer = group;
+          return group;
+        };
+        if (facilitiesCb) {
+          facilitiesCb.addEventListener('change', () => {
+            if (facilitiesCb.checked) {
+              const layer = ensureFacilitiesLayer();
+              if (!map.hasLayer(layer)) map.addLayer(layer);
+            } else if (facilitiesLayer && map.hasLayer(facilitiesLayer)) {
+              map.removeLayer(facilitiesLayer);
             }
           });
         }

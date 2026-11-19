@@ -8,6 +8,11 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { project, type LatLng } from '@/lib/sar/sarCalculations';
 import { buildOncGraticule } from '@/lib/sar/oncGraticule';
 import { formatMefFeet } from '@/lib/sar/oncMef.mjs';
+import {
+  allFacilityPoints,
+  FACILITY_LAYER_COLORS,
+  FACILITY_LAYER_LABELS,
+} from '@/lib/sar/transportFacilities';
 import type { MapCircle, MapLine, MapMarker, MapPolygon } from '@/components/sar/SeaMap';
 
 // MapLibre GL JS v6 needs an explicit worker URL with Next.js/Turbopack.
@@ -41,6 +46,81 @@ const OVERLAY_SOURCE_ID = 'worksheet4-overlays';
 const KANSAR_SOURCE_ID = 'worksheet4-kansar-boundaries';
 const KANSAR_FILL_LAYER_ID = 'worksheet4-kansar-fill';
 const KANSAR_LINE_LAYER_ID = 'worksheet4-kansar-line';
+
+const FACILITIES_SOURCE_ID = 'worksheet4-facilities';
+const FACILITIES_POINT_LAYER_ID = 'worksheet4-facilities-points';
+
+/** GeoJSON titik fasilitas transportasi + Kantor SAR/Pusat (±220 titik, data kecil di-bundle). */
+const FACILITIES_GEOJSON: FeatureCollection<Geometry, GeoJsonProperties> = {
+  type: 'FeatureCollection',
+  features: allFacilityPoints().map((entry) => ({
+    type: 'Feature',
+    geometry: { type: 'Point', coordinates: [entry.lng, entry.lat] },
+    properties: {
+      name: entry.name,
+      category: entry.category,
+      code: (entry as { specs?: { code?: string } }).specs?.code ?? '',
+      cityRegion: (entry as { specs?: { cityRegion?: string } }).specs?.cityRegion ?? '',
+      positionBasis: (entry as { specs?: { positionBasis?: string } }).specs?.positionBasis ?? '',
+      address: (entry as { specs?: { address?: string } }).specs?.address ?? '',
+      color: FACILITY_LAYER_COLORS[entry.category],
+      categoryLabel: FACILITY_LAYER_LABELS[entry.category],
+      verification: entry.verification,
+      source: entry.source,
+    },
+  })),
+};
+
+/** Fasilitas transportasi + Kantor SAR & Kantor Pusat — titik berwarna per kategori. */
+function addFacilityLayers(map: maplibregl.Map, visible: boolean): void {
+  if (!map.getSource(FACILITIES_SOURCE_ID)) {
+    map.addSource(FACILITIES_SOURCE_ID, { type: 'geojson', data: FACILITIES_GEOJSON });
+  }
+  const visibility = visible ? 'visible' : 'none';
+  if (!map.getLayer(FACILITIES_POINT_LAYER_ID)) {
+    map.addLayer({
+      id: FACILITIES_POINT_LAYER_ID,
+      type: 'circle',
+      source: FACILITIES_SOURCE_ID,
+      paint: {
+        'circle-radius': ['match', ['get', 'category'], 'kantor-pusat', 7, 'kantor-sar', 5.5, 4],
+        'circle-color': ['get', 'color'],
+        'circle-stroke-color': '#ffffff',
+        'circle-stroke-width': 1,
+        'circle-opacity': 0.9,
+      },
+      layout: { visibility },
+    });
+  }
+}
+
+/** Deskripsi popup untuk satu fasilitas/kantor (mirip airportDescription). */
+function facilityDescription(properties: Record<string, unknown>): HTMLElement {
+  const root = document.createElement('div');
+  root.className = 'w-64 space-y-1 text-xs text-slate-800';
+  const title = document.createElement('strong');
+  title.className = 'block text-sm text-slate-950';
+  title.textContent = String(properties.name ?? 'Fasilitas');
+  root.appendChild(title);
+  const category = document.createElement('div');
+  category.className = 'font-medium';
+  category.textContent = String(properties.categoryLabel ?? properties.category ?? '');
+  root.appendChild(category);
+  const details = [
+    properties.code ? `Kode: ${properties.code}` : '',
+    properties.cityRegion ? `Lokasi: ${properties.cityRegion}` : '',
+    properties.address ? `Alamat: ${properties.address}` : '',
+    properties.positionBasis ? String(properties.positionBasis) : '',
+    `Verifikasi: ${properties.verification ?? 'UNVERIFIED'} — referensi, bukan data operasi resmi`,
+    properties.source ? `Sumber: ${properties.source}` : '',
+  ].filter(Boolean);
+  for (const line of details) {
+    const row = document.createElement('div');
+    row.textContent = line;
+    root.appendChild(row);
+  }
+  return root;
+}
 
 /** Batas wilayah 43 KANSAR (referensi latihan, sumber upload KMZ 9 Okt 2021). */
 function addKansarLayers(map: maplibregl.Map, visible: boolean): void {
@@ -451,11 +531,13 @@ export default function Worksheet4MapLibre({
   const [mefStatus, setMefStatus] = useState('');
   const [scanVisible, setScanVisible] = useState(false);
   const [kansarVisible, setKansarVisible] = useState(false);
+  const [facilitiesVisible, setFacilitiesVisible] = useState(false);
   const [kansarHover, setKansarHover] = useState<string | null>(null);
   const [kansarStatus, setKansarStatus] = useState('');
   const [scanOpacity, setScanOpacity] = useState(0.55);
   const [hideAll, setHideAll] = useState(false);
   const mefVisibleRef = useRef(mefVisible);
+  const facilitiesVisibleRef = useRef(facilitiesVisible);
   const [cursor, setCursor] = useState('');
   const [tileError, setTileError] = useState('');
 
@@ -466,6 +548,10 @@ export default function Worksheet4MapLibre({
   useEffect(() => {
     mefVisibleRef.current = mefVisible;
   }, [mefVisible]);
+
+  useEffect(() => {
+    facilitiesVisibleRef.current = facilitiesVisible;
+  }, [facilitiesVisible]);
 
   useEffect(() => {
     const handleShortcut = (event: KeyboardEvent) => {
@@ -514,6 +600,7 @@ export default function Worksheet4MapLibre({
       addMefLayers(map, mefVisible);
       addAirportLayers(map, airportsVisible);
       addKansarLayers(map, kansarVisible);
+      addFacilityLayers(map, facilitiesVisible);
       setStyleReady((current) => current + 1);
       updateGraticule();
     });
@@ -560,6 +647,23 @@ export default function Worksheet4MapLibre({
         .setLngLat(coordinates)
         .setDOMContent(airportDescription((feature.properties ?? {}) as Record<string, unknown>, coordinates))
         .addTo(map);
+    });
+    // Fasilitas transportasi + Kantor SAR — popup click (layer selalu ada,
+    // visibilitas diatur via layout; query hanya saat layer terlihat).
+    map.on('click', (event) => {
+      if (!facilitiesVisibleRef.current || !map.getLayer(FACILITIES_POINT_LAYER_ID)) return;
+      const feature = map.queryRenderedFeatures(event.point, { layers: [FACILITIES_POINT_LAYER_ID] })[0];
+      if (!feature) return;
+      new maplibregl.Popup({ closeButton: true, maxWidth: '320px' })
+        .setLngLat(event.lngLat)
+        .setDOMContent(facilityDescription((feature.properties ?? {}) as Record<string, unknown>))
+        .addTo(map);
+    });
+    map.on('mousemove', (event) => {
+      const facilities = Boolean(facilitiesVisibleRef.current
+        && map.getLayer(FACILITIES_POINT_LAYER_ID)
+        && map.queryRenderedFeatures(event.point, { layers: [FACILITIES_POINT_LAYER_ID] }).length > 0);
+      if (facilities) map.getCanvas().style.cursor = 'pointer';
     });
     map.on('mousemove', (event) => {
       const airport = Boolean(map.getLayer(AIRPORT_LAYER_ID)
@@ -637,9 +741,12 @@ export default function Worksheet4MapLibre({
     for (const layerId of [KANSAR_FILL_LAYER_ID, KANSAR_LINE_LAYER_ID]) {
       if (map.getLayer(layerId)) map.setLayoutProperty(layerId, 'visibility', kansarVisible ? 'visible' : 'none');
     }
+    if (map.getLayer(FACILITIES_POINT_LAYER_ID)) {
+      map.setLayoutProperty(FACILITIES_POINT_LAYER_ID, 'visibility', facilitiesVisible ? 'visible' : 'none');
+    }
     const minZoom = mefGridSize === '1deg' ? 2 : mefGridSize === '30min' ? 4 : 6;
     if (map.getLayer('worksheet4-mef-labels')) map.setLayerZoomRange('worksheet4-mef-labels', minZoom, 24);
-  }, [airportsVisible, graticuleVisible, kansarVisible, mefGridSize, mefVisible, scanOpacity, scanVisible, styleReady]);
+  }, [airportsVisible, facilitiesVisible, graticuleVisible, kansarVisible, mefGridSize, mefVisible, scanOpacity, scanVisible, styleReady]);
 
   // Batas KANSAR: muat FeatureCollection dari API saat layer diaktifkan.
   useEffect(() => {
@@ -748,6 +855,10 @@ export default function Worksheet4MapLibre({
         <label className="flex items-center gap-1 px-1 text-xs text-slate-800" title="Batas wilayah kerja 43 KANSAR — referensi latihan (upload KMZ 9 Okt 2021)">
           <input type="checkbox" checked={kansarVisible} onChange={(event) => { setKansarVisible(event.target.checked); setKansarStatus(''); }} />
           Batas KANSAR
+        </label>
+        <label className="flex items-center gap-1 px-1 text-xs text-slate-800" title="170 fasilitas transportasi (bandara/pelabuhan/dermaga) + 43 KANSAR + Kantor Pusat Basarnas — referensi, bukan data operasi resmi">
+          <input type="checkbox" checked={facilitiesVisible} onChange={(event) => setFacilitiesVisible(event.target.checked)} />
+          Fasilitas &amp; Kantor SAR
         </label>
         {ONC_SCAN_TILE_URL ? <>
           <label className="flex items-center gap-1 px-1 text-xs text-slate-800">

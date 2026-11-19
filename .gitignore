@@ -57,6 +57,8 @@ server.log
 # Scratch & temporary extraction scripts
 *.py
 !scripts/build_onc_mef.py
+!scripts/build_transport_facilities.py
+!scripts/build_sar_offices.py
 !build_mef.py
 !test_build_mef.py
 .mef_cache/

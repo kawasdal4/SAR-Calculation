@@ -1,0 +1,3402 @@
+[
+  {
+    "id": "fac-bandara-abu",
+    "kind": "transport-facility",
+    "name": "AA Bere Tallo (Haliwen) Airport",
+    "category": "bandara",
+    "lat": -9.0748,
+    "lng": 124.9033,
+    "specs": {
+      "cityRegion": "Atambua",
+      "code": "ABU",
+      "secondaryCode": "WATA",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-9.074800,124.903300",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-mlg",
+    "kind": "transport-facility",
+    "name": "Abdul Rachman Saleh Airport",
+    "category": "bandara",
+    "lat": -7.9291,
+    "lng": 112.7142,
+    "specs": {
+      "cityRegion": "Malang",
+      "code": "MLG",
+      "secondaryCode": "WARA",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-7.929100,112.714200",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-soc",
+    "kind": "transport-facility",
+    "name": "Adisoemarmo International Airport",
+    "category": "bandara",
+    "lat": -7.516,
+    "lng": 110.7575,
+    "specs": {
+      "cityRegion": "Surakarta",
+      "code": "SOC",
+      "secondaryCode": "WAHQ",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-7.516000,110.757500",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-jog",
+    "kind": "transport-facility",
+    "name": "Adisutjipto International Airport",
+    "category": "bandara",
+    "lat": -7.7882,
+    "lng": 110.432,
+    "specs": {
+      "cityRegion": "Yogyakarta",
+      "code": "JOG",
+      "secondaryCode": "WAHH",
+      "sizeClass": "Large"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-7.788200,110.432000",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-aeg",
+    "kind": "transport-facility",
+    "name": "Aek Godang Airport",
+    "category": "bandara",
+    "lat": 1.4001,
+    "lng": 99.4305,
+    "specs": {
+      "cityRegion": "Padang Sidempuan",
+      "code": "AEG",
+      "secondaryCode": "WIME",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=1.400100,99.430500",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-aap",
+    "kind": "transport-facility",
+    "name": "Aji Pangeran Tumenggung Pranoto International Airport",
+    "category": "bandara",
+    "lat": -0.3745,
+    "lng": 117.2501,
+    "specs": {
+      "cityRegion": "Samarinda",
+      "code": "AAP",
+      "secondaryCode": "WALS",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-0.374500,117.250100",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-lsr",
+    "kind": "transport-facility",
+    "name": "Alas Leuser Airport",
+    "category": "bandara",
+    "lat": 3.3915,
+    "lng": 97.8637,
+    "specs": {
+      "cityRegion": "Kutacane",
+      "code": "LSR",
+      "secondaryCode": "WIMU",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=3.391500,97.863700",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-ard",
+    "kind": "transport-facility",
+    "name": "Alor Island - Mali Airport",
+    "category": "bandara",
+    "lat": -8.1323,
+    "lng": 124.597,
+    "specs": {
+      "cityRegion": "Kabola",
+      "code": "ARD",
+      "secondaryCode": "WATM",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-8.132300,124.597000",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-bxb",
+    "kind": "transport-facility",
+    "name": "Babo Airport",
+    "category": "bandara",
+    "lat": -2.5322,
+    "lng": 133.439,
+    "specs": {
+      "cityRegion": "Babo",
+      "code": "BXB",
+      "secondaryCode": "WASO",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-2.532200,133.439000",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-bwx",
+    "kind": "transport-facility",
+    "name": "Banyuwangi Airport",
+    "category": "bandara",
+    "lat": -8.3102,
+    "lng": 114.3401,
+    "specs": {
+      "cityRegion": "Rogojampi, Banyuwangi",
+      "code": "BWX",
+      "secondaryCode": "WADY",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-8.310200,114.340100",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-btw",
+    "kind": "transport-facility",
+    "name": "Bersujud Airport",
+    "category": "bandara",
+    "lat": -3.4124,
+    "lng": 115.995,
+    "specs": {
+      "cityRegion": "Batu Licin",
+      "code": "BTW",
+      "secondaryCode": "WAOC",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-3.412400,115.995000",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-ugu",
+    "kind": "transport-facility",
+    "name": "Bilorai Airport",
+    "category": "bandara",
+    "lat": -3.7395,
+    "lng": 137.0312,
+    "specs": {
+      "cityRegion": "Bilogai",
+      "code": "UGU",
+      "secondaryCode": "WAYB",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-3.739500,137.031200",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-gns",
+    "kind": "transport-facility",
+    "name": "Binaka Airport",
+    "category": "bandara",
+    "lat": 1.1663,
+    "lng": 97.7052,
+    "specs": {
+      "cityRegion": "Gunungsitoli",
+      "code": "GNS",
+      "secondaryCode": "WIMB",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=1.166300,97.705200",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-bui",
+    "kind": "transport-facility",
+    "name": "Bokondini Airport",
+    "category": "bandara",
+    "lat": -3.6846,
+    "lng": 138.6774,
+    "specs": {
+      "cityRegion": "Bokondini",
+      "code": "BUI",
+      "secondaryCode": "WAVB",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-3.684600,138.677400",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-lkm",
+    "kind": "transport-facility",
+    "name": "Bolaang Mongondow Airport",
+    "category": "bandara",
+    "lat": 0.8885,
+    "lng": 124.0336,
+    "specs": {
+      "cityRegion": "Lolak",
+      "code": "LKM",
+      "secondaryCode": "WAMI",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=0.888500,124.033600",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-llo",
+    "kind": "transport-facility",
+    "name": "Bua - Palopo Lagaligo Airport",
+    "category": "bandara",
+    "lat": -3.0823,
+    "lng": 120.2448,
+    "specs": {
+      "cityRegion": "Palopo",
+      "code": "LLO",
+      "secondaryCode": "WAFD",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-3.082300,120.244800",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-uol",
+    "kind": "transport-facility",
+    "name": "Buol - Pogogul Airport",
+    "category": "bandara",
+    "lat": 1.1023,
+    "lng": 121.4134,
+    "specs": {
+      "cityRegion": "Buol",
+      "code": "UOL",
+      "secondaryCode": "WAFY",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=1.102300,121.413400",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-meq",
+    "kind": "transport-facility",
+    "name": "Cut Nyak Dhien Airport",
+    "category": "bandara",
+    "lat": 4.041,
+    "lng": 96.2533,
+    "specs": {
+      "cityRegion": "Kuala Pesisir",
+      "code": "MEQ",
+      "secondaryCode": "WITC",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=4.041000,96.253300",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-dtd",
+    "kind": "transport-facility",
+    "name": "Datadawai Airport",
+    "category": "bandara",
+    "lat": 0.807,
+    "lng": 114.5291,
+    "specs": {
+      "cityRegion": "Datadawai-Borneo Island",
+      "code": "DTD",
+      "secondaryCode": "WALJ",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=0.807000,114.529100",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-rti",
+    "kind": "transport-facility",
+    "name": "David Constantijn Saudale Airport",
+    "category": "bandara",
+    "lat": -10.7658,
+    "lng": 123.076,
+    "specs": {
+      "cityRegion": "Ba'a - Rote Island",
+      "code": "RTI",
+      "secondaryCode": "WATR",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-10.765800,123.076000",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-dps",
+    "kind": "transport-facility",
+    "name": "Denpasar I Gusti Ngurah Rai International Airport",
+    "category": "bandara",
+    "lat": -8.7484,
+    "lng": 115.1671,
+    "specs": {
+      "cityRegion": "Kuta, Badung",
+      "code": "DPS",
+      "secondaryCode": "WADD",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-8.748400,115.167100",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-krc",
+    "kind": "transport-facility",
+    "name": "Departi Parbo Airport",
+    "category": "bandara",
+    "lat": -2.094,
+    "lng": 101.4702,
+    "specs": {
+      "cityRegion": "Sungai Penuh",
+      "code": "KRC",
+      "secondaryCode": "WIJI",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-2.094000,101.470200",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-pgk",
+    "kind": "transport-facility",
+    "name": "Depati Amir Airport",
+    "category": "bandara",
+    "lat": -2.1622,
+    "lng": 106.139,
+    "specs": {
+      "cityRegion": "Pangkal Pinang",
+      "code": "PGK",
+      "secondaryCode": "WIKK",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-2.162200,106.139000",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-kwb",
+    "kind": "transport-facility",
+    "name": "Dewadaru Airport",
+    "category": "bandara",
+    "lat": -5.8009,
+    "lng": 110.4784,
+    "specs": {
+      "cityRegion": "Karimunjawa",
+      "code": "KWB",
+      "secondaryCode": "WAHU",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-5.800900,110.478400",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-dhx",
+    "kind": "transport-facility",
+    "name": "Dhoho International Airport",
+    "category": "bandara",
+    "lat": -7.7495,
+    "lng": 111.9468,
+    "specs": {
+      "cityRegion": "Kediri",
+      "code": "DHX",
+      "secondaryCode": "WARD",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-7.749500,111.946800",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-soq",
+    "kind": "transport-facility",
+    "name": "Domine Eduard Osok Airport",
+    "category": "bandara",
+    "lat": -0.894,
+    "lng": 131.287,
+    "specs": {
+      "cityRegion": "Sorong",
+      "code": "SOQ",
+      "secondaryCode": "WASS",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-0.894000,131.287000",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-djj",
+    "kind": "transport-facility",
+    "name": "Dortheys Hiyo Eluay International Airport",
+    "category": "bandara",
+    "lat": -2.5796,
+    "lng": 140.5199,
+    "specs": {
+      "cityRegion": "Sentani",
+      "code": "DJJ",
+      "secondaryCode": "WAJJ",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-2.579600,140.519900",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-nbx",
+    "kind": "transport-facility",
+    "name": "Douw Aturure Airport",
+    "category": "bandara",
+    "lat": -3.398,
+    "lng": 135.3931,
+    "specs": {
+      "cityRegion": "Nabire",
+      "code": "NBX",
+      "secondaryCode": "WABI",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-3.398000,135.393100",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-flz",
+    "kind": "transport-facility",
+    "name": "Dr. Ferdinand Lumban Tobing Airport",
+    "category": "bandara",
+    "lat": 1.5571,
+    "lng": 98.8871,
+    "specs": {
+      "cityRegion": "Sibolga (Pinangsori)",
+      "code": "FLZ",
+      "secondaryCode": "WIMS",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=1.557100,98.887100",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-koe",
+    "kind": "transport-facility",
+    "name": "El Tari Airport",
+    "category": "bandara",
+    "lat": -10.1716,
+    "lng": 123.671,
+    "specs": {
+      "cityRegion": "Kupang",
+      "code": "KOE",
+      "secondaryCode": "WATT",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-10.171600,123.671000",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-fkq",
+    "kind": "transport-facility",
+    "name": "Fakfak Airport",
+    "category": "bandara",
+    "lat": -2.9205,
+    "lng": 132.267,
+    "specs": {
+      "cityRegion": "Fakfak",
+      "code": "FKQ",
+      "secondaryCode": "WASF",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-2.920500,132.267000",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-bks",
+    "kind": "transport-facility",
+    "name": "Fatmawati Soekarno Airport",
+    "category": "bandara",
+    "lat": -3.8637,
+    "lng": 102.339,
+    "specs": {
+      "cityRegion": "Bengkulu",
+      "code": "BKS",
+      "secondaryCode": "WIGG",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-3.863700,102.339000",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-bik",
+    "kind": "transport-facility",
+    "name": "Frans Kaisiepo Airport",
+    "category": "bandara",
+    "lat": -1.19,
+    "lng": 136.108,
+    "specs": {
+      "cityRegion": "Biak",
+      "code": "BIK",
+      "secondaryCode": "WABB",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-1.190000,136.108000",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-rtg",
+    "kind": "transport-facility",
+    "name": "Frans Sales Lega Airport",
+    "category": "bandara",
+    "lat": -8.5962,
+    "lng": 120.4782,
+    "specs": {
+      "cityRegion": "Satar Tacik, Manggarai",
+      "code": "RTG",
+      "secondaryCode": "WATG",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-8.596200,120.478200",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-mof",
+    "kind": "transport-facility",
+    "name": "Frans Xavier Seda Airport",
+    "category": "bandara",
+    "lat": -8.6395,
+    "lng": 122.2381,
+    "specs": {
+      "cityRegion": "Waioti",
+      "code": "MOF",
+      "secondaryCode": "WATC",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-8.639500,122.238100",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-kbu",
+    "kind": "transport-facility",
+    "name": "Gusti Syamsir Alam Airport",
+    "category": "bandara",
+    "lat": -3.2948,
+    "lng": 116.1638,
+    "specs": {
+      "cityRegion": "Stagen",
+      "code": "KBU",
+      "secondaryCode": "WAOK",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-3.294800,116.163800",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-tjq",
+    "kind": "transport-facility",
+    "name": "H A S Hanandjoeddin International Airport",
+    "category": "bandara",
+    "lat": -2.7441,
+    "lng": 107.7545,
+    "specs": {
+      "cityRegion": "Tanjung Pandan",
+      "code": "TJQ",
+      "secondaryCode": "WIKT",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-2.744100,107.754500",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-ene",
+    "kind": "transport-facility",
+    "name": "H. Hasan Aroeboesman (Ende) Airport",
+    "category": "bandara",
+    "lat": -8.8491,
+    "lng": 121.661,
+    "specs": {
+      "cityRegion": "Ende",
+      "code": "ENE",
+      "secondaryCode": "WATE",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-8.849100,121.661000",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-hms",
+    "kind": "transport-facility",
+    "name": "Haji Muhammad Sidik Airport",
+    "category": "bandara",
+    "lat": -1.0258,
+    "lng": 114.9288,
+    "specs": {
+      "cityRegion": "Muara Teweh",
+      "code": "HMS",
+      "secondaryCode": "WAGB",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-1.025800,114.928800",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-hlp",
+    "kind": "transport-facility",
+    "name": "Halim Perdanakusuma International Airport",
+    "category": "bandara",
+    "lat": -6.267,
+    "lng": 106.8903,
+    "specs": {
+      "cityRegion": "Jakarta",
+      "code": "HLP",
+      "secondaryCode": "WIHH",
+      "sizeClass": "Large"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-6.267000,106.890300",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-kdi",
+    "kind": "transport-facility",
+    "name": "Haluoleo Airport",
+    "category": "bandara",
+    "lat": -4.0816,
+    "lng": 122.418,
+    "specs": {
+      "cityRegion": "Kendari",
+      "code": "KDI",
+      "secondaryCode": "WAWW",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-4.081600,122.418000",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-bth",
+    "kind": "transport-facility",
+    "name": "Hang Nadim International Airport",
+    "category": "bandara",
+    "lat": 1.121,
+    "lng": 104.119,
+    "specs": {
+      "cityRegion": "Batam",
+      "code": "BTH",
+      "secondaryCode": "WIDD",
+      "sizeClass": "Large"
+    },
+    "mapUrl": "https://www.google.com/maps?q=1.121000,104.119000",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-bdo",
+    "kind": "transport-facility",
+    "name": "Husein Sastranegara International Airport",
+    "category": "bandara",
+    "lat": -6.9006,
+    "lng": 107.576,
+    "specs": {
+      "cityRegion": "Bandung",
+      "code": "BDO",
+      "secondaryCode": "WICC",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-6.900600,107.576000",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-pkn",
+    "kind": "transport-facility",
+    "name": "Iskandar Airport",
+    "category": "bandara",
+    "lat": -2.7052,
+    "lng": 111.673,
+    "specs": {
+      "cityRegion": "Pangkalanbun",
+      "code": "PKN",
+      "secondaryCode": "WAGI",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-2.705200,111.673000",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-gto",
+    "kind": "transport-facility",
+    "name": "Jalaluddin Airport",
+    "category": "bandara",
+    "lat": 0.6371,
+    "lng": 122.85,
+    "specs": {
+      "cityRegion": "Gorontalo",
+      "code": "GTO",
+      "secondaryCode": "WAMG",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=0.637100,122.850000",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-rgt",
+    "kind": "transport-facility",
+    "name": "Japura Airport",
+    "category": "bandara",
+    "lat": -0.3528,
+    "lng": 102.335,
+    "specs": {
+      "cityRegion": "Rengat-Sumatra Island",
+      "code": "RGT",
+      "secondaryCode": "WIBJ",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-0.352800,102.335000",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-srg",
+    "kind": "transport-facility",
+    "name": "Jenderal Ahmad Yani Airport",
+    "category": "bandara",
+    "lat": -6.9707,
+    "lng": 110.3732,
+    "specs": {
+      "cityRegion": "Semarang",
+      "code": "SRG",
+      "secondaryCode": "WAHS",
+      "sizeClass": "Large"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-6.970700,110.373200",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-jio",
+    "kind": "transport-facility",
+    "name": "Jos Orno Imsula Airport",
+    "category": "bandara",
+    "lat": -8.1407,
+    "lng": 127.9097,
+    "specs": {
+      "cityRegion": "Tiakur",
+      "code": "JIO",
+      "secondaryCode": "WAPM",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-8.140700,127.909700",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-sub",
+    "kind": "transport-facility",
+    "name": "Juanda International Airport",
+    "category": "bandara",
+    "lat": -7.3798,
+    "lng": 112.787,
+    "specs": {
+      "cityRegion": "Surabaya",
+      "code": "SUB",
+      "secondaryCode": "WARR",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-7.379800,112.787000",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-trk",
+    "kind": "transport-facility",
+    "name": "Juwata International Airport / Suharnoko Harbani AFB",
+    "category": "bandara",
+    "lat": 3.3251,
+    "lng": 117.5642,
+    "specs": {
+      "cityRegion": "Tarakan",
+      "code": "TRK",
+      "secondaryCode": "WAQQ",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=3.325100,117.564200",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-bej",
+    "kind": "transport-facility",
+    "name": "Kalimarau Airport",
+    "category": "bandara",
+    "lat": 2.1478,
+    "lng": 117.4307,
+    "specs": {
+      "cityRegion": "Tanjung Redeb - Borneo Island",
+      "code": "BEJ",
+      "secondaryCode": "WAQT",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=2.147800,117.430700",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-luv",
+    "kind": "transport-facility",
+    "name": "Karel Sadsuitubun Airport",
+    "category": "bandara",
+    "lat": -5.7603,
+    "lng": 132.7594,
+    "specs": {
+      "cityRegion": "Langgur",
+      "code": "LUV",
+      "secondaryCode": "WAPF",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-5.760300,132.759400",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-psj",
+    "kind": "transport-facility",
+    "name": "Kasiguncu Airport",
+    "category": "bandara",
+    "lat": -1.4141,
+    "lng": 120.6592,
+    "specs": {
+      "cityRegion": "Poso-Celebes Island",
+      "code": "PSJ",
+      "secondaryCode": "WAFP",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-1.414100,120.659200",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-kjt",
+    "kind": "transport-facility",
+    "name": "Kertajati International Airport",
+    "category": "bandara",
+    "lat": -6.6474,
+    "lng": 108.1656,
+    "specs": {
+      "cityRegion": "Kertajati",
+      "code": "KJT",
+      "secondaryCode": "WICA",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-6.647400,108.165600",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-lbj",
+    "kind": "transport-facility",
+    "name": "Komodo Airport",
+    "category": "bandara",
+    "lat": -8.4807,
+    "lng": 119.8883,
+    "specs": {
+      "cityRegion": "Labuan Bajo, Manggarai Barat",
+      "code": "LBJ",
+      "secondaryCode": "WATO",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-8.480700,119.888300",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-kno",
+    "kind": "transport-facility",
+    "name": "Kualanamu International Airport",
+    "category": "bandara",
+    "lat": 3.6378,
+    "lng": 98.8706,
+    "specs": {
+      "cityRegion": "Beringin",
+      "code": "KNO",
+      "secondaryCode": "WIMM",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=3.637800,98.870600",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-bxt",
+    "kind": "transport-facility",
+    "name": "LNG Badak Airport",
+    "category": "bandara",
+    "lat": 0.1217,
+    "lng": 117.4766,
+    "specs": {
+      "cityRegion": "Bontang-Borneo Island",
+      "code": "BXT",
+      "secondaryCode": "WALC",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=0.121700,117.476600",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-lka",
+    "kind": "transport-facility",
+    "name": "Larantuka Gewayentana Airport",
+    "category": "bandara",
+    "lat": -8.2744,
+    "lng": 123.002,
+    "specs": {
+      "cityRegion": "Tiwatobi",
+      "code": "LKA",
+      "secondaryCode": "WATL",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-8.274400,123.002000",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-lki",
+    "kind": "transport-facility",
+    "name": "Lasikin Airport",
+    "category": "bandara",
+    "lat": 2.4113,
+    "lng": 96.3277,
+    "specs": {
+      "cityRegion": "Lubang",
+      "code": "LKI",
+      "secondaryCode": "WIML",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=2.411300,96.327700",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-lsx",
+    "kind": "transport-facility",
+    "name": "Lhok Sukon Airport",
+    "category": "bandara",
+    "lat": 5.0695,
+    "lng": 97.2592,
+    "specs": {
+      "cityRegion": "Lhok Sukon-Sumatra Island",
+      "code": "LSX",
+      "secondaryCode": "WITL",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=5.069500,97.259200",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-lop",
+    "kind": "transport-facility",
+    "name": "Lombok International Airport",
+    "category": "bandara",
+    "lat": -8.76,
+    "lng": 116.2782,
+    "specs": {
+      "cityRegion": "Mataram (Pujut, Lombok Tengah)",
+      "code": "LOP",
+      "secondaryCode": "WADL",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-8.760000,116.278200",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-lpu",
+    "kind": "transport-facility",
+    "name": "Long Apung Airport",
+    "category": "bandara",
+    "lat": 1.7069,
+    "lng": 114.9699,
+    "specs": {
+      "cityRegion": "Long Apung-Borneo Island",
+      "code": "LPU",
+      "secondaryCode": "WAQL",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=1.706900,114.969900",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-moh",
+    "kind": "transport-facility",
+    "name": "Maleo Airport",
+    "category": "bandara",
+    "lat": -2.2011,
+    "lng": 121.6629,
+    "specs": {
+      "cityRegion": "Morowali",
+      "code": "MOH",
+      "secondaryCode": "WAFO",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-2.201100,121.662900",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-lsw",
+    "kind": "transport-facility",
+    "name": "Malikus Saleh Airport",
+    "category": "bandara",
+    "lat": 5.2267,
+    "lng": 96.9503,
+    "specs": {
+      "cityRegion": "Lhok Seumawe-Sumatra Island",
+      "code": "LSW",
+      "secondaryCode": "WIMA",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=5.226700,96.950300",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-rjm",
+    "kind": "transport-facility",
+    "name": "Marinda Airport",
+    "category": "bandara",
+    "lat": -0.425,
+    "lng": 130.7735,
+    "specs": {
+      "cityRegion": "Waisai",
+      "code": "RJM",
+      "secondaryCode": "WASN",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-0.425000,130.773500",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-wni",
+    "kind": "transport-facility",
+    "name": "Matahora Airport",
+    "category": "bandara",
+    "lat": -5.2921,
+    "lng": 123.6362,
+    "specs": {
+      "cityRegion": "Wangi-wangi Island",
+      "code": "WNI",
+      "secondaryCode": "WAWD",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-5.292100,123.636200",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-sxk",
+    "kind": "transport-facility",
+    "name": "Mathilda Batlayeri Airport",
+    "category": "bandara",
+    "lat": -7.8484,
+    "lng": 131.3371,
+    "specs": {
+      "cityRegion": "Saumlaki-Yamdena Island",
+      "code": "SXK",
+      "secondaryCode": "WAPS",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-7.848400,131.337100",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-rki",
+    "kind": "transport-facility",
+    "name": "Mentawai Airport",
+    "category": "bandara",
+    "lat": -2.1001,
+    "lng": 99.7044,
+    "specs": {
+      "cityRegion": "Sipura Island",
+      "code": "RKI",
+      "secondaryCode": "WIEB",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-2.100100,99.704400",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-pdg",
+    "kind": "transport-facility",
+    "name": "Minangkabau International Airport",
+    "category": "bandara",
+    "lat": -0.786,
+    "lng": 100.2804,
+    "specs": {
+      "cityRegion": "Padang (Katapiang)",
+      "code": "PDG",
+      "secondaryCode": "WIEE",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-0.786000,100.280400",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-mkq",
+    "kind": "transport-facility",
+    "name": "Mopah International Airport",
+    "category": "bandara",
+    "lat": -8.5239,
+    "lng": 140.4197,
+    "specs": {
+      "cityRegion": "Merauke",
+      "code": "MKQ",
+      "secondaryCode": "WAKK",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-8.523900,140.419700",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-tim",
+    "kind": "transport-facility",
+    "name": "Mozes Kilangin Airport",
+    "category": "bandara",
+    "lat": -4.5298,
+    "lng": 136.8874,
+    "specs": {
+      "cityRegion": "Timika",
+      "code": "TIM",
+      "secondaryCode": "WAYY",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-4.529800,136.887400",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-buu",
+    "kind": "transport-facility",
+    "name": "Muara Bungo Airport",
+    "category": "bandara",
+    "lat": -1.5416,
+    "lng": 102.1816,
+    "specs": {
+      "cityRegion": "Muara Bungo",
+      "code": "BUU",
+      "secondaryCode": "WIJB",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-1.541600,102.181600",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-mpc",
+    "kind": "transport-facility",
+    "name": "Muko Muko Airport",
+    "category": "bandara",
+    "lat": -2.5411,
+    "lng": 101.0877,
+    "specs": {
+      "cityRegion": "Muko Muko",
+      "code": "MPC",
+      "secondaryCode": "WIPU",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-2.541100,101.087700",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-plw",
+    "kind": "transport-facility",
+    "name": "Mutiara - SIS Al-Jufrie Airport",
+    "category": "bandara",
+    "lat": -0.9165,
+    "lng": 119.9086,
+    "specs": {
+      "cityRegion": "Palu",
+      "code": "PLW",
+      "secondaryCode": "WAFF",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-0.916500,119.908600",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-nah",
+    "kind": "transport-facility",
+    "name": "Naha Airport",
+    "category": "bandara",
+    "lat": 3.6848,
+    "lng": 125.5272,
+    "specs": {
+      "cityRegion": "Tabukan Utara, Sangihe Islands",
+      "code": "NAH",
+      "secondaryCode": "WAMH",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=3.684800,125.527200",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-nam",
+    "kind": "transport-facility",
+    "name": "Namniwel Airport",
+    "category": "bandara",
+    "lat": -3.1432,
+    "lng": 126.9765,
+    "specs": {
+      "cityRegion": "Namniwel",
+      "code": "NAM",
+      "secondaryCode": "WAPN",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-3.143200,126.976500",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-npo",
+    "kind": "transport-facility",
+    "name": "Nanga Pinoh Airport",
+    "category": "bandara",
+    "lat": 0.3486,
+    "lng": 111.7462,
+    "specs": {
+      "cityRegion": "Nanga Pinoh-Borneo Island",
+      "code": "NPO",
+      "secondaryCode": "WIOG",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=0.348600,111.746200",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-dex",
+    "kind": "transport-facility",
+    "name": "Nop Goliat Dekai Airport",
+    "category": "bandara",
+    "lat": -4.8557,
+    "lng": 139.482,
+    "specs": {
+      "cityRegion": "Dekai",
+      "code": "DEX",
+      "secondaryCode": "WAVD",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-4.855700,139.482000",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-jbb",
+    "kind": "transport-facility",
+    "name": "Notohadinegoro Airport",
+    "category": "bandara",
+    "lat": -8.2425,
+    "lng": 113.6935,
+    "specs": {
+      "cityRegion": "Jember",
+      "code": "JBB",
+      "secondaryCode": "WARE",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-8.242500,113.693500",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-ivd",
+    "kind": "transport-facility",
+    "name": "Nusantara International Airport",
+    "category": "bandara",
+    "lat": -1.1605,
+    "lng": 116.7119,
+    "specs": {
+      "cityRegion": "Nusantara",
+      "code": "IVD",
+      "secondaryCode": "WALK",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-1.160500,116.711900",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-cjn",
+    "kind": "transport-facility",
+    "name": "Nusawiru Airport",
+    "category": "bandara",
+    "lat": -7.7199,
+    "lng": 108.489,
+    "specs": {
+      "cityRegion": "Cijulang",
+      "code": "CJN",
+      "secondaryCode": "WICN",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-7.719900,108.489000",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-okl",
+    "kind": "transport-facility",
+    "name": "Oksibil Airport",
+    "category": "bandara",
+    "lat": -4.9071,
+    "lng": 140.6277,
+    "specs": {
+      "cityRegion": "Oksibil",
+      "code": "OKL",
+      "secondaryCode": "WAJO",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-4.907100,140.627700",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-psu",
+    "kind": "transport-facility",
+    "name": "Pangsuma Airport",
+    "category": "bandara",
+    "lat": 0.8346,
+    "lng": 112.9402,
+    "specs": {
+      "cityRegion": "Putussibau-Borneo Island",
+      "code": "PSU",
+      "secondaryCode": "WIOP",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=0.834600,112.940200",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-amq",
+    "kind": "transport-facility",
+    "name": "Pattimura International Airport",
+    "category": "bandara",
+    "lat": -3.7103,
+    "lng": 128.089,
+    "specs": {
+      "cityRegion": "Ambon",
+      "code": "AMQ",
+      "secondaryCode": "WAPP",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-3.710300,128.089000",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-pdo",
+    "kind": "transport-facility",
+    "name": "Pendopo Airport",
+    "category": "bandara",
+    "lat": -3.2861,
+    "lng": 103.88,
+    "specs": {
+      "cityRegion": "Talang Gudang-Sumatra Island",
+      "code": "PDO",
+      "secondaryCode": "WIPQ",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-3.286100,103.880000",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-dum",
+    "kind": "transport-facility",
+    "name": "Pinang Kampai Airport",
+    "category": "bandara",
+    "lat": 1.609,
+    "lng": 101.4335,
+    "specs": {
+      "cityRegion": "Dumai",
+      "code": "DUM",
+      "secondaryCode": "WIBD",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=1.609000,101.433500",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-oti",
+    "kind": "transport-facility",
+    "name": "Pitu Airport",
+    "category": "bandara",
+    "lat": 2.046,
+    "lng": 128.325,
+    "specs": {
+      "cityRegion": "Gotalalamo-Morotai Island",
+      "code": "OTI",
+      "secondaryCode": "WAEW",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=2.046000,128.325000",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-tkg",
+    "kind": "transport-facility",
+    "name": "Radin Inten II International Airport",
+    "category": "bandara",
+    "lat": -5.2468,
+    "lng": 105.1825,
+    "specs": {
+      "cityRegion": "Bandar Lampung",
+      "code": "TKG",
+      "secondaryCode": "WILL",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-5.246800,105.182500",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-ktg",
+    "kind": "transport-facility",
+    "name": "Rahadi Osman Airport",
+    "category": "bandara",
+    "lat": -1.8172,
+    "lng": 109.9635,
+    "specs": {
+      "cityRegion": "Ketapang",
+      "code": "KTG",
+      "secondaryCode": "WIOK",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-1.817200,109.963500",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-tnj",
+    "kind": "transport-facility",
+    "name": "Raja Haji Fisabilillah International Airport",
+    "category": "bandara",
+    "lat": 0.924,
+    "lng": 104.5334,
+    "specs": {
+      "cityRegion": "Tanjung Pinang-Bintan Island",
+      "code": "TNJ",
+      "secondaryCode": "WIDN",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=0.924000,104.533400",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-ntx",
+    "kind": "transport-facility",
+    "name": "Ranai Airport",
+    "category": "bandara",
+    "lat": 3.9087,
+    "lng": 108.388,
+    "specs": {
+      "cityRegion": "Ranai-Natuna Besar Island",
+      "code": "NTX",
+      "secondaryCode": "WIDO",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=3.908700,108.388000",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-txe",
+    "kind": "transport-facility",
+    "name": "Rembele Airport",
+    "category": "bandara",
+    "lat": 4.7211,
+    "lng": 96.8519,
+    "specs": {
+      "cityRegion": "Takengon",
+      "code": "TXE",
+      "secondaryCode": "WITK",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=4.721100,96.851900",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-mkw",
+    "kind": "transport-facility",
+    "name": "Rendani Airport",
+    "category": "bandara",
+    "lat": -0.8918,
+    "lng": 134.049,
+    "specs": {
+      "cityRegion": "Manokwari",
+      "code": "MKW",
+      "secondaryCode": "WAUU",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-0.891800,134.049000",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-lnu",
+    "kind": "transport-facility",
+    "name": "Robert Atty Bessing",
+    "category": "bandara",
+    "lat": 3.5753,
+    "lng": 116.6198,
+    "specs": {
+      "cityRegion": "Malinau",
+      "code": "LNU",
+      "secondaryCode": "WAQM",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=3.575300,116.619800",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-mdc",
+    "kind": "transport-facility",
+    "name": "Sam Ratulangi International Airport",
+    "category": "bandara",
+    "lat": 1.5486,
+    "lng": 124.9262,
+    "specs": {
+      "cityRegion": "Manado",
+      "code": "MDC",
+      "secondaryCode": "WAMM",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=1.548600,124.926200",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-smq",
+    "kind": "transport-facility",
+    "name": "Sampit (H.Asan) Airport",
+    "category": "bandara",
+    "lat": -2.4992,
+    "lng": 112.975,
+    "specs": {
+      "cityRegion": "Sampit",
+      "code": "SMQ",
+      "secondaryCode": "WAGS",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-2.499200,112.975000",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-kxb",
+    "kind": "transport-facility",
+    "name": "Sangia Nibandera Airport",
+    "category": "bandara",
+    "lat": -4.3382,
+    "lng": 121.524,
+    "specs": {
+      "cityRegion": "Kolaka",
+      "code": "KXB",
+      "secondaryCode": "WAWP",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-4.338200,121.524000",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-ksr",
+    "kind": "transport-facility",
+    "name": "Selayar - Haji Aroeppala Airport",
+    "category": "bandara",
+    "lat": -6.1792,
+    "lng": 120.4375,
+    "specs": {
+      "cityRegion": "Benteng",
+      "code": "KSR",
+      "secondaryCode": "WAWH",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-6.179200,120.437500",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-klp",
+    "kind": "transport-facility",
+    "name": "Seruyan Kuala Pembuang Airport",
+    "category": "bandara",
+    "lat": -3.3761,
+    "lng": 112.5365,
+    "specs": {
+      "cityRegion": "Seruyan",
+      "code": "KLP",
+      "secondaryCode": "WAGF",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-3.376100,112.536500",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-dtb",
+    "kind": "transport-facility",
+    "name": "Silangit Airport",
+    "category": "bandara",
+    "lat": 2.2597,
+    "lng": 98.9919,
+    "specs": {
+      "cityRegion": "Siborong-Borong",
+      "code": "DTB",
+      "secondaryCode": "WIMN",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=2.259700,98.991900",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-cgk",
+    "kind": "transport-facility",
+    "name": "Soekarno-Hatta International Airport",
+    "category": "bandara",
+    "lat": -6.1256,
+    "lng": 106.656,
+    "specs": {
+      "cityRegion": "Jakarta",
+      "code": "CGK",
+      "secondaryCode": "WIII",
+      "sizeClass": "Large"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-6.125600,106.656000",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-mes",
+    "kind": "transport-facility",
+    "name": "Soewondo Air Force Base",
+    "category": "bandara",
+    "lat": 3.5584,
+    "lng": 98.6723,
+    "specs": {
+      "cityRegion": "Medan",
+      "code": "MES",
+      "secondaryCode": "WIMK",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=3.558400,98.672300",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-zri",
+    "kind": "transport-facility",
+    "name": "Stevanus Rumbewas Airport",
+    "category": "bandara",
+    "lat": -1.8284,
+    "lng": 136.0624,
+    "specs": {
+      "cityRegion": "Serui",
+      "code": "ZRI",
+      "secondaryCode": "WABO",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-1.828400,136.062400",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-bpn",
+    "kind": "transport-facility",
+    "name": "Sultan Aji Muhammad Sulaiman Sepinggan International Airport",
+    "category": "bandara",
+    "lat": -1.2683,
+    "lng": 116.8945,
+    "specs": {
+      "cityRegion": "Balikpapan",
+      "code": "BPN",
+      "secondaryCode": "WALL",
+      "sizeClass": "Large"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-1.268300,116.894500",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-tte",
+    "kind": "transport-facility",
+    "name": "Sultan Babullah Airport",
+    "category": "bandara",
+    "lat": 0.831,
+    "lng": 127.3816,
+    "specs": {
+      "cityRegion": "Ternate",
+      "code": "TTE",
+      "secondaryCode": "WAEE",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=0.831000,127.381600",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-tli",
+    "kind": "transport-facility",
+    "name": "Sultan Bantilan Airport",
+    "category": "bandara",
+    "lat": 1.1234,
+    "lng": 120.7937,
+    "specs": {
+      "cityRegion": "Toli Toli",
+      "code": "TLI",
+      "secondaryCode": "WAFL",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=1.123400,120.793700",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-upg",
+    "kind": "transport-facility",
+    "name": "Sultan Hasanuddin International Airport",
+    "category": "bandara",
+    "lat": -5.0755,
+    "lng": 119.5537,
+    "specs": {
+      "cityRegion": "Makassar",
+      "code": "UPG",
+      "secondaryCode": "WAAA",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-5.075500,119.553700",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-btj",
+    "kind": "transport-facility",
+    "name": "Sultan Iskandar Muda International Airport",
+    "category": "bandara",
+    "lat": 5.5251,
+    "lng": 95.42,
+    "specs": {
+      "cityRegion": "Banda Aceh",
+      "code": "BTJ",
+      "secondaryCode": "WITT",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=5.525100,95.420000",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-plm",
+    "kind": "transport-facility",
+    "name": "Sultan Mahmud Badaruddin II Airport",
+    "category": "bandara",
+    "lat": -2.8977,
+    "lng": 104.6981,
+    "specs": {
+      "cityRegion": "Palembang",
+      "code": "PLM",
+      "secondaryCode": "WIPP",
+      "sizeClass": "Large"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-2.897700,104.698100",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-swq",
+    "kind": "transport-facility",
+    "name": "Sultan Muhammad Kaharuddin III Airport",
+    "category": "bandara",
+    "lat": -8.489,
+    "lng": 117.412,
+    "specs": {
+      "cityRegion": "Sumbawa Besar",
+      "code": "SWQ",
+      "secondaryCode": "WADS",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-8.489000,117.412000",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-bmu",
+    "kind": "transport-facility",
+    "name": "Sultan Muhammad Salahuddin Airport",
+    "category": "bandara",
+    "lat": -8.5372,
+    "lng": 118.685,
+    "specs": {
+      "cityRegion": "Bima",
+      "code": "BMU",
+      "secondaryCode": "WADB",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-8.537200,118.685000",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-pku",
+    "kind": "transport-facility",
+    "name": "Sultan Syarif Kasim II International Airport / Roesmin Nurjadin AFB",
+    "category": "bandara",
+    "lat": 0.4586,
+    "lng": 101.4443,
+    "specs": {
+      "cityRegion": "Pekanbaru",
+      "code": "PKU",
+      "secondaryCode": "WIBB",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=0.458600,101.444300",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-djb",
+    "kind": "transport-facility",
+    "name": "Sultan Thaha Airport",
+    "category": "bandara",
+    "lat": -1.6387,
+    "lng": 103.6451,
+    "specs": {
+      "cityRegion": "Jambi",
+      "code": "DJB",
+      "secondaryCode": "WIJJ",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-1.638700,103.645100",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-pnk",
+    "kind": "transport-facility",
+    "name": "Supadio International Airport",
+    "category": "bandara",
+    "lat": -0.1523,
+    "lng": 109.4045,
+    "specs": {
+      "cityRegion": "Pontianak",
+      "code": "PNK",
+      "secondaryCode": "WIOO",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-0.152300,109.404500",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-bdj",
+    "kind": "transport-facility",
+    "name": "Syamsudin Noor International Airport",
+    "category": "bandara",
+    "lat": -3.4401,
+    "lng": 114.7612,
+    "specs": {
+      "cityRegion": "Banjarbaru",
+      "code": "BDJ",
+      "secondaryCode": "WAOO",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-3.440100,114.761200",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-fsh",
+    "kind": "transport-facility",
+    "name": "Syekh Hamzah Fansyuri Airport",
+    "category": "bandara",
+    "lat": 2.2696,
+    "lng": 97.9679,
+    "specs": {
+      "cityRegion": "Singkil",
+      "code": "FSH",
+      "secondaryCode": "WIMI",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=2.269600,97.967900",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-luw",
+    "kind": "transport-facility",
+    "name": "Syukuran Aminuddin Amir Airport",
+    "category": "bandara",
+    "lat": -1.0359,
+    "lng": 122.7739,
+    "specs": {
+      "cityRegion": "Luwok",
+      "code": "LUW",
+      "secondaryCode": "WAFW",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-1.035900,122.773900",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-tmc",
+    "kind": "transport-facility",
+    "name": "Tambolaka Airport",
+    "category": "bandara",
+    "lat": -9.4092,
+    "lng": 119.2426,
+    "specs": {
+      "cityRegion": "Radamata",
+      "code": "TMC",
+      "secondaryCode": "WATK",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-9.409200,119.242600",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-tmh",
+    "kind": "transport-facility",
+    "name": "Tanah Merah Airport",
+    "category": "bandara",
+    "lat": -6.0967,
+    "lng": 140.3035,
+    "specs": {
+      "cityRegion": "Tanah Merah",
+      "code": "TMH",
+      "secondaryCode": "WAKT",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-6.096700,140.303500",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-oju",
+    "kind": "transport-facility",
+    "name": "Tanjung Api Airport",
+    "category": "bandara",
+    "lat": -0.8654,
+    "lng": 121.6286,
+    "specs": {
+      "cityRegion": "Tojo Una-Una",
+      "code": "OJU",
+      "secondaryCode": "WAFU",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-0.865400,121.628600",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-tjs",
+    "kind": "transport-facility",
+    "name": "Tanjung Harapan Airport",
+    "category": "bandara",
+    "lat": 2.8381,
+    "lng": 117.3746,
+    "specs": {
+      "cityRegion": "Tanjung Selor-Borneo Island",
+      "code": "TJS",
+      "secondaryCode": "WAGD",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=2.838100,117.374600",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-sqg",
+    "kind": "transport-facility",
+    "name": "Tebelian Airport",
+    "category": "bandara",
+    "lat": -0.0452,
+    "lng": 111.458,
+    "specs": {
+      "cityRegion": "Sintang",
+      "code": "SQG",
+      "secondaryCode": "WIOS",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-0.045200,111.458000",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-pky",
+    "kind": "transport-facility",
+    "name": "Tjilik Riwut Airport",
+    "category": "bandara",
+    "lat": -2.2271,
+    "lng": 113.9434,
+    "specs": {
+      "cityRegion": "Palangkaraya",
+      "code": "PKY",
+      "secondaryCode": "WAGG",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-2.227100,113.943400",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-trt",
+    "kind": "transport-facility",
+    "name": "Toraja Airport",
+    "category": "bandara",
+    "lat": -3.1844,
+    "lng": 119.9191,
+    "specs": {
+      "cityRegion": "Toraja",
+      "code": "TRT",
+      "secondaryCode": "WAFB",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-3.184400,119.919100",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-tbm",
+    "kind": "transport-facility",
+    "name": "Tumbang Samba Airport",
+    "category": "bandara",
+    "lat": -1.469,
+    "lng": 113.081,
+    "specs": {
+      "cityRegion": "Tumbang Samba-Borneo Island",
+      "code": "TBM",
+      "secondaryCode": "WAGT",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-1.469000,113.081000",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-cxp",
+    "kind": "transport-facility",
+    "name": "Tunggul Wulung Airport",
+    "category": "bandara",
+    "lat": -7.6451,
+    "lng": 109.034,
+    "specs": {
+      "cityRegion": "Cilacap",
+      "code": "CXP",
+      "secondaryCode": "WAHL",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-7.645100,109.034000",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-wgp",
+    "kind": "transport-facility",
+    "name": "Umbu Mehang Kunda Airport",
+    "category": "bandara",
+    "lat": -9.6692,
+    "lng": 120.302,
+    "specs": {
+      "cityRegion": "Waingapu-Sumba Island",
+      "code": "WGP",
+      "secondaryCode": "WATU",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-9.669200,120.302000",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-kng",
+    "kind": "transport-facility",
+    "name": "Utarom Airport",
+    "category": "bandara",
+    "lat": -3.6446,
+    "lng": 133.6951,
+    "specs": {
+      "cityRegion": "Kaimana",
+      "code": "KNG",
+      "secondaryCode": "WASK",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-3.644600,133.695100",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-wmx",
+    "kind": "transport-facility",
+    "name": "Wamena Airport",
+    "category": "bandara",
+    "lat": -4.0973,
+    "lng": 138.9524,
+    "specs": {
+      "cityRegion": "Wamena",
+      "code": "WMX",
+      "secondaryCode": "WAVV",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-4.097300,138.952400",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-tjg",
+    "kind": "transport-facility",
+    "name": "Warukin Airport",
+    "category": "bandara",
+    "lat": -2.2166,
+    "lng": 115.436,
+    "specs": {
+      "cityRegion": "Tanta-Tabalong",
+      "code": "TJG",
+      "secondaryCode": "WAON",
+      "sizeClass": "Medium"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-2.216600,115.436000",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-yia",
+    "kind": "transport-facility",
+    "name": "Yogyakarta International Airport",
+    "category": "bandara",
+    "lat": -7.9053,
+    "lng": 110.0573,
+    "specs": {
+      "cityRegion": "Yogyakarta",
+      "code": "YIA",
+      "secondaryCode": "WAHI",
+      "sizeClass": "Large"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-7.905300,110.057300",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-bandara-lbw",
+    "kind": "transport-facility",
+    "name": "Yuvai Semaring Airport",
+    "category": "bandara",
+    "lat": 3.9005,
+    "lng": 115.6901,
+    "specs": {
+      "cityRegion": "Long Bawan",
+      "code": "LBW",
+      "secondaryCode": "WAQJ",
+      "sizeClass": "Small"
+    },
+    "mapUrl": "https://www.google.com/maps?q=3.900500,115.690100",
+    "source": "Navo24 / OurAirports (data 6 Nov 2026)",
+    "updatedRef": "2026-11-06",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-pelabuhan-idama",
+    "kind": "transport-facility",
+    "name": "Amamapare",
+    "category": "pelabuhan",
+    "lat": -4.86628,
+    "lng": 136.79498,
+    "specs": {
+      "cityRegion": "Central Papua",
+      "code": "IDAMA",
+      "secondaryCode": "",
+      "sizeClass": "Pelabuhan / port point"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-4.866280,136.794980",
+    "source": "ListBase / OpenTravelData (updated Apr 2026)",
+    "updatedRef": "2026-04",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-pelabuhan-idbtm",
+    "kind": "transport-facility",
+    "name": "Batam Port",
+    "category": "pelabuhan",
+    "lat": 1.12533,
+    "lng": 103.92725,
+    "specs": {
+      "cityRegion": "Riau Islands",
+      "code": "IDBTM",
+      "secondaryCode": "",
+      "sizeClass": "Pelabuhan / port point"
+    },
+    "mapUrl": "https://www.google.com/maps?q=1.125330,103.927250",
+    "source": "ListBase / OpenTravelData (updated Apr 2026)",
+    "updatedRef": "2026-04",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-pelabuhan-idbur",
+    "kind": "transport-facility",
+    "name": "Batu Ampar",
+    "category": "pelabuhan",
+    "lat": 1.16628,
+    "lng": 104.00447,
+    "specs": {
+      "cityRegion": "Riau Islands",
+      "code": "IDBUR",
+      "secondaryCode": "",
+      "sizeClass": "Pelabuhan / port point"
+    },
+    "mapUrl": "https://www.google.com/maps?q=1.166280,104.004470",
+    "source": "ListBase / OpenTravelData (updated Apr 2026)",
+    "updatedRef": "2026-04",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-pelabuhan-idblw",
+    "kind": "transport-facility",
+    "name": "Belawan",
+    "category": "pelabuhan",
+    "lat": 3.7876,
+    "lng": 98.69577,
+    "specs": {
+      "cityRegion": "North Sumatra",
+      "code": "IDBLW",
+      "secondaryCode": "",
+      "sizeClass": "Pelabuhan / port point"
+    },
+    "mapUrl": "https://www.google.com/maps?q=3.787600,98.695770",
+    "source": "ListBase / OpenTravelData (updated Apr 2026)",
+    "updatedRef": "2026-04",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-pelabuhan-iddum",
+    "kind": "transport-facility",
+    "name": "Dumai",
+    "category": "pelabuhan",
+    "lat": 1.68704,
+    "lng": 101.45635,
+    "specs": {
+      "cityRegion": "Riau",
+      "code": "IDDUM",
+      "secondaryCode": "",
+      "sizeClass": "Pelabuhan / port point"
+    },
+    "mapUrl": "https://www.google.com/maps?q=1.687040,101.456350",
+    "source": "ListBase / OpenTravelData (updated Apr 2026)",
+    "updatedRef": "2026-04",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-pelabuhan-idibt",
+    "kind": "transport-facility",
+    "name": "Indonesia Bulk Terminal",
+    "category": "pelabuhan",
+    "lat": -6.21483,
+    "lng": 106.81966,
+    "specs": {
+      "cityRegion": "Jakarta",
+      "code": "IDIBT",
+      "secondaryCode": "",
+      "sizeClass": "Pelabuhan / port point"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-6.214830,106.819660",
+    "source": "ListBase / OpenTravelData (updated Apr 2026)",
+    "updatedRef": "2026-04",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-pelabuhan-idutc",
+    "kind": "transport-facility",
+    "name": "Jakarta UTC1",
+    "category": "pelabuhan",
+    "lat": -6.10478,
+    "lng": 106.89405,
+    "specs": {
+      "cityRegion": "Jakarta",
+      "code": "IDUTC",
+      "secondaryCode": "",
+      "sizeClass": "Pelabuhan / port point"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-6.104780,106.894050",
+    "source": "ListBase / OpenTravelData (updated Apr 2026)",
+    "updatedRef": "2026-04",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-pelabuhan-idute",
+    "kind": "transport-facility",
+    "name": "Jakarta UTC3",
+    "category": "pelabuhan",
+    "lat": -6.10339,
+    "lng": 106.90418,
+    "specs": {
+      "cityRegion": "Jakarta",
+      "code": "IDUTE",
+      "secondaryCode": "",
+      "sizeClass": "Pelabuhan / port point"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-6.103390,106.904180",
+    "source": "ListBase / OpenTravelData (updated Apr 2026)",
+    "updatedRef": "2026-04",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-pelabuhan-idplm",
+    "kind": "transport-facility",
+    "name": "Palembang",
+    "category": "pelabuhan",
+    "lat": -2.99412,
+    "lng": 104.75783,
+    "specs": {
+      "cityRegion": "South Sumatra",
+      "code": "IDPLM",
+      "secondaryCode": "",
+      "sizeClass": "Pelabuhan / port point"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-2.994120,104.757830",
+    "source": "ListBase / OpenTravelData (updated Apr 2026)",
+    "updatedRef": "2026-04",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-pelabuhan-idftg",
+    "kind": "transport-facility",
+    "name": "Pelabuhan Futong Terminal",
+    "category": "pelabuhan",
+    "lat": 0.81872,
+    "lng": 102.39999,
+    "specs": {
+      "cityRegion": "Riau",
+      "code": "IDFTG",
+      "secondaryCode": "",
+      "sizeClass": "Pelabuhan / port point"
+    },
+    "mapUrl": "https://www.google.com/maps?q=0.818720,102.399990",
+    "source": "ListBase / OpenTravelData (updated Apr 2026)",
+    "updatedRef": "2026-04",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-pelabuhan-idgil",
+    "kind": "transport-facility",
+    "name": "Pelabuhan Gilimanuk",
+    "category": "pelabuhan",
+    "lat": -8.1617,
+    "lng": 114.4363,
+    "specs": {
+      "cityRegion": "Bali",
+      "code": "IDGIL",
+      "secondaryCode": "",
+      "sizeClass": "Pelabuhan / port point"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-8.161700,114.436300",
+    "source": "ListBase / OpenTravelData (updated Apr 2026)",
+    "updatedRef": "2026-04",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-pelabuhan-idkbh",
+    "kind": "transport-facility",
+    "name": "Pelabuhan Kalabahi",
+    "category": "pelabuhan",
+    "lat": -8.2215,
+    "lng": 124.5126,
+    "specs": {
+      "cityRegion": "East Nusa Tenggara",
+      "code": "IDKBH",
+      "secondaryCode": "",
+      "sizeClass": "Pelabuhan / port point"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-8.221500,124.512600",
+    "source": "ListBase / OpenTravelData (updated Apr 2026)",
+    "updatedRef": "2026-04",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-pelabuhan-idmpo",
+    "kind": "transport-facility",
+    "name": "Pelabuhan Marapokot",
+    "category": "pelabuhan",
+    "lat": -8.515,
+    "lng": 121.3287,
+    "specs": {
+      "cityRegion": "East Nusa Tenggara",
+      "code": "IDMPO",
+      "secondaryCode": "",
+      "sizeClass": "Pelabuhan / port point"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-8.515000,121.328700",
+    "source": "ListBase / OpenTravelData (updated Apr 2026)",
+    "updatedRef": "2026-04",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-pelabuhan-idpsj",
+    "kind": "transport-facility",
+    "name": "Pelabuhan Poso",
+    "category": "pelabuhan",
+    "lat": 2.73272,
+    "lng": 125.41598,
+    "specs": {
+      "cityRegion": "North Sulawesi",
+      "code": "IDPSJ",
+      "secondaryCode": "",
+      "sizeClass": "Pelabuhan / port point"
+    },
+    "mapUrl": "https://www.google.com/maps?q=2.732720,125.415980",
+    "source": "ListBase / OpenTravelData (updated Apr 2026)",
+    "updatedRef": "2026-04",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-pelabuhan-idnah",
+    "kind": "transport-facility",
+    "name": "Pelabuhan Tahuna",
+    "category": "pelabuhan",
+    "lat": 3.60176,
+    "lng": 125.50175,
+    "specs": {
+      "cityRegion": "North Sulawesi",
+      "code": "IDNAH",
+      "secondaryCode": "",
+      "sizeClass": "Pelabuhan / port point"
+    },
+    "mapUrl": "https://www.google.com/maps?q=3.601760,125.501750",
+    "source": "ListBase / OpenTravelData (updated Apr 2026)",
+    "updatedRef": "2026-04",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-pelabuhan-idwgp",
+    "kind": "transport-facility",
+    "name": "Pelabuhan Waingapu",
+    "category": "pelabuhan",
+    "lat": -9.6415,
+    "lng": 120.2536,
+    "specs": {
+      "cityRegion": "East Nusa Tenggara",
+      "code": "IDWGP",
+      "secondaryCode": "",
+      "sizeClass": "Pelabuhan / port point"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-9.641500,120.253600",
+    "source": "ListBase / OpenTravelData (updated Apr 2026)",
+    "updatedRef": "2026-04",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-pelabuhan-idtab",
+    "kind": "transport-facility",
+    "name": "Taboneo",
+    "category": "pelabuhan",
+    "lat": -3.73887,
+    "lng": 114.56062,
+    "specs": {
+      "cityRegion": "South Kalimantan",
+      "code": "IDTAB",
+      "secondaryCode": "",
+      "sizeClass": "Pelabuhan / port point"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-3.738870,114.560620",
+    "source": "ListBase / OpenTravelData (updated Apr 2026)",
+    "updatedRef": "2026-04",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-pelabuhan-idtba",
+    "kind": "transport-facility",
+    "name": "Tanjung Bara Coal Terminal",
+    "category": "pelabuhan",
+    "lat": 0.53231,
+    "lng": 117.64637,
+    "specs": {
+      "cityRegion": "East Kalimantan",
+      "code": "IDTBA",
+      "secondaryCode": "",
+      "sizeClass": "Pelabuhan / port point"
+    },
+    "mapUrl": "https://www.google.com/maps?q=0.532310,117.646370",
+    "source": "ListBase / OpenTravelData (updated Apr 2026)",
+    "updatedRef": "2026-04",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-pelabuhan-idtse",
+    "kind": "transport-facility",
+    "name": "Tanjung Sekong",
+    "category": "pelabuhan",
+    "lat": -5.92096,
+    "lng": 105.99738,
+    "specs": {
+      "cityRegion": "Banten",
+      "code": "IDTSE",
+      "secondaryCode": "",
+      "sizeClass": "Pelabuhan / port point"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-5.920960,105.997380",
+    "source": "ListBase / OpenTravelData (updated Apr 2026)",
+    "updatedRef": "2026-04",
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-terminal-dermaga-idblw",
+    "kind": "transport-facility",
+    "name": "BNCT Terminal B",
+    "category": "terminal-dermaga",
+    "lat": -3.793611,
+    "lng": 98.715556,
+    "specs": {
+      "cityRegion": "Belawan, North Sumatra",
+      "code": "IDBLW",
+      "secondaryCode": "BNCTB",
+      "sizeClass": "Terminal petikemas / terminal laut"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-3.793611,98.715556",
+    "source": "SMDG Terminal Code List (rows for Indonesia)",
+    "updatedRef": null,
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-terminal-dermaga-idjkt",
+    "kind": "transport-facility",
+    "name": "Conventional TPK Tanjung Priok",
+    "category": "terminal-dermaga",
+    "lat": -6.101667,
+    "lng": 106.883333,
+    "specs": {
+      "cityRegion": "North Jakarta, DKI Jakarta",
+      "code": "IDJKT",
+      "secondaryCode": "KADE",
+      "sizeClass": "Terminal petikemas / terminal laut"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-6.101667,106.883333",
+    "source": "SMDG Terminal Code List (rows for Indonesia)",
+    "updatedRef": null,
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-terminal-dermaga-iddjb",
+    "kind": "transport-facility",
+    "name": "IPC Terminal Petikemas Jambi",
+    "category": "terminal-dermaga",
+    "lat": -1.534167,
+    "lng": 103.659444,
+    "specs": {
+      "cityRegion": "Muaro Jambi, Jambi",
+      "code": "IDDJB",
+      "secondaryCode": "TPJB",
+      "sizeClass": "Terminal petikemas / terminal laut"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-1.534167,103.659444",
+    "source": "SMDG Terminal Code List (rows for Indonesia)",
+    "updatedRef": null,
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-terminal-dermaga-idjkt-2",
+    "kind": "transport-facility",
+    "name": "IPC Terminal Petikemas Tanjung Priok",
+    "category": "terminal-dermaga",
+    "lat": -6.100556,
+    "lng": 106.890556,
+    "specs": {
+      "cityRegion": "North Jakarta, DKI Jakarta",
+      "code": "IDJKT",
+      "secondaryCode": "TER3",
+      "sizeClass": "Terminal petikemas / terminal laut"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-6.100556,106.890556",
+    "source": "SMDG Terminal Code List (rows for Indonesia)",
+    "updatedRef": null,
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-terminal-dermaga-idtbr",
+    "kind": "transport-facility",
+    "name": "IPC Terminal Petikemas Teluk Bayur",
+    "category": "terminal-dermaga",
+    "lat": -1.0,
+    "lng": 100.371667,
+    "specs": {
+      "cityRegion": "Padang, West Sumatra",
+      "code": "IDTBR",
+      "secondaryCode": "TPTB",
+      "sizeClass": "Terminal petikemas / terminal laut"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-1.000000,100.371667",
+    "source": "SMDG Terminal Code List (rows for Indonesia)",
+    "updatedRef": null,
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-terminal-dermaga-idjkt-3",
+    "kind": "transport-facility",
+    "name": "Jakarta International Container Terminal (JICT)",
+    "category": "terminal-dermaga",
+    "lat": -6.097778,
+    "lng": 106.893056,
+    "specs": {
+      "cityRegion": "North Jakarta, DKI Jakarta",
+      "code": "IDJKT",
+      "secondaryCode": "UTC1",
+      "sizeClass": "Terminal petikemas / terminal laut"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-6.097778,106.893056",
+    "source": "SMDG Terminal Code List (rows for Indonesia)",
+    "updatedRef": null,
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-terminal-dermaga-idkrg",
+    "kind": "transport-facility",
+    "name": "Kaltim Kariangau Terminal",
+    "category": "terminal-dermaga",
+    "lat": -1.161944,
+    "lng": 116.779444,
+    "specs": {
+      "cityRegion": "Balikpapan, East Kalimantan",
+      "code": "IDKRG",
+      "secondaryCode": "KKT",
+      "sizeClass": "Terminal petikemas / terminal laut"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-1.161944,116.779444",
+    "source": "SMDG Terminal Code List (rows for Indonesia)",
+    "updatedRef": null,
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-terminal-dermaga-idjkt-4",
+    "kind": "transport-facility",
+    "name": "Koja Container Terminal",
+    "category": "terminal-dermaga",
+    "lat": -6.101944,
+    "lng": 106.904167,
+    "specs": {
+      "cityRegion": "North Jakarta, DKI Jakarta",
+      "code": "IDJKT",
+      "secondaryCode": "UTC3",
+      "sizeClass": "Terminal petikemas / terminal laut"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-6.101944,106.904167",
+    "source": "SMDG Terminal Code List (rows for Indonesia)",
+    "updatedRef": null,
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-terminal-dermaga-idktj",
+    "kind": "transport-facility",
+    "name": "Kuala Tanjung Multipurpose Terminal",
+    "category": "terminal-dermaga",
+    "lat": 3.382222,
+    "lng": 99.467778,
+    "specs": {
+      "cityRegion": "Batu Bara, North Sumatra",
+      "code": "IDKTJ",
+      "secondaryCode": "KTMT",
+      "sizeClass": "Terminal petikemas / terminal laut"
+    },
+    "mapUrl": "https://www.google.com/maps?q=3.382222,99.467778",
+    "source": "SMDG Terminal Code List (rows for Indonesia)",
+    "updatedRef": null,
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-terminal-dermaga-idmak",
+    "kind": "transport-facility",
+    "name": "Makassar Container Terminal",
+    "category": "terminal-dermaga",
+    "lat": -5.129722,
+    "lng": 119.404444,
+    "specs": {
+      "cityRegion": "Makassar, South Sulawesi",
+      "code": "IDMAK",
+      "secondaryCode": "TPM",
+      "sizeClass": "Terminal petikemas / terminal laut"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-5.129722,119.404444",
+    "source": "SMDG Terminal Code List (rows for Indonesia)",
+    "updatedRef": null,
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-terminal-dermaga-idjkt-5",
+    "kind": "transport-facility",
+    "name": "New Priok Container Terminal One",
+    "category": "terminal-dermaga",
+    "lat": -6.094167,
+    "lng": 106.92,
+    "specs": {
+      "cityRegion": "North Jakarta, DKI Jakarta",
+      "code": "IDJKT",
+      "secondaryCode": "NPCT1",
+      "sizeClass": "Terminal petikemas / terminal laut"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-6.094167,106.920000",
+    "source": "SMDG Terminal Code List (rows for Indonesia)",
+    "updatedRef": null,
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-terminal-dermaga-idbtm",
+    "kind": "transport-facility",
+    "name": "Port of Batu Ampar",
+    "category": "terminal-dermaga",
+    "lat": 1.166389,
+    "lng": 104.002222,
+    "specs": {
+      "cityRegion": "Batam, Riau Islands",
+      "code": "IDBTM",
+      "secondaryCode": "AMPAR",
+      "sizeClass": "Terminal petikemas / terminal laut"
+    },
+    "mapUrl": "https://www.google.com/maps?q=1.166389,104.002222",
+    "source": "SMDG Terminal Code List (rows for Indonesia)",
+    "updatedRef": null,
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-terminal-dermaga-idjkt-6",
+    "kind": "transport-facility",
+    "name": "Tangguh Samudera Jaya",
+    "category": "terminal-dermaga",
+    "lat": -6.104167,
+    "lng": 106.890556,
+    "specs": {
+      "cityRegion": "North Jakarta, DKI Jakarta",
+      "code": "IDJKT",
+      "secondaryCode": "TSJ",
+      "sizeClass": "Terminal petikemas / terminal laut"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-6.104167,106.890556",
+    "source": "SMDG Terminal Code List (rows for Indonesia)",
+    "updatedRef": null,
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-terminal-dermaga-idjkt-7",
+    "kind": "transport-facility",
+    "name": "Terminal Mustika Alam Lestari (MAL)",
+    "category": "terminal-dermaga",
+    "lat": -6.0975,
+    "lng": 106.889444,
+    "specs": {
+      "cityRegion": "North Jakarta, DKI Jakarta",
+      "code": "IDJKT",
+      "secondaryCode": "T300",
+      "sizeClass": "Terminal petikemas / terminal laut"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-6.097500,106.889444",
+    "source": "SMDG Terminal Code List (rows for Indonesia)",
+    "updatedRef": null,
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-terminal-dermaga-iddjj",
+    "kind": "transport-facility",
+    "name": "Terminal Petikemas Jayapura",
+    "category": "terminal-dermaga",
+    "lat": -2.545,
+    "lng": 140.713889,
+    "specs": {
+      "cityRegion": "Jayapura, Papua",
+      "code": "IDDJJ",
+      "secondaryCode": "TPJP",
+      "sizeClass": "Terminal petikemas / terminal laut"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-2.545000,140.713889",
+    "source": "SMDG Terminal Code List (rows for Indonesia)",
+    "updatedRef": null,
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-terminal-dermaga-idkdi",
+    "kind": "transport-facility",
+    "name": "Terminal Petikemas Kendari New Port",
+    "category": "terminal-dermaga",
+    "lat": -3.993056,
+    "lng": 122.621389,
+    "specs": {
+      "cityRegion": "Kendari, Southeast Sulawesi",
+      "code": "IDKDI",
+      "secondaryCode": "KNP",
+      "sizeClass": "Terminal petikemas / terminal laut"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-3.993056,122.621389",
+    "source": "SMDG Terminal Code List (rows for Indonesia)",
+    "updatedRef": null,
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-terminal-dermaga-idkoe",
+    "kind": "transport-facility",
+    "name": "Terminal Petikemas Kupang",
+    "category": "terminal-dermaga",
+    "lat": -10.198056,
+    "lng": 123.527778,
+    "specs": {
+      "cityRegion": "Kupang, East Nusa Tenggara",
+      "code": "IDKOE",
+      "secondaryCode": "TPKU",
+      "sizeClass": "Terminal petikemas / terminal laut"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-10.198056,123.527778",
+    "source": "SMDG Terminal Code List (rows for Indonesia)",
+    "updatedRef": null,
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-terminal-dermaga-idtrk",
+    "kind": "transport-facility",
+    "name": "Terminal Petikemas Tarakan",
+    "category": "terminal-dermaga",
+    "lat": 3.280556,
+    "lng": 117.594167,
+    "specs": {
+      "cityRegion": "Tarakan, North Kalimantan",
+      "code": "IDTRK",
+      "secondaryCode": "TPTR",
+      "sizeClass": "Terminal petikemas / terminal laut"
+    },
+    "mapUrl": "https://www.google.com/maps?q=3.280556,117.594167",
+    "source": "SMDG Terminal Code List (rows for Indonesia)",
+    "updatedRef": null,
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "fac-terminal-dermaga-idsub",
+    "kind": "transport-facility",
+    "name": "Terminal Teluk Lamong",
+    "category": "terminal-dermaga",
+    "lat": -7.186944,
+    "lng": 112.6875,
+    "specs": {
+      "cityRegion": "Surabaya, East Java",
+      "code": "IDSUB",
+      "secondaryCode": "TTL",
+      "sizeClass": "Terminal petikemas / terminal laut"
+    },
+    "mapUrl": "https://www.google.com/maps?q=-7.186944,112.687500",
+    "source": "SMDG Terminal Code List (rows for Indonesia)",
+    "updatedRef": null,
+    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  }
+]
