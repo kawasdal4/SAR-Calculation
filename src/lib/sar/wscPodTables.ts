@@ -134,22 +134,29 @@ export function lookupFs(target: W2Target, platform: 'fixed-wing'|'helicopter', 
 }
 
 export type SearchNumber = 1|2|3|4|5;
-// Digitized chart readings from Appendix I Figure I-12. Exact guide checkpoints are retained.
-const POD_CURVES: Record<SearchNumber, Array<[number,number]>> = {
-  1:[[0,0],[.1,10],[.2,20],[.3,30],[.4,40],[.5,47],[.54,50],[.6,56],[.7,64],[.8,70],[.9,75],[.95,76.53],[.99,78],[1.045,80],[1.08,82],[1.2,86],[1.4,90],[1.6,94],[1.8,97],[2,100]],
-  2:[[0,0],[.1,22],[.2,40],[.3,55],[.4,67],[.5,76],[.6,83],[.7,89],[.8,93],[.9,96],[1,98],[1.2,99],[2,100]],
-  3:[[0,0],[.1,31],[.2,52],[.3,68],[.4,79],[.5,87],[.6,92],[.7,96],[.8,98],[1,99],[2,100]],
-  4:[[0,0],[.1,42],[.2,65],[.3,80],[.4,89],[.5,94],[.6,97],[.8,99],[2,100]],
-  5:[[0,0],[.1,50],[.2,73],[.3,86],[.4,93],[.5,97],[.7,99],[2,100]],
+// === Rumus POD dari Excel POD.xls (terlampir pengguna) ===
+// POD per nomor pencarian = polinomial derajat 6 dari coverage factor C:
+//   POD(%) = V·C⁶ + W·C⁵ + X·C⁴ + Y·C³ + Z·C² + AA·C + AB
+// Bila hasil > 99.7 → 100 (persis IF(...) pada Excel). Konstanta diambil dari
+// sheet "POD" kolom V–AB baris 33–37 (First–Fifth Search); koefisien V (C⁶)
+// dan AB bernilai kosong/0 pada Search 1–4 sesuai berkas. Polinomial adalah
+// fitting kurva Figure I-12 pada domain C ∈ [0, 2] — C di luar domain
+// di-clamp ke ujung kurva (C ≤ 0 → 0, C ≥ 2 → nilai di C = 2).
+const POD_POLY_COEFFS: Record<SearchNumber, Array<[number, number, number, number, number, number, number]>> = {
+  //              V (C⁶)      W (C⁵)     X (C⁴)      Y (C³)      Z (C²)      AA (C)     AB
+  1: [0,        -2.5626,    18.259,    -42.027,      7.2135,    98.065, 0],
+  2: [0,        -9.4741,    41.109,    -28.887,    -105.05,    198.18, 0],
+  3: [0,         6.1327,   -58.863,    212.5,      -366.82,    306.34, 0],
+  4: [0,        21.428,   -152.73,    425.66,     -579.19,    384.75, 0],
+  5: [-21.575, 176.75,   -589.72,   1025.1,       979.42,    488.78, 0],
 };
+/** POD (%) dari kurva Figure I-12 — dihitung dengan rumus polinomial Excel POD.xls. */
 export function readFigureI12(coverage: number, search: SearchNumber): number {
-  const points = POD_CURVES[search];
   if (!(coverage > 0)) return 0;
-  if (coverage >= 2) return 100;
-  const upper = points.findIndex(([c]) => c >= coverage);
-  if (upper <= 0) return points[0][1];
-  const [c0,p0] = points[upper-1], [c1,p1] = points[upper];
-  return p0 + (p1-p0) * (coverage-c0) / (c1-c0);
+  const c = Math.min(coverage, 2);
+  const [v, w, x, y, z, aa, ab] = POD_POLY_COEFFS[search];
+  const pod = v * c ** 6 + w * c ** 5 + x * c ** 4 + y * c ** 3 + z * c ** 2 + aa * c + ab;
+  return pod > 99.7 ? 100 : pod;
 }
 
 export const W2_VISIBILITY_LABELS = ['2','5','10','20','30','>40'] as const;

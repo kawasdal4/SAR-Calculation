@@ -251,7 +251,7 @@ export default function Worksheet8({
           <div className="px-3 py-2 bg-white border-b border-slate-300 flex flex-wrap gap-4 items-center text-[11px]">
             <label>Eye height for Area A: <select value={eyeHeight} disabled={readOnly} onChange={(e) => setEyeHeight(e.target.value as ''|'8'|'14'|'MERSHIP')} className="border rounded px-1"><option value="">Pilih</option><option value="8">8 ft</option><option value="14">14 ft</option><option value="MERSHIP">MERSHIP</option></select></label>
             <label>Urutan pencarian (Figure I-12): <select value={searchNumber} disabled={readOnly} onChange={(e) => setSearchNumber(Number(e.target.value) as SearchNumber | 0)} className="border rounded px-1"><option value={0}>-</option>{[1,2,3,4,5].map((n) => <option key={n} value={n}>{['First','Second','Third','Fourth','Fifth'][n-1]}</option>)}</select></label>
-            <span className="text-slate-500">Wu: Table {eyeHeight === 'MERSHIP' ? 'I-4' : 'I-3'} · POD: Figure I-12 (estimasi pembacaan kurva digital)</span>
+            <span className="text-slate-500">Wu: Table {eyeHeight === 'MERSHIP' ? 'I-4' : 'I-3'} · POD: Figure I-12 (rumus polinomial Excel POD.xls)</span>
           </div>
 
           {/* Main Evaluation Table: Vessel Sweep Width */}

@@ -278,7 +278,7 @@ export default function Worksheet2({
             <div><span className="text-slate-600">Height for Area A: </span><select value={selectedHeight} disabled={readOnly} onChange={(e) => setSelectedHeight(Number(e.target.value) as 0 | 500 | 1000 | 1500 | 2000)} className="font-bold text-blue-900 bg-white border border-slate-300 rounded px-1.5 py-0.5"><option value={0}>Pilih ft</option>{heights.map((height) => <option key={height} value={height}>{height} ft</option>)}</select></div>
             {targetMeta?.isPiw && <label className="flex items-center gap-1 text-slate-700"><input type="checkbox" checked={piwFlotationKnown} disabled={readOnly} onChange={(e) => setPiwFlotationKnown(e.target.checked)} /> PIW menggunakan flotation device (Table I-5/I-6 note; hanya 500 ft)</label>}
             {searchPlatform && searchTas > 0 && fs === 0 && <p className="text-[10px] text-amber-800">TAS tidak cocok dengan kolom Table I-8 untuk platform ini; perlukan keputusan planner, tidak dilakukan interpolasi.</p>}
-            <span className="text-[10px] text-slate-500">POD dari Figure I-12; persentase merupakan estimasi pembacaan kurva digital.</span>
+            <span className="text-[10px] text-slate-500">POD dari kurva Figure I-12 — dihitung dengan rumus polinomial Excel POD.xls (bukan lagi estimasi pembacaan kurva digital).</span>
           </div>
 
           {/* Main Evaluation Table: Multi-Altitude Sweep Width */}
