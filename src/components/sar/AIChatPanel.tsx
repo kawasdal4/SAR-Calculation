@@ -46,6 +46,8 @@ import {
   type CaseApplyStep,
 } from '@/lib/ai/parseCase';
 import type { SarCaseSchema } from '@/lib/sar/caseSchema';
+import type { DocumentSnapshot } from '@/lib/sar/dataBank';
+import type { SetFieldsWorksheet } from '@/lib/ai/tools/setFields';
 
 interface UploadedAttachment {
   name: string;
@@ -80,6 +82,22 @@ interface ChatMessage {
   extractionFieldErrors?: Record<string, string>;
   /** Tombol "Hitung & Review dengan AI" sudah ditekan. */
   extractionReviewRequested?: boolean;
+  /** === Fase 4: hasil tool fill_form (draf dokumen → form briefing/renops) === */
+  fillForm?: FillFormPreview;
+  /** Pratinjau fill_form sudah diterapkan ke form (via set_fields). */
+  fillFormApplied?: boolean;
+}
+
+/** Fase 4: pratinjau hasil fill_form dari respons /api/chat. */
+interface FillFormPreview {
+  docType?: string;
+  title?: string;
+  validation?: { ready?: number; pending?: number; actualRequired?: number; total?: number };
+  questions?: Array<{ key?: string; label?: string; question?: string }>;
+  worksheet: string;
+  values: Record<string, string>;
+  appliedKeys?: string[];
+  skippedCount?: number;
 }
 
 interface AIChatPanelProps {
@@ -134,6 +152,9 @@ interface AIChatPanelProps {
   /** Fase 2: snapshot state worksheet (buildState().state) untuk tool server-side
    *  get_state/run_pipeline/validate_plan — hanya-dibaca di server. */
   stateSnapshot?: Record<string, unknown> | null;
+  /** Fase 4: snapshot dokumen (buildDocumentSnapshot) untuk tool fill_form —
+   *  bentuk identik dengan yang dipakai DocumentWorkbench (dokumen AI = dokumen UI). */
+  documentSnapshot?: DocumentSnapshot | null;
   /** === Fase 2: change-log + undo per-batch (keputusan no.9 & 10) === */
   /** Dipanggil SEBELUM handler apply dijalankan (capture state sebelum). */
   onAiBatchStart?: () => void;
@@ -350,6 +371,7 @@ export default function AIChatPanel({
   onApplySetFields,
   onApplyCaseSteps,
   stateSnapshot,
+  documentSnapshot,
   onAiBatchStart,
   onAiBatchEnd,
   aiBatches,
@@ -861,6 +883,10 @@ export default function AIChatPanel({
         if (stateSnapshot && Object.keys(stateSnapshot).length > 0) {
           requestPayload.state = stateSnapshot;
         }
+        // Fase 4: snapshot dokumen untuk tool fill_form (draf dokumen dari state).
+        if (documentSnapshot) {
+          requestPayload.documentSnapshot = documentSnapshot;
+        }
         // SAR Workflow Memory: blok konteks selektif workspace aktif ikut dikirim
         // (retrieval selektif — bukan seluruh DB/riwayat).
         if (workspaceContextBlock) requestPayload.workspaceContext = workspaceContextBlock;
@@ -896,6 +922,7 @@ export default function AIChatPanel({
               text?: string;
               functionCalls?: ChatMessage['functionCalls'];
               serverToolCalls?: ChatMessage['serverToolCalls'];
+              fillFormPreview?: FillFormPreview;
               bankFallback?: Array<{ caseTitle?: string | null; incidentType?: string; rawText?: string; fields?: unknown[] }>;
             };
             try {
@@ -956,6 +983,13 @@ export default function AIChatPanel({
               ...(Array.isArray(data.serverToolCalls) && data.serverToolCalls.length > 0
                 ? { serverToolCalls: data.serverToolCalls }
                 : {}),
+              ...(data.fillFormPreview
+                ? {
+                    fillForm: data.fillFormPreview,
+                    fillFormApplied: false,
+                    content: `${data.text || 'Server tidak mengirim teks jawaban.'}\n\n📄 Draf dokumen "${data.fillFormPreview.title ?? data.fillFormPreview.docType ?? ''}" siap — ${Object.keys(data.fillFormPreview.values ?? {}).length} field form bisa diisi. Tinjau di bawah, lalu konfirmasi untuk menerapkan.`,
+                  }
+                : {}),
             };
             if (mutating.length > 0) {
               const targets = [...new Set(buildChatPreviewContracts(mutating).map((c) => c.target))];
@@ -991,7 +1025,7 @@ export default function AIChatPanel({
         setAutoRetryNote(null);
       }
     },
-    [sessionId, activeWorkspace, attachedFiles, isLoading, messages, applyFunctionCalls, stateSnapshot]
+    [sessionId, activeWorkspace, attachedFiles, isLoading, messages, applyFunctionCalls, stateSnapshot, documentSnapshot]
   );
 
   // ═══ Fase 3: alur parse-case (Ekstrak → Konfirmasi → Terapkan → Hitung → Review) ═══
@@ -1167,6 +1201,28 @@ export default function AIChatPanel({
     setMessages((prev) => prev.map((msg, i) => (i === idx ? { ...msg, extractionReviewRequested: true } : msg)));
     void sendMessage(CASE_REVIEW_PROMPT);
   }, [sendMessage]);
+
+  /** Fase 4: terapkan pratinjau fill_form lewat set_fields (form bebas string
+   *  briefing/renops) — SATU mekanisme update yang sama (keputusan no.5);
+   *  satu klik = satu batch (keputusan no.10). Dokumen resmi tetap DRAFT
+   *  sampai disetujui SMC/Developer/Admin (keputusan no.12). */
+  const handleApplyFillForm = useCallback((idx: number) => {
+    setMessages((prev) => prev.map((msg, i) => {
+      if (i !== idx || !msg.fillForm || msg.fillFormApplied) return msg;
+      const worksheet = msg.fillForm.worksheet as SetFieldsWorksheet;
+      if (worksheet !== 'briefing' && worksheet !== 'renops') return msg;
+      onAiBatchStart?.();
+      const ok = onApplySetFields?.({ worksheet, values: { ...msg.fillForm.values } }) ?? false;
+      onAiBatchEnd?.([worksheet], ok);
+      if (!ok) return msg;
+      onLogConversation?.('approved-action', `Pengguna mengonfirmasi penerapan draf ${msg.fillForm.docType ?? 'dokumen'} ke form ${worksheet} (${Object.keys(msg.fillForm.values).length} field)`);
+      return {
+        ...msg,
+        fillFormApplied: true,
+        content: `${msg.content}\n\n✅ ${Object.keys(msg.fillForm.values).length} field diterapkan ke form ${worksheet === 'briefing' ? 'Briefing/De-Briefing' : 'RENOPS'}. Dokumen resmi tetap DRAFT — generate di tab Dokumen lalu Setujui (SMC/Developer/Admin).`,
+      };
+    }));
+  }, [onApplySetFields, onAiBatchStart, onAiBatchEnd, onLogConversation]);
 
   /** Jawaban klarifikasi waktu (datum time / waktu insiden A.1): catat keputusan, kirim ke chat agar AI meneruskan set_asw_case / set_aero_drift_case dengan nilai terkonfirmasi. */
   const handleClarifyAnswer = useCallback(
@@ -1628,6 +1684,58 @@ export default function AIChatPanel({
                       onApproveMissing={(field) => handleApproveMissing(idx, field)}
                       onRunReview={() => handleRunCaseReview(idx)}
                     />
+                  )}
+
+                  {/* Fase 4: pratinjau draf dokumen fill_form — apply lewat set_fields
+                      (satu mekanisme); dokumen resmi tetap DRAFT sampai disetujui. */}
+                  {msg.fillForm && (
+                    <div className="mt-2 rounded-lg border border-blue-300 bg-white/95 text-slate-900 shadow-xs">
+                      <div className="px-2.5 py-2 border-b border-blue-100">
+                        <p className="text-[11px] font-bold">
+                          📄 Draf {msg.fillForm.docType ?? 'dokumen'}{msg.fillForm.title ? ` — ${msg.fillForm.title}` : ''}
+                        </p>
+                        <p className="text-[10px] text-slate-500">
+                          {msg.fillForm.validation
+                            ? `${msg.fillForm.validation.ready ?? 0}/${msg.fillForm.validation.total ?? 0} field READY · ${msg.fillForm.validation.pending ?? 0} PENDING · ${msg.fillForm.validation.actualRequired ?? 0} perlu data aktual · `
+                            : ''}
+                          {Object.keys(msg.fillForm.values ?? {}).length} field form siap diisi
+                          {msg.fillForm.skippedCount ? ` · ${msg.fillForm.skippedCount} field tidak dipetakan (diisi manual)` : ''}
+                        </p>
+                      </div>
+                      {msg.fillForm.questions && msg.fillForm.questions.length > 0 && (
+                        <div className="mx-2.5 mt-2 rounded border border-amber-200 bg-amber-50/70 px-2 py-1.5">
+                          <p className="text-[10px] font-bold text-amber-800">Data hilang — pertanyaan ke pengguna:</p>
+                          <ul className="mt-0.5 space-y-0.5">
+                            {msg.fillForm.questions.slice(0, 4).map((q, qi) => (
+                              <li key={qi} className="text-[10px] text-amber-900 leading-snug">• {q.question ?? q.label}</li>
+                            ))}
+                            {msg.fillForm.questions.length > 4 && (
+                              <li className="text-[10px] text-amber-700">… +{msg.fillForm.questions.length - 4} pertanyaan lainnya</li>
+                            )}
+                          </ul>
+                        </div>
+                      )}
+                      {msg.fillFormApplied ? (
+                        <div className="m-2.5 text-[11px] text-emerald-800 font-bold text-center py-1 bg-emerald-50 rounded">
+                          ✅ Field form sudah diterapkan (bisa di-Undo per batch)
+                        </div>
+                      ) : (
+                        <div className="px-2.5 pb-2.5 pt-2">
+                          <button
+                            type="button"
+                            disabled={isLoading || Object.keys(msg.fillForm.values ?? {}).length === 0}
+                            onClick={() => handleApplyFillForm(idx)}
+                            className="w-full text-[11px] bg-blue-600 hover:bg-blue-500 disabled:bg-slate-300 text-white font-bold py-1.5 rounded-md flex items-center justify-center gap-1.5 shadow-sm transition-colors"
+                            title="Isi field READY ke form Briefing/Renops lewat set_fields (satu mekanisme; bisa di-Undo). Field PENDING/data aktual tetap diisi manual."
+                          >
+                            <Check className="h-3.5 w-3.5" /> Terapkan ke Form {msg.fillForm.worksheet === 'renops' ? 'RENOPS' : 'Briefing/De-Briefing'}
+                          </button>
+                          <p className="mt-1 text-[9px] text-slate-500">
+                            Hanya field READY yang diisi — data PENDING/AKTUAL tidak pernah diambil dari rencana. Dokumen resmi tetap DRAFT sampai disetujui SMC/Developer/Admin.
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   )}
 
                   {/* Function Call / Action Card */}

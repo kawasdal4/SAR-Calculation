@@ -75,8 +75,12 @@ model DocumentDraft {
   bankId    String?
   /// RENOPS_I | RENOPS_II | BRIEFING | DEBRIEFING
   docType   String
-  /// DRAFT | APPROVED
+  /// DRAFT | APPROVED (keputusan no.12: dokumen AI tetap DRAFT sampai
+  /// disetujui pihak berwenang — SMC/Developer/Admin).
   status    String   @default("DRAFT")
+  /// Identitas penyetuju (username sesi) — null selama masih DRAFT.
+  approvedBy String?
+  approvedAt DateTime?
   /// JSON: { sections, validation, questions, meta }
   payload   String
   createdAt DateTime @default(now())

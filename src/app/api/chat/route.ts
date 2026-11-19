@@ -1061,7 +1061,7 @@ export async function POST(req: NextRequest) {
   try {
     // Fase 2 (keputusan no.1): API key HANYA dari env server-side — key dari
     // client (kalau masih dikirim versi lama) DIABAIKAN dan tidak pernah dipakai.
-    const { messages, files, workspaceContext, sessionId, caseId, state } = await req.json();
+    const { messages, files, workspaceContext, sessionId, caseId, state, documentSnapshot } = await req.json();
 
     const apiKey = getGeminiApiKey();
     if (!apiKey) {
@@ -1080,6 +1080,31 @@ export async function POST(req: NextRequest) {
     const appState = state && typeof state === 'object' && !Array.isArray(state)
       ? (state as Record<string, unknown>)
       : undefined;
+    // Fase 4: snapshot dokumen (bentuk buildDocumentSnapshot di page.tsx) untuk
+    // tool fill_form — bentuk IDENTIK dengan yang dipakai DocumentWorkbench
+    // sehingga dokumen AI = dokumen UI.
+    const docSnapshot = documentSnapshot && typeof documentSnapshot === 'object' && !Array.isArray(documentSnapshot)
+      ? (documentSnapshot as import('@/lib/sar/dataBank').DocumentSnapshot)
+      : undefined;
+    // Fase 4: Bank Data kasus aktif (best-effort) — melengkapi field yang tidak
+    // ada di worksheet/peta; tanpa bank, generator tetap jalan dari worksheet.
+    let bankFields: import('@/lib/sar/dataBank').DataBankField[] = [];
+    if (hoistedCaseId) {
+      try {
+        const { db } = await import('@/lib/db');
+        const bankRow = await db.caseDataBank.findFirst({
+          where: { caseId: hoistedCaseId },
+          orderBy: { updatedAt: 'desc' },
+          select: { fields: true },
+        });
+        if (bankRow) {
+          const parsed = JSON.parse(bankRow.fields);
+          if (Array.isArray(parsed)) bankFields = parsed as import('@/lib/sar/dataBank').DataBankField[];
+        }
+      } catch (bankErr) {
+        console.warn('[AI chat] Bank Data kasus tidak dapat dimuat (fill_form tetap jalan dari worksheet):', bankErr instanceof Error ? bankErr.message : bankErr);
+      }
+    }
 
     // SAR Workflow Memory: konteks terstruktur workspace aktif (retrieval
     // selektif sudah dilakukan klien — hanya blok ringkas yang dikirim).
@@ -1439,6 +1464,9 @@ ATURAN MEMORI WORKSPACE:
     // Tool ini TIDAK PERNAH menulis state — pengisian tetap lewat set_*/set_fields
     // dengan pratinjau + konfirmasi pengguna (kontrak apply).
     const serverToolLog: Array<{ name: string; ok: boolean; summary: string }> = [];
+    // Fase 4: hasil fill_form untuk kartu pratinjau di panel chat (fillPlan →
+    // diterapkan lewat set_fields briefing/renops setelah konfirmasi).
+    let fillFormPreview: Record<string, unknown> | null = null;
     if (resultInteractionId && !interceptCaseDetected) {
       for (let serverRound = 1; serverRound <= 4; serverRound += 1) {
         const serverCalls = functionCalls.filter((fc) =>
@@ -1452,8 +1480,26 @@ ATURAN MEMORI WORKSPACE:
         const functionResultInput = serverCalls.map((fc) => {
           const callId = typeof fc.call_id === 'string' ? fc.call_id
             : typeof fc.id === 'string' ? fc.id : undefined;
-          const toolResult = executeServerTool(fc.name, fc.arguments, { state: appState });
+          const toolResult = executeServerTool(fc.name, fc.arguments, { state: appState, documentSnapshot: docSnapshot, bankFields });
           serverToolLog.push({ name: fc.name, ok: toolResult.ok, summary: toolResult.summary });
+          if (fc.name === 'fill_form' && toolResult.ok && !fillFormPreview) {
+            try {
+              const parsed = JSON.parse(toolResult.json) as Record<string, unknown>;
+              const plan = parsed['fillPlan'] as { worksheet?: unknown; values?: unknown; appliedKeys?: unknown; skippedCount?: unknown } | undefined;
+              if (plan && typeof plan['worksheet'] === 'string') {
+                fillFormPreview = {
+                  docType: parsed['docType'],
+                  title: parsed['title'],
+                  validation: parsed['validation'],
+                  questions: parsed['questions'],
+                  worksheet: plan['worksheet'],
+                  values: plan['values'] ?? {},
+                  appliedKeys: plan['appliedKeys'] ?? [],
+                  skippedCount: plan['skippedCount'] ?? 0,
+                };
+              }
+            } catch { /* json besar/rusak — kartu dilewati, model tetap dapat function_result */ }
+          }
           return {
             type: 'function_result',
             name: fc.name,
@@ -1739,6 +1785,7 @@ ATURAN MEMORI WORKSPACE:
         text: `${usedModel !== modelChain[0] ? 'Model utama sedang sibuk; jawaban diproses dengan model cadangan.\n\n' : ''}${responseText}${bankSavedText}${clarificationText}`,
         functionCalls: worksheetCalls.length ? worksheetCalls : null,
         ...(serverToolLog.length > 0 ? { serverToolCalls: serverToolLog } : {}),
+        ...(fillFormPreview ? { fillFormPreview } : {}),
         ...(bankFallback ? { bankFallback } : {}),
       });
     }

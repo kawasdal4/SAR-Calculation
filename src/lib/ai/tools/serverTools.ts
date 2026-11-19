@@ -17,6 +17,9 @@ import { checkCaseCompleteness } from '../../sar/caseAdapter';
 import { stateToCase } from '../../sar/stateToCase';
 import { validatePlanSnapshot } from '../../sar/validatePlan';
 import { executeLookupTable } from './lookupTable';
+import { buildDocument, pickRenopsType, type DataBankField, type DocType, type DocumentSnapshot } from '../../sar/dataBank';
+import { buildFillFormPlan, compactFillFormResult } from '../../sar/fillForm';
+import { analyzeDebrief, type DebriefSortieInput } from '../../sar/debriefAnalysis';
 
 export const SERVER_EXECUTABLE_TOOL_NAMES = [
   'get_state',
@@ -24,12 +27,18 @@ export const SERVER_EXECUTABLE_TOOL_NAMES = [
   'run_worksheet',
   'run_pipeline',
   'validate_plan',
+  'fill_form',
+  'analyze_debrief',
 ] as const;
 
 /** Ctx eksekusi: snapshot state worksheet dari body POST /api/chat. */
 export interface ServerToolContext {
   /** buildState().state dari page.tsx (bila client mengirim). */
   state?: Record<string, unknown>;
+  /** Fase 4: snapshot dokumen (bentuk buildDocumentSnapshot) untuk fill_form. */
+  documentSnapshot?: DocumentSnapshot;
+  /** Fase 4: field Bank Data (opsional) — melengkapi field yang tidak ada di worksheet. */
+  bankFields?: DataBankField[];
 }
 
 export interface ServerToolResult {
@@ -111,6 +120,35 @@ export const SERVER_TOOL_DECLARATIONS: Array<{
       type: 'OBJECT',
       properties: {},
       required: [],
+    },
+  },
+  {
+    name: 'fill_form',
+    description: 'Susun DRAF dokumen resmi Perban 3/2020 (RENOPS Format I/II, Briefing, atau De-Briefing) dari worksheet/peta/Bank Data dengan generator DETERMINISTIK aplikasi — SEMUA angka dari state, bukan dari Anda. Gunakan untuk mengisi form Briefing/Renops atau menyusun draf dokumen. Hasil memuat: ringkasan section (READY/PENDING/ACTUAL_REQUIRED), daftar pertanyaan data yang hilang, dan fillPlan (pasangan field form → nilai READY) yang diterapkan lewat set_fields (briefing/renops) SETELAH konfirmasi pengguna. Pilih docType: RENOPS_I (kecelakaan kapal/pesawat), RENOPS_II (bencana/KKM), BRIEFING, DEBRIEFING. Dokumen resmi tetap DRAFT sampai disetujui SMC/pejabat berwenang — JANGAN menyatakan dokumen final.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        docType: { type: 'STRING', description: 'RENOPS_I | RENOPS_II | BRIEFING | DEBRIEFING' },
+        selectedAssetId: { type: 'STRING', description: 'Id aset SRU pilihan (opsional, untuk Briefing/De-Briefing per SRU); tanpa ini aset pertama dipakai' },
+      },
+      required: ['docType'],
+    },
+  },
+  {
+    name: 'analyze_debrief',
+    description: 'Analisis HASIL SORTIE de-briefing dengan kalkulator resmi: coverage (C) = luas disapu / Ao, POD tahap ini dan POD kumulatif dari kurva POD resmi (Figure I-12, parameter searchNumber), sisa area belum disapu, plus usulan tahap berikutnya. SEMUA angka input WAJIB dari pengguna/laporan sortie (luas disapu ATAU jam×kecepatan×sweep width) dan Ao dari Worksheet 1 — DILARANG mengarang angka. Jangan sebut POS (probability of containment tidak dihitung sistem).',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        searchNumber: { type: 'NUMBER', description: 'Urutan pencarian sortie ini: 1 = pencarian pertama, 2 = kedua, dst. (1..5)' },
+        aoTotalNm2: { type: 'NUMBER', description: 'Luas area kontainmen Ao (NM²) dari Worksheet 1 — WAJIB > 0' },
+        sweptAreaNm2: { type: 'NUMBER', description: 'Luas aktual disapu sortie ini (NM²) dari laporan sortie — sumber utama' },
+        hoursSearched: { type: 'NUMBER', description: 'Alternatif: jam pencarian efektif sortie ini' },
+        searchSpeedKts: { type: 'NUMBER', description: 'Alternatif: kecepatan pencarian (kts)' },
+        sweepWidthNm: { type: 'NUMBER', description: 'Alternatif: sweep width S (NM) dari lembar WS 2/WS 8' },
+        previousCoverageC: { type: 'NUMBER', description: 'Coverage kumulatif tahap sebelumnya (bila ada) untuk POD kumulatif' },
+      },
+      required: ['searchNumber', 'aoTotalNm2'],
     },
   },
 ];
@@ -512,6 +550,48 @@ export function executeServerTool(
             message: issue.message.slice(0, 200),
           })),
         }, `validate_plan: ${validation.errorCount} error, ${validation.warningCount} warning, ${validation.infoCount} info.`);
+      }
+
+      case 'fill_form': {
+        const docTypeArg = typeof argsRecord.docType === 'string' ? argsRecord.docType.trim().toUpperCase().replace(/\s+/g, '_') : '';
+        const aliases: Record<string, DocType> = {
+          RENOPS_I: 'RENOPS_I', RENOPS_1: 'RENOPS_I', RENOPS_I_2020: 'RENOPS_I',
+          RENOPS_II: 'RENOPS_II', RENOPS_2: 'RENOPS_II',
+          BRIEFING: 'BRIEFING',
+          DEBRIEFING: 'DEBRIEFING', DE_BRIEFING: 'DEBRIEFING',
+        };
+        let docType = aliases[docTypeArg];
+        if (!docType && (docTypeArg === 'AUTO' || docTypeArg === '')) {
+          docType = pickRenopsType(ctx.bankFields ?? []);
+        }
+        if (!docType) {
+          return build(false, { error: `docType "${argsRecord.docType ?? '(kosong)'}" tidak dikenal. Pilihan: RENOPS_I, RENOPS_II, BRIEFING, DEBRIEFING.` }, 'fill_form: docType tidak dikenal.');
+        }
+        const selectedAssetId = typeof argsRecord.selectedAssetId === 'string' && argsRecord.selectedAssetId.trim() !== '' ? argsRecord.selectedAssetId.trim() : undefined;
+        const document = buildDocument(docType, ctx.documentSnapshot ?? null, ctx.bankFields ?? [], selectedAssetId);
+        const plan = buildFillFormPlan(document);
+        const compact = compactFillFormResult(document, plan);
+        return build(true, compact, `fill_form(${docType}): draf "${document.title}" — ${document.validation.ready}/${document.validation.total} field READY, ${plan.worksheet ? `${Object.keys(plan.values).length} field siap diisi ke form ${plan.worksheet}` : 'tanpa pemetaan form'}, ${document.questions.length} pertanyaan data hilang.`);
+      }
+
+      case 'analyze_debrief': {
+        const numArg = (key: string): number | undefined => {
+          const raw = argsRecord[key];
+          return typeof raw === 'number' && Number.isFinite(raw) ? raw : undefined;
+        };
+        const sortieInput: DebriefSortieInput = {
+          searchNumber: (numArg('searchNumber') ?? 1) as DebriefSortieInput['searchNumber'],
+          aoTotalNm2: numArg('aoTotalNm2') ?? NaN,
+          sweptAreaNm2: numArg('sweptAreaNm2'),
+          hoursSearched: numArg('hoursSearched'),
+          searchSpeedKts: numArg('searchSpeedKts'),
+          sweepWidthNm: numArg('sweepWidthNm'),
+          previousCoverageC: numArg('previousCoverageC'),
+        };
+        const analysis = analyzeDebrief(sortieInput);
+        return build(analysis.ok, analysis as unknown as Record<string, unknown>, analysis.ok
+          ? `analyze_debrief: C=${analysis.cThis} → POD ${analysis.podThisPercent}%${analysis.podCumulativePercent !== null ? `; kumulatif C=${analysis.cCumulative} → POD ${analysis.podCumulativePercent}%` : ''}.`
+          : `analyze_debrief: input kurang — ${analysis.error ?? 'tidak bisa dihitung'}.`);
       }
 
       default:

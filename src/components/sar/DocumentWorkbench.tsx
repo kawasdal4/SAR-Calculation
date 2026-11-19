@@ -35,6 +35,7 @@ import {
   type SourceType,
   PENDING_TEXT,
 } from '@/lib/sar/dataBank';
+import { buildDocumentSnapshot, type DocumentSnapshotInput } from '@/lib/sar/fillForm';
 
 interface DocumentWorkbenchProps {
   lkp: LatLng;
@@ -164,47 +165,25 @@ export default function DocumentWorkbench(props: DocumentWorkbenchProps) {
   const [generating, setGenerating] = useState(false);
   const [document, setDocument] = useState<GeneratedDocument | null>(null);
   const [draftId, setDraftId] = useState<string | null>(null);
+  /** Fase 4 (keputusan no.12): status draft di DB — DRAFT sampai disetujui
+   *  Developer/Admin; approval tidak mengubah isi dokumen. */
+  const [draftStatus, setDraftStatus] = useState<'DRAFT' | 'APPROVED' | null>(null);
+  const [approving, setApproving] = useState(false);
   const [answers, setAnswers] = useState<Record<string, string>>({});
 
-  const snapshot: DocumentSnapshot = useMemo(() => ({
-    lkp: props.isLkpSet ? props.lkp : null,
-    lkpSet: props.isLkpSet,
-    datum: props.datumResults ? {
-      datumLeft: props.datumResults.datumLeft,
-      datumRight: props.datumResults.datumRight,
-      driftDistanceNm: props.datumResults.driftDistance,
-      totalDriftErrorNm: props.datumResults.E,
-    } : null,
-    searchArea: props.searchResults ? {
-      center: props.searchResults.searchAreaCenter,
-      lengthNm: props.searchResults.searchAreaLength,
-      widthNm: props.searchResults.searchAreaWidth,
-      orientationDeg: props.searchResults.orientationDeg,
-      areaSqNm: props.searchResults.Ao,
-      trackSpacingNm: props.searchResults.trackSpacing,
-      safetyFactor: props.searchResults.fs,
-      podPercent: props.searchResults.POD,
-    } : null,
-    asw: props.asw.aswSpeed ? { dirFrom: props.asw.aswDirFrom, speedKts: props.asw.aswSpeed } : null,
-    awa: props.awa.isValid ? { dirFrom: props.awa.aswDirFrom, speedKts: props.awa.aswSpeed } : null,
-    trackSpacing: {
-      ws2Nm: props.ws2TrackSpacingNm,
-      ws3Nm: props.ws3TrackSpacingNm,
-      ws8Nm: props.ws8TrackSpacingNm,
-    },
+  const snapshot: DocumentSnapshot = useMemo(() => buildDocumentSnapshot({
+    lkp: props.lkp,
+    isLkpSet: props.isLkpSet,
+    datumResults: props.datumResults,
+    searchResults: props.searchResults,
+    asw: props.asw,
+    awa: props.awa,
+    ws2TrackSpacingNm: props.ws2TrackSpacingNm,
+    ws3TrackSpacingNm: props.ws3TrackSpacingNm,
+    ws8TrackSpacingNm: props.ws8TrackSpacingNm,
     pattern: props.pattern,
-    assets: props.assets.map((a) => ({
-      id: a.id,
-      name: a.name,
-      type: a.type,
-      homeBaseName: a.homeBaseName,
-      transitSpeedKts: a.transitSpeedKts,
-      searchSpeedKts: a.searchSpeedKts,
-      enduranceHours: a.enduranceHours,
-      sweepWidthNm: a.sweepWidthNm,
-      assignedSubArea: a.assignedSubArea,
-    })),
-    mapPoints: [],
+    assets: props.assets,
+    worksheet1Fs: props.worksheet1Fs,
   }), [props]);
 
   const fetchBanks = useCallback(async () => {
@@ -328,11 +307,32 @@ export default function DocumentWorkbench(props: DocumentWorkbenchProps) {
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
       setDocument(data.document);
       setDraftId(data.draftId);
-      toast.success(`Draft ${data.document.title} dibuat — ${data.summary.ready} field READY, ${data.summary.pending + data.summary.actualRequired} perlu data, ${data.summary.questions} pertanyaan.`);
+      setDraftStatus(data.draftId ? 'DRAFT' : null);
+      toast.success(`Draft ${data.document.title} dibuat — ${data.summary.ready} field READY, ${data.summary.pending + data.summary.actualRequired} perlu data, ${data.summary.questions} pertanyaan.`, {
+        description: 'Dokumen berstatus DRAFT sampai disetujui SMC/Developer/Admin (keputusan no.12).',
+      });
     } catch (e) {
       toast.error('Gagal generate dokumen', { description: (e as Error).message });
     } finally {
       setGenerating(false);
+    }
+  };
+
+  /** Fase 4: setujui draft (Developer/Admin — diverifikasi server). Isi dokumen
+   *  tidak berubah; hanya status DRAFT → APPROVED dengan identitas penyetuju. */
+  const handleApproveDraft = async () => {
+    if (!draftId || draftStatus === 'APPROVED') return;
+    setApproving(true);
+    try {
+      const res = await fetch(`/api/documents/drafts/${draftId}/approve`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      setDraftStatus('APPROVED');
+      toast.success('Draft disetujui (APPROVED) — identitas penyetuju tercatat di database.');
+    } catch (e) {
+      toast.error('Approval gagal — draft tetap DRAFT', { description: (e as Error).message });
+    } finally {
+      setApproving(false);
     }
   };
 
@@ -549,7 +549,18 @@ export default function DocumentWorkbench(props: DocumentWorkbenchProps) {
               {document.validation.conflict > 0 && (
                 <span className="px-2 py-1 rounded border bg-red-100 text-red-800 border-red-300">CONFLICT: {document.validation.conflict}</span>
               )}
-              {draftId && <span className="px-2 py-1 rounded border bg-slate-100 text-slate-600">Draft ID: {draftId.slice(0, 12)}… (riwayat untuk approval SMC)</span>}
+              {draftId && <span className="px-2 py-1 rounded border bg-slate-100 text-slate-600">Draft ID: {draftId.slice(0, 12)}…</span>}
+              {draftId && draftStatus === 'DRAFT' && (
+                <span className="px-2 py-1 rounded border bg-amber-100 text-amber-800 border-amber-300 font-semibold">STATUS: DRAFT — menunggu persetujuan SMC/Developer/Admin</span>
+              )}
+              {draftId && draftStatus === 'APPROVED' && (
+                <span className="px-2 py-1 rounded border bg-emerald-100 text-emerald-800 border-emerald-300 font-semibold">STATUS: APPROVED</span>
+              )}
+              {draftId && draftStatus === 'DRAFT' && (
+                <Button size="sm" className="bg-emerald-700 hover:bg-emerald-800 text-white" disabled={approving} onClick={() => void handleApproveDraft()} title="Setujui dokumen (role Developer/Admin — diverifikasi server; isi dokumen tidak berubah)">
+                  <ClipboardCheck className="h-4 w-4" /> {approving ? 'Menyetujui…' : 'Setujui Dokumen'}
+                </Button>
+              )}
             </div>
           )}
 

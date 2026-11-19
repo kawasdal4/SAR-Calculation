@@ -101,6 +101,7 @@ import AeronauticalDriftWorksheet from '@/components/sar/AeronauticalDriftWorksh
 import type { AeroDriftResult } from '@/lib/sar/aeroDriftCalculations';
 import type { SetFieldsApplied, SetFieldsWorksheet } from '@/lib/ai/tools/setFields';
 import type { CaseApplyStep } from '@/lib/ai/parseCase';
+import { buildDocumentSnapshot } from '@/lib/sar/fillForm';
 import InterceptWorksheet from '@/components/sar/InterceptWorksheet';
 import type { InterceptInput } from '@/lib/sar/interceptCalculations';
 import Worksheet1 from '@/components/sar/worksheets/Worksheet1';
@@ -2495,6 +2496,34 @@ export default function Home() {
     });
   }, [datumResults, searchResults, datumData, lkp, asw, awa, assets, assetSummary]);
 
+  // Fase 4: snapshot dokumen untuk tool fill_form (panel AI) — SATU sumber
+  // dengan DocumentWorkbench (buildDocumentSnapshot) sehingga dokumen yang
+  // disusun AI identik dengan dokumen UI; hanya-dibaca, dikirim per POST.
+  const docSnapshot = useMemo(() => buildDocumentSnapshot({
+    lkp,
+    isLkpSet: isLkpSet,
+    datumResults: datumResults,
+    searchResults: searchResults,
+    asw,
+    awa,
+    ws2TrackSpacingNm: ws2TrackSpacing?.spacingNm ?? null,
+    ws3TrackSpacingNm: ws3TrackSpacing
+      ? (patternLandHeight !== null && ws3TrackSpacing.heights.includes(patternLandHeight)
+        ? ws3TrackSpacing.spacingByHeight[ws3TrackSpacing.heights.indexOf(patternLandHeight)]
+        : ws3TrackSpacing.spacingByHeight.find((s) => s !== null) ?? null)
+      : null,
+    ws8TrackSpacingNm: ws8TrackSpacing?.spacingNm ?? null,
+    pattern: {
+      type: patternType,
+      orientation: patternOrientationText,
+      environment: patternEnvironment,
+      worksheetSource: patternWorksheetSource,
+      trackLineLengthText: trackLineLengthText,
+    },
+    worksheet1Fs,
+    assets,
+  }), [lkp, isLkpSet, datumResults, searchResults, asw, awa, ws2TrackSpacing, ws3TrackSpacing, ws8TrackSpacing, patternLandHeight, patternType, patternOrientationText, patternEnvironment, patternWorksheetSource, trackLineLengthText, worksheet1Fs, assets]);
+
   return (
     <TableRefContext.Provider value={openTableRef}>
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
@@ -3750,6 +3779,7 @@ export default function Home() {
         onUndoAiBatch={handleUndoAiBatch}
         onFocusWorksheet={(worksheet) => setActiveTab(worksheet === 'datum' ? 'ws1' : worksheet)}
         onApplyCaseSteps={handleApplyCaseSteps}
+        documentSnapshot={docSnapshot}
         activeWorkspace={activeSarCase}
         workspaceEntries={wsContextEntries}
         workspaceContextBlock={workspaceContextBlock}
