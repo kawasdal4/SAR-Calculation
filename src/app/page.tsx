@@ -98,6 +98,7 @@ import Worksheet2, { type Worksheet2InitialState } from '@/components/sar/worksh
 import Worksheet3, { type Worksheet3InitialState } from '@/components/sar/worksheets/Worksheet3';
 import Worksheet4, { type Worksheet4InitialState } from '@/components/sar/worksheets/Worksheet4';
 import Worksheet8, { type Worksheet8InitialState } from '@/components/sar/worksheets/Worksheet8';
+import WorksheetSheetBar, { type WorksheetSheet } from '@/components/sar/worksheets/WorksheetSheetBar';
 import BriefingForm from '@/components/sar/BriefingForm';
 import RenopsForm from '@/components/sar/RenopsForm';
 import DocumentWorkbench from '@/components/sar/DocumentWorkbench';
@@ -121,6 +122,39 @@ import {
 } from '@/lib/sar/assetAllocation';
 
 const DEFAULT_CENTER: LatLng = { lat: 0, lng: 0 };
+
+// === Lembar worksheet per-SRU (WS 2/3/8): 1 alut/SRU = 1 lembar ===
+
+/** Normalisasi lembar worksheet yang dimuat dari kasus tersimpan (validasi bentuk).
+ *  Kasus lama (satu objek ws2/ws3/ws8) dimigrasi menjadi satu lembar default. */
+function normalizeLoadedSheets<T>(value: unknown, legacy: T | undefined): Array<WorksheetSheet<T>> {
+  const raw = Array.isArray(value) ? value : [];
+  const sheets = raw
+    .filter((entry): entry is WorksheetSheet<T> =>
+      !!entry && typeof entry === 'object'
+      && typeof (entry as WorksheetSheet<T>).key === 'string'
+      && typeof (entry as WorksheetSheet<T>).data === 'object' && (entry as WorksheetSheet<T>).data !== null)
+    .map((entry) => ({
+      key: entry.key,
+      label: typeof entry.label === 'string' && entry.label.trim() !== '' ? entry.label : 'SRU',
+      assetId: typeof entry.assetId === 'string' ? entry.assetId : null,
+      data: entry.data ?? ({} as T),
+    }));
+  if (sheets.length > 0) return sheets;
+  return [{ key: 'default', label: 'SRU 1', assetId: null, data: (legacy ?? {}) as T }];
+}
+
+/** Lembar baru: label dari nama aset bila terikat ke SRU, atau "SRU n" bila bebas. */
+function appendWorksheetSheet<T>(prev: Array<WorksheetSheet<T>>, assetId: string | undefined, assets: SruAssetInput[]): Array<WorksheetSheet<T>> {
+  const asset = assetId ? assets.find((a) => a.id === assetId) : undefined;
+  const label = asset?.name?.trim() || `SRU ${prev.length + 1}`;
+  return [...prev, {
+    key: `sheet-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    label,
+    assetId: asset?.id ?? null,
+    data: {} as T,
+  }];
+}
 const SEARCH_PATTERN_COLORS: Record<SearchPatternType, string> = {
   PS: '#9a3412',
   CS: '#c026d3',
@@ -155,9 +189,18 @@ export default function Home() {
   const [worksheet1Fs, setWorksheet1Fs] = useState(1.1);
   /** Hasil turunan Worksheet 1 (rantai titik datum Panduan) untuk penggambaran peta. */
   const [ws1Derived, setWs1Derived] = useState<Ws1Derived | null>(null);
-  const [ws2TrackSpacing, setWs2TrackSpacing] = useState<{ platform: 'fixed-wing' | 'helicopter' | null; spacingNm: number; selection: string } | null>(null);
-  const [ws3TrackSpacing, setWs3TrackSpacing] = useState<{ platform: 'fixed-wing' | 'helicopter' | null; heights: readonly number[]; spacingByHeight: Array<number | null> } | null>(null);
-  const [ws8TrackSpacing, setWs8TrackSpacing] = useState<{ spacingNm: number; selection: string } | null>(null);
+  // === Lembar worksheet per-SRU (WS 2/3/8): 1 alut/SRU = 1 lembar.
+  // Kasus dengan 1 fixed wing + 1 helikopter → Worksheet 2 berisi 2 lembar. ===
+  const [ws2Sheets, setWs2Sheets] = useState<Array<WorksheetSheet<Worksheet2InitialState>>>([]);
+  const [ws3Sheets, setWs3Sheets] = useState<Array<WorksheetSheet<Worksheet3InitialState>>>([]);
+  const [ws8Sheets, setWs8Sheets] = useState<Array<WorksheetSheet<Worksheet8InitialState>>>([]);
+  const [activeWs2Key, setActiveWs2Key] = useState('');
+  const [activeWs3Key, setActiveWs3Key] = useState('');
+  const [activeWs8Key, setActiveWs8Key] = useState('');
+  // Track spacing hasil tiap lembar, dikunci ke key lembar pemiliknya.
+  const [ws2TrackSpacings, setWs2TrackSpacings] = useState<Record<string, { platform: 'fixed-wing' | 'helicopter' | null; spacingNm: number; selection: string }>>({});
+  const [ws3TrackSpacings, setWs3TrackSpacings] = useState<Record<string, { platform: 'fixed-wing' | 'helicopter' | null; heights: readonly number[]; spacingByHeight: Array<number | null> }>>({});
+  const [ws8TrackSpacings, setWs8TrackSpacings] = useState<Record<string, { spacingNm: number; selection: string }>>({});
 
   // Controlled LKP
   const [lkp, setLkp] = useState<LatLng>({ lat: 0, lng: 0 });
@@ -379,9 +422,16 @@ export default function Home() {
         sectorLegCountText,
         trackLineLengthText,
         tsReturnOffsetText,
+        // Lembar worksheet per-SRU (1 alut = 1 lembar) + hasil track spacing per lembar
+        ws2Sheets,
+        ws3Sheets,
+        ws8Sheets,
+        ws2TrackSpacings,
+        ws3TrackSpacings,
+        ws8TrackSpacings,
       },
     };
-  }, [awaObservations, awaContext, aswState, aeroDraft, datumState, searchState, lkp, assets, patternType, patternAssetId, patternOrientationText, patternEnvironment, patternWorksheetSource, patternLandHeight, sectorAngleText, sectorLegLengthText, sectorLegCountText, trackLineLengthText, tsReturnOffsetText]);
+  }, [awaObservations, awaContext, aswState, aeroDraft, datumState, searchState, lkp, assets, patternType, patternAssetId, patternOrientationText, patternEnvironment, patternWorksheetSource, patternLandHeight, sectorAngleText, sectorLegLengthText, sectorLegCountText, trackLineLengthText, tsReturnOffsetText, ws2Sheets, ws3Sheets, ws8Sheets, ws2TrackSpacings, ws3TrackSpacings, ws8TrackSpacings]);
 
   /** Apply loaded state */
   const applyState = useCallback((state: Record<string, unknown>) => {
@@ -408,6 +458,21 @@ export default function Home() {
     setWorksheet1Fs(1.1);
     if (assetsLoaded && Array.isArray(assetsLoaded)) setAssets(assetsLoaded);
 
+    // Lembar worksheet per-SRU: muat array lembar tersimpan; kasus lama (satu
+    // objek ws2/ws3/ws8) dimigrasi menjadi satu lembar default.
+    const ws2SheetsLoaded = normalizeLoadedSheets<Worksheet2InitialState>(state.ws2Sheets, state.ws2 as Worksheet2InitialState | undefined);
+    const ws3SheetsLoaded = normalizeLoadedSheets<Worksheet3InitialState>(state.ws3Sheets, state.ws3 as Worksheet3InitialState | undefined);
+    const ws8SheetsLoaded = normalizeLoadedSheets<Worksheet8InitialState>(state.ws8Sheets, state.ws8 as Worksheet8InitialState | undefined);
+    setWs2Sheets(ws2SheetsLoaded);
+    setWs3Sheets(ws3SheetsLoaded);
+    setWs8Sheets(ws8SheetsLoaded);
+    setActiveWs2Key(ws2SheetsLoaded[0]?.key ?? '');
+    setActiveWs3Key(ws3SheetsLoaded[0]?.key ?? '');
+    setActiveWs8Key(ws8SheetsLoaded[0]?.key ?? '');
+    setWs2TrackSpacings((state.ws2TrackSpacings && typeof state.ws2TrackSpacings === 'object' ? state.ws2TrackSpacings : {}) as Record<string, { platform: 'fixed-wing' | 'helicopter' | null; spacingNm: number; selection: string }>);
+    setWs3TrackSpacings((state.ws3TrackSpacings && typeof state.ws3TrackSpacings === 'object' ? state.ws3TrackSpacings : {}) as Record<string, { platform: 'fixed-wing' | 'helicopter' | null; heights: readonly number[]; spacingByHeight: Array<number | null> }>);
+    setWs8TrackSpacings((state.ws8TrackSpacings && typeof state.ws8TrackSpacings === 'object' ? state.ws8TrackSpacings : {}) as Record<string, { spacingNm: number; selection: string }>);
+
     // ADW: muat draf dari kasus, atau bersihkan bila kasus tidak memilikinya
     // (hindari kebocoran data antarkasus). Hasil lama tidak dibawa — dihitung
     // ulang dari draf oleh worksheet saat tab ADW dibuka.
@@ -424,6 +489,14 @@ export default function Home() {
     if (lkpLoaded) setLkp(lkpLoaded);
     setCaseVersion((v) => v + 1);
   }, []);
+
+  // Lembar worksheet per-SRU selalu minimal satu: seed lembar default dari data
+  // kasus yang dimuat (atau kosong) agar tab WS 2/3/8 tidak pernah tanpa lembar.
+  useEffect(() => {
+    setWs2Sheets((prev) => prev.length > 0 ? prev : [{ key: 'default', label: 'SRU 1', assetId: null, data: loadedInitialState?.ws2 ?? {} }]);
+    setWs3Sheets((prev) => prev.length > 0 ? prev : [{ key: 'default', label: 'SRU 1', assetId: null, data: loadedInitialState?.ws3 ?? {} }]);
+    setWs8Sheets((prev) => prev.length > 0 ? prev : [{ key: 'default', label: 'SRU 1', assetId: null, data: loadedInitialState?.ws8 ?? {} }]);
+  }, [loadedInitialState]);
 
   // --- SAR Workflow Memory: muat konteks, snapshot, catat percakapan ---
   // Konteks workspace dimuat saat workspace aktif berpindah (isolasi antar workspace).
@@ -492,9 +565,16 @@ export default function Home() {
     setSearchResults(null);
     setWorksheet1Ao(0);
     setWorksheet1Fs(0);
-    setWs2TrackSpacing(null);
-    setWs3TrackSpacing(null);
-    setWs8TrackSpacing(null);
+    // Lembar per-SRU kembali ke satu lembar default kosong
+    setWs2Sheets([{ key: 'default', label: 'SRU 1', assetId: null, data: {} }]);
+    setWs3Sheets([{ key: 'default', label: 'SRU 1', assetId: null, data: {} }]);
+    setWs8Sheets([{ key: 'default', label: 'SRU 1', assetId: null, data: {} }]);
+    setActiveWs2Key('default');
+    setActiveWs3Key('default');
+    setActiveWs8Key('default');
+    setWs2TrackSpacings({});
+    setWs3TrackSpacings({});
+    setWs8TrackSpacings({});
     setDatumState(null);
     setSearchState(null);
 
@@ -592,14 +672,16 @@ export default function Home() {
         setLoadedInitialState((prev) => ({ ...(prev ?? {}), datum: {}, search: {}, lkp: { lat: 0, lng: 0 } }));
         break;
       case 'ws2':
-        setWs2TrackSpacing(null);
+        setWs2TrackSpacings({});
         setPatternWorksheetSource((source) => source === 'ws2' ? '' : source);
-        setLoadedInitialState((prev) => ({ ...(prev ?? {}), ws2: { caseTitle: '-', searchTas: 0, visibilityIndex: -1 } }));
+        setWs2Sheets([{ key: 'default', label: 'SRU 1', assetId: null, data: { caseTitle: '-', searchTas: 0, visibilityIndex: -1 } }]);
+        setActiveWs2Key('default');
         break;
       case 'ws8':
-        setWs8TrackSpacing(null);
+        setWs8TrackSpacings({});
         setPatternWorksheetSource((source) => source === 'ws8' ? '' : source);
-        setLoadedInitialState((prev) => ({ ...(prev ?? {}), ws8: { caseTitle: '-', visibilityKm: '', vesselSpeedKts: 0 } }));
+        setWs8Sheets([{ key: 'default', label: 'SRU 1', assetId: null, data: { caseTitle: '-', visibilityKm: '', vesselSpeedKts: 0 } }]);
+        setActiveWs8Key('default');
         break;
       case 'asset-allocation':
         setAssets([]);
@@ -620,12 +702,10 @@ export default function Home() {
         setTsReturnOffsetText('');
         break;
       case 'ws3':
-        setWs3TrackSpacing(null);
+        setWs3TrackSpacings({});
         setPatternWorksheetSource((source) => source === 'ws3' ? '' : source);
-        setLoadedInitialState((prev) => ({
-          ...(prev ?? {}),
-          ws3: { caseTitle: '-', searchObject: '-', visibilityKm: 0, vegetationType: '-', isFatigue: null, searchTas: 0, hoursAvailable: 0, searchAreaNm2: 0 },
-        }));
+        setWs3Sheets([{ key: 'default', label: 'SRU 1', assetId: null, data: { caseTitle: '-', searchObject: '-', visibilityKm: 0, vegetationType: '-', isFatigue: null, searchTas: 0, hoursAvailable: 0, searchAreaNm2: 0 } }]);
+        setActiveWs3Key('default');
         break;
       case 'ws4':
         setLoadedInitialState((prev) => ({
@@ -770,26 +850,74 @@ export default function Home() {
   }, []);
 
   const handleApplyWS2 = useCallback((data: Worksheet2InitialState) => {
-    setLoadedInitialState((prev) => ({ ...prev, ws2: data }));
+    // 1 alut = 1 lembar: perbarui lembar milik sruName bila sudah ada, selain
+    // itu tambah lembar baru (terikat ke SRU daftar aset dengan platform cocok
+    // yang belum punya lembar). Lembar SRU lain tidak tersentuh.
+    const sruName = (data.sruName ?? '').trim();
+    const existing = sruName !== ''
+      ? ws2Sheets.find((sheet) => sheet.label.trim().toLowerCase() === sruName.toLowerCase())
+      : undefined;
+    const requiredAssetType = data.searchPlatform === 'helicopter' ? 'helicopter' : 'fixed-wing-aircraft';
+    let focusAssetId: string | null = null;
+    if (existing) {
+      setWs2Sheets((prev) => prev.map((sheet) => (sheet.key === existing.key ? { ...sheet, data } : sheet)));
+      setActiveWs2Key(existing.key);
+      focusAssetId = existing.assetId;
+    } else {
+      const boundIds = new Set(ws2Sheets.map((sheet) => sheet.assetId).filter((id): id is string => id !== null));
+      const asset = assets.find((a) => a.type === requiredAssetType && !boundIds.has(a.id));
+      const newSheet: WorksheetSheet<Worksheet2InitialState> = {
+        key: `sheet-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        label: sruName || asset?.name?.trim() || `SRU ${ws2Sheets.length + 1}`,
+        assetId: asset?.id ?? null,
+        data,
+      };
+      focusAssetId = newSheet.assetId;
+      setWs2Sheets((prev) => [...prev, newSheet]);
+      setActiveWs2Key(newSheet.key);
+    }
     setPatternEnvironment('water');
     setPatternWorksheetSource('ws2');
-    const requiredAssetType = data.searchPlatform === 'helicopter' ? 'helicopter' : 'fixed-wing-aircraft';
-    const matchingAsset = assets.find((asset) => asset.type === requiredAssetType);
+    const matchingAsset = (focusAssetId ? assets.find((asset) => asset.id === focusAssetId) : undefined)
+      ?? assets.find((asset) => asset.type === requiredAssetType);
     setPatternAssetId(matchingAsset?.id ?? '__case-derived__');
     setCaseVersion((version) => version + 1);
     setActiveTab('ws2');
-  }, [assets]);
+  }, [assets, ws2Sheets]);
 
   const handleApplyWS3 = useCallback((data: Worksheet3InitialState) => {
-    setLoadedInitialState((prev) => ({ ...prev, ws3: data }));
+    // 1 alut = 1 lembar (lihat handleApplyWS2).
+    const sruName = (data.sruName ?? '').trim();
+    const existing = sruName !== ''
+      ? ws3Sheets.find((sheet) => sheet.label.trim().toLowerCase() === sruName.toLowerCase())
+      : undefined;
+    const requiredAssetType = data.searchPlatform === 'helicopter' ? 'helicopter' : 'fixed-wing-aircraft';
+    let focusAssetId: string | null = null;
+    if (existing) {
+      setWs3Sheets((prev) => prev.map((sheet) => (sheet.key === existing.key ? { ...sheet, data } : sheet)));
+      setActiveWs3Key(existing.key);
+      focusAssetId = existing.assetId;
+    } else {
+      const boundIds = new Set(ws3Sheets.map((sheet) => sheet.assetId).filter((id): id is string => id !== null));
+      const asset = assets.find((a) => a.type === requiredAssetType && !boundIds.has(a.id));
+      const newSheet: WorksheetSheet<Worksheet3InitialState> = {
+        key: `sheet-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        label: sruName || asset?.name?.trim() || `SRU ${ws3Sheets.length + 1}`,
+        assetId: asset?.id ?? null,
+        data,
+      };
+      focusAssetId = newSheet.assetId;
+      setWs3Sheets((prev) => [...prev, newSheet]);
+      setActiveWs3Key(newSheet.key);
+    }
     setPatternEnvironment('land');
     setPatternWorksheetSource('ws3');
-    const requiredAssetType = data.searchPlatform === 'helicopter' ? 'helicopter' : 'fixed-wing-aircraft';
-    const matchingAsset = assets.find((asset) => asset.type === requiredAssetType);
+    const matchingAsset = (focusAssetId ? assets.find((asset) => asset.id === focusAssetId) : undefined)
+      ?? assets.find((asset) => asset.type === requiredAssetType);
     setPatternAssetId(matchingAsset?.id ?? '__case-derived__');
     setCaseVersion((version) => version + 1);
     setActiveTab('ws3');
-  }, [assets]);
+  }, [assets, ws3Sheets]);
 
   const handleApplyWS4 = useCallback((data: Worksheet4InitialState) => {
     setLoadedInitialState((prev) => ({ ...prev, ws4: data }));
@@ -798,14 +926,37 @@ export default function Home() {
   }, []);
 
   const handleApplyWS8 = useCallback((data: Worksheet8InitialState) => {
-    setLoadedInitialState((prev) => ({ ...prev, ws8: data }));
+    // 1 alut = 1 lembar (lihat handleApplyWS2).
+    const sruName = (data.sruName ?? '').trim();
+    const existing = sruName !== ''
+      ? ws8Sheets.find((sheet) => sheet.label.trim().toLowerCase() === sruName.toLowerCase())
+      : undefined;
+    let focusAssetId: string | null = null;
+    if (existing) {
+      setWs8Sheets((prev) => prev.map((sheet) => (sheet.key === existing.key ? { ...sheet, data } : sheet)));
+      setActiveWs8Key(existing.key);
+      focusAssetId = existing.assetId;
+    } else {
+      const boundIds = new Set(ws8Sheets.map((sheet) => sheet.assetId).filter((id): id is string => id !== null));
+      const asset = assets.find((a) => a.type === data.sruType && !boundIds.has(a.id));
+      const newSheet: WorksheetSheet<Worksheet8InitialState> = {
+        key: `sheet-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        label: sruName || asset?.name?.trim() || `SRU ${ws8Sheets.length + 1}`,
+        assetId: asset?.id ?? null,
+        data,
+      };
+      focusAssetId = newSheet.assetId;
+      setWs8Sheets((prev) => [...prev, newSheet]);
+      setActiveWs8Key(newSheet.key);
+    }
     setPatternEnvironment('');
     setPatternWorksheetSource('ws8');
-    const matchingAsset = assets.find((asset) => asset.type === data.sruType);
+    const matchingAsset = (focusAssetId ? assets.find((asset) => asset.id === focusAssetId) : undefined)
+      ?? assets.find((asset) => asset.type === data.sruType);
     setPatternAssetId(matchingAsset?.id ?? '__case-derived__');
     setCaseVersion((version) => version + 1);
     setActiveTab('ws8');
-  }, [assets]);
+  }, [assets, ws8Sheets]);
 
   const handleApplySearchPattern = useCallback((data: SearchPatternPlanInitialState) => {
     setPatternType(data.patternType);
@@ -822,14 +973,35 @@ export default function Home() {
     toast.success('Rencana search pattern dari analisis kasus telah dimasukkan ke peta.');
   }, []);
 
-  const handleWS2TrackSpacingChange = useCallback((result: { platform: 'fixed-wing' | 'helicopter' | null; spacingNm: number; selection: string }) => {
-    setWs2TrackSpacing(result);
+  // === Operasi lembar worksheet per-SRU: tambah / hapus lembar ===
+  const addWs2Sheet = useCallback((assetId?: string) => setWs2Sheets((prev) => appendWorksheetSheet(prev, assetId, assets)), [assets]);
+  const addWs3Sheet = useCallback((assetId?: string) => setWs3Sheets((prev) => appendWorksheetSheet(prev, assetId, assets)), [assets]);
+  const addWs8Sheet = useCallback((assetId?: string) => setWs8Sheets((prev) => appendWorksheetSheet(prev, assetId, assets)), [assets]);
+  const removeWs2Sheet = useCallback((key: string) => {
+    setWs2Sheets((prev) => (prev.length <= 1 ? prev : prev.filter((sheet) => sheet.key !== key)));
+    setWs2TrackSpacings((prev) => { if (!(key in prev)) return prev; const next = { ...prev }; delete next[key]; return next; });
+    setActiveWs2Key((prev) => (prev === key ? '' : prev));
   }, []);
-  const handleWS3TrackSpacingChange = useCallback((result: { platform: 'fixed-wing' | 'helicopter' | null; heights: readonly number[]; spacingByHeight: Array<number | null> }) => {
-    setWs3TrackSpacing(result);
+  const removeWs3Sheet = useCallback((key: string) => {
+    setWs3Sheets((prev) => (prev.length <= 1 ? prev : prev.filter((sheet) => sheet.key !== key)));
+    setWs3TrackSpacings((prev) => { if (!(key in prev)) return prev; const next = { ...prev }; delete next[key]; return next; });
+    setActiveWs3Key((prev) => (prev === key ? '' : prev));
   }, []);
-  const handleWS8TrackSpacingChange = useCallback((result: { spacingNm: number; selection: string }) => {
-    setWs8TrackSpacing(result);
+  const removeWs8Sheet = useCallback((key: string) => {
+    setWs8Sheets((prev) => (prev.length <= 1 ? prev : prev.filter((sheet) => sheet.key !== key)));
+    setWs8TrackSpacings((prev) => { if (!(key in prev)) return prev; const next = { ...prev }; delete next[key]; return next; });
+    setActiveWs8Key((prev) => (prev === key ? '' : prev));
+  }, []);
+
+  // Hasil Track Spacing dicatat per lembar pemiliknya (bukan satu slot global).
+  const handleWS2TrackSpacingChange = useCallback((sheetKey: string, result: { platform: 'fixed-wing' | 'helicopter' | null; spacingNm: number; selection: string }) => {
+    setWs2TrackSpacings((prev) => ({ ...prev, [sheetKey]: result }));
+  }, []);
+  const handleWS3TrackSpacingChange = useCallback((sheetKey: string, result: { platform: 'fixed-wing' | 'helicopter' | null; heights: readonly number[]; spacingByHeight: Array<number | null> }) => {
+    setWs3TrackSpacings((prev) => ({ ...prev, [sheetKey]: result }));
+  }, []);
+  const handleWS8TrackSpacingChange = useCallback((sheetKey: string, result: { spacingNm: number; selection: string }) => {
+    setWs8TrackSpacings((prev) => ({ ...prev, [sheetKey]: result }));
   }, []);
 
   const handleApplyIntercept = useCallback((data: InterceptInput) => {
@@ -894,12 +1066,39 @@ export default function Home() {
   const searchAreaWidth = searchSquareSide;
   const searchAreaOrientation = driftOrientationDeg;
   const patternSruRecord = patternAssetId === '__case-derived__' ? undefined : assets.find((asset) => asset.id === patternAssetId) ?? assets[0];
+  // Lembar aktif per worksheet (tampilan tab): lembar terpilih pengguna, atau lembar pertama.
+  const shownWs2Key = ws2Sheets.some((sheet) => sheet.key === activeWs2Key) ? activeWs2Key : ws2Sheets[0]?.key ?? '';
+  const shownWs3Key = ws3Sheets.some((sheet) => sheet.key === activeWs3Key) ? activeWs3Key : ws3Sheets[0]?.key ?? '';
+  const shownWs8Key = ws8Sheets.some((sheet) => sheet.key === activeWs8Key) ? activeWs8Key : ws8Sheets[0]?.key ?? '';
+  // === Resolusi lembar per-SRU untuk tab Search Pattern ===
+  // Pilih lembar yang cocok dengan SRU terpilih: ikatan assetId langsung
+  // terlebih dahulu, lalu kecocokan jenis/platform, lalu lembar pertama
+  // (turunan kasus). 1 alut = 1 lembar — tiap SRU memakai S dari lembar sendiri.
+  const patternWs2Sheet = patternSruRecord
+    ? ws2Sheets.find((sheet) => sheet.assetId === patternSruRecord.id)
+      ?? ws2Sheets.find((sheet) => (sheet.data.searchPlatform === 'helicopter' ? 'helicopter' : sheet.data.searchPlatform === 'fixed-wing' ? 'fixed-wing-aircraft' : undefined) === patternSruRecord.type)
+      ?? ws2Sheets[0]
+    : ws2Sheets[0];
+  const patternWs3Sheet = patternSruRecord
+    ? ws3Sheets.find((sheet) => sheet.assetId === patternSruRecord.id)
+      ?? ws3Sheets.find((sheet) => (sheet.data.searchPlatform === 'helicopter' ? 'helicopter' : sheet.data.searchPlatform === 'fixed-wing' ? 'fixed-wing-aircraft' : undefined) === patternSruRecord.type)
+      ?? ws3Sheets[0]
+    : ws3Sheets[0];
+  const patternWs8Sheet = patternSruRecord
+    ? ws8Sheets.find((sheet) => sheet.assetId === patternSruRecord.id)
+      ?? ws8Sheets.find((sheet) => sheet.data.sruType === patternSruRecord.type)
+      ?? ws8Sheets[0]
+    : ws8Sheets[0];
+  // Nilai track spacing efektif per worksheet — diambil dari lembar SRU terpilih.
+  const ws2TrackSpacing = patternWs2Sheet ? ws2TrackSpacings[patternWs2Sheet.key] ?? null : null;
+  const ws3TrackSpacing = patternWs3Sheet ? ws3TrackSpacings[patternWs3Sheet.key] ?? null : null;
+  const ws8TrackSpacing = patternWs8Sheet ? ws8TrackSpacings[patternWs8Sheet.key] ?? null : null;
   const caseDerivedSruType = patternWorksheetSource === 'ws8'
-    ? loadedInitialState?.ws8?.sruType
+    ? patternWs8Sheet?.data.sruType
     : patternWorksheetSource === 'ws2'
-      ? loadedInitialState?.ws2?.searchPlatform === 'helicopter' ? 'helicopter' : loadedInitialState?.ws2?.searchPlatform === 'fixed-wing' ? 'fixed-wing-aircraft' : undefined
+      ? patternWs2Sheet?.data.searchPlatform === 'helicopter' ? 'helicopter' : patternWs2Sheet?.data.searchPlatform === 'fixed-wing' ? 'fixed-wing-aircraft' : undefined
       : patternWorksheetSource === 'ws3'
-        ? loadedInitialState?.ws3?.searchPlatform === 'helicopter' ? 'helicopter' : loadedInitialState?.ws3?.searchPlatform === 'fixed-wing' ? 'fixed-wing-aircraft' : undefined
+        ? patternWs3Sheet?.data.searchPlatform === 'helicopter' ? 'helicopter' : patternWs3Sheet?.data.searchPlatform === 'fixed-wing' ? 'fixed-wing-aircraft' : undefined
         : undefined;
   const patternSruType = patternSruRecord?.type ?? caseDerivedSruType;
   const patternAssetIsAir = patternSruType === 'helicopter' || patternSruType === 'fixed-wing-aircraft';
@@ -932,6 +1131,13 @@ export default function Home() {
     'fixed-wing-aircraft': 'Pesawat fixed wing', helicopter: 'Helikopter',
     'rescue-vessel': 'Kapal SAR', 'patrol-boat': 'Kapal patroli', rib: 'RIB', 'sea-rider': 'Sea Rider',
   };
+  // Opsi SRU untuk bar lembar worksheet: udara → WS 2/WS 3, kapal/perahu → WS 8.
+  const airAssetOptions = assets
+    .filter((asset) => asset.type === 'helicopter' || asset.type === 'fixed-wing-aircraft')
+    .map((asset) => ({ id: asset.id, label: asset.name?.trim() || caseSruTypeName[asset.type] || asset.type }));
+  const vesselAssetOptions = assets
+    .filter((asset) => asset.type === 'rescue-vessel' || asset.type === 'patrol-boat' || asset.type === 'rib' || asset.type === 'sea-rider')
+    .map((asset) => ({ id: asset.id, label: asset.name?.trim() || caseSruTypeName[asset.type] || asset.type }));
   const patternSruName = patternSruRecord?.name ?? (patternSruType ? caseSruTypeName[patternSruType] ?? 'SRU dari analisis kasus' : 'SRU dari analisis kasus');
   const patternSpeedKts = patternSruRecord?.transitSpeedKts ?? 0;
   // Field kosong (mis. setelah reset kasus tanpa perubahan drift) tetap
@@ -1928,16 +2134,31 @@ export default function Home() {
 
             {/* TAB 5: WORKSHEET 2 (LEEWAY DIVERGENCE & SUB-AREA DECISION USING AO) */}
             <TabsContent value="ws2" key={`ws2-tab-${caseVersion}-${tabClearVersions.ws2 ?? 0}`} className="mt-0 space-y-4">
-              <Worksheet2
-                key={`ws2-${caseVersion}`}
-                lkp={lkp}
-                datumData={datumData}
-                datumResults={datumResults}
-                aswDirFrom={asw.aswDirFrom}
-                ws1Ao={ws1Ao}
-                initialState={loadedInitialState?.ws2}
-                onTrackSpacingChange={handleWS2TrackSpacingChange}
+              <WorksheetSheetBar
+                title="Lembar WS 2 — 1 SRU = 1 lembar"
+                sheets={ws2Sheets.map((sheet, index) => ({ key: sheet.key, label: sheet.label || `SRU ${index + 1}`, bound: sheet.assetId !== null }))}
+                activeKey={shownWs2Key}
+                assets={airAssetOptions}
+                boundAssetIds={ws2Sheets.map((sheet) => sheet.assetId).filter((id): id is string => id !== null)}
+                onSelect={setActiveWs2Key}
+                onAddBlank={() => addWs2Sheet()}
+                onAddAsset={(assetId) => addWs2Sheet(assetId)}
+                onRemove={removeWs2Sheet}
               />
+              {ws2Sheets.map((sheet) => (
+                <div key={sheet.key} className={sheet.key === shownWs2Key ? '' : 'hidden'}>
+                  <Worksheet2
+                    key={`ws2-${caseVersion}-${sheet.key}`}
+                    lkp={lkp}
+                    datumData={datumData}
+                    datumResults={datumResults}
+                    aswDirFrom={asw.aswDirFrom}
+                    ws1Ao={ws1Ao}
+                    initialState={sheet.data}
+                    onTrackSpacingChange={(result) => handleWS2TrackSpacingChange(sheet.key, result)}
+                  />
+                </div>
+              ))}
               <PrintCompanionMap
                 title="LAMPIRAN: PETA OPERASI SAR — WORKSHEET 2 (SUB-AREA & LEEWAY DIVERGENCE)"
                 worksheetRef="WORKSHEET 2 (SUB-AREA PLANNING)"
@@ -1957,16 +2178,31 @@ export default function Home() {
             </TabsContent>
 
             {/* TAB 6: WORKSHEET 8 (CUMULATIVE POSC USING AO) */}
-            <TabsContent value="ws8" key={`ws8-tab-${caseVersion}-${tabClearVersions.ws8 ?? 0}`} className="mt-0">
-              <Worksheet8
-                key={`ws8-${caseVersion}`}
-                ws1Ao={ws1Ao}
-                windKts={datumData?.aswSpeed ?? 0}
-                initialC={searchResults?.C ?? 0}
-                initialPod={searchResults?.POD ?? 0}
-                initialState={loadedInitialState?.ws8}
-                onTrackSpacingChange={handleWS8TrackSpacingChange}
+            <TabsContent value="ws8" key={`ws8-tab-${caseVersion}-${tabClearVersions.ws8 ?? 0}`} className="mt-0 space-y-4">
+              <WorksheetSheetBar
+                title="Lembar WS 8 — 1 SRU = 1 lembar"
+                sheets={ws8Sheets.map((sheet, index) => ({ key: sheet.key, label: sheet.label || `SRU ${index + 1}`, bound: sheet.assetId !== null }))}
+                activeKey={shownWs8Key}
+                assets={vesselAssetOptions}
+                boundAssetIds={ws8Sheets.map((sheet) => sheet.assetId).filter((id): id is string => id !== null)}
+                onSelect={setActiveWs8Key}
+                onAddBlank={() => addWs8Sheet()}
+                onAddAsset={(assetId) => addWs8Sheet(assetId)}
+                onRemove={removeWs8Sheet}
               />
+              {ws8Sheets.map((sheet) => (
+                <div key={sheet.key} className={sheet.key === shownWs8Key ? '' : 'hidden'}>
+                  <Worksheet8
+                    key={`ws8-${caseVersion}-${sheet.key}`}
+                    ws1Ao={ws1Ao}
+                    windKts={datumData?.aswSpeed ?? 0}
+                    initialC={searchResults?.C ?? 0}
+                    initialPod={searchResults?.POD ?? 0}
+                    initialState={sheet.data}
+                    onTrackSpacingChange={(result) => handleWS8TrackSpacingChange(sheet.key, result)}
+                  />
+                </div>
+              ))}
             </TabsContent>
 
             {/* TAB 7: PENGHITUNGAN ALOKASI ASET SRU */}
@@ -2236,13 +2472,28 @@ export default function Home() {
 
             {/* TAB: WORKSHEET 3 (POINT DATUM EFFORT ALLOCATION - STANDALONE) */}
             <TabsContent value="ws3" key={`ws3-tab-${caseVersion}-${tabClearVersions.ws3 ?? 0}`} className="mt-0 space-y-4">
-              <Worksheet3
-                key={`ws3-${caseVersion}`}
-                searchResults={searchResults}
-                E={datumResults?.E ?? 5.0}
-                initialState={loadedInitialState?.ws3}
-                onTrackSpacingChange={handleWS3TrackSpacingChange}
+              <WorksheetSheetBar
+                title="Lembar WS 3 — 1 SRU = 1 lembar"
+                sheets={ws3Sheets.map((sheet, index) => ({ key: sheet.key, label: sheet.label || `SRU ${index + 1}`, bound: sheet.assetId !== null }))}
+                activeKey={shownWs3Key}
+                assets={airAssetOptions}
+                boundAssetIds={ws3Sheets.map((sheet) => sheet.assetId).filter((id): id is string => id !== null)}
+                onSelect={setActiveWs3Key}
+                onAddBlank={() => addWs3Sheet()}
+                onAddAsset={(assetId) => addWs3Sheet(assetId)}
+                onRemove={removeWs3Sheet}
               />
+              {ws3Sheets.map((sheet) => (
+                <div key={sheet.key} className={sheet.key === shownWs3Key ? '' : 'hidden'}>
+                  <Worksheet3
+                    key={`ws3-${caseVersion}-${sheet.key}`}
+                    searchResults={searchResults}
+                    E={datumResults?.E ?? 5.0}
+                    initialState={sheet.data}
+                    onTrackSpacingChange={(result) => handleWS3TrackSpacingChange(sheet.key, result)}
+                  />
+                </div>
+              ))}
               {datumResults && (
                 <SearchPlanWorksheet
                   E={datumResults.E}

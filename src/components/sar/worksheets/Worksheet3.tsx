@@ -19,6 +19,8 @@ import {
 
 export interface Worksheet3InitialState {
   caseTitle?: string;
+  /** Nama SRU/alut pemilik lembar ini (multi-SRU: 1 alut = 1 lembar). Komponen mengabaikannya. */
+  sruName?: string;
   searchObject?: string;
   visibilityKm?: number;
   vegetationType?: LandVegetation | '15-60' | '60-85' | '+85' | '-';

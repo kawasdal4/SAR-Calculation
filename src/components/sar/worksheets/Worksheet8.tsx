@@ -7,6 +7,8 @@ import { computeW8Row, readFigureI12, W8_TARGET_OPTIONS, type W8Target, type Sea
 
 export interface Worksheet8InitialState {
   caseTitle?: string;
+  /** Nama SRU/alut pemilik lembar ini (multi-SRU: 1 alut = 1 lembar). Komponen mengabaikannya. */
+  sruName?: string;
   sruType?: 'rescue-vessel' | 'patrol-boat' | 'rib' | 'sea-rider';
   eyeHeight?: '8' | '14' | 'MERSHIP';
   searchObject?: W8Target;

@@ -10,6 +10,8 @@ import { computeW2Row, readFigureI12, W2_TARGET_OPTIONS, W2_VISIBILITY_LABELS, t
 
 export interface Worksheet2InitialState {
   caseTitle?: string;
+  /** Nama SRU/alut pemilik lembar ini (multi-SRU: 1 alut = 1 lembar). Komponen mengabaikannya. */
+  sruName?: string;
   searchPlatform?: 'fixed-wing' | 'helicopter';
   searchTas?: number;
   searchObject?: W2Target;

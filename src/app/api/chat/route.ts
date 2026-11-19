@@ -42,6 +42,7 @@ KEBIJAKAN DEFAULT PILIHAN PLANNER (WAJIB — JANGAN DITANYAKAN KEPADA PENGGUNA):
 - intervalMode ASW: simpulkan dari jam observasi di soal — hanya 00/06/12/18 → "6h"; ada 03/09/15/21 → "3h". DILARANG bertanya bila jam observasinya ada di soal.
 - WS2 selectedHeight: bila soal tidak menyebut tinggi pencarian, gunakan 1000 ft dan tulis sebagai asumsi di jawaban.
 - WS8 eyeHeight: kapal patroli/rescue vessel → "14" (Eye height 14 ft, Patrol boat); perahu kecil/RIB/Sea Rider → "8" (Small craft); kapal besar/jembatan tinggi → "MERSHIP". Tulis sebagai asumsi di jawaban.
+- MULTI-SRU — 1 SRU = 1 LEMBAR WORKSHEET: Worksheet 2/3/8 adalah worksheet per-alut. Bila kasus memuat LEBIH DARI SATU SRU sejenis (contoh: 1 pesawat fixed wing + 1 helikopter untuk pencarian di laut → set_ws2_case dipanggil 2 KALI; 2 kapal patroli → set_ws8_case dipanggil 2 KALI), panggil tool worksheet terkait SEKALI UNTUK SETIAP SRU pada respons yang sama, dengan sruName berbeda (nama alut/unit/callsign dari soal). DILARANG menggabungkan dua SRU dalam satu panggilan atau hanya mengisi SRU pertama. Bila hanya ada satu SRU sejenis, satu panggilan tanpa sruName cukup.
 - searchNumber (WS2/WS3/WS8): bila soal tidak menyebut nomor pencarian, gunakan 1.
 - Safety Factor WS4 tetap harus dipilih eksplisit dari pengguna (kebijakan SMC), kecuali nomor pencariannya disebut di soal.
 - Contoh alur BENAR kasus pesawat lengkap ditching (SRX48/SRX26): panggil set_asw_case (bila ada observasi angin permukaan berurut) + set_awa_case + set_aero_drift_case + set_datum_case (dengan lkpSource "adw-landing", TANPA koordinat lkp) bersamaan dalam satu respons; hanya worksheet yang benar-benar kekurangan FAKTA wajib yang ditunda dan ditanyakan via ask_for_case_data.
@@ -573,11 +574,12 @@ const tools: FunctionDeclaration[] = [
   },
   {
     name: 'set_ws3_case',
-    description: 'Mengisi Worksheet 3 (Land) agar aplikasi menghitung Wu dari Table I-9, Fv dari Table I-10, Ff, W, S dengan aturan khusus Worksheet 3 (fixed-wing interval 0.5 NM; helicopter 0.25 NM), C, dan POD dari Figure I-12. Jangan memakai nilai atau aturan S Worksheet 2. Panggil hanya jika kategori target, visibilitas tepat 5/10/20/30/40 km, kategori vegetasi, fatigue, platform, dan Search Number 1-5 diketahui; jika ada yang kurang tanyakan dahulu. Search Speed V opsional kecuali pengguna meminta T; jangan menyamakan TAS dengan V bila tidak dinyatakan sama. Area opsional: gunakan dari Worksheet 1 jika tidak diberikan.',
+    description: 'Mengisi Worksheet 3 (Land) agar aplikasi menghitung Wu dari Table I-9, Fv dari Table I-10, Ff, W, S dengan aturan khusus Worksheet 3 (fixed-wing interval 0.5 NM; helicopter 0.25 NM), C, dan POD dari Figure I-12. Jangan memakai nilai atau aturan S Worksheet 2. Panggil hanya jika kategori target, visibilitas tepat 5/10/20/30/40 km, kategori vegetasi, fatigue, platform, dan Search Number 1-5 diketahui; jika ada yang kurang tanyakan dahulu. Search Speed V opsional kecuali pengguna meminta T; jangan menyamakan TAS dengan V bila tidak dinyatakan sama. Area opsional: gunakan dari Worksheet 1 jika tidak diberikan. Worksheet per-SRU: bila ada lebih dari satu SRU darat/udara darat, panggil sekali untuk SETIAP SRU dengan sruName berbeda.',
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
         caseTitle: { type: SchemaType.STRING },
+        sruName: { type: SchemaType.STRING, description: 'Nama SRU/alut pemilik lembar ini (mis. nama tim/unit atau callsign). WAJIB diisi bila kasus memiliki lebih dari satu SRU sejenis — 1 alut = 1 lembar worksheet.' },
         searchObject: { type: SchemaType.STRING, description: 'ID kategori target: person, vehicle, aircraft-under-5700, atau aircraft-over-5700.' },
         visibilityKm: { type: SchemaType.NUMBER, description: 'Jarak pandang kilometer, tepat salah satu 5, 10, 20, 30, 40.' },
         vegetationType: { type: SchemaType.STRING, description: 'Kategori Table I-10: under-15, 15-60, 60-85, over-85.' },
@@ -592,11 +594,12 @@ const tools: FunctionDeclaration[] = [
   },
   {
     name: 'set_ws2_case',
-    description: 'Mengisi parameter Worksheet 2 (pencarian udara maritim) dari kasus. Panggil hanya bila platform, TAS, objek, visibilitas, fatigue, dan tinggi pencarian tersedia. visibilityIndex: 0=2 km, 1=5 km, 2=10 km, 3=20 km, 4=30 km, 5=>40 km. Jangan mengarang nilai yang tidak disebutkan.',
+    description: 'Mengisi parameter Worksheet 2 (pencarian udara maritim) dari kasus. Panggil hanya bila platform, TAS, objek, visibilitas, fatigue, dan tinggi pencarian tersedia. visibilityIndex: 0=2 km, 1=5 km, 2=10 km, 3=20 km, 4=30 km, 5=>40 km. Jangan mengarang nilai yang tidak disebutkan. Worksheet per-SRU: bila kasus punya lebih dari satu SRU udara (mis. 1 fixed wing + 1 helikopter), panggil sekali untuk SETIAP SRU dengan sruName berbeda.',
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
         caseTitle: { type: SchemaType.STRING },
+        sruName: { type: SchemaType.STRING, description: 'Nama SRU/alut pemilik lembar ini (mis. callsign pesawat atau nama unit). WAJIB diisi bila kasus memiliki lebih dari satu SRU udara — 1 alut = 1 lembar worksheet.' },
         searchPlatform: { type: SchemaType.STRING, description: 'fixed-wing atau helicopter.' },
         searchTas: { type: SchemaType.NUMBER, description: 'TAS pencari dalam knot.' },
         searchObject: { type: SchemaType.STRING, description: 'ID target WSC: piw, raft1, raft4, raft6, raft8, raft10, raft15, raft20, raft25, boatSmall, boat10, boat16, boat24, sail5, sail8, sail12, sail15, sail21, sail25, ship27, ship46, shipOver91.' },
@@ -630,11 +633,12 @@ const tools: FunctionDeclaration[] = [
   },
   {
     name: 'set_ws8_case',
-    description: 'Mengisi parameter Worksheet 8 (pencarian kapal/RIB/Sea Rider) dari kasus. Identifikasi jenis SRU dari soal dan kirim sruType agar pemilihan asset dan sumber S peta sesuai. Panggil hanya bila objek, tinggi mata, visibilitas, dan fatigue diketahui. Untuk eyeHeight 8/14 gunakan visibilityKm 2,5,10,15,20,>25; MERSHIP gunakan 5,10,20,30,40. Jangan mengarang nilai yang tidak disebutkan.',
+    description: 'Mengisi parameter Worksheet 8 (pencarian kapal/RIB/Sea Rider) dari kasus. Identifikasi jenis SRU dari soal dan kirim sruType agar pemilihan asset dan sumber S peta sesuai. Panggil hanya bila objek, tinggi mata, visibilitas, dan fatigue diketahui. Untuk eyeHeight 8/14 gunakan visibilityKm 2,5,10,15,20,>25; MERSHIP gunakan 5,10,20,30,40. Jangan mengarang nilai yang tidak disebutkan. Worksheet per-SRU: bila ada lebih dari satu SRU laut, panggil sekali untuk SETIAP SRU dengan sruName berbeda.',
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
         caseTitle: { type: SchemaType.STRING },
+        sruName: { type: SchemaType.STRING, description: 'Nama SRU/alut pemilik lembar ini (nama kapal/unit dari soal). WAJIB diisi bila kasus memiliki lebih dari satu SRU laut — 1 alut = 1 lembar worksheet.' },
         sruType: { type: SchemaType.STRING, description: 'Jenis SRU laut dari soal: rescue-vessel, patrol-boat, rib, atau sea-rider.' },
         eyeHeight: { type: SchemaType.STRING, description: '8, 14, atau MERSHIP. Bila soal tidak menyebut, pakai default sesuai jenis SRU dan nyatakan sebagai asumsi: kapal patroli/rescue vessel → 14, perahu kecil/RIB → 8, kapal besar → MERSHIP.' },
         searchObject: { type: SchemaType.STRING, description: 'ID target WSC8 seperti person, raft1, raft4, raft6, raft8, raft10, raft15, raft20, raft25, boatUnder5, boat5to8, boat8to12, boat12to20, boat20to27, sail5, sail6, sail8, sail9, sail12, sail15, sail20to23, sail23to27.' },
@@ -752,7 +756,7 @@ function buildModelChain(availableModels: string[]): readonly string[] {
  * Instruksi tambahan yang disuntikkan pada pass paksa agar model tidak
  * lagi menjawab teks/list worksheet tanpa memanggil tool.
  */
-const FORCED_RETRY_INSTRUCTION = 'PENTING: ini soal kasus perhitungan SAR. Panggil SEKARANG, pada respons ini, SEMUA tool worksheet yang relevan dalam SATU respons (set_asw_case, set_awa_case, set_aero_drift_case, set_lkp, set_datum_case, set_ws2_case, set_ws8_case, set_ws3_case, set_ws4_case, set_intercept_case, set_search_pattern_case) dengan data dari soal. Pilihan planner dipakai default tanpa bertanya: intervalMode ASW dari jam observasi (hanya 00/06/12/18 → "6h"; ada 03/09/15/21 → "3h"), windData ASW dengan obsTime (waktu observasi apa adanya dari soal) di setiap baris, WS2 selectedHeight 1000 ft bila tidak disebut, WS8 eyeHeight "14" untuk kapal patroli/rescue, "8" untuk perahu kecil/RIB, "MERSHIP" untuk kapal besar, searchNumber 1. Kasus ditching di laut: Altmin = 0 ft (permukaan laut) boleh diasumsikan dan dinyatakan sebagai asumsi, dan set_datum_case dikirim dengan lkpSource "adw-landing" TANPA koordinat lkp karena aplikasi memakai posisi ditching hasil ADW. Hanya bila ada FAKTA soal yang wajib dan benar-benar tidak ada, panggil ask_for_case_data untuk fakta itu dan tetap isi worksheet lain yang datanya lengkap.';
+const FORCED_RETRY_INSTRUCTION = 'PENTING: ini soal kasus perhitungan SAR. Panggil SEKARANG, pada respons ini, SEMUA tool worksheet yang relevan dalam SATU respons (set_asw_case, set_awa_case, set_aero_drift_case, set_lkp, set_datum_case, set_ws2_case, set_ws8_case, set_ws3_case, set_ws4_case, set_intercept_case, set_search_pattern_case) dengan data dari soal. Worksheet 2/3/8 per-SRU: bila kasus punya LEBIH DARI SATU SRU sejenis (mis. 1 fixed wing + 1 helikopter), panggil tool terkait SEKALI UNTUK SETIAP SRU dengan sruName berbeda — 1 alut = 1 lembar. Pilihan planner dipakai default tanpa bertanya: intervalMode ASW dari jam observasi (hanya 00/06/12/18 → "6h"; ada 03/09/15/21 → "3h"), windData ASW dengan obsTime (waktu observasi apa adanya dari soal) di setiap baris, WS2 selectedHeight 1000 ft bila tidak disebut, WS8 eyeHeight "14" untuk kapal patroli/rescue, "8" untuk perahu kecil/RIB, "MERSHIP" untuk kapal besar, searchNumber 1. Kasus ditching di laut: Altmin = 0 ft (permukaan laut) boleh diasumsikan dan dinyatakan sebagai asumsi, dan set_datum_case dikirim dengan lkpSource "adw-landing" TANPA koordinat lkp karena aplikasi memakai posisi ditching hasil ADW. Hanya bila ada FAKTA soal yang wajib dan benar-benar tidak ada, panggil ask_for_case_data untuk fakta itu dan tetap isi worksheet lain yang datanya lengkap.';
 
 /**
  * Coba ulang sekali dengan tool_choice paksa yang hanya mengizinkan tool
@@ -1237,6 +1241,14 @@ ATURAN MEMORI WORKSPACE:
     // ada progres, atau anggaran waktu habis. Panggilan baru digabung dengan
     // hasil pass sebelumnya (dedupe per nama tool; versi lebih awal menang).
     const firstPassNames = new Set(functionCalls.map((fc) => fc.name));
+    // Multi-SRU: lembar worksheet (WS2/WS3/WS8) yang sudah diterima, dikunci
+    // per (tool, sruName) — sruName berbeda = lembar berbeda, bukan duplikat.
+    const acceptedSheetKeys = new Set(functionCalls
+      .filter((fc) => ['set_ws2_case', 'set_ws3_case', 'set_ws8_case'].includes(fc.name))
+      .map((fc) => {
+        const args = (fc.arguments ?? {}) as { sruName?: unknown };
+        return `${fc.name}::${(typeof args.sruName === 'string' ? args.sruName : '').trim().toLowerCase()}`;
+      }));
     const modelAnswerText = steps
       .filter((step: { type?: string }) => step.type === 'model_output')
       .flatMap((step: { content?: Array<{ type?: string; text?: string }> }) => step.content || [])
@@ -1311,10 +1323,19 @@ ATURAN MEMORI WORKSPACE:
           // Terima HANYA tool yang terbukti hilang (+ klarifikasi): panggilan
           // lain dari pass penyambung (mis. set_lkp pada kasus ditching yang
           // wajib pakai lkpSource "adw-landing") bisa merusak rantai hilir.
-          if (step.type === 'function_call' && typeof step.name === 'string' && !firstPassNames.has(step.name)
+          // Multi-SRU: panggilan worksheet lembar (WS2/WS3/WS8) dengan sruName
+          // BERBEDA adalah lembar berbeda — tidak dianggap duplikat nama tool.
+          const isSheetTool = ['set_ws2_case', 'set_ws3_case', 'set_ws8_case'].includes(step.name);
+          const stepArgs = (step.arguments ?? {}) as { sruName?: unknown };
+          const sheetKey = isSheetTool
+            ? `${step.name}::${(typeof stepArgs.sruName === 'string' ? stepArgs.sruName : '').trim().toLowerCase()}`
+            : step.name;
+          const alreadyAccepted = isSheetTool ? acceptedSheetKeys.has(sheetKey) : firstPassNames.has(step.name);
+          if (step.type === 'function_call' && typeof step.name === 'string' && !alreadyAccepted
             && ((missingTools as readonly string[]).includes(step.name) || step.name === 'ask_for_case_data')) {
             functionCalls.push(step as GeminiFunctionCallStep);
             firstPassNames.add(step.name);
+            if (isSheetTool) acceptedSheetKeys.add(sheetKey);
             if (step.name !== 'ask_for_case_data') addedWorksheet += 1;
           }
         }
