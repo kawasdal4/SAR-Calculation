@@ -2,18 +2,20 @@
  * REFERENCE CHOICE (Fase E) — sistem INTERAKTIF pemilihan parameter dari
  * Appendix/Table / katalog referensi resmi aplikasi langsung di kolom chat.
  *
- * ATURAN MUTLAK (spesifikasi Fase E):
+ * ATURAN MUTLAK (spesifikasi Fase E + arahan planner):
  * 1. SEMUA pilihan berasal dari data referensi resmi yang sudah ada di aplikasi
  *    (LEEWAY_OBJECT_TYPES Tabel I-1/I-2, dsb.) — DILARANG hardcoded/mengarang.
  * 2. AI memberi SATU rekomendasi utama bila dasar pemilihan cukup (dari
  *    karakteristik objek di soal via resolver keyword resmi), dengan alasan +
  *    sumber tabel, PLUS alternatif. Bila data tidak cukup → tanpa rekomendasi,
  *    tampilkan opsi dan minta keputusan planner (needsUserDecision).
- * 3. Rekomendasi = AI_RECOMMENDED_PENDING_CONFIRMATION — BUKAN nilai resmi
- *    sebelum pengguna mengonfirmasi.
- * 4. Setelah konfirmasi: reference ID (bukan label) diterapkan ke worksheet
- *    lewat set_fields (mekanisme resmi yang sama), dicatat change-log, dan
- *    status menjadi USER_CONFIRMED_REFERENCE.
+ * 3. **AUTO-APPLY bila AI yakin** (arahan planner): rekomendasi dengan skor
+ *    kata kunci kuat (confident) → kartu langsung MENERAPKAN reference ID ke
+ *    worksheet lewat set_fields (satu batch → change-log + Undo tetap jalan)
+ *    dan status menjadi USER_CONFIRMED_REFERENCE. Planner tetap bisa mengganti
+ *    lewat "Pilih kategori lainnya" atau Undo. Bila TIDAK yakin → kartu
+ *    menunggu keputusan planner (konfirmasi klik).
+ * 4. Reference ID (bukan label) yang disimpan, disertai sumber Appendix/Table.
  * 5. REUSABLE: registry fieldPath → konfigurasi sumber; menambah parameter
  *    baru = menambah entri registry, bukan menulis jalur khusus.
  */
@@ -35,11 +37,22 @@ export interface ReferenceFieldConfig {
   /** Keterangan worksheet yang membutuhkan. */
   consumerWorksheetLabel: string;
   /** Resolver rekomendasi dari deskripsi objek (dari soal). */
-  recommend: (contextText: string) => { referenceId: string; label: string; description: string; reason: string } | null;
+  recommend: (contextText: string) => ReferenceRecommendation | null;
   /** Daftar pilihan resmi (untuk UI "Pilih kategori lainnya"). */
   alternatives: () => Array<{ id: string; label: string; description?: string; group?: string }>;
   /** Versi/sumber referensi untuk audit. */
   version: string;
+}
+
+export interface ReferenceRecommendation {
+  referenceId: string;
+  label: string;
+  description: string;
+  reason: string;
+  /** True bila dasar rekomendasi kuat → kartu auto-apply (arahan planner). */
+  confident: boolean;
+  /** Skor mentah resolver (total panjang kata kunci cocok) untuk audit. */
+  score: number;
 }
 
 /** Grup tampilan kategori leeway (dipakai UI untuk daftar panjang I-1/I-2). */
@@ -75,7 +88,9 @@ export const REFERENCE_CHOICE_FIELDS: Record<string, ReferenceFieldConfig> = {
         referenceId: entry.id,
         label: entry.label,
         description: leewayEntryDescription(entry.label, entry.leewayRate, entry.leewayModifier, entry.divergenceAngle),
-        reason: `Karakteristik objek pada soal cocok dengan kategori ini (kata kunci: ${match.matchedTerms.slice(0, 4).join(', ')}). Parameter leeway mengikuti Tabel I-1/I-2: rate ×${entry.leewayRate}${entry.leewayModifier ? ` + ${entry.leewayModifier} kt` : ''}, divergensi ±${entry.divergenceAngle}°.`,
+        reason: `Karakteristik objek pada soal cocok dengan kategori ini (kata kunci: ${match.matchedTerms.slice(0, 4).join(', ')}; skor ${match.score}). Parameter leeway mengikuti Tabel I-1/I-2: rate ×${entry.leewayRate}${entry.leewayModifier ? ` + ${entry.leewayModifier} kt` : ''}, divergensi ±${entry.divergenceAngle}°.`,
+        confident: match.score >= 6,
+        score: match.score,
       };
     },
     alternatives: () => LEEWAY_OBJECT_TYPES.map((entry) => ({
@@ -87,7 +102,10 @@ export const REFERENCE_CHOICE_FIELDS: Record<string, ReferenceFieldConfig> = {
   },
 };
 
-export type ReferenceChoiceStatus = 'AI_RECOMMENDED_PENDING_CONFIRMATION' | 'PLANNER_INPUT';
+export type ReferenceChoiceStatus =
+  | 'AI_RECOMMENDED_PENDING_CONFIRMATION'
+  | 'AI_RECOMMENDED_AUTO_APPLIED'
+  | 'PLANNER_INPUT';
 
 /** Payload kartu interaktif yang dikirim ke klien (bukan untuk model). */
 export interface ReferenceChoicePayload {
@@ -96,11 +114,14 @@ export interface ReferenceChoicePayload {
   consumerWorksheetLabel: string;
   question: string;
   sourceTable: { refId: string; label: string; status: string; source: string; version: string };
-  recommendation: { referenceId: string; label: string; description: string; reason: string } | null;
+  recommendation: ReferenceRecommendation | null;
   alternatives: Array<{ id: string; label: string; description?: string; group?: string }>;
   status: ReferenceChoiceStatus;
   /** True bila AI tidak cukup yakin → planner memutuskan dari daftar. */
   needsUserDecision: boolean;
+  /** True bila kartu boleh MENERAPKAN rekomendasi langsung ke worksheet saat
+   *  muncul (AI yakin — arahan planner). Tetap tercatat change-log + Undo. */
+  autoApply: boolean;
 }
 
 // ── Builder payload ─────────────────────────────────────────────────────────
@@ -125,8 +146,11 @@ export function buildReferenceChoice(fieldPath: string, contextText: string): Re
     },
     recommendation,
     alternatives,
-    status: recommendation ? 'AI_RECOMMENDED_PENDING_CONFIRMATION' : 'PLANNER_INPUT',
+    status: recommendation
+      ? (recommendation.confident ? 'AI_RECOMMENDED_AUTO_APPLIED' : 'AI_RECOMMENDED_PENDING_CONFIRMATION')
+      : 'PLANNER_INPUT',
     needsUserDecision: !recommendation,
+    autoApply: Boolean(recommendation?.confident),
   };
 }
 
@@ -143,12 +167,19 @@ export function referenceChoiceForModel(payload: ReferenceChoicePayload): Record
     fieldPath: payload.fieldPath,
     worksheet: payload.worksheet,
     status: payload.status,
+    autoApply: payload.autoApply,
     recommendation: payload.recommendation
-      ? { ...payload.recommendation, status: 'AI_RECOMMENDED_PENDING_CONFIRMATION', note: 'Belum resmi sebelum pengguna mengonfirmasi.' }
+      ? {
+          ...payload.recommendation,
+          status: payload.status,
+          note: payload.autoApply
+            ? 'Kartu SUDAH menerapkan rekomendasi ini ke worksheet otomatis (planner bisa mengganti lewat kartu/Undo) — jangan panggil set_fields lagi untuk field ini.'
+            : 'Belum resmi sebelum pengguna mengonfirmasi di kartu — jangan panggil set_fields untuk field ini.',
+        }
       : null,
     needsUserDecision: payload.needsUserDecision,
     alternativesByGroup: Object.fromEntries([...grouped.entries()].map(([group, list]) => [group, list.slice(0, 8).concat(list.length > 8 ? [{ id: '…', label: `+${list.length - 8} lainnya (kartu UI menampilkan semua)` }] : [])])),
     sourceTable: payload.sourceTable,
-    instruction: 'Sajikan rekomendasi + alternatif kepada pengguna; jangan memanggil set_fields untuk field ini SEBELUM pengguna mengonfirmasi pilihannya.',
+    instruction: 'Kartu interaktif sudah dirender ke pengguna. Bila autoApply false: tunggu konfirmasi pengguna sebelum set_fields. Bila autoApply true: rekomendasi sudah diterapkan otomatis; cukup jelaskan dasar pemilihannya.',
   };
 }

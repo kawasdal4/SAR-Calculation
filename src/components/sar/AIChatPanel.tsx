@@ -69,6 +69,9 @@ type ParseCaseHttpResponse = {
   fieldRows?: CaseExtractionData['fieldRows'];
   applyPlan?: CaseExtractionData['applyPlan'];
   assumptions?: CaseExtractionData['assumptions'];
+  /** Fase E: kartu pilihan Appendix/Table (mis. kategori leeway) — ditentukan
+   *  server secara deterministik dari kasus terekstrak (tanpa menunggu tool). */
+  referenceChoices?: ReferenceChoicePayload[];
   model?: string;
 };
 
@@ -493,12 +496,19 @@ export default function AIChatPanel({
           const data = Number.isFinite(distressAltFt)
             ? { ...raw, distressAltFt }
             : raw;
-          if (Number.isFinite(distressAltFt) && distressAltFt > 0 && data.windData?.length >= 2) {
+          // Gate sejajar worksheet: distressAltFt 0 (soal tak menyebut
+          // ketinggian) TETAP boleh diisi — computeAWA menghitung dari surface;
+          // yang wajib hanya ≥2 baris angin. Alias `observations` (bentuk
+          // seeds/ekstraksi) diterima agar langkah AI tidak ditolak diam-diam.
+          const windRows = (data as { windData?: unknown[]; observations?: unknown[] }).windData
+            ?? (data as { observations?: unknown[] }).observations
+            ?? [];
+          if (Number.isFinite(distressAltFt) && distressAltFt >= 0 && windRows.length >= 2) {
             onApplyAWA?.(data);
             applied = true;
             appliedWorksheets.push('awa');
           } else {
-            failedWorksheets.push('AWA');
+            failedWorksheets.push('AWA (butuh ≥2 baris angin + ketinggian valid)');
           }
           break;
         }
@@ -1114,7 +1124,7 @@ export default function AIChatPanel({
       }
       const assistantMsg: ChatMessage = {
         role: 'assistant',
-        content: `📋 Ekstraksi soal kasus selesai (model ${data.model ?? '?'}${data.attempts ? `, ${data.attempts} percobaan` : ''}). Tinjau data per field di bawah: lengkapi atau setujui data yang HILANG, lalu terapkan ke worksheet — tidak ada data yang berubah sebelum Anda konfirmasi.`,
+        content: `📋 Ekstraksi soal kasus selesai (model ${data.model ?? '?'}${data.attempts ? `, ${data.attempts} percobaan` : ''}). Tinjau data per field di bawah: lengkapi atau setujui data yang HILANG, lalu terapkan ke worksheet — tidak ada data yang berubah sebelum Anda konfirmasi.${(data.referenceChoices?.length ?? 0) > 0 ? '\n\n🧭 Parameter yang butuh pilihan Appendix/Table ada di kartu di bawah — AI sudah menganalisis; bila yakin, rekomendasi diterapkan otomatis.' : ''}`,
         caseExtraction: {
           caseTitle: data.case.caseTitle,
           incidentType: data.case.incident.type,
@@ -1127,6 +1137,9 @@ export default function AIChatPanel({
           warnings: data.warnings,
           rawCase: data.case,
         },
+        ...(Array.isArray(data.referenceChoices) && data.referenceChoices.length > 0
+          ? { referenceChoices: data.referenceChoices }
+          : {}),
         extractionAppliedStepIds: [],
         extractionAppliedAll: false,
         extractionMode: 'full',
@@ -1273,7 +1286,7 @@ export default function AIChatPanel({
           : message));
         return;
       }
-      // SATU klik konfirmasi = SATU batch (change-log + Undo konsisten).
+      // SATU klik konfirmasi / satu auto-apply = SATU batch (change-log + Undo konsisten).
       onAiBatchStart?.();
       const ok = onApplySetFields?.(parsed.applied) ?? false;
       onAiBatchEnd?.([choice.worksheet], ok);
@@ -1285,10 +1298,12 @@ export default function AIChatPanel({
               ...(message.referenceConfirmed ?? []),
               { fieldPath: result.fieldPath, referenceId: result.referenceId, label: result.label, selectedBy: result.selectedBy, sourceTable: result.sourceTable },
             ],
-            content: `${message.content}\n\n✅ ${result.label} (${result.referenceId}) dikonfirmasi dan diterapkan ke ${choice.consumerWorksheetLabel} — status USER_CONFIRMED_REFERENCE (sumber: Appendix/Table ${result.sourceTable}; ${result.selectedBy === 'ai' ? 'menerima rekomendasi AI' : 'pilihan manual planner'}).`,
+            content: `${message.content}\n\n${result.autoApplied ? '⚡' : '✅'} ${result.label} (${result.referenceId}) ${result.autoApplied ? 'diterapkan OTOMATIS (AI yakin dari analisis soal)' : 'dikonfirmasi dan diterapkan'} ke ${choice.consumerWorksheetLabel} — status USER_CONFIRMED_REFERENCE (sumber: Appendix/Table ${result.sourceTable}; ${result.selectedBy === 'ai' ? 'rekomendasi AI' : 'pilihan manual planner'}). Bisa diganti lewat "Pilih kategori lainnya" atau Undo.`,
           }
         : message));
-      onLogConversation?.('approved-action', `Pengguna MENGONFIRMASI pilihan Appendix/Table ${result.sourceTable}: ${result.label} (referenceId ${result.referenceId}) untuk ${result.fieldPath} — status USER_CONFIRMED_REFERENCE (${result.selectedBy === 'ai' ? 'menerima rekomendasi AI' : 'pilihan manual'}), diterapkan via set_fields worksheet ${choice.worksheet}.`);
+      onLogConversation?.('approved-action', result.autoApplied
+        ? `AI MENERAPKAN OTOMATIS rekomendasi Appendix/Table ${result.sourceTable}: ${result.label} (referenceId ${result.referenceId}) untuk ${result.fieldPath} — status USER_CONFIRMED_REFERENCE (AI yakin, skor cukup; planner dapat mengganti/Undo), via set_fields worksheet ${choice.worksheet}.`
+        : `Pengguna MENGONFIRMASI pilihan Appendix/Table ${result.sourceTable}: ${result.label} (referenceId ${result.referenceId}) untuk ${result.fieldPath} — status USER_CONFIRMED_REFERENCE (${result.selectedBy === 'ai' ? 'menerima rekomendasi AI' : 'pilihan manual'}), diterapkan via set_fields worksheet ${choice.worksheet}.`);
     },
     [onApplySetFields, onAiBatchStart, onAiBatchEnd, onLogConversation],
   );

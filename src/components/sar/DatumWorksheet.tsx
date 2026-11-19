@@ -440,7 +440,28 @@ export default function DatumWorksheet({
               </TableValue>
             )}
           />
-          <StatBox label="Divergence Angle" value={`±${lw.divergenceAngle}°`} />
+          <StatBox
+            label="Divergence Angle"
+            value={`±${lw.divergenceAngle}°`}
+            valueNode={(
+              <TableValue
+                request={{
+                  docId: 'appendix-i',
+                  page: 1,
+                  tableId: 'I-1',
+                  rowKey: objectType.id,
+                  colKey: 'divergence',
+                  sourceLabel: 'Worksheet Datum — Divergence (Table I-1/I-2)',
+                  currentValue: lw.divergenceAngle,
+                  currentValueLabel: `±${lw.divergenceAngle}° — ${objectType.label}`,
+                  allowOverride: false,
+                }}
+                title="Klik untuk buka Table I-1/I-2 — baris kategori leeway aktif berkedip (divergence)"
+              >
+                {`±${lw.divergenceAngle}°`}
+              </TableValue>
+            )}
+          />
           <StatBox label="Leeway Left" value={`${lw.lwLeftDir.toFixed(1)}°T`} accent />
         </div>
         <div className="grid grid-cols-2 gap-3 mt-3">

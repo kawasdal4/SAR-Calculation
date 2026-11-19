@@ -9,6 +9,8 @@ import {
   computeWs1SearchArea,
   WS1_FS_OPTIONS,
   WS1_DEFAULT_DRIFT_ERROR_PERCENT,
+  TABLE_J1_NAV_ERRORS,
+  TABLE_J2_NAV_ERRORS,
 } from '@/lib/sar/sarCalculations';
 import {
   computeDatumWs1,
@@ -556,9 +558,25 @@ export default function Worksheet1({
                     {windRecip.toFixed(0)}
                   </span>{' '}
                   <span className="text-slate-600 font-sans">°(T) ±</span>{' '}
-                  <span className="font-bold text-blue-900 bg-blue-50/80 px-2 py-0.5 rounded border border-blue-200 ml-1">
-                    {lwDivAngle.toFixed(0)}
-                  </span>{' '}
+                  <TableValue
+                    disabled={readOnly}
+                    request={{
+                      docId: 'appendix-i',
+                      page: 1,
+                      tableId: 'I-1',
+                      rowKey: datumResults?.lw?.objectType?.id,
+                      colKey: 'divergence',
+                      sourceLabel: 'Worksheet 1 — Leeway divergence (Table I-1/I-2)',
+                      currentValue: lwDivAngle,
+                      currentValueLabel: `±${lwDivAngle.toFixed(0)}° — ${datumResults?.lw?.objectType?.label ?? 'kategori leeway'}`,
+                      allowOverride: false,
+                    }}
+                    title="Klik untuk buka Table I-1/I-2 — baris kategori leeway aktif berkedip (divergence)"
+                  >
+                    <span className="font-bold text-blue-900 bg-blue-50/80 px-2 py-0.5 rounded border border-blue-200">
+                      {lwDivAngle.toFixed(0)}
+                    </span>
+                  </TableValue>{' '}
                   <span className="text-slate-600 font-sans">°</span>
                 </td>
               </tr>
@@ -585,9 +603,25 @@ export default function Worksheet1({
                 </td>
                 <td colSpan={3} className="py-2 px-3 font-mono">
                   <span className="text-slate-600 font-sans">[</span>{' '}
-                  <span className="font-bold text-blue-900 bg-blue-50/80 px-1.5 py-0.5 rounded border border-blue-200">
-                    {lwMult.toFixed(3)}
-                  </span>{' '}
+                  <TableValue
+                    disabled={readOnly}
+                    request={{
+                      docId: 'appendix-i',
+                      page: 1,
+                      tableId: 'I-1',
+                      rowKey: datumResults?.lw?.objectType?.id,
+                      colKey: 'multiplier',
+                      sourceLabel: 'Worksheet 1 — Leeway multiplier (Table I-1/I-2)',
+                      currentValue: lwMult,
+                      currentValueLabel: `${datumResults?.lw?.objectType?.label ?? 'kategori leeway'} — multiplier ${lwMult.toFixed(3)}`,
+                      allowOverride: false,
+                    }}
+                    title="Klik untuk buka Table I-1/I-2 — baris kategori leeway aktif berkedip (multiplier)"
+                  >
+                    <span className="font-bold text-blue-900 bg-blue-50/80 px-1.5 py-0.5 rounded border border-blue-200">
+                      {lwMult.toFixed(3)}
+                    </span>
+                  </TableValue>{' '}
                   <span className="text-slate-600 font-sans">Multiplier ×</span>{' '}
                   <span className="font-bold text-blue-900 bg-blue-50/80 px-1.5 py-0.5 rounded border border-blue-200">
                     {windSpeed.toFixed(2)}
@@ -732,13 +766,15 @@ export default function Worksheet1({
                     request={{
                       docId: 'appendix-j',
                       page: 1,
-                      tableId: 'J-1',
+                      tableId: TABLE_J1_NAV_ERRORS.some((e) => e.errorNm === distressCraftX) ? 'J-1' : 'J-2',
+                      rowKey: [...TABLE_J1_NAV_ERRORS, ...TABLE_J2_NAV_ERRORS].find((e) => e.errorNm === distressCraftX)?.id,
+                      colKey: 'error',
                       sourceLabel: 'Worksheet 1 — Distress craft error (x) (Table J-1/J-2)',
                       currentValue: distressCraftX,
                       currentValueLabel: `${distressCraftX.toFixed(1)} NM`,
                       allowOverride: false,
                     }}
-                    title="Klik untuk lihat Table J-1/J-2 (fix error) di Appendix J"
+                    title="Klik untuk buka Table J-1/J-2 — baris alat navigasi yang dipakai berkedip"
                   >
                     <span className="font-bold text-blue-900 bg-blue-50/80 px-2 py-0.5 rounded border border-blue-200">
                       {distressCraftX.toFixed(1)}
@@ -757,13 +793,15 @@ export default function Worksheet1({
                     request={{
                       docId: 'appendix-j',
                       page: 1,
-                      tableId: 'J-1',
+                      tableId: TABLE_J1_NAV_ERRORS.some((e) => e.errorNm === searchCraftY) ? 'J-1' : 'J-2',
+                      rowKey: [...TABLE_J1_NAV_ERRORS, ...TABLE_J2_NAV_ERRORS].find((e) => e.errorNm === searchCraftY)?.id,
+                      colKey: 'error',
                       sourceLabel: 'Worksheet 1 — Search craft error (y) (Table J-1/J-2)',
                       currentValue: searchCraftY,
                       currentValueLabel: `${searchCraftY.toFixed(1)} NM`,
                       allowOverride: false,
                     }}
-                    title="Klik untuk lihat Table J-1/J-2 (fix error) di Appendix J"
+                    title="Klik untuk buka Table J-1/J-2 — baris alat navigasi yang dipakai berkedip"
                   >
                     <span className="font-bold text-blue-900 bg-blue-50/80 px-2 py-0.5 rounded border border-blue-200">
                       {searchCraftY.toFixed(1)}

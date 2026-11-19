@@ -321,7 +321,7 @@ describe('Fase E — reference choice (leeway)', () => {
     const choice = buildReferenceChoice('datum.leewayObjectId', 'Pesawat Aero Commander ditching; rakit 6 orang dengan kanopi dan drogue mengapung');
     expect(choice).not.toBeNull();
     expect(choice!.fieldPath).toBe('datum.leewayObjectId');
-    expect(choice!.status).toBe('AI_RECOMMENDED_PENDING_CONFIRMATION');
+    expect(choice!.status).toBe('AI_RECOMMENDED_AUTO_APPLIED');
     expect(choice!.recommendation).not.toBeNull();
     const validIds = new Set(LEEWAY_OBJECT_TYPES.map((entry) => entry.id));
     expect(validIds.has(choice!.recommendation!.referenceId)).toBe(true);
@@ -330,12 +330,32 @@ describe('Fase E — reference choice (leeway)', () => {
     expect(choice!.sourceTable.refId).toBe('I-1/I-2');
   });
 
+  it('AI yakin (skor kata kunci kuat) → autoApply true (langsung terapkan ke worksheet)', () => {
+    const choice = buildReferenceChoice('datum.leewayObjectId', 'raft 25 person with canopy and drogue');
+    expect(choice!.recommendation).not.toBeNull();
+    expect(choice!.recommendation!.confident).toBe(true);
+    expect(choice!.autoApply).toBe(true);
+  });
+
+  it('dasar rekomendasi lemah (satu kata pendek) → konfirmasi planner dulu (autoApply false)', () => {
+    const choice = buildReferenceChoice('datum.leewayObjectId', 'objek piw');
+    if (choice!.recommendation) {
+      // 'piw' pendek → skor < 6 → tidak yakin → menunggu planner.
+      expect(choice!.recommendation.confident).toBe(false);
+      expect(choice!.autoApply).toBe(false);
+      expect(choice!.status).toBe('AI_RECOMMENDED_PENDING_CONFIRMATION');
+    } else {
+      expect(choice!.needsUserDecision).toBe(true);
+    }
+  });
+
   it('konteks kosong → tanpa rekomendasi, planner memutuskan (needsUserDecision)', () => {
     const choice = buildReferenceChoice('datum.leewayObjectId', '');
     expect(choice).not.toBeNull();
     expect(choice!.recommendation).toBeNull();
     expect(choice!.needsUserDecision).toBe(true);
     expect(choice!.status).toBe('PLANNER_INPUT');
+    expect(choice!.autoApply).toBe(false);
   });
 
   it('field tidak terdaftar → null (tidak mengarang pilihan)', () => {
@@ -343,12 +363,12 @@ describe('Fase E — reference choice (leeway)', () => {
     expect(Object.keys(REFERENCE_CHOICE_FIELDS)).toContain('datum.leewayObjectId');
   });
 
-  it('executeServerTool(request_reference_choice) → json untuk model + payload kartu untuk UI', () => {
+  it('executeServerTool(request_reference_choice) → json untuk model + payload kartu untuk UI (auto-apply)', () => {
     const result = executeServerTool('request_reference_choice', { fieldPath: 'datum.leewayObjectId', contextDescription: 'raft 25 person canopy drogue' }, {});
     expect(result.ok).toBe(true);
     expect(result.referenceChoice).toBeDefined();
     const parsed = JSON.parse(result.json) as Record<string, unknown>;
-    expect(parsed['status']).toBe('AI_RECOMMENDED_PENDING_CONFIRMATION');
-    expect(String(parsed['instruction'])).toContain('SEBELUM pengguna mengonfirmasi');
+    expect(parsed['autoApply']).toBe(true);
+    expect(String(parsed['instruction'])).toContain('autoApply true');
   });
 });

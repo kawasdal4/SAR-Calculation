@@ -480,10 +480,12 @@ function normalizeWindRows(rows: unknown): Array<Record<string, unknown>> | unde
     .map((row) => {
       const record = row as Record<string, unknown>;
       const out: Record<string, unknown> = {
+        // Alias penamaan skema kasus (windSpeedKts/altitudeLabel) diterima agar
+        // data angin dari ekstraksi/AI tidak hilang hanya karena nama field.
         windDirFrom: coerceAngle(record.windDirFrom ?? record.dir ?? record.direction),
-        windSpeed: coerceNumber(record.windSpeed ?? record.speed),
+        windSpeed: coerceNumber(record.windSpeed ?? record.speed ?? record.windSpeedKts),
       };
-      const alt = coerceText(record.altObs ?? record.altitude ?? record.level);
+      const alt = coerceText(record.altObs ?? record.altitude ?? record.level ?? record.altitudeLabel);
       if (alt !== undefined) out.altObs = alt;
       const time = coerceText(record.obsTime ?? record.time);
       if (time !== undefined) out.obsTime = time;
@@ -510,6 +512,10 @@ export function normalizeCaseToolArgs(toolName: string, rawArgs: Args | undefine
     case 'set_awa_case': {
       const alt = coerceNumber(args.distressAltFt);
       if (alt !== undefined) args.distressAltFt = alt;
+      // Alias: ekstraksi/seeds memakai kunci `observations` — samakan ke windData.
+      if (!Array.isArray(args.windData) && Array.isArray(args['observations'])) {
+        args.windData = args['observations'];
+      }
       const rows = normalizeWindRows(args.windData);
       if (rows) args.windData = rows;
       const title = coerceText(args.caseTitle);

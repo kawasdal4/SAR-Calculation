@@ -35,6 +35,7 @@ import {
   buildCaseExtractionResult,
   type CaseExtractionResult,
 } from '@/lib/ai/parseCase';
+import { buildReferenceChoice, type ReferenceChoicePayload } from '@/lib/ai/tools/referenceChoice';
 
 export const maxDuration = 300;
 
@@ -230,8 +231,26 @@ export async function POST(req: NextRequest) {
             usage: result.usage, attempts: totalAttempts, ok: true,
             durationMs: Date.now() - startedAt,
           });
+          // Fase E (deterministik, TANPA menunggu tool AI): kasus maritim yang
+          // butuh kategori leeway → kartu pilihan Appendix/Table I-1/I-2 langsung
+          // dilampirkan ke respons. Rekomendasi dihitung dari deskripsi objek
+          // terekstrak (resolver resmi); bila AI yakin (skor kuat), kartu
+          // MENERAPKAN rekomendasi otomatis ke worksheet (bisa diganti/Undo).
+          const referenceChoices: ReferenceChoicePayload[] = [];
+          const maritimeTypes = new Set(['aircraft-ditching', 'vessel-sinking', 'person-overboard']);
+          if (extraction.case && maritimeTypes.has(extraction.case.incident.type)) {
+            const contextParts = [
+              extraction.case.target?.name,
+              extraction.case.incident.craftType,
+              extraction.case.incident.callsign,
+              extraction.case.caseTitle,
+            ].filter((part): part is string => typeof part === 'string' && part.trim() !== '');
+            const choice = buildReferenceChoice('datum.leewayObjectId', contextParts.join('. '));
+            if (choice) referenceChoices.push(choice);
+          }
           return NextResponse.json({
             ...extraction,
+            ...(referenceChoices.length > 0 ? { referenceChoices } : {}),
             ...(fileWarnings.length > 0 ? { warnings: fileWarnings } : {}),
           });
         }

@@ -1148,20 +1148,27 @@ export default function Home() {
 
   const handleApplyAWA = useCallback((data: {
     distressAltFt: number;
-    windData: { altObs: string; windDirFrom: number; windSpeed: number }[];
+    /** Dari tool set_awa_case (chat AI). */
+    windData?: { altObs: string; windDirFrom: number; windSpeed: number }[];
+    /** Dari buildApplyPlan/parse-case (seeds.awa memakai kunci `observations`).
+     *  Sebelumnya handler HANYA membaca windData → langkah AWA hasil ekstraksi
+     *  "applied" tapi worksheet tetap KOSONG (bug: nilai tidak masuk meski
+     *  pengguna sudah konfirmasi). */
+    observations?: { altObs: string; windDirFrom: number; windSpeed: number }[];
     caseTitle?: string;
   }) => {
+    const windData = (data.windData ?? data.observations ?? []) as { altObs: string; windDirFrom: number; windSpeed: number }[];
     setLoadedInitialState((prev) => ({
       ...prev,
       awa: {
         distressAltFt: data.distressAltFt,
-        observations: data.windData,
+        observations: windData,
         caseTitle: data.caseTitle,
       },
     }));
     // Observasi & konteks langsung ke state page agar alur beruntun AI (AWA → ADW → UPS)
     // tetap mengalir walau tab AWA tidak sempat dirender (TabsContent meng-unmount tab non-aktif).
-    setAwaObservations(data.windData ?? []);
+    setAwaObservations(windData);
     setAwaContext({ distressAltFt: data.distressAltFt, forecastSource: '', forecastValidTime: '' });
     setCaseVersion((v) => v + 1);
     setActiveTab('awa');

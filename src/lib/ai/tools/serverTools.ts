@@ -60,7 +60,7 @@ export const SERVER_TOOL_DECLARATIONS: Array<{
 }> = [
   {
     name: 'request_reference_choice',
-    description: 'Minta PEMILIHAN INTERAKTIF parameter yang membutuhkan keputusan dari Appendix/Table resmi (mis. kategori objek leeway Tabel I-1/I-2 untuk Datum WS 1). Tool ini MENYUSUN kartu pilihan interaktif di kolom chat: rekomendasi AI (bila karakteristik objek cukup dari konteks) + seluruh alternatif resmi dari registry. KARTU BUKAN KEPUTUSAN — pengguna WAJIB mengonfirmasi sebelum Anda memanggil set_fields untuk field tersebut. DILARANG mengarang pilihan di luar hasil tool ini.',
+    description: 'Minta PEMILIHAN INTERAKTIF parameter yang membutuhkan keputusan dari Appendix/Table resmi (mis. kategori objek leeway Tabel I-1/I-2 untuk Datum WS 1). Tool ini MENYUSUN kartu pilihan interaktif di kolom chat: rekomendasi AI (bila karakteristik objek cukup dari konteks) + seluruh alternatif resmi dari registry. Bila AI CUKUP YAKIN (skor kata kunci kuat) kartu LANGSUNG MENERAPKAN rekomendasi ke worksheet (autoApply true — planner tetap bisa mengganti lewat kartu/Undo); bila tidak, kartu menunggu keputusan planner. DILARANG mengarang pilihan di luar hasil tool ini; bila autoApply true JANGAN memanggil set_fields untuk field tersebut.',
     parameters: {
       type: 'OBJECT',
       properties: {

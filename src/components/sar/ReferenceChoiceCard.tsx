@@ -4,22 +4,21 @@
  * REFERENCE CHOICE CARD (Fase E) — kartu interaktif pemilihan parameter dari
  * Appendix/Table resmi DI KOLOM CHAT (bukan memaksa pengguna pindah worksheet).
  *
- * Alur wajib (spesifikasi Fase E.2–E.5):
+ * Alur (Fase E.2–E.5 + arahan planner "AI yakin → langsung terapkan"):
  * 1. Kartu menampilkan rekomendasi AI (reference ID, label, deskripsi, sumber
- *    tabel, alasan, status "Menunggu konfirmasi") + tindakan:
- *    "Gunakan rekomendasi AI", "Pilih kategori lainnya", "Lihat sumber".
- * 2. "Pilih kategori lainnya" membuka daftar pilihan RESMI dari registry
- *    (dikelompokkan) — pengguna cukup KLIK.
- * 3. Setelah memilih, pindahan MASIH perlu konfirmasi akhir ("Konfirmasi &
- *    Terapkan") sebelum diterapkan ke worksheet lewat set_fields.
- * 4. Penerapan dilakukan parent lewat handler apply resmi (onApplySetFields)
- *    sehingga change-log + undo berjalan otomatis.
- * Reusable: payload dari tool server `request_reference_choice` (registry
- * REFERENCE_CHOICE_FIELDS) — bukan khusus leeway.
+ *    tabel, alasan) + tindakan: "Gunakan rekomendasi AI", "Pilih kategori
+ *    lainnya", "Lihat sumber".
+ * 2. **AUTO-APPLY**: bila `choice.autoApply` (AI yakin dari analisis soal),
+ *    kartu langsung menerapkan rekomendasi ke worksheet SEKALI saat muncul —
+ *    lewat handler apply resmi (set_fields satu batch → change-log + Undo).
+ *    Planner tetap bisa mengganti: "Pilih kategori lainnya" → klik → terapkan.
+ * 3. Bila tidak yakin (needsUserDecision) → alur konfirmasi klik dulu.
+ * Reusable: payload dari tool server `request_reference_choice` ATAU lampiran
+ * parse-case (registry REFERENCE_CHOICE_FIELDS) — bukan khusus leeway.
  */
 
-import React, { useMemo, useState } from 'react';
-import { BookOpen, Check, HelpCircle, ListTree } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { BookOpen, Check, HelpCircle, ListTree, Zap } from 'lucide-react';
 import type { ReferenceChoicePayload } from '@/lib/ai/tools/referenceChoice';
 
 export interface ReferenceSelectionResult {
@@ -31,12 +30,15 @@ export interface ReferenceSelectionResult {
   selectedBy: 'ai' | 'manual';
   /** Sumber tabel untuk audit (mis. 'I-1/I-2'). */
   sourceTable: string;
+  /** True bila penerapan otomatis (AI yakin) — untuk catatan change-log. */
+  autoApplied?: boolean;
 }
 
 interface ReferenceChoiceCardProps {
   choice: ReferenceChoicePayload;
   busy: boolean;
-  /** Dipanggil SETELAH pengguna mengonfirmasi (klik akhir). */
+  /** Dipanggil SETELAH pengguna mengonfirmasi (klik akhir) ATAU saat
+   *  auto-apply rekomendasi yang yakin (AI confident). */
   onConfirm: (result: ReferenceSelectionResult) => void;
   onReject?: () => void;
 }
@@ -46,6 +48,24 @@ export default function ReferenceChoiceCard({ choice, busy, onConfirm, onReject 
   const [selected, setSelected] = useState<{ referenceId: string; label: string; selectedBy: 'ai' | 'manual' } | null>(null);
   const [showSource, setShowSource] = useState(false);
   const [query, setQuery] = useState('');
+  // Auto-apply SEKALI per mount: AI yakin → langsung terapkan rekomendasi
+  // (arahan planner). Guard ref mencegah double-apply saat re-render.
+  const autoApplyRef = useRef(false);
+  useEffect(() => {
+    if (autoApplyRef.current) return;
+    if (choice.autoApply && choice.recommendation && !busy) {
+      autoApplyRef.current = true;
+      onConfirm({
+        fieldPath: choice.fieldPath,
+        worksheet: choice.worksheet,
+        referenceId: choice.recommendation.referenceId,
+        label: choice.recommendation.label,
+        selectedBy: 'ai',
+        sourceTable: choice.sourceTable.refId,
+        autoApplied: true,
+      });
+    }
+  }, [choice, busy, onConfirm]);
 
   const grouped = useMemo(() => {
     const groups = new Map<string, Array<{ id: string; label: string; description?: string }>>();
@@ -92,9 +112,16 @@ export default function ReferenceChoiceCard({ choice, busy, onConfirm, onReject 
 
       {/* Rekomendasi AI */}
       {choice.recommendation && !selected && (
-        <div className="mx-2.5 mt-2 rounded-lg border border-indigo-200 bg-indigo-50/70 px-2.5 py-2 space-y-1">
-          <p className="text-[10px] font-bold text-indigo-900 uppercase tracking-wide">Rekomendasi AI — menunggu konfirmasi</p>
-          <p className="text-[11px] font-semibold text-indigo-950">{choice.recommendation.label}</p>
+        <div className={`mx-2.5 mt-2 rounded-lg border px-2.5 py-2 space-y-1 ${
+          choice.autoApply ? 'border-emerald-300 bg-emerald-50/70' : 'border-indigo-200 bg-indigo-50/70'
+        }`}>
+          <p className={`text-[10px] font-bold uppercase tracking-wide flex items-center gap-1 ${choice.autoApply ? 'text-emerald-900' : 'text-indigo-900'}`}>
+            {choice.autoApply ? <Zap className="h-3 w-3" /> : null}
+            {choice.autoApply
+              ? 'Rekomendasi AI — SUDAH diterapkan otomatis ke worksheet (bisa diganti/Undo)'
+              : 'Rekomendasi AI — menunggu konfirmasi'}
+          </p>
+          <p className={`text-[11px] font-semibold ${choice.autoApply ? 'text-emerald-950' : 'text-indigo-950'}`}>{choice.recommendation.label}</p>
           <p className="text-[10px] font-mono text-slate-600">referenceId: {choice.recommendation.referenceId}</p>
           <p className="text-[10px] text-slate-700 leading-snug">{choice.recommendation.description}</p>
           <p className="text-[10px] text-slate-600 leading-snug"><span className="font-semibold">Alasan:</span> {choice.recommendation.reason}</p>
@@ -169,7 +196,7 @@ export default function ReferenceChoiceCard({ choice, busy, onConfirm, onReject 
 
       {/* Tindakan */}
       <div className="px-2.5 py-2 flex flex-wrap items-center gap-1.5">
-        {choice.recommendation && !selected && (
+        {choice.recommendation && !selected && !choice.autoApply && (
           <button
             type="button"
             disabled={busy}

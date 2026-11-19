@@ -367,3 +367,27 @@ describe('normalizeCaseToolArgs — tool tak dikenal', () => {
     expect(normalizeCaseToolArgs('unknown_tool', raw)).toEqual(raw);
   });
 });
+
+describe('normalizeCaseToolArgs — set_awa_case alias observations (bug AWA kosong)', () => {
+  it('kunci `observations` (bentuk seeds/ekstraksi) dipindahkan ke windData', () => {
+    const out = normalizeCaseToolArgs('set_awa_case', {
+      distressAltFt: '10000',
+      observations: [
+        { altitudeLabel: 'Surface', windDirFrom: '45', windSpeedKts: '5' },
+        { altitudeLabel: '3000', windDirFrom: 55, windSpeedKts: 10 },
+      ],
+    }) as { windData?: Array<{ altObs?: string; windDirFrom: number; windSpeed: number }>; distressAltFt?: unknown };
+    expect(Array.isArray(out.windData)).toBe(true);
+    expect(out.windData!.length).toBe(2);
+    expect(out.windData![0].windDirFrom).toBe(45);
+    expect(out.windData![0].windSpeed).toBe(5);
+  });
+
+  it('windData tetap utama bila ada (tidak ditimpa observations)', () => {
+    const out = normalizeCaseToolArgs('set_awa_case', {
+      windData: [{ altObs: '0', windDirFrom: 350, windSpeed: 10 }],
+      observations: [{ altObs: '0', windDirFrom: 1, windSpeed: 1 }],
+    }) as { windData?: Array<{ windDirFrom: number }> };
+    expect(out.windData![0].windDirFrom).toBe(350);
+  });
+});
