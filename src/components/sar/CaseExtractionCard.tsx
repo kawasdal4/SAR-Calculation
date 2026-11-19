@@ -1,23 +1,24 @@
 'use client';
 
 /**
- * CASE EXTRACTION CARD (Fase 3 AI Copilot) — panel pratinjau PER-FIELD hasil
- * `/api/ai/parse-case`, menggantikan pratinjau tool-by-tool untuk alur
+ * CASE EXTRACTION CARD (Fase 3 AI Copilot + Fase B/F/G) — panel pratinjau
+ * PER-FIELD hasil `/api/ai/parse-case`, alur
  * "soal kasus → Ekstrak → Konfirmasi → Terapkan → Hitung → Review".
  *
- * Kontrak (rencana Fase 0 §5 + keputusan no.6 & 10):
- * - Tiap field menampilkan: nilai, status (OK / DIASUMSIKAN / HILANG), dan
- *   sumber di soal (kutipan) — nilai UNVERIFIED/MISSING TIDAK dianggap resmi.
- * - Field HILANG wajib ditindaklanjuti SEBELUM penerapan: diisi pengguna
- *   (divalidasi + di-merge ke kasus oleh parent) ATAU disetujui sebagai
- *   asumsi ("lengkapi manual di worksheet"). Tombol apply mati selama ada
- *   yang belum ditindaklanjuti.
- * - Dua mode penerapan: "Otomatis penuh" (satu batch terkonfirmasi) atau
- *   "Konfirmasi tiap langkah" (satu batch per blok worksheet).
- * - Penerapan TIDAK menulis state sendiri: parent menerapkan payload tiap
- *   langkah lewat handler apply halaman yang SAMA (satu mekanisme update).
- * - Setelah diterapkan: tombol "Hitung & Review dengan AI" (run_pipeline +
- *   validate_plan oleh tool server; AI hanya memberi catatan).
+ * Fase B (klasifikasi 8 status): tiap field menampilkan status KLASIFIKASI
+ * (EXTRACTED/DERIVED/REFERENCE/DEFAULTED/PLANNER_INPUT/
+ * AI_RECOMMENDED_PENDING_CONFIRMATION/PENDING_DEPENDENCY/MISSING) beserta
+ * metadata (satuan, worksheet producer, dependency, referenceId) bila ada.
+ *
+ * Fase F (blocking per-worksheet/per-dependency): field MISSING hanya
+ * MEMBLOKIR langkah penerapan worksheet yang MEMBUTUHKAN field tersebut —
+ * worksheet lain tetap bisa diterapkan. Field PLANNER_INPUT/AI_RECOMMENDED/
+ * PENDING_DEPENDENCY TIDAK memblokir (keputusan planner / output worksheet).
+ *
+ * Gerbang lama tetap: field MISSING wajib diisi atau disetujui sebagai asumsi
+ * sebelum langkah worksheet terkait bisa diterapkan; mode penerapan "Otomatis
+ * penuh" / "Konfirmasi tiap langkah"; penerapan lewat handler apply halaman
+ * yang SAMA (satu mekanisme update); change-log + undo per batch.
  */
 
 import React, { useMemo, useState } from 'react';
@@ -35,6 +36,12 @@ import type {
   ExtractionFieldRow,
   FieldRowStatus,
 } from '@/lib/ai/parseCase';
+import {
+  FIELD_STATUS_BADGE_CLASS,
+  FIELD_STATUS_LABELS,
+  FIELD_STATUS_ORDER,
+  type FieldStatus,
+} from '@/lib/sar/fieldStatus';
 
 export interface CaseExtractionData {
   caseTitle?: string;
@@ -57,7 +64,7 @@ export interface CaseExtractionCardProps {
   /** Id langkah yang sudah diterapkan (lintas klik). */
   appliedStepIds: string[];
   appliedAll: boolean;
-  /** Field HILANG yang sudah disetujui sebagai asumsi (path). */
+  /** Field MISSING yang sudah disetujui sebagai asumsi (path). */
   approvedMissingPaths: string[];
   /** Path yang sedang gagal validasi (path → pesan error). */
   fieldErrors: Record<string, string>;
@@ -70,7 +77,7 @@ export interface CaseExtractionCardProps {
   onRunReview: () => void;
 }
 
-const STATUS_BADGE: Record<FieldRowStatus, { label: string; className: string }> = {
+const LEGACY_BADGE: Record<FieldRowStatus, { label: string; className: string }> = {
   OK: { label: 'OK', className: 'bg-emerald-100 text-emerald-800 border-emerald-300' },
   DIASUMSIKAN: { label: 'DIASUMSIKAN', className: 'bg-amber-100 text-amber-800 border-amber-300' },
   HILANG: { label: 'HILANG', className: 'bg-rose-100 text-rose-800 border-rose-300' },
@@ -85,6 +92,25 @@ function groupByWorksheet(rows: ExtractionFieldRow[]): Array<{ worksheet: string
     else groups.set(row.worksheet, [row]);
   }
   return [...groups.entries()].map(([worksheet, groupRows]) => ({ worksheet, rows: groupRows }));
+}
+
+/** Fase F: pemetaan label blok pratinjau → kunci worksheet apply plan. */
+const WORKSHEET_KEY_PATTERNS: Array<[RegExp, CaseApplyStep['worksheet']]> = [
+  [/ASW/i, 'asw'],
+  [/AWA/i, 'awa'],
+  [/Aero|ADW/i, 'aero'],
+  [/Datum/i, 'datum'],
+  [/WS 2/i, 'ws2'],
+  [/WS 8/i, 'ws8'],
+  [/Alokasi|Aset/i, 'assets'],
+];
+
+function worksheetKeysOfLabel(label: string): Set<CaseApplyStep['worksheet']> {
+  const keys = new Set<CaseApplyStep['worksheet']>();
+  for (const [pattern, key] of WORKSHEET_KEY_PATTERNS) {
+    if (pattern.test(label)) keys.add(key);
+  }
+  return keys;
 }
 
 export default function CaseExtractionCard({
@@ -107,28 +133,52 @@ export default function CaseExtractionCard({
   const [drafts, setDrafts] = useState<Record<string, string>>({});
 
   const groups = useMemo(() => groupByWorksheet(data.fieldRows), [data.fieldRows]);
+  // Fase B: hanya field berstatus MISSING yang wajib ditindaklanjuti.
   const missingRows = useMemo(
-    () => data.fieldRows.filter((row) => row.status === 'HILANG'),
+    () => data.fieldRows.filter((row) => row.statusClass ? row.statusClass === 'MISSING' : row.status === 'HILANG'),
     [data.fieldRows],
   );
-  // Field HILANG yang belum ditindaklanjuti → blokir penerapan (keputusan no.6).
   const blockingMissing = useMemo(
     () => missingRows.filter((row) => !approvedMissingPaths.includes(row.field)),
     [missingRows, approvedMissingPaths],
   );
-  const canApply = blockingMissing.length === 0 && data.applyPlan.steps.length > 0;
+  // Fase F: field MISSING hanya memblokir worksheet yang MEMBUTUHKANNYA.
+  const blockedWorksheetKeys = useMemo(() => {
+    const keys = new Set<CaseApplyStep['worksheet']>();
+    for (const row of blockingMissing) {
+      for (const key of worksheetKeysOfLabel(row.worksheet)) keys.add(key);
+    }
+    return keys;
+  }, [blockingMissing]);
+  const stepBlocked = (step: CaseApplyStep): boolean => blockedWorksheetKeys.has(step.worksheet);
+  const pendingSteps = data.applyPlan.steps.filter((step) => !appliedStepIds.includes(step.id));
+  const allStepsApplied = data.applyPlan.steps.length > 0 && pendingSteps.length === 0;
+  const blockedPending = pendingSteps.filter((step) => stepBlocked(step));
+  const canApply = blockedPending.length === 0 && pendingSteps.length > 0;
+
+  // Fase G: hitungan per 8 status.
   const statusCount = useMemo(() => {
-    const count = { OK: 0, DIASUMSIKAN: 0, HILANG: 0 } as Record<FieldRowStatus, number>;
-    for (const row of data.fieldRows) count[row.status] += 1;
+    const count = {} as Record<FieldStatus, number>;
+    for (const status of FIELD_STATUS_ORDER) count[status] = 0;
+    for (const row of data.fieldRows) {
+      const status: FieldStatus = row.statusClass ?? (row.status === 'HILANG' ? 'MISSING' : row.status === 'DIASUMSIKAN' ? 'DEFAULTED' : 'EXTRACTED');
+      count[status] = (count[status] ?? 0) + 1;
+    }
     return count;
   }, [data.fieldRows]);
 
-  const pendingSteps = data.applyPlan.steps.filter((step) => !appliedStepIds.includes(step.id));
-  const allStepsApplied = data.applyPlan.steps.length > 0 && pendingSteps.length === 0;
+  const badgeOfRow = (row: ExtractionFieldRow): { label: string; className: string; title: string } => {
+    if (row.statusClass) {
+      const status: FieldStatus = row.statusClass;
+      return { label: status, className: FIELD_STATUS_BADGE_CLASS[status], title: FIELD_STATUS_LABELS[status] };
+    }
+    const legacy = LEGACY_BADGE[row.status];
+    return { ...legacy, title: legacy.label };
+  };
 
   return (
     <div className="mt-2 rounded-lg border border-emerald-300 bg-white/95 text-slate-900 shadow-xs">
-      {/* Header */}
+      {/* Header + hitungan 8 status */}
       <div className="flex items-center gap-1.5 px-2.5 py-2 border-b border-emerald-100">
         <ClipboardList className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
         <div className="min-w-0 flex-1">
@@ -139,10 +189,18 @@ export default function CaseExtractionCard({
             {data.model ? `Model ${data.model}` : ''}
             {data.model && data.attempts ? ' · ' : ''}
             {data.attempts ? `${data.attempts} percobaan` : ''}
-            {statusCount.OK ? ` · ${statusCount.OK} field ok` : ''}
-            {statusCount.DIASUMSIKAN ? ` · ${statusCount.DIASUMSIKAN} diasumsikan` : ''}
-            {statusCount.HILANG ? ` · ${statusCount.HILANG} hilang` : ''}
           </p>
+          <div className="mt-1 flex flex-wrap gap-1">
+            {FIELD_STATUS_ORDER.filter((status) => statusCount[status] > 0).map((status) => (
+              <span
+                key={status}
+                className={`text-[9px] font-bold border rounded px-1 py-0.5 ${FIELD_STATUS_BADGE_CLASS[status]}`}
+                title={FIELD_STATUS_LABELS[status]}
+              >
+                {statusCount[status]} {status}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -155,12 +213,13 @@ export default function CaseExtractionCard({
         </div>
       )}
 
-      {/* Field HILANG wajib ditindaklanjuti sebelum apply */}
+      {/* Fase B/F: HANYA field MISSING wajib ditindaklanjuti — dan hanya
+          memblokir worksheet yang membutuhkannya (lihat blok langkah di bawah). */}
       {missingRows.length > 0 && (
         <div className="mx-2.5 mt-2 rounded-lg border border-rose-200 bg-rose-50/70 px-2.5 py-2 space-y-2">
           <p className="text-[11px] font-bold text-rose-800 flex items-center gap-1.5">
             <HelpCircle className="h-3.5 w-3.5" />
-            Data hilang — isi nilainya atau setujui sebagai asumsi ({blockingMissing.length} belum ditindaklanjuti)
+            Data hilang (wajib) — isi nilainya atau setujui sebagai asumsi ({blockingMissing.length} belum ditindaklanjuti)
           </p>
           {missingRows.map((row) => {
             const approved = approvedMissingPaths.includes(row.field);
@@ -168,6 +227,7 @@ export default function CaseExtractionCard({
             return (
               <div key={row.field} className="rounded border border-rose-200 bg-white px-2 py-1.5 space-y-1">
                 <p className="text-[10px] font-mono text-slate-600 truncate" title={row.field}>{row.field}</p>
+                <p className="text-[10px] text-slate-500">Memblokir: {[...worksheetKeysOfLabel(row.worksheet)].join(', ') || '(hanya informasi)'}</p>
                 {row.source && <p className="text-[10px] text-slate-500 leading-snug">{row.source}</p>}
                 {approved ? (
                   <p className="text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 inline-block">
@@ -234,7 +294,8 @@ export default function CaseExtractionCard({
         </div>
       )}
 
-      {/* Tabel per-field dikelompokkan per blok worksheet */}
+      {/* Tabel per-field dikelompokkan per blok worksheet — badge status
+          klasifikasi 8-kanal Fase B (EXTRACTED/DERIVED/…). */}
       <div className="px-2.5 py-2">
         <button
           type="button"
@@ -252,16 +313,21 @@ export default function CaseExtractionCard({
                 </p>
                 <div className="divide-y divide-slate-100">
                   {group.rows.map((row) => {
-                    const badge = STATUS_BADGE[row.status];
+                    const badge = badgeOfRow(row);
                     return (
                       <div key={`${row.worksheet}:${row.field}`} className="px-2 py-1.5 flex items-start gap-1.5">
-                        <span className={`shrink-0 text-[9px] font-bold border rounded px-1 py-0.5 ${badge.className}`}>
+                        <span className={`shrink-0 text-[9px] font-bold border rounded px-1 py-0.5 ${badge.className}`} title={badge.title}>
                           {badge.label}
                         </span>
                         <div className="min-w-0 flex-1">
                           <p className="text-[10px] font-mono text-slate-600 truncate" title={row.field}>{row.field}</p>
-                          {row.value && <p className="text-[11px] text-slate-900 font-semibold">{row.value}</p>}
+                          {row.value && <p className="text-[11px] text-slate-900 font-semibold">{row.value}{row.meta?.unit ? <span className="text-[10px] font-normal text-slate-500"> {row.meta.unit}</span> : null}</p>}
+                          {row.meta?.rawValue && <p className="text-[10px] text-slate-500">nilai mentah: <span className="font-mono">{row.meta.rawValue}</span></p>}
                           {row.source && <p className="text-[10px] text-slate-500 leading-snug" title={row.source}>{row.source}</p>}
+                          {row.meta?.dependency && <p className="text-[10px] text-cyan-800">⏳ {row.meta.dependency}</p>}
+                          {row.meta?.worksheetProducer && <p className="text-[10px] text-slate-500">dihasilkan oleh: {row.meta.worksheetProducer}</p>}
+                          {row.meta?.referenceId && <p className="text-[10px] text-violet-800">referenceId: <span className="font-mono">{row.meta.referenceId}</span></p>}
+                          {row.meta?.validationMessage && <p className="text-[10px] text-slate-500">{row.meta.validationMessage}</p>}
                           {fieldErrors[row.field] && row.status !== 'HILANG' && (
                             <p className="text-[10px] text-rose-700">{fieldErrors[row.field]}</p>
                           )}
@@ -276,7 +342,7 @@ export default function CaseExtractionCard({
         )}
       </div>
 
-      {/* Langkah penerapan */}
+      {/* Langkah penerapan — Fase F: diblokir PER WORKSHEET, bukan total. */}
       {!appliedAll && (
         <div className="px-2.5 pb-2.5 space-y-2">
           {mode === 'full' ? (
@@ -285,38 +351,42 @@ export default function CaseExtractionCard({
               disabled={!canApply || busyStepId !== null}
               onClick={onApplyAll}
               className="w-full text-[11px] bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-300 text-white font-bold py-1.5 rounded-md flex items-center justify-center gap-1.5 shadow-sm transition-colors"
-              title={blockingMissing.length > 0 ? 'Lengkapi/setujui data hilang terlebih dahulu' : 'Terapkan seluruh langkah sebagai SATU batch (bisa di-Undo)'}
+              title={blockedPending.length > 0 ? `Terkunci: ${blockedPending.length} langkah menunggu data hilang worksheet-nya` : 'Terapkan seluruh langkah sebagai SATU batch (bisa di-Undo)'}
             >
               {busyStepId === 'all' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-              Konfirmasi &amp; Terapkan Semua ({data.applyPlan.steps.length} langkah)
+              Konfirmasi &amp; Terapkan Semua ({pendingSteps.length} langkah)
             </button>
           ) : (
             <div className="space-y-1.5">
               {data.applyPlan.steps.map((step) => {
                 const applied = appliedStepIds.includes(step.id);
+                const blocked = stepBlocked(step);
                 return (
                   <button
                     key={step.id}
                     type="button"
-                    disabled={applied || !canApply || busyStepId !== null}
+                    disabled={applied || blocked || busyStepId !== null}
                     onClick={() => onApplyStep(step)}
                     className={`w-full text-[11px] font-bold py-1.5 rounded-md flex items-center justify-center gap-1.5 border transition-colors ${
                       applied
                         ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                        : 'bg-white hover:bg-emerald-50 text-slate-800 border-slate-300 disabled:bg-slate-100 disabled:text-slate-400'
+                        : blocked
+                          ? 'bg-rose-50 text-rose-700 border-rose-200 disabled:cursor-not-allowed'
+                          : 'bg-white hover:bg-emerald-50 text-slate-800 border-slate-300 disabled:bg-slate-100 disabled:text-slate-400'
                     }`}
+                    title={blocked ? 'Menunggu data hilang worksheet ini diisi/disetujui' : step.label}
                   >
-                    {applied ? <Check className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-                    {applied ? `✓ ${step.label} (diterapkan)` : step.label}
+                    {applied ? <Check className="h-3.5 w-3.5" /> : blocked ? <TriangleAlert className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+                    {applied ? `✓ ${step.label} (diterapkan)` : blocked ? `${step.label} — menunggu data hilang` : step.label}
                   </button>
                 );
               })}
             </div>
           )}
-          {blockingMissing.length > 0 && (
+          {blockedPending.length > 0 && (
             <p className="text-[10px] text-rose-700 flex items-start gap-1">
               <TriangleAlert className="h-3 w-3 mt-0.5 shrink-0" />
-              Penerapan terkunci: {blockingMissing.length} field hilang belum diisi/disetujui.
+              {blockedPending.length} langkah menunggu data hilang worksheet-nya ({[...blockedWorksheetKeys].join(', ') || '-'}). Worksheet lain tetap bisa diterapkan.
             </p>
           )}
           {data.applyPlan.skipped.length > 0 && (

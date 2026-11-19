@@ -20,6 +20,7 @@ import { executeLookupTable } from './lookupTable';
 import { buildDocument, pickRenopsType, type DataBankField, type DocType, type DocumentSnapshot } from '../../sar/dataBank';
 import { buildFillFormPlan, compactFillFormResult } from '../../sar/fillForm';
 import { analyzeDebrief, type DebriefSortieInput } from '../../sar/debriefAnalysis';
+import { buildReferenceChoice, referenceChoiceForModel, REFERENCE_CHOICE_FIELDS, type ReferenceChoicePayload } from './referenceChoice';
 
 export const SERVER_EXECUTABLE_TOOL_NAMES = [
   'get_state',
@@ -29,6 +30,7 @@ export const SERVER_EXECUTABLE_TOOL_NAMES = [
   'validate_plan',
   'fill_form',
   'analyze_debrief',
+  'request_reference_choice',
 ] as const;
 
 /** Ctx eksekusi: snapshot state worksheet dari body POST /api/chat. */
@@ -45,6 +47,8 @@ export interface ServerToolResult {
   ok: boolean;
   summary: string;
   json: string;
+  /** Fase E: payload kartu pilihan interaktif (bukan untuk model — untuk UI). */
+  referenceChoice?: ReferenceChoicePayload;
 }
 
 // ── Deklarasi tool (subset OpenAPI; route menormalisasi tipe ke lowercase) ──
@@ -54,6 +58,18 @@ export const SERVER_TOOL_DECLARATIONS: Array<{
   description: string;
   parameters: Record<string, unknown>;
 }> = [
+  {
+    name: 'request_reference_choice',
+    description: 'Minta PEMILIHAN INTERAKTIF parameter yang membutuhkan keputusan dari Appendix/Table resmi (mis. kategori objek leeway Tabel I-1/I-2 untuk Datum WS 1). Tool ini MENYUSUN kartu pilihan interaktif di kolom chat: rekomendasi AI (bila karakteristik objek cukup dari konteks) + seluruh alternatif resmi dari registry. KARTU BUKAN KEPUTUSAN — pengguna WAJIB mengonfirmasi sebelum Anda memanggil set_fields untuk field tersebut. DILARANG mengarang pilihan di luar hasil tool ini.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        fieldPath: { type: 'STRING', description: 'Path field tujuan, mis. datum.leewayObjectId (lihat registry — saat ini: datum.leewayObjectId)' },
+        contextDescription: { type: 'STRING', description: 'Deskripsi objek/konteks dari soal untuk rekomendasi (mis. jenis objek dicari, kapal, pesawat)' },
+      },
+      required: ['fieldPath'],
+    },
+  },
   {
     name: 'get_state',
     description: 'Lihat kondisi TERKINI seluruh worksheet aplikasi saat pesan ini dikirim: field yang sudah terisi per worksheet (ASW, AWA, ADW, Datum, lembar WS 2/WS 8 per SRU, aset, pola), kelengkapan data wajib, dan catatan asumsi. Gunakan SEBELUM menyarankan pengisian untuk mengetahui data apa yang sudah ada dan apa yang masih kurang. Hasil berdasarkan state yang dikonfirmasi pengguna; tool set_* yang belum dikonfirmasi TIDAK ikut di sini.',
@@ -484,6 +500,37 @@ export function executeServerTool(
     switch (name) {
       case 'lookup_table':
         return executeLookupTable(argsRecord);
+
+      case 'request_reference_choice': {
+        const fieldPath = str(argsRecord.fieldPath);
+        if (!fieldPath) {
+          return build(false, { error: `Argumen wajib: fieldPath. Field terdaftar: ${Object.keys(REFERENCE_CHOICE_FIELDS).join(', ')}.` }, 'request_reference_choice: fieldPath kosong.');
+        }
+        // Konteks objek dari state worksheet: jenis objek dicari + judul kasus
+        // (searchObject ADW berisi craftType + callsign dari ekstraksi/pipeline).
+        const parts: string[] = [];
+        if (state) {
+          const aero = state['aero'] as Record<string, unknown> | undefined;
+          if (aero && typeof aero === 'object') {
+            if (typeof aero['searchObject'] === 'string' && aero['searchObject'].trim()) parts.push(aero['searchObject']);
+            if (typeof aero['caseTitle'] === 'string' && aero['caseTitle'].trim()) parts.push(aero['caseTitle']);
+          }
+        }
+        const described = str(argsRecord.contextDescription);
+        if (described) parts.push(described);
+        const choice = buildReferenceChoice(fieldPath, parts.join('. '));
+        if (!choice) {
+          return build(false, {
+            error: `Field "${fieldPath}" tidak terdaftar di registry pilihan referensi. Field terdaftar: ${Object.keys(REFERENCE_CHOICE_FIELDS).join(', ')}.`,
+          }, 'request_reference_choice: field tidak dikenal.');
+        }
+        return {
+          ok: true,
+          summary: `Kartu pilihan ${fieldPath} disiapkan (rekomendasi: ${choice.recommendation ? choice.recommendation.label : 'tidak cukup data — minta keputusan planner'}; status ${choice.status}).`,
+          json: JSON.stringify({ ok: true, ...referenceChoiceForModel(choice) }),
+          referenceChoice: choice,
+        };
+      }
 
       case 'get_state': {
         if (!state) {

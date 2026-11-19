@@ -72,16 +72,16 @@ const SNAPSHOT = {
 };
 
 describe('deklarasi tool server-side', () => {
-  it('7 nama (Fase 4): + fill_form, analyze_debrief', () => {
+  it('8 nama (Fase 4 + Fase E): + fill_form, analyze_debrief, request_reference_choice', () => {
     expect([...SERVER_EXECUTABLE_TOOL_NAMES].sort()).toEqual([
-      'analyze_debrief', 'fill_form', 'get_state', 'lookup_table', 'run_pipeline', 'run_worksheet', 'validate_plan',
+      'analyze_debrief', 'fill_form', 'get_state', 'lookup_table', 'request_reference_choice', 'run_pipeline', 'run_worksheet', 'validate_plan',
     ]);
   });
 
   it('deklarasi lengkap (nama + parameters objek) & tanpa duplikat', () => {
-    expect(SERVER_TOOL_DECLARATIONS.length).toBe(7);
+    expect(SERVER_TOOL_DECLARATIONS.length).toBe(8);
     const names = SERVER_TOOL_DECLARATIONS.map((declaration) => declaration.name);
-    expect(new Set(names).size).toBe(7);
+    expect(new Set(names).size).toBe(8);
     for (const declaration of SERVER_TOOL_DECLARATIONS) {
       expect(declaration.parameters.type).toBe('OBJECT');
       expect(declaration.description.length).toBeGreaterThan(30);

@@ -24,6 +24,8 @@ import type { DataBankField, RawQuestion } from '@/lib/sar/dataBank';
 import { buildChainCompletionInstruction, computeMissingWorksheetTools, matchWorksheetToolNames, parseDeclaredWorksheetTools, type WorksheetToolName } from '@/lib/sar/caseChain';
 import { setFieldsToolDescription, setFieldsToolParameters } from '@/lib/ai/tools/setFields';
 import { SERVER_TOOL_DECLARATIONS, SERVER_EXECUTABLE_TOOL_NAMES, executeServerTool } from '@/lib/ai/tools/serverTools';
+import type { ReferenceChoicePayload } from '@/lib/ai/tools/referenceChoice';
+import { describeDependencyGraph } from '@/lib/sar/worksheetDependency';
 
 /** Gabungkan pemakaian token beberapa putaran interaction (penjumlahan aman). */
 function mergeInteractionUsage(
@@ -1061,7 +1063,26 @@ export async function POST(req: NextRequest) {
   try {
     // Fase 2 (keputusan no.1): API key HANYA dari env server-side — key dari
     // client (kalau masih dikirim versi lama) DIABAIKAN dan tidak pernah dipakai.
-    const { messages, files, workspaceContext, sessionId, caseId, state, documentSnapshot } = await req.json();
+    // req.json() di-guard: body rusak/bukan JSON = HTTP 400 (kesalahan klien),
+    // bukan 500 generik.
+    const body = await req.json().catch(() => null) as {
+      messages?: unknown;
+      files?: unknown;
+      workspaceContext?: unknown;
+      sessionId?: unknown;
+      caseId?: unknown;
+      state?: unknown;
+      documentSnapshot?: unknown;
+    } | null;
+    if (!body || !Array.isArray(body.messages)) {
+      return NextResponse.json({ error: 'Body request tidak valid (butuh messages array).' }, { status: 400 });
+    }
+    const messages = body.messages as Array<{ role: string; content?: string; files?: unknown }>;
+    const files = Array.isArray(body.files) ? body.files as { name: string; type: string; base64: string }[] : undefined;
+    const sessionId = typeof body.sessionId === 'string' ? body.sessionId : undefined;
+    const caseId = typeof body.caseId === 'string' ? body.caseId : undefined;
+    const workspaceContext = typeof body.workspaceContext === 'string' ? body.workspaceContext : undefined;
+    const { state, documentSnapshot } = body;
 
     const apiKey = getGeminiApiKey();
     if (!apiKey) {
@@ -1112,7 +1133,7 @@ export async function POST(req: NextRequest) {
     const workspaceBlock = typeof workspaceContext === 'string' && workspaceContext.trim()
       ? workspaceContext.trim().slice(0, 6000)
       : '';
-    const effectiveSystemPrompt = workspaceBlock
+    const effectiveSystemPromptBase = workspaceBlock
       ? `${SYSTEM_PROMPT}
 
 === SAR WORKSPACE MEMORY (konteks workspace aktif) ===
@@ -1128,12 +1149,26 @@ ATURAN MEMORI WORKSPACE:
 7. Gunakan blok RENCANA TAHAPAN untuk orchestration: kerjakan tahap READY, tanyakan data yang BLOCKED, jangan melompati dependency.
 8. Tindakan yang mengubah data/peta/dokumen wajib konfirmasi pengguna (kontrak preview).`
       : SYSTEM_PROMPT;
+    // Fase D: graf dependency worksheet selalu disertakan — AI mengetahui
+    // urutan kerja resmi dan field mana yang output worksheet sebelumnya
+    // (PENDING_DEPENDENCY), sehingga tidak meminta pengguna mengisi nilai
+    // yang seharusnya dihitung aplikasi.
+    const effectiveSystemPrompt = `${effectiveSystemPromptBase}
+
+${describeDependencyGraph()}`;
 
     // Interactions API accepts multimodal content directly and is the supported
     // API for current Gemini models.
     const lastMessage = messages[messages.length - 1];
-    const incomingFiles: { name: string; type: string; base64: string }[] =
-      files || lastMessage.files || [];
+    const incomingFiles: { name: string; type: string; base64: string }[] = [
+      ...(files ?? []),
+      ...(Array.isArray(lastMessage.files)
+        ? (lastMessage.files as unknown[]).filter((f): f is { name: string; type: string; base64: string } =>
+            Boolean(f) && typeof f === 'object'
+            && typeof (f as { base64?: unknown }).base64 === 'string'
+            && typeof (f as { name?: unknown }).name === 'string')
+        : []),
+    ];
 
     const input: Array<Record<string, string>> = [];
 
@@ -1162,10 +1197,10 @@ ATURAN MEMORI WORKSPACE:
     // Keep the context useful without resending a long chat history (which can
     // make the model call slow, especially after repeated failed attempts).
     const conversation = messages.slice(-13, -1)
-      .filter((msg: { role: string; content: string }) =>
+      .filter((msg) =>
         !(msg.role !== 'user' && msg.content?.startsWith('❌ Error:'))
       )
-      .map((msg: { role: string; content: string }) =>
+      .map((msg) =>
         `${msg.role === 'user' ? 'Pengguna' : 'Asisten'}: ${(msg.content || '').slice(0, 6000)}`
       )
       .join('\n');
@@ -1381,13 +1416,16 @@ ATURAN MEMORI WORKSPACE:
           // non-transien, langsung pindah model; tandai agar pesan akhir tidak
           // menyarankan "periksa koneksi internet".
           if (isDeprecatedError(detail)) deprecatedSeen = true;
+          // HTTP 400 = struktur REQUEST salah (deklarasi tools, response_format,
+          // parameter tidak dikenal). Payload identik ke model lain juga cacat —
+          // gagal cepat, JANGAN mengulang ke banyak model dengan request rusak.
+          if (callResult.status === 400) throw lastError;
           const transient = callResult.status === 429 || callResult.status >= 500;
           if (transient) suggestedRetryDelayMs = callResult.suggestedRetryDelayMs ?? null;
           if (!transient) {
             // 401/403 = masalah kunci/akun yang sama untuk semua model — gagal
-            // cepat. 404/400 = masalah model/parameter ini saja (model pensiun,
-            // parameter ditolak model baru) — lanjut ke model berikutnya, jangan
-            // bunuh seluruh rantai fallback.
+            // cepat. 404 = model tidak ada/dipensiunkan untuk kunci ini — lanjut
+            // ke model berikutnya, jangan bunuh seluruh rantai fallback.
             if (callResult.status === 401 || callResult.status === 403) throw lastError;
             console.warn(`[AI chat] Model ${model} menolak permintaan (HTTP ${callResult.status}); lanjut ke model berikutnya.`);
             break;
@@ -1448,7 +1486,7 @@ ATURAN MEMORI WORKSPACE:
       throw new Error('Format respons Gemini tidak berisi langkah jawaban yang dapat diproses.');
     }
 
-    type RawGeminiStep = { type?: string; name?: string; arguments?: unknown; content?: Array<{ type?: string; text?: string }> };
+    type RawGeminiStep = { type?: string; name?: string; arguments?: unknown; call_id?: string; id?: string; content?: Array<{ type?: string; text?: string }> };
     type GeminiFunctionCallStep = RawGeminiStep & { name: string };
     const stepsRaw = Array.isArray(result.steps) ? result.steps as RawGeminiStep[] : [];
     let steps: RawGeminiStep[] = stepsRaw;
@@ -1464,6 +1502,9 @@ ATURAN MEMORI WORKSPACE:
     // Tool ini TIDAK PERNAH menulis state — pengisian tetap lewat set_*/set_fields
     // dengan pratinjau + konfirmasi pengguna (kontrak apply).
     const serverToolLog: Array<{ name: string; ok: boolean; summary: string }> = [];
+    // Fase E: payload kartu pilihan referensi interaktif (dikirim ke UI klien
+    // — bukan bagian teks model; konfirmasi pengguna lewat klik).
+    const referenceChoices: ReferenceChoicePayload[] = [];
     // Fase 4: hasil fill_form untuk kartu pratinjau di panel chat (fillPlan →
     // diterapkan lewat set_fields briefing/renops setelah konfirmasi).
     let fillFormPreview: Record<string, unknown> | null = null;
@@ -1482,6 +1523,12 @@ ATURAN MEMORI WORKSPACE:
             : typeof fc.id === 'string' ? fc.id : undefined;
           const toolResult = executeServerTool(fc.name, fc.arguments, { state: appState, documentSnapshot: docSnapshot, bankFields });
           serverToolLog.push({ name: fc.name, ok: toolResult.ok, summary: toolResult.summary });
+          // Fase E: kartu pilihan referensi interaktif → disertakan di respons
+          // agar klien merender kartu klik-konfirmasi di kolom chat.
+          if (toolResult.referenceChoice
+            && !referenceChoices.some((choice) => choice.fieldPath === toolResult.referenceChoice!.fieldPath)) {
+            referenceChoices.push(toolResult.referenceChoice);
+          }
           if (fc.name === 'fill_form' && toolResult.ok && !fillFormPreview) {
             try {
               const parsed = JSON.parse(toolResult.json) as Record<string, unknown>;
@@ -1673,18 +1720,20 @@ ATURAN MEMORI WORKSPACE:
           // wajib pakai lkpSource "adw-landing") bisa merusak rantai hilir.
           // Multi-SRU: panggilan worksheet lembar (WS2/WS3/WS8) dengan sruName
           // BERBEDA adalah lembar berbeda — tidak dianggap duplikat nama tool.
-          const isSheetTool = ['set_ws2_case', 'set_ws3_case', 'set_ws8_case'].includes(step.name);
+          const stepName = typeof step.name === 'string' ? step.name : '';
+          const isSheetTool = stepName === 'set_ws2_case' || stepName === 'set_ws3_case' || stepName === 'set_ws8_case';
           const stepArgs = (step.arguments ?? {}) as { sruName?: unknown };
           const sheetKey = isSheetTool
-            ? `${step.name}::${(typeof stepArgs.sruName === 'string' ? stepArgs.sruName : '').trim().toLowerCase()}`
-            : step.name;
-          const alreadyAccepted = isSheetTool ? acceptedSheetKeys.has(sheetKey) : firstPassNames.has(step.name);
-          if (step.type === 'function_call' && typeof step.name === 'string' && !alreadyAccepted
-            && ((missingTools as readonly string[]).includes(step.name) || step.name === 'ask_for_case_data')) {
+            ? `${stepName}::${(typeof stepArgs.sruName === 'string' ? stepArgs.sruName : '').trim().toLowerCase()}`
+            : stepName;
+          const alreadyAccepted = isSheetTool ? acceptedSheetKeys.has(sheetKey) : firstPassNames.has(stepName);
+          if (step.type === 'function_call' && stepName !== ''
+            && !alreadyAccepted
+            && ((missingTools as readonly string[]).includes(stepName) || stepName === 'ask_for_case_data')) {
             functionCalls.push(step as GeminiFunctionCallStep);
-            firstPassNames.add(step.name);
+            firstPassNames.add(stepName);
             if (isSheetTool) acceptedSheetKeys.add(sheetKey);
-            if (step.name !== 'ask_for_case_data') addedWorksheet += 1;
+            if (stepName !== 'ask_for_case_data') addedWorksheet += 1;
           }
         }
         console.info(`[AI chat] Chain pass ${chainPass} menambah ${addedWorksheet} panggilan worksheet (masih hilang: ${computeMissingNow().length}).`);
@@ -1786,6 +1835,7 @@ ATURAN MEMORI WORKSPACE:
         functionCalls: worksheetCalls.length ? worksheetCalls : null,
         ...(serverToolLog.length > 0 ? { serverToolCalls: serverToolLog } : {}),
         ...(fillFormPreview ? { fillFormPreview } : {}),
+        ...(referenceChoices.length > 0 ? { referenceChoices } : {}),
         ...(bankFallback ? { bankFallback } : {}),
       });
     }

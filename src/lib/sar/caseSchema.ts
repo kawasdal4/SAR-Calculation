@@ -163,7 +163,10 @@ export const lkpSchema = z.object({
 /** Blok Aeronautical Drift (worksheet ADW + tabel angin per ketinggian AWA). */
 export const aeroDriftSchema = z.object({
   glideSpeedKts: z.number().positive().optional(),
-  glideRatio: z.number().positive().optional(),      // 6 = 6:1
+  glideRatio: z.number().positive().optional(),      // 6 = 6:1 (kontrak kalkulator)
+  /** Nilai mentah rasio dari dokumen (mis. "6:1") — untuk audit/pratinjau;
+   *  nilai normalisasi tetap di glideRatio (angka, kontrak fungsi ADW). */
+  glideRatioRaw: z.string().optional(),
   variationDeg: z.number().optional(),
   variationDirection: z.enum(['E', 'W']).optional(),
   /** Deviation kompas pesawat bila disebut (biasanya tidak). */

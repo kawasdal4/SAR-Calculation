@@ -87,27 +87,151 @@ export interface InteractionCallArgs {
  *  dibereskan dari generation_config agar tidak memicu HTTP 400 struktur. */
 const FORBIDDEN_IN_GENERATION_CONFIG = ['response_format', 'responseMimeType', 'responseSchema'] as const;
 
+/** API version yang dipakai semua proses Gemini aplikasi ini (ekstraksi,
+ *  structured output, function calling, multi-turn). Interactions API butuh
+ *  v1beta: tipe input 'document' (PDF inline) dan response_format top-level
+ *  hanya valid di v1beta — default SDK (v1) menolaknya dengan 400. */
+export const GEMINI_API_VERSION = 'v1beta';
+
+/** Endpoint aktual yang dipakai SDK (untuk logging/audit, tanpa secret). */
+export const GEMINI_INTERACTIONS_ENDPOINT = `/${GEMINI_API_VERSION}/interactions`;
+
+/** Tipe JSON Schema valid untuk parameter function tool Interactions API
+ *  (lowercase). Enum SchemaType gaya GenerateContent (UPPERCASE) dinormalkan. */
+const VALID_SCHEMA_TYPES = new Set(['object', 'string', 'number', 'integer', 'boolean', 'array']);
+
+/** Tipe tool BUILTIN Interactions API yang dilewatkan apa adanya (bukan
+ *  deklarasi function custom aplikasi). */
+const BUILTIN_TOOL_TYPES = new Set(['google_search', 'code_execution', 'url_context', 'mcp_server', 'google_maps', 'file_search', 'computer_use']);
+
+export interface ToolValidationIssue {
+  index: number;
+  toolName: string;
+  issue: string;
+}
+
+/** Normalisasi rekursif skema parameter ke JSON Schema lowercase (Interactions
+ *  API): enum SchemaType gaya GenerateContent ('OBJECT'/'STRING'/...) →
+ *  'object'/'string'/.... Idempoten — schema yang sudah lowercase tetap sama. */
+export function normalizeJsonSchemaTypes(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(normalizeJsonSchemaTypes);
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, child]) => [
+    key,
+    key === 'type' && typeof child === 'string' ? child.toLowerCase() : normalizeJsonSchemaTypes(child),
+  ]));
+}
+
+/** Validasi deklarasi function tools SEBELUM dikirim ke Google — menangkap
+ *  kesalahan bentuk (mis. `type` hilang → HTTP 400 "The 'type' parameter is
+ *  required at 'tools[15]'") dengan pesan yang menyebut tool bermasalah.
+ *  Murni: tanpa efek samping, dipakai route dan test regresi. */
+export function validateInteractionTools(tools: Array<Record<string, unknown>>): ToolValidationIssue[] {
+  const issues: ToolValidationIssue[] = [];
+  const seenNames = new Set<string>();
+  const inspectSchema = (path: string, schema: unknown, toolName: string, index: number): void => {
+    if (!schema || typeof schema !== 'object' || Array.isArray(schema)) {
+      if (schema !== undefined) issues.push({ index, toolName, issue: `${path}: schema bukan objek.` });
+      return;
+    }
+    const record = schema as Record<string, unknown>;
+    const type = typeof record['type'] === 'string' ? record['type'].toLowerCase() : undefined;
+    if (type !== undefined && !VALID_SCHEMA_TYPES.has(type)) {
+      issues.push({ index, toolName, issue: `${path}: tipe "${String(record['type'])}" bukan JSON Schema valid (${[...VALID_SCHEMA_TYPES].join('/')}).` });
+    }
+    if (type === 'object') {
+      if (record['properties'] !== undefined && (typeof record['properties'] !== 'object' || Array.isArray(record['properties']) || record['properties'] === null)) {
+        issues.push({ index, toolName, issue: `${path}.properties: harus objek.` });
+      } else if (record['properties']) {
+        for (const [childKey, child] of Object.entries(record['properties'] as Record<string, unknown>)) {
+          inspectSchema(`${path}.properties.${childKey}`, child, toolName, index);
+        }
+        const required = record['required'];
+        if (required !== undefined) {
+          if (!Array.isArray(required) || required.some((entry) => typeof entry !== 'string')) {
+            issues.push({ index, toolName, issue: `${path}.required: harus array string.` });
+          } else {
+            for (const reqKey of required as string[]) {
+              if (!(reqKey in (record['properties'] as Record<string, unknown>))) {
+                issues.push({ index, toolName, issue: `${path}.required: "${reqKey}" tidak ada di properties.` });
+              }
+            }
+          }
+        }
+      }
+    } else if (type === 'array') {
+      if (record['items'] !== undefined) inspectSchema(`${path}.items`, record['items'], toolName, index);
+    } else if (type === 'string' && record['enum'] !== undefined) {
+      const enumValues = record['enum'];
+      if (!Array.isArray(enumValues) || enumValues.length === 0 || enumValues.some((entry) => typeof entry !== 'string' && typeof entry !== 'number')) {
+        issues.push({ index, toolName, issue: `${path}.enum: harus array string/number tidak kosong.` });
+      }
+    }
+  };
+
+  tools.forEach((tool, index) => {
+    if (!tool || typeof tool !== 'object' || Array.isArray(tool)) {
+      issues.push({ index, toolName: '(bukan objek)', issue: 'Deklarasi tool bukan objek.' });
+      return;
+    }
+    const rawType = typeof tool['type'] === 'string' ? tool['type'].toLowerCase() : undefined;
+    if (rawType !== undefined && BUILTIN_TOOL_TYPES.has(rawType)) return; // tool builtin: bentuknya milik API
+    if (rawType !== undefined && rawType !== 'function') {
+      issues.push({ index, toolName: String(tool['name'] ?? '?'), issue: `type "${rawType}" tidak dikenal (harus "function" atau builtin).` });
+      return;
+    }
+    const name = tool['name'];
+    if (typeof name !== 'string' || !/^[A-Za-z][A-Za-z0-9_]{1,63}$/.test(name)) {
+      issues.push({ index, toolName: String(name ?? '?'), issue: `Nama tool "${String(name ?? '')}" tidak valid (huruf/angka/underscore, 2-64).` });
+    } else if (seenNames.has(name)) {
+      issues.push({ index, toolName: name, issue: 'Nama tool duplikat.' });
+    }
+    seenNames.add(typeof name === 'string' ? name : '?');
+    const description = tool['description'];
+    if (typeof description !== 'string' || description.trim() === '') {
+      issues.push({ index, toolName: String(name ?? '?'), issue: 'Description wajib non-kosong.' });
+    }
+    if (tool['parameters'] !== undefined) inspectSchema('parameters', tool['parameters'], String(name ?? '?'), index);
+  });
+  return issues;
+}
+
 /** Bentuk payload `client.interactions.create(...)` (argumen pertama) —
- *  diekspor murni agar bisa diregresi tanpa jaringan: `response_format`
+ *  diekspor murni agar bisa diregresi tanpa jaringan: response_format
  *  top-level (sejajar model/input/generation_config), TIDAK di dalam
  *  generation_config; responseMimeType/responseSchema (gaya GenerateContent)
- *  juga dilarang di generation_config. */
+ *  juga dilarang di generation_config. Setiap function tool DIKIRIM DENGAN
+ *  `type: 'function'` di tingkat terluar (wajib Interactions API — SDK
+ *  `FunctionT` menyatakan `type: "function"` REQUIRED); bila pemanggil tidak
+ *  menyertakan `type`, builder menambahkan otomatis. Schema parameter
+ *  dinormalkan ke JSON Schema lowercase, dan seluruh deklarasi divalidasi
+ *  dulu — lempar Error jelas bila bentuk tidak valid (tolak dini, bukan
+ *  HTTP 400 dari Google). */
 export function buildInteractionRequest(args: InteractionCallArgs): Record<string, unknown> {
   const generationConfig: Record<string, unknown> = { ...(args.generationConfig ?? {}) };
   for (const key of FORBIDDEN_IN_GENERATION_CONFIG) delete generationConfig[key];
+  const sanitizedTools = (args.tools ?? []).map((tool) => {
+    const record = { ...tool } as Record<string, unknown>;
+    if (typeof record['type'] !== 'string' || record['type'] === '') record['type'] = 'function';
+    else record['type'] = record['type'].toLowerCase();
+    if (record['type'] === 'function') {
+      if (record['parameters'] !== undefined) record['parameters'] = normalizeJsonSchemaTypes(record['parameters']);
+    }
+    return record;
+  });
+  const toolIssues = validateInteractionTools(sanitizedTools);
+  if (toolIssues.length > 0) {
+    const summary = toolIssues.slice(0, 6).map((issue) =>
+      `tools[${issue.index}] "${issue.toolName}": ${issue.issue}`).join('; ');
+    throw new Error(`Deklarasi tools tidak valid (ditolak sebelum dikirim ke Gemini): ${summary}`);
+  }
   return {
     model: args.model,
     input: args.input,
     ...(args.systemInstruction ? { system_instruction: args.systemInstruction } : {}),
     ...(Object.keys(generationConfig).length > 0 ? { generation_config: generationConfig } : {}),
     ...(args.responseFormat ? { response_format: args.responseFormat } : {}),
-    ...(args.tools && args.tools.length > 0
-      ? { tools: args.tools.map((tool) => {
-          const { type: _type, ...rest } = tool as Record<string, unknown> & { type?: string };
-          void _type;
-          return rest;
-        }) }
-      : {}),
+    ...(sanitizedTools.length > 0 ? { tools: sanitizedTools } : {}),
     store: args.store ?? false,
     ...(args.previousInteractionId ? { previous_interaction_id: args.previousInteractionId } : {}),
   };
@@ -132,12 +256,12 @@ export function getGeminiClient(): GoogleGenAI {
   // env tanpa pernah memaparkan key di log.
   const fingerprint = `${apiKey.length}:${apiKey.slice(-4)}`;
   if (!cachedClient || cachedKeyFingerprint !== fingerprint) {
-    // apiVersion 'v1beta' — wajib untuk Interactions API aplikasi ini:
-    // tipe input 'document' (PDF inline) dan structured output top-level
-    // hanya valid di v1beta; default SDK (v1) menolaknya dengan 400
+    // apiVersion GEMINI_API_VERSION ('v1beta') — wajib untuk Interactions API
+    // aplikasi ini: tipe input 'document' (PDF inline) dan structured output
+    // top-level hanya valid di v1beta; default SDK (v1) menolaknya dengan 400
     // ("The value 'document' is not supported ... in v1, it is available
     // in v1beta"). Raw fetch sebelumnya juga memakai /v1beta/interactions.
-    cachedClient = new GoogleGenAI({ apiKey, httpOptions: { apiVersion: 'v1beta' } });
+    cachedClient = new GoogleGenAI({ apiKey, httpOptions: { apiVersion: GEMINI_API_VERSION } });
     cachedKeyFingerprint = fingerprint;
   }
   return cachedClient;
@@ -190,15 +314,42 @@ function extractText(steps: InteractionStep[], outputText: unknown): string {
   return chunks.join('');
 }
 
+/** Logging percobaan panggilan yang AMAN: metadata saja (apiVersion, endpoint,
+ *  model, jumlah part/tool, status, interaction ID, jenis output) — TANPA API
+ *  key, TANPA isi input/PDF, TANPA isi respons. */
+function logInteractionSafe(event: string, data: Record<string, unknown>): void {
+  const safe = { ...data };
+  if (typeof safe['errorMessage'] === 'string') {
+    // Sanitasi defensif: buang pola yang mirip API key bila pernah bocor ke
+    // pesan error pihak ketiga; potong 300 char.
+    safe['errorMessage'] = safe['errorMessage']
+      .replace(/AIza[\w-]{10,}/g, '[REDACTED]')
+      .slice(0, 300);
+  }
+  console.info(`[Gemini ${event}]`, safe);
+}
+
 /** Satu panggilan Interactions API via SDK. TIDAK melempar untuk error HTTP —
  *  hasil dikembalikan terstruktur agar siklus retry/backoff caller tetap
- *  berjalan persis seperti sebelumnya. Melempar HANYA GeminiApiKeyMissingError. */
+ *  berjalan persis seperti sebelumnya. Melempar HANYA GeminiApiKeyMissingError
+ *  dan Error validasi tools/payload dari buildInteractionRequest (tolak dini). */
 export async function callGeminiInteraction(args: InteractionCallArgs): Promise<InteractionCallResult> {
   const client = getGeminiClient(); // lempar GeminiApiKeyMissingError bila key kosong
   // Payload dibangun oleh builder murni: response_format top-level,
   // generation_config dibersihkan dari parameter yang tidak berlaku di
-  // Interactions API (response_format/responseMimeType/responseSchema).
+  // Interactions API, tools divalidasi + type:'function' + schema lowercase.
   const payload = buildInteractionRequest(args);
+  logInteractionSafe('request', {
+    apiVersion: GEMINI_API_VERSION,
+    endpoint: GEMINI_INTERACTIONS_ENDPOINT,
+    model: args.model,
+    inputParts: Array.isArray(args.input) ? args.input.length : 'string',
+    tools: payload['tools'] ? (payload['tools'] as unknown[]).length : 0,
+    responseFormat: Boolean(args.responseFormat),
+    previousInteractionId: Boolean(args.previousInteractionId),
+    store: args.store ?? false,
+    timeoutMs: args.timeoutMs,
+  });
 
   try {
     const interaction = await client.interactions.create(payload as never, {
@@ -216,6 +367,21 @@ export async function callGeminiInteraction(args: InteractionCallArgs): Promise<
     const interactionId = continuationIds && continuationIds.length > 0
       ? continuationIds[continuationIds.length - 1]
       : typeof record['id'] === 'string' ? record['id'] : null;
+    // Status interaction: 'completed' diharapkan; selain itu caller menilai.
+    const interactionStatus = typeof record['status'] === 'string' ? record['status'] : undefined;
+    logInteractionSafe('response', {
+      apiVersion: GEMINI_API_VERSION,
+      model: typeof record['model'] === 'string' ? record['model'] : args.model,
+      status: 200,
+      interactionStatus: interactionStatus ?? 'tidak diketahui',
+      interactionId,
+      steps: steps.length,
+      stepTypes: [...new Set(steps.map((step) => step.type ?? '?'))].join(','),
+      outputKinds: steps.some((step) => step.type === 'function_call')
+        ? 'function_call'
+        : typeof record['output_text'] === 'string' && record['output_text'] ? 'text' : '-',
+      usage: usage ? { in: usage.inputTokens, out: usage.outputTokens } : null,
+    });
 
     return {
       ok: true,
@@ -230,6 +396,13 @@ export async function callGeminiInteraction(args: InteractionCallArgs): Promise<
     const err = error as { status?: number; message?: string; name?: string };
     const status = typeof err.status === 'number' ? err.status : 0;
     const message = err instanceof Error ? err.message : 'Panggilan Gemini gagal.';
+    logInteractionSafe('error', {
+      apiVersion: GEMINI_API_VERSION,
+      model: args.model,
+      status,
+      errorName: err instanceof Error ? err.name : undefined,
+      errorMessage: message,
+    });
     return {
       ok: false,
       status,

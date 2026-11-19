@@ -25,8 +25,7 @@ import {
 import { formatDMS } from '@/lib/sar/coordFormat';
 import { toBasarnasTimeFormat } from '@/lib/sar/aswTime';
 import { buildChatPreviewContract, buildChatPreviewContracts, CHAT_NON_MUTATING_TOOLS, TARGET_LABELS } from '@/lib/sar/chatPreview';
-import { parseSetFieldsArgs, type SetFieldsApplied } from '@/lib/ai/tools/setFields';
-import { type AiBatchInfo } from '@/lib/ai/changeLog';
+import { parseSetFieldsArgs, type SetFieldsApplied } from '@/lib/ai/tools/setFields';import { type AiBatchInfo } from '@/lib/ai/changeLog';
 import { nextWorkflowSteps, selectiveWorkspaceContext, workflowPlanText, type ContextEntry } from '@/lib/sar/workspaceContext';
 import type { InterceptInput } from '@/lib/sar/interceptCalculations';
 import { normalizeTafCondition, type AssetAllocationCaseInput } from '@/lib/sar/assetAllocation';
@@ -48,6 +47,8 @@ import {
 import type { SarCaseSchema } from '@/lib/sar/caseSchema';
 import type { DocumentSnapshot } from '@/lib/sar/dataBank';
 import type { SetFieldsWorksheet } from '@/lib/ai/tools/setFields';
+import type { ReferenceChoicePayload } from '@/lib/ai/tools/referenceChoice';
+import ReferenceChoiceCard, { type ReferenceSelectionResult } from '@/components/sar/ReferenceChoiceCard';
 
 interface UploadedAttachment {
   name: string;
@@ -55,6 +56,21 @@ interface UploadedAttachment {
   size: number;
   base64: string;
 }
+
+/** Respons /api/ai/parse-case (satu sumber tipe untuk klien; bentuk server). */
+type ParseCaseHttpResponse = {
+  ok?: boolean;
+  error?: string;
+  detail?: string[];
+  attempts?: number;
+  warnings?: string[];
+  case?: SarCaseSchema;
+  completeness?: CaseExtractionData['completeness'];
+  fieldRows?: CaseExtractionData['fieldRows'];
+  applyPlan?: CaseExtractionData['applyPlan'];
+  assumptions?: CaseExtractionData['assumptions'];
+  model?: string;
+};
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -86,6 +102,11 @@ interface ChatMessage {
   fillForm?: FillFormPreview;
   /** Pratinjau fill_form sudah diterapkan ke form (via set_fields). */
   fillFormApplied?: boolean;
+  /** === Fase E: kartu pilihan Appendix/Table interaktif (request_reference_choice) === */
+  referenceChoices?: ReferenceChoicePayload[];
+  /** Field referensi yang sudah DIKONFIRMASI pengguna di pesan ini
+   *  (USER_CONFIRMED_REFERENCE — diterapkan via set_fields + change-log). */
+  referenceConfirmed?: Array<{ fieldPath: string; referenceId: string; label: string; selectedBy: 'ai' | 'manual'; sourceTable: string }>;
 }
 
 /** Fase 4: pratinjau hasil fill_form dari respons /api/chat. */
@@ -923,6 +944,7 @@ export default function AIChatPanel({
               functionCalls?: ChatMessage['functionCalls'];
               serverToolCalls?: ChatMessage['serverToolCalls'];
               fillFormPreview?: FillFormPreview;
+              referenceChoices?: ReferenceChoicePayload[];
               bankFallback?: Array<{ caseTitle?: string | null; incidentType?: string; rawText?: string; fields?: unknown[] }>;
             };
             try {
@@ -983,11 +1005,17 @@ export default function AIChatPanel({
               ...(Array.isArray(data.serverToolCalls) && data.serverToolCalls.length > 0
                 ? { serverToolCalls: data.serverToolCalls }
                 : {}),
-              ...(data.fillFormPreview
+                ...(data.fillFormPreview
                 ? {
                     fillForm: data.fillFormPreview,
                     fillFormApplied: false,
                     content: `${data.text || 'Server tidak mengirim teks jawaban.'}\n\n📄 Draf dokumen "${data.fillFormPreview.title ?? data.fillFormPreview.docType ?? ''}" siap — ${Object.keys(data.fillFormPreview.values ?? {}).length} field form bisa diisi. Tinjau di bawah, lalu konfirmasi untuk menerapkan.`,
+                  }
+                : {}),
+              ...(Array.isArray(data.referenceChoices) && data.referenceChoices.length > 0
+                ? {
+                    referenceChoices: data.referenceChoices,
+                    content: `${data.text || 'Server tidak mengirim teks jawaban.'}\n\n🧭 Pilihan parameter dari Appendix/Table tersedia di kartu di bawah — pilih rekomendasi AI atau alternatif, lalu konfirmasi. Tidak ada yang diterapkan sebelum Anda konfirmasi.`,
                   }
                 : {}),
             };
@@ -1063,22 +1091,26 @@ export default function AIChatPanel({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestPayload),
       });
-      const data = await res.json() as {
-        ok?: boolean;
-        error?: string;
-        detail?: string[];
-        attempts?: number;
-        warnings?: string[];
-        case?: SarCaseSchema;
-        completeness?: CaseExtractionData['completeness'];
-        fieldRows?: CaseExtractionData['fieldRows'];
-        applyPlan?: CaseExtractionData['applyPlan'];
-        assumptions?: CaseExtractionData['assumptions'];
-        model?: string;
-      };
-      if (!res.ok || !data.ok || !data.case) {
-        const detail = Array.isArray(data.detail) && data.detail.length > 0 ? ` (${data.detail.slice(0, 3).join('; ')})` : '';
-        throw new Error(`${data.error || 'Ekstraksi gagal.'}${detail}`);
+      // Baca sebagai TEKS dulu, baru parse terkontrol — bila server/proxy
+      // mengembalikan halaman HTML atau plain-text error ("An error occurred…"),
+      // JSON.parse langsung melempar "Unexpected token 'A', … is not valid
+      // JSON" yang menyesatkan. Non-JSON dikategorikan error transport dengan
+      // potongan isi + status HTTP, bukan kesalahan ekstraksi.
+      const resText = await res.text();
+      let data: ParseCaseHttpResponse | null = null;
+      if (resText) {
+        try {
+          data = JSON.parse(resText) as ParseCaseHttpResponse;
+        } catch {
+          const snippet = resText.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 160);
+          throw new Error(
+            `Server mengembalikan respons non-JSON (HTTP ${res.status} ${res.statusText || ''}) — kemungkinan gangguan transport, bukan gagal ekstraksi. Isi: ${snippet || '(kosong)'}`,
+          );
+        }
+      }
+      if (!res.ok || !data || !data.ok || !data.case) {
+        const detail = Array.isArray(data?.detail) && data.detail.length > 0 ? ` (${data.detail.slice(0, 3).join('; ')})` : '';
+        throw new Error(`${data?.error || `Ekstraksi gagal (HTTP ${res.status} ${res.statusText || ''}).`}${detail}`);
       }
       const assistantMsg: ChatMessage = {
         role: 'assistant',
@@ -1223,6 +1255,43 @@ export default function AIChatPanel({
       };
     }));
   }, [onApplySetFields, onAiBatchStart, onAiBatchEnd, onLogConversation]);
+
+  /** Fase E: konfirmasi pilihan Appendix/Table dari kartu interaktif — apply
+   *  lewat set_fields resmi (handler halaman yang sama → change-log + undo
+   *  otomatis); keputusan dicatat sebagai USER_CONFIRMED_REFERENCE di
+   *  SAR Workflow Memory. Reference ID (bukan label) yang disimpan. */
+  const handleConfirmReference = useCallback(
+    (msgIndex: number, choice: ReferenceChoicePayload, result: ReferenceSelectionResult) => {
+      const fieldName = result.fieldPath.split('.').pop() ?? result.fieldPath;
+      const parsed = parseSetFieldsArgs({
+        worksheet: choice.worksheet,
+        fields: [{ name: fieldName, value_string: result.referenceId }],
+      });
+      if (!parsed.ok) {
+        setMessages((prev) => prev.map((message, index) => index === msgIndex && message.role === 'assistant'
+          ? { ...message, content: `${message.content}\n\n❌ Gagal menerapkan pilihan referensi: ${parsed.errors.join('; ')}` }
+          : message));
+        return;
+      }
+      // SATU klik konfirmasi = SATU batch (change-log + Undo konsisten).
+      onAiBatchStart?.();
+      const ok = onApplySetFields?.(parsed.applied) ?? false;
+      onAiBatchEnd?.([choice.worksheet], ok);
+      if (!ok) return;
+      setMessages((prev) => prev.map((message, index) => index === msgIndex && message.role === 'assistant'
+        ? {
+            ...message,
+            referenceConfirmed: [
+              ...(message.referenceConfirmed ?? []),
+              { fieldPath: result.fieldPath, referenceId: result.referenceId, label: result.label, selectedBy: result.selectedBy, sourceTable: result.sourceTable },
+            ],
+            content: `${message.content}\n\n✅ ${result.label} (${result.referenceId}) dikonfirmasi dan diterapkan ke ${choice.consumerWorksheetLabel} — status USER_CONFIRMED_REFERENCE (sumber: Appendix/Table ${result.sourceTable}; ${result.selectedBy === 'ai' ? 'menerima rekomendasi AI' : 'pilihan manual planner'}).`,
+          }
+        : message));
+      onLogConversation?.('approved-action', `Pengguna MENGONFIRMASI pilihan Appendix/Table ${result.sourceTable}: ${result.label} (referenceId ${result.referenceId}) untuk ${result.fieldPath} — status USER_CONFIRMED_REFERENCE (${result.selectedBy === 'ai' ? 'menerima rekomendasi AI' : 'pilihan manual'}), diterapkan via set_fields worksheet ${choice.worksheet}.`);
+    },
+    [onApplySetFields, onAiBatchStart, onAiBatchEnd, onLogConversation],
+  );
 
   /** Jawaban klarifikasi waktu (datum time / waktu insiden A.1): catat keputusan, kirim ke chat agar AI meneruskan set_asw_case / set_aero_drift_case dengan nilai terkonfirmasi. */
   const handleClarifyAnswer = useCallback(
@@ -1659,6 +1728,26 @@ export default function AIChatPanel({
                         </div>
                       ))}
                     </div>
+                  )}
+
+                  {/* Fase E: kartu pilihan Appendix/Table interaktif — rekomendasi
+                      AI + alternatif resmi; konfirmasi klik → set_fields + change-log. */}
+                  {msg.referenceChoices && msg.referenceChoices.length > 0 && (
+                    msg.referenceChoices.map((choice) => {
+                      const confirmed = (msg.referenceConfirmed ?? []).some((entry) => entry.fieldPath === choice.fieldPath);
+                      if (confirmed) return null;
+                      return (
+                        <ReferenceChoiceCard
+                          key={choice.fieldPath}
+                          choice={choice}
+                          busy={isLoading}
+                          onConfirm={(result) => handleConfirmReference(idx, choice, result)}
+                          onReject={() => setMessages((prev) => prev.map((m, i) => (i === idx
+                            ? { ...m, referenceChoices: (m.referenceChoices ?? []).filter((c) => c.fieldPath !== choice.fieldPath) }
+                            : m)))}
+                        />
+                      );
+                    })
                   )}
 
                   {/* Fase 3: pratinjau per-field hasil parse-case — menggantikan

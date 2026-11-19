@@ -23,13 +23,8 @@ import {
   sarCaseSchema,
   type SarCaseSchema,
 } from '../sar/caseSchema';
-import {
-  buildCaseWorksheetSeeds,
-  checkCaseCompleteness,
-  isDownstreamFieldClaim,
-  type CaseCompleteness,
-  type CasePlannerInputs,
-} from '../sar/caseAdapter';
+import { buildCaseWorksheetSeeds, checkCaseCompleteness, isDownstreamFieldClaim, type CaseCompleteness, type CasePlannerInputs } from '../sar/caseAdapter';
+import { classifyFieldStatus } from '../sar/fieldStatus';
 import { buildAswObservationsFromCase, toBasarnasTimeFormat } from '../sar/aswTime';
 import { computeASW } from '../sar/sarCalculations';
 import { parseCoordinate } from '../sar/coordFormat';
@@ -137,7 +132,8 @@ export const CASE_EXTRACTION_JSON_SCHEMA: Record<string, unknown> = {
       type: 'object',
       properties: {
         glideSpeedKts: { type: 'number' },
-        glideRatio: { type: 'number' },
+        glideRatio: { type: 'number', description: 'Rasio glide sebagai ANGKA: "6:1" → 6' },
+        glideRatioRaw: { type: 'string', description: 'Nilai mentah rasio dari soal, mis. "6:1"' },
         variationDeg: { type: 'number' },
         variationDirection: { type: 'string', enum: ['E', 'W'] },
         deviationDeg: { type: 'number' },
@@ -308,9 +304,95 @@ ATURAN MUTLAK (pelanggaran = jawaban ditolak):
    - SATUAN: jarak NM, kecepatan knots, ketinggian feet, gelombang meter, visibility kilometer. FL200 → flightLevelFt 200 (bukan 20000; kaki dihitung aplikasi).
    - ANGKA Indonesia: "1.000" = 1000; "1,5" = 1.5.
 5. Tabel angin per ketinggian soal → aeroDrift.windLayers (altitudeFt 0 = Surface, sertakan altitudeLabel asli). Deret angin permukaan berwaktu → sea.surfaceWindSeries (obsTime string asli).
-6. Setiap SRU/alut di tabel data soal → satu entri sru (callsign WAJIB; kind: helicopter/fixed-wing/vessel; endurance "2j 45m" → enduranceHours 2 + enduranceMinutes 45). KOORDINAT SRU/PANGKALAN: bila soal mencantum koordinat (desimal atau DMS), WAJIB pakai koordinat soal apa adanya — DILARANG mencari/mengganti dengan bandara/dermaga "terdekat". Identifikasi bandara/dermaga terdekat HANYA bila koordinat SRU/pangkalan sama sekali tidak tercantum di soal, dan catat sebagai asumsi.
-7. meta.source: "pdf" bila sumber lampiran PDF/gambar, "text" bila teks ditempel pengguna.
-8. Jangan mengisi field hasil perhitungan (ASW/AWA/datum/luas area/POD) — skema tidak memilikinya; hanya INPUT worksheet.`;
+6. Setiap SRU/alut di tabel data soal → satu entri sru (callsign WAJIB; kind: helicopter/fixed-wing/vessel; endurance "2j 45m" → enduranceHours 2 + enduranceMinutes 45). TABEL DATA SRU DIBACA PER KOLOM: setiap KOLOM tabel = SATU SRU lengkap (callsign, jenis, model, koordinat lokasi aset, endurance, TAS max, TAS area, visibility, angin, kondisi observer, TAF, frekuensi radio, captain, GPS/nav) — DILARANG mencampur nilai antar-kolom. "Radio 123.1"/"Ch.16 dan 123.1" → frequencies ["123.1"] (["Ch.16","123.1"]); "GPS" → navigation ["GPS"]; "Observer fresh" → observerCondition "fresh"; "TAF Inter" → taf "Inter". KOORDINAT SRU/PANGKALAN: bila soal mencantum koordinat (desimal atau DMS), WAJIB pakai koordinat soal apa adanya — DILARANG mencari/mengganti dengan bandara/dermaga "terdekat". Identifikasi bandara/dermaga terdekat HANYA bila koordinat SRU/pangkalan sama sekali tidak tercantum di soal, dan catat sebagai asumsi.
+7. RASIO GLIDE: "Glide Ratio: 6:1" → aeroDrift.glideRatio = 6 (ANGKA polos, kontrak fungsi kalkulator ADW) DAN glideRatioRaw = "6:1" (nilai mentah). Rasio "1.5:1" → 1.5.
+8. "Koordinat Lost Contact"/posisi kontak terakhir → lkp.coord (simpan DMS asli di dmsLat/dmsLng); checkpoint/narasi insiden tetap di incident.checkpoint. Bila soal menyebut Position of Distress sama dengan lost contact, keduanya tetap LKP.
+9. meta.source: "pdf" bila sumber lampiran PDF/gambar, "text" bila teks ditempel pengguna.
+10. Jangan mengisi field hasil perhitungan (ASW/AWA/datum/luas area/POD) — skema tidak memilikinya; hanya INPUT worksheet.`;
+
+// ── Normalisasi pra-parse (FASE C) ──────────────────────────────────────────
+
+/** "6:1" → 6; "1.5:1" → 1.5; "6" → 6; selain itu null. Kontrak angka polos
+ *  milik fungsi kalkulator ADW (glideRatio 6 = 6:1). */
+export function parseGlideRatio(raw: unknown): number | null {
+  if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) return raw;
+  if (typeof raw !== 'string') return null;
+  const text = raw.trim().replace(',', '.');
+  const match = text.match(/^(\d+(?:\.\d+)?)\s*:\s*(\d+(?:\.\d+)?)$/);
+  if (match) {
+    const over = Number(match[1]);
+    const under = Number(match[2]);
+    if (Number.isFinite(over) && Number.isFinite(under) && under > 0) return over / under;
+    return null;
+  }
+  const plain = text.match(/^(\d+(?:\.\d+)?)$/);
+  return plain ? Number(plain[1]) : null;
+}
+
+/** Normalisasi JSON hasil ekstraksi SEBELUM validasi Zod — data yang tertulis
+ *  di dokumen tidak boleh hilang hanya karena bentuknya belum persis (C.1):
+ *  - glideRatio string "6:1" → 6 (+ glideRatioRaw disimpan).
+ *  - Koordinat string DMS/desimal → angka (parseCoordinate).
+ *  - windLayers "Surface" tanpa altitudeFt → 0. TIDAK pernah mengarang nilai. */
+export function normalizeCaseJson(rawCase: unknown): unknown {
+  if (!rawCase || typeof rawCase !== 'object' || Array.isArray(rawCase)) return rawCase;
+  const clone = JSON.parse(JSON.stringify(rawCase)) as Record<string, unknown>;
+
+  const aero = clone['aeroDrift'] as Record<string, unknown> | undefined;
+  if (aero && typeof aero === 'object') {
+    if (aero['glideRatio'] !== undefined && typeof aero['glideRatio'] !== 'number') {
+      const parsed = parseGlideRatio(aero['glideRatio']);
+      if (parsed !== null) {
+        aero['glideRatioRaw'] = aero['glideRatioRaw'] ?? String(aero['glideRatio']);
+        aero['glideRatio'] = parsed;
+      }
+    }
+    const parachute = aero['parachute'] as Record<string, unknown> | undefined;
+    if (parachute && typeof parachute === 'object' && parachute['glideRatio'] !== undefined && typeof parachute['glideRatio'] !== 'number') {
+      const parsed = parseGlideRatio(parachute['glideRatio']);
+      if (parsed !== null) parachute['glideRatio'] = parsed;
+    }
+    const windLayers = aero['windLayers'];
+    if (Array.isArray(windLayers)) {
+      for (const layer of windLayers as Array<Record<string, unknown>>) {
+        if (!layer || typeof layer !== 'object') continue;
+        const label = typeof layer['altitudeLabel'] === 'string' ? layer['altitudeLabel'].toLowerCase() : '';
+        const altitude = layer['altitudeFt'];
+        if ((altitude === undefined || altitude === null) && (label === 'surface' || label === 'permukaan')) {
+          layer['altitudeFt'] = 0;
+        }
+      }
+    }
+  }
+
+  // Koordinat string → angka (semua blok coord berpola {lat,lng,dmsLat,dmsLng}).
+  const fixCoord = (container: unknown): void => {
+    if (!container || typeof container !== 'object' || Array.isArray(container)) return;
+    const record = container as Record<string, unknown>;
+    const coord = record['coord'] as Record<string, unknown> | undefined;
+    if (!coord || typeof coord !== 'object') return;
+    for (const axis of ['lat', 'lng'] as const) {
+      const value = coord[axis];
+      if (typeof value === 'string') {
+        const parsed = parseCoordinate(value, axis);
+        if (parsed !== null) {
+          coord[`dms${axis === 'lat' ? 'Lat' : 'Lng'}`] = coord[`dms${axis === 'lat' ? 'Lat' : 'Lng'}`] ?? value;
+          coord[axis] = Math.round(parsed * 1e6) / 1e6;
+        }
+      }
+    }
+  };
+  fixCoord(clone);
+  const lkp = clone['lkp'] as Record<string, unknown> | undefined;
+  if (lkp && typeof lkp === 'object') fixCoord(lkp);
+  const sarOffice = clone['sarOffice'] as Record<string, unknown> | undefined;
+  if (sarOffice && typeof sarOffice === 'object') fixCoord(sarOffice);
+  const sruList = clone['sru'];
+  if (Array.isArray(sruList)) {
+    for (const sru of sruList) fixCoord(sru);
+  }
+  return clone;
+}
 
 // ── Ekstraksi JSON dari teks model ──────────────────────────────────────────
 
@@ -363,6 +445,12 @@ export function extractJsonCandidate(text: string): JsonCandidateResult {
 
 export type FieldRowStatus = 'OK' | 'DIASUMSIKAN' | 'HILANG';
 
+/** Status klasifikasi 8-kanal Fase B (bila dihitung). */
+export type FieldStatusClass =
+  | 'EXTRACTED' | 'DERIVED' | 'REFERENCE' | 'DEFAULTED'
+  | 'PLANNER_INPUT' | 'AI_RECOMMENDED_PENDING_CONFIRMATION'
+  | 'PENDING_DEPENDENCY' | 'MISSING';
+
 export interface ExtractionFieldRow {
   /** Path JSON kasus (mis. incident.pob, sru[BASAL 142].visibilityKm). */
   field: string;
@@ -373,6 +461,17 @@ export interface ExtractionFieldRow {
   status: FieldRowStatus;
   /** Kutipan sumber di soal (bila ada dari meta.fieldSources). */
   source?: string;
+  /** Klasifikasi 8-status Fase B (bila dihitung lewat deriveExtractionFieldRows). */
+  statusClass?: FieldStatusClass;
+  /** Metadata klasifikasi (satuan, producer worksheet, dependency, raw value). */
+  meta?: {
+    rawValue?: string;
+    unit?: string;
+    worksheetProducer?: string;
+    dependency?: string;
+    referenceId?: string;
+    validationMessage?: string;
+  };
 }
 
 const WORKSHEET_OF_FIELD: Array<{ test: RegExp; worksheet: string }> = [
@@ -579,10 +678,49 @@ export function deriveExtractionFieldRows(
   }
 
   rows.delete('meta.source');
-  return [...rows.values()].sort((a, b) => {
+  // Klasifikasi 8-status Fase B per baris (deterministik): statusClass +
+  // metadata (satuan/producer/dependency/referenceId). Status legasi 3-kanal
+  // dipetakan dari statusClass agar gerbang apply tetap konsisten.
+  const missingIssueFields = new Set(completeness.issues.filter((issue) => issue.status === 'MISSING').map((issue) => issue.field));
+  const resultRows = [...rows.values()];
+  for (const row of resultRows) {
+    const isRequiredMissing = missingIssueFields.has(row.field) && row.status === 'HILANG';
+    const { status, meta } = classifyFieldStatus(row.field, row.value !== '' && !row.value.startsWith('('), isRequiredMissing);
+    row.statusClass = status;
+    row.meta = {
+      unit: unitOfFieldPath(row.field),
+      ...(meta.worksheetProducer ? { worksheetProducer: meta.worksheetProducer } : {}),
+      ...(meta.dependency ? { dependency: meta.dependency } : {}),
+      ...(meta.referenceId ? { referenceId: meta.referenceId } : {}),
+      ...(meta.source ? { validationMessage: meta.source } : {}),
+    };
+    // Status legasi: MISSING→HILANG; PLANNER_INPUT/AI_RECOMMENDED→DIASUMSIKAN
+    // (tetap perlu keputusan manusia, bukan blocker data); lainnya mengikuti.
+    if (status === 'MISSING') row.status = row.status === 'HILANG' ? 'HILANG' : 'HILANG';
+    else if (status === 'PLANNER_INPUT' || status === 'AI_RECOMMENDED_PENDING_CONFIRMATION') {
+      if (row.status === 'OK') row.status = 'DIASUMSIKAN';
+    } else if (row.status === 'DIASUMSIKAN' && status !== 'DEFAULTED') {
+      // pertahankan (asumsi model/tabsiran tetap DIASUMSIKAN)
+    }
+  }
+  return resultRows.sort((a, b) => {
     if (a.worksheet !== b.worksheet) return a.worksheet.localeCompare(b.worksheet, 'id');
     return a.field.localeCompare(b.field, 'id');
   });
+}
+
+/** Satuan untuk path field (cermin FIELD_UNITS di fieldStatus). */
+function unitOfFieldPath(field: string): string | undefined {
+  const FIELD_UNITS: Array<{ test: RegExp; unit: string }> = [
+    { test: /SpeedKts|Speed\b|vesselSpeed|tas|transitSpeed|searchSpeed|windSpeed|currentSpeed/i, unit: 'knots' },
+    { test: /Alt(itude)?Ft|flightLevelFt|selectedHeight|altitude/i, unit: 'ft' },
+    { test: /Dir(From|To)?Deg|variationDeg|deviationDeg|heading|orientation/i, unit: '°' },
+    { test: /visibilityKm/i, unit: 'km' },
+    { test: /waveHeight/i, unit: 'meter' },
+    { test: /enduranceHours|hours/i, unit: 'jam' },
+    { test: /latitude|lat\b|longitude|lng\b/i, unit: '° (desimal)' },
+  ];
+  return FIELD_UNITS.find((entry) => entry.test.test(field))?.unit;
 }
 
 // ── Merge nilai yang diisi pengguna ke kasus (pratinjau → perbaikan) ────────
@@ -934,13 +1072,15 @@ export interface CaseExtractionFailure {
 export type CaseExtractionResult = CaseExtractionSuccess | CaseExtractionFailure;
 
 /** Revalidasi Zod + susun seluruh bahan pratinjau (dipakai route & test).
- *  TIDAK pernah melempar. */
+ *  TIDAK pernah melempar. JSON dinormalisasi dulu (FASE C: glideRatio "6:1"
+ *  → 6 + raw, koordinat string → angka) sehingga data yang memang tertulis
+ *  di soal tidak ditolak hanya karena bentuk. */
 export function buildCaseExtractionResult(
   rawCase: unknown,
   planner: CasePlannerInputs = {},
   meta?: { model?: string; attempts?: number },
 ): CaseExtractionResult {
-  const parsed = sarCaseSchema.safeParse(rawCase);
+  const parsed = sarCaseSchema.safeParse(normalizeCaseJson(rawCase));
   if (!parsed.success) {
     const issues = parsed.error.issues.map((issue) =>
       `${issue.path.length > 0 ? issue.path.join('.') : '(root)'}: ${issue.message}`);
