@@ -24,6 +24,7 @@ import {
 import { formatDMS } from '@/lib/sar/coordFormat';
 import { toBasarnasTimeFormat } from '@/lib/sar/aswTime';
 import { buildChatPreviewContract, buildChatPreviewContracts, CHAT_NON_MUTATING_TOOLS, TARGET_LABELS } from '@/lib/sar/chatPreview';
+import { parseSetFieldsArgs, type SetFieldsApplied } from '@/lib/ai/tools/setFields';
 import { nextWorkflowSteps, selectiveWorkspaceContext, workflowPlanText, type ContextEntry } from '@/lib/sar/workspaceContext';
 import type { InterceptInput } from '@/lib/sar/interceptCalculations';
 import { normalizeTafCondition, type AssetAllocationCaseInput } from '@/lib/sar/assetAllocation';
@@ -95,6 +96,10 @@ interface AIChatPanelProps {
   onApplyAssetAllocation?: (data: AssetAllocationCaseInput) => void;
   onApplySearchPattern?: (data: SearchPatternPlanInitialState) => void;
   onApplyIntercept?: (data: InterceptInput) => boolean;
+  /** Fase 2 tool `set_fields`: isi beberapa field terdaftar sekaligus (keputusan
+   *  no.5). Validasi registry dilakukan di sini dengan parseSetFieldsArgs;
+   *  applier di page menulis state via setter yang sama dengan handler lain. */
+  onApplySetFields?: (applied: SetFieldsApplied) => boolean;
   onFocusWorksheet?: (worksheet: string) => void;
   isOpen?: boolean;
   onToggle?: (open: boolean) => void;
@@ -294,6 +299,7 @@ export default function AIChatPanel({
   onApplyAssetAllocation,
   onApplySearchPattern,
   onApplyIntercept,
+  onApplySetFields,
   onFocusWorksheet,
   isOpen: controlledIsOpen,
   onToggle,
@@ -349,6 +355,24 @@ export default function AIChatPanel({
       // menampilkannya (bug: hanya AWA yang terisi setelah Terapkan).
       const args = normalizeCaseToolArgs(call.name, call.args ?? {});
       switch (call.name) {
+        case 'set_fields': {
+          // Fase 2 (keputusan no.5): tool generik — validasi registry, lalu
+          // teruskan ke applier halaman (satu mekanisme update yang sama).
+          attempted = true;
+          const parsed = parseSetFieldsArgs(args);
+          if (!parsed.ok) {
+            failedWorksheets.push(`set_fields: ${parsed.errors[0] ?? 'argumen tidak valid'}`);
+            break;
+          }
+          const appliedOk = onApplySetFields?.(parsed.applied) ?? false;
+          if (appliedOk) {
+            applied = true;
+            appliedWorksheets.push(parsed.applied.worksheet);
+          } else {
+            failedWorksheets.push(parsed.applied.worksheet);
+          }
+          break;
+        }
         case 'set_asw_case': {
           const data = args as Parameters<NonNullable<typeof onApplyASW>>[0];
           attempted = true;
@@ -651,7 +675,7 @@ export default function AIChatPanel({
           : appliedWorksheets.includes('asw') ? 'asw' : '';
     if (preferredWorksheet) onFocusWorksheet?.(preferredWorksheet);
     return { applied, invalidIntercept, attempted, appliedWorksheetNames: appliedWorksheets, failedWorksheets, incompleteWorksheetNames: incompleteWorksheets, preferredWorksheet };
-  }, [onApplyASW, onApplyAWA, onApplyLKP, onApplyAeroDrift, onApplyDatum, onApplyWS2, onApplyWS3, onApplyWS4, onApplyWS8, onApplySearchPattern, onApplyIntercept, onFocusWorksheet]);
+  }, [onApplyASW, onApplyAWA, onApplyLKP, onApplyAeroDrift, onApplyDatum, onApplyWS2, onApplyWS3, onApplyWS4, onApplyWS8, onApplySearchPattern, onApplyIntercept, onApplySetFields, onFocusWorksheet]);
 
   // Load session ID & chat history from localStorage
   useEffect(() => {

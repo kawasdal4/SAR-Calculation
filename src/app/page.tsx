@@ -98,6 +98,7 @@ import AdwUpsSheet from '@/components/sar/AdwUpsSheet';
 import { PrintScopeController } from '@/components/sar/SheetPrintMenu';
 import AeronauticalDriftWorksheet from '@/components/sar/AeronauticalDriftWorksheet';
 import type { AeroDriftResult } from '@/lib/sar/aeroDriftCalculations';
+import type { SetFieldsApplied } from '@/lib/ai/tools/setFields';
 import InterceptWorksheet from '@/components/sar/InterceptWorksheet';
 import type { InterceptInput } from '@/lib/sar/interceptCalculations';
 import Worksheet1 from '@/components/sar/worksheets/Worksheet1';
@@ -1377,6 +1378,125 @@ export default function Home() {
     toast.success('Data kasus otomatis dimasukkan ke worksheet Intercept.');
     return true;
   }, []);
+
+  // === Fase 2: tool `set_fields` (keputusan no.5) ============================
+  // Isi beberapa field TERDAFTAR sekaligus. Satu mekanisme update: merge lewat
+  // setter state yang SAMA dengan handler apply AI lain (tidak ada jalur kedua).
+  // Validasi nama field/tipe/enum sudah dilakukan parseSetFieldsArgs di client
+  // (registry src/lib/ai/tools/setFields.ts); di sini cukup merge + guard tipis.
+  const handleApplySetFields = useCallback((applied: SetFieldsApplied): boolean => {
+    const { worksheet, sruName, values } = applied;
+    if (!values || Object.keys(values).length === 0) return false;
+    const count = Object.keys(values).length;
+    switch (worksheet) {
+      case 'asw': {
+        setLoadedInitialState((prev) => ({ ...prev, asw: { ...(prev?.asw ?? {}), ...values } }));
+        setAswState((prev) => ({ ...prev, ...values } as typeof prev));
+        break;
+      }
+      case 'awa': {
+        setLoadedInitialState((prev) => ({ ...prev, awa: { ...(prev?.awa ?? {}), ...values } }));
+        if (Array.isArray(values['observations'])) setAwaObservations(values['observations'] as AWAObservation[]);
+        if (typeof values['distressAltFt'] === 'number' || typeof values['forecastSource'] === 'string' || typeof values['forecastValidTime'] === 'string') {
+          setAwaContext((prev) => ({
+            distressAltFt: typeof values['distressAltFt'] === 'number' ? values['distressAltFt'] as number : prev.distressAltFt,
+            forecastSource: typeof values['forecastSource'] === 'string' ? values['forecastSource'] as string : prev.forecastSource,
+            forecastValidTime: typeof values['forecastValidTime'] === 'string' ? values['forecastValidTime'] as string : prev.forecastValidTime,
+          }));
+        }
+        break;
+      }
+      case 'aero': {
+        setAeroDraft((prev) => ({ ...(prev ?? {}), ...values } as AeroDriftInitialState));
+        setLoadedInitialState((prev) => ({ ...prev, aero: { ...(prev?.aero ?? {}), ...values } } as typeof prev));
+        const pos = values['incidentPos'] as { lat?: number; lng?: number } | undefined;
+        if (pos && Number.isFinite(pos.lat) && Number.isFinite(pos.lng)) {
+          setLkp({ lat: pos.lat as number, lng: pos.lng as number });
+          setIsLkpSet(true);
+        }
+        break;
+      }
+      case 'datum': {
+        setDatumState((prev) => ({ ...(prev ?? {}), ...values } as DatumInitialState));
+        setLoadedInitialState((prev) => ({ ...prev, datum: { ...(prev?.datum ?? {}), ...values } } as typeof prev));
+        break;
+      }
+      case 'ws2':
+      case 'ws3':
+      case 'ws8': {
+        const setter = worksheet === 'ws2' ? setWs2Sheets : worksheet === 'ws3' ? setWs3Sheets : setWs8Sheets;
+        setter((prev) => {
+          if (prev.length === 0) return prev;
+          const needle = (sruName ?? (typeof values['sruName'] === 'string' ? values['sruName'] as string : '')).toLowerCase();
+          const idx = needle
+            ? prev.findIndex((sheet) => sheet.label.trim().toLowerCase() === needle
+              || (typeof sheet.data.sruName === 'string' && sheet.data.sruName.toLowerCase() === needle))
+            : 0;
+          const target = idx >= 0 ? idx : 0;
+          return prev.map((sheet, i) => i === target ? { ...sheet, data: { ...sheet.data, ...values } } : sheet);
+        });
+        break;
+      }
+      case 'ws4': {
+        setWs4State((prev) => ({ ...(prev ?? {}), ...values } as Worksheet4InitialState));
+        break;
+      }
+      case 'assets': {
+        setAssets((prev) => {
+          const name = (sruName ?? (typeof values['name'] === 'string' ? values['name'] as string : '')).toLowerCase();
+          if (!name) return prev;
+          return prev.map((asset) => asset.name.toLowerCase() === name.toLowerCase() ? { ...asset, ...values } : asset);
+        });
+        break;
+      }
+      case 'pattern': {
+        for (const [key, value] of Object.entries(values)) {
+          if (key === 'patternType' && typeof value === 'string') setPatternType(value as SearchPatternType);
+          else if (key === 'patternTurn' && (value === 'right' || value === 'left')) setPatternTurn(value);
+          else if (key === 'tsReturn' && typeof value === 'boolean') setTsReturn(value);
+          else if (key === 'patternLandHeight' && typeof value === 'number') setPatternLandHeight(value);
+          else if (key === 'patternOrientationText' && typeof value === 'string') setPatternOrientationText(value);
+          else if (key === 'patternEnvironment' && (value === 'water' || value === 'land')) setPatternEnvironment(value);
+          else if (key === 'sectorAngleText' && typeof value === 'string') setSectorAngleText(value);
+          else if (key === 'sectorLegLengthText' && typeof value === 'string') setSectorLegLengthText(value);
+          else if (key === 'sectorLegCountText' && typeof value === 'string') setSectorLegCountText(value);
+          else if (key === 'trackLineLengthText' && typeof value === 'string') setTrackLineLengthText(value);
+          else if (key === 'tsReturnOffsetText' && typeof value === 'string') setTsReturnOffsetText(value);
+        }
+        break;
+      }
+      case 'intercept': {
+        setInterceptState((prev) => {
+          const merged = { ...(prev ?? {}), ...values } as InterceptInput;
+          return merged.target && merged.sru ? merged : prev;
+        });
+        setAiInterceptInput(null);
+        break;
+      }
+      case 'lkp': {
+        const lat = typeof values['lat'] === 'number' ? values['lat'] as number : Number.NaN;
+        const lng = typeof values['lng'] === 'number' ? values['lng'] as number : Number.NaN;
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
+        setLkp({ lat, lng });
+        setIsLkpSet(true);
+        break;
+      }
+      case 'briefing': {
+        setBriefingState((prev) => ({ ...(prev ?? {}), ...values } as Record<string, string>));
+        break;
+      }
+      case 'renops': {
+        setRenopsState((prev) => ({ ...(prev ?? {}), ...values } as Record<string, string>));
+        break;
+      }
+      default:
+        return false;
+    }
+    setCaseVersion((v) => v + 1);
+    toast.success(`AI mengisi ${count} field pada ${worksheet.toUpperCase()}${sruName ? ` (${sruName})` : ''}.`);
+    return true;
+  }, []);
+
 
   useEffect(() => {
     if (datumState?.driftInterval) {
@@ -3410,6 +3530,7 @@ export default function Home() {
         onApplyAssetAllocation={handleApplyAssetAllocation}
         onApplySearchPattern={handleApplySearchPattern}
         onApplyIntercept={handleApplyIntercept}
+        onApplySetFields={handleApplySetFields}
         onFocusWorksheet={(worksheet) => setActiveTab(worksheet === 'datum' ? 'ws1' : worksheet)}
         activeWorkspace={activeSarCase}
         workspaceEntries={wsContextEntries}

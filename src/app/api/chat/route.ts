@@ -22,6 +22,7 @@ import { callGeminiInteraction, isInteractionExpiredError, type InteractionUsage
 import { processUploadedFile } from '@/lib/sar/fileExtractor';
 import type { DataBankField, RawQuestion } from '@/lib/sar/dataBank';
 import { buildChainCompletionInstruction, computeMissingWorksheetTools, matchWorksheetToolNames, parseDeclaredWorksheetTools, type WorksheetToolName } from '@/lib/sar/caseChain';
+import { setFieldsToolDescription, setFieldsToolParameters } from '@/lib/ai/tools/setFields';
 
 const SYSTEM_PROMPT = `Kamu adalah Asisten SAR Planner AI untuk Badan SAR Nasional (Basarnas) Indonesia.
 Kamu membantu dalam perhitungan dan analisis operasi SAR berdasarkan panduan operasi SAR dan Peraturan No. 3 Tahun 2020.
@@ -720,6 +721,15 @@ const tools: FunctionDeclaration[] = [
       required: ['lat', 'lng'],
     },
   },
+  // Fase 2 (keputusan no.5): tool generik set_fields — isi beberapa field
+  // worksheet sekaligus; HANYA field terdaftar di registry
+  // (src/lib/ai/tools/setFields.ts). Validasi tipe/satuan/enum di client
+  // memakai parseSetFieldsArgs yang sama dengan server (satu sumber aturan).
+  {
+    name: 'set_fields',
+    description: setFieldsToolDescription(),
+    parameters: setFieldsToolParameters() as FunctionDeclaration['parameters'],
+  },
 ];
 
 // Rantai fallback default (Nov 2026): urutan menurut ketersediaan kuota Free
@@ -756,7 +766,7 @@ const GEMINI_REQUEST_TIMEOUT_MS = Number.isFinite(envTimeoutMs) && envTimeoutMs 
 // compute Vercel Hobby/Pro (default & maksimum 300s). Override: env GEMINI_TOTAL_BUDGET_MS (min 15s).
 const envBudgetMs = Number(process.env.GEMINI_TOTAL_BUDGET_MS);
 const GEMINI_TOTAL_BUDGET_MS = Number.isFinite(envBudgetMs) && envBudgetMs >= 15_000 ? envBudgetMs : 260_000;
-const WORKSHEET_TOOL_NAMES = ['set_asw_case', 'set_awa_case', 'set_aero_drift_case', 'set_lkp', 'set_datum_case', 'set_ws2_case', 'set_ws3_case', 'set_ws4_case', 'set_ws8_case', 'set_asset_allocation_case', 'set_search_pattern_case', 'set_intercept_case', 'ask_for_case_data'];
+const WORKSHEET_TOOL_NAMES = ['set_asw_case', 'set_awa_case', 'set_aero_drift_case', 'set_lkp', 'set_datum_case', 'set_ws2_case', 'set_ws3_case', 'set_ws4_case', 'set_ws8_case', 'set_asset_allocation_case', 'set_search_pattern_case', 'set_intercept_case', 'set_fields', 'ask_for_case_data'];
 
 // Penemuan model dinamis: models.list memuat model yang bisa dilihat kunci —
 // sinyal kandidat saja (troubleshooting resmi: tidak menjamin inferensi aktif).

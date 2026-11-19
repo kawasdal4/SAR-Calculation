@@ -109,6 +109,21 @@ export function buildChatPreviewContract(call: ChatToolCall): MapPreviewContract
   if (call.name === 'set_aero_drift_case') {
     warnings.push('Rantai vektor ADW akan dirender ulang di UPS Plotter (lihat kontrak map-ups-plot).');
   }
+  // Fase 2: tool generik set_fields — ringkas worksheet target + jumlah field.
+  if (call.name === 'set_fields') {
+    const worksheetRaw = (call.args as { worksheet?: unknown }).worksheet;
+    const rawFields = (call.args as { fields?: unknown }).fields;
+    const fieldCount = Array.isArray(rawFields) ? rawFields.length : nFields;
+    return {
+      operation: 'set-fields',
+      summary: `Mengisi ${fieldCount} field pada ${typeof worksheetRaw === 'string' ? worksheetRaw.toUpperCase() : 'worksheet'} (hanya field terdaftar) dengan data AI.`,
+      target: 'state',
+      features: [],
+      requiresUserConfirmation: true,
+      reversible: true,
+      warnings: ['Hanya field terdaftar yang diubah; tipe/angka/enum divalidasi sebelum diterapkan.'],
+    };
+  }
   return {
     operation: capabilityId ?? call.name,
     summary: `Mengisi ${label} dengan data ekstraksi AI (${nFields} field).`,

@@ -84,7 +84,7 @@ implementasi; setiap fase wajib mematuhi daftar ini. Laporan eksplorasi:
 |---|---|---|
 | 0 | Eksplorasi + laporan + keputusan | SELESAI (laporan disetujui) |
 | 1 | `CaseSchema` + adapter + pipeline headless + fixture PK-TAL + test regresi (aditif) | SELESAI — `caseSchema.ts`, `caseAdapter.ts`, `casePipeline.ts`, `referenceTables.ts`, `tests/golden/pk-tal.case.json`, 48 test baru (bun test 408 lulus, lint bersih, build sukses) |
-| 2 | SDK `@google/genai` + env key + tool layer (`get_state`, `set_fields`, `run_worksheet`, `run_pipeline`, `lookup_table`, `validate_plan`, `undo`) + `CaseChangeLog`/`AiSessionLog` + riwayat interaction | MENUNGGU |
+| 2 | SDK `@google/genai` + env key + tool layer (`get_state`, `set_fields`, `run_worksheet`, `run_pipeline`, `lookup_table`, `validate_plan`, `undo`) + `CaseChangeLog`/`AiSessionLog` + riwayat interaction | BERJALAN — langkah 1-2-3 selesai: model Prisma (3 model), SDK `@google/genai` 3.6.1 + key env-only + AiSessionLog + `previous_interaction_id` (fallback rebuild), tool `set_fields` lengkap (registry + validasi + applier satu mekanisme); sisa: tool server-side (get_state/lookup_table/run_pipeline/validate_plan) + CaseChangeLog/undo/badge |
 | 3 | `parse_case` + panel pratinjau per-field + auto-fill + validator | MENUNGGU |
 | 4 | fill_form Rencops/Briefing/De-briefing + POD kumulatif | MENUNGGU |
 | 5a | Bank lokasi + katalog aset + generator parameter + template naskah + completeness check | MENUNGGU |
