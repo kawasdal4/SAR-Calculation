@@ -23,6 +23,9 @@ import type { AWAInitialState } from './AWAWorksheet';
 import type { ASWInitialState } from './ASWWorksheet';
 import type { AeroDriftInitialState } from './AeronauticalDriftWorksheet';
 import type { Ws1Measured } from './worksheets/Worksheet1';
+import type { Worksheet2InitialState } from './worksheets/Worksheet2';
+import type { Worksheet3InitialState } from './worksheets/Worksheet3';
+import type { Worksheet8InitialState } from './worksheets/Worksheet8';
 
 interface AllWorksheetsViewProps {
   lkp: LatLng;
@@ -50,6 +53,12 @@ interface AllWorksheetsViewProps {
   awaState?: AWAInitialState | null;
   aswState?: ASWInitialState | null;
   aeroState?: AeroDriftInitialState | null;
+  /** Data lembar aktif WS 2/3/8 (sistem 1 SRU = 1 lembar) — salinan read-only
+   *  di summary menampilkan isi yang sama dengan tab aslinya. Tanpa ini,
+   *  hasil apply AI hanya terlihat di AWA/ASW/ADW sedangkan WS 2/3/8 kosong. */
+  ws2Initial?: Worksheet2InitialState | null;
+  ws3Initial?: Worksheet3InitialState | null;
+  ws8Initial?: Worksheet8InitialState | null;
   /** true bila ADW sudah menghasilkan LKP (worksheet terpakai). */
   aeroHasResults?: boolean;
   /** Mirror pengukuran peta WS1 (drift error %, jarak terukur) — dipakai
@@ -81,6 +90,9 @@ export default function AllWorksheetsView({
   awaState = null,
   aswState = null,
   aeroState = null,
+  ws2Initial = null,
+  ws3Initial = null,
+  ws8Initial = null,
   aeroHasResults = false,
   ws1Measured = null,
   className = '',
@@ -135,10 +147,10 @@ export default function AllWorksheetsView({
     'sec-aero': aeroHasResults,
     'sec-asw': (aswState?.observations?.length ?? 0) > 0,
     'sec-ws1': datumData != null,
-    'sec-ws2': datumData != null && ws1Ao > 0,
-    'sec-ws8': ws1Ao > 0,
+    'sec-ws2': (datumData != null && ws1Ao > 0) || ws2Initial != null,
+    'sec-ws8': ws1Ao > 0 || ws8Initial != null,
     'sec-assets': assets.length > 0,
-    'sec-ws3': searchResults != null,
+    'sec-ws3': searchResults != null || ws3Initial != null,
     'sec-ws4': searchResults != null,
     'sec-intercept': interceptHasData,
     'sec-briefing': datumResults != null || searchResults != null,
@@ -301,6 +313,7 @@ export default function AllWorksheetsView({
             aswDirFrom={aswDirFrom}
             aswSpeedKts={aswSpeed}
             ws1Ao={ws1Ao}
+            initialState={ws2Initial ?? undefined}
             readOnly
           />
         </section>
@@ -320,6 +333,7 @@ export default function AllWorksheetsView({
             windKts={aswSpeed || (datumData?.aswSpeed ?? 0)}
             initialC={searchResults?.C ?? 0}
             initialPod={searchResults?.POD ?? 0}
+            initialState={ws8Initial ?? undefined}
             readOnly
           />
         </section>
@@ -353,6 +367,7 @@ export default function AllWorksheetsView({
           <Worksheet3
             searchResults={searchResults}
             E={datumResults?.E ?? 5.0}
+            initialState={ws3Initial ?? undefined}
             readOnly
           />
         </section>

@@ -327,12 +327,16 @@ export default function AIChatPanel({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const applyFunctionCalls = useCallback((calls: ChatMessage['functionCalls']) => {
-    if (!calls?.length) return { applied: false, invalidIntercept: false, attempted: false, appliedWorksheetNames: [] as string[], failedWorksheets: [] as string[], preferredWorksheet: '' };
+    if (!calls?.length) return { applied: false, invalidIntercept: false, attempted: false, appliedWorksheetNames: [] as string[], failedWorksheets: [] as string[], incompleteWorksheetNames: [] as string[], preferredWorksheet: '' };
     let applied = false;
     let invalidIntercept = false;
     let attempted = false;
     const appliedWorksheets: string[] = [];
     const failedWorksheets: string[] = [];
+    // Worksheet yang diterapkan dengan data parsial (pilihan planner belum lengkap
+    // — visibilitas/kelelahan/TAS/safety factor). Dilaporkan ke pengguna agar
+    // tahu field apa yang harus dilengkapi manual di worksheet.
+    const incompleteWorksheets: string[] = [];
     for (const call of calls) {
       // Normalisasi argumen SEBELUM gate validasi: angka-string ("140"),
       // varian enum ("Fixed Wing", "no", "20 km"), dan teks target bebas
@@ -448,16 +452,22 @@ export default function AIChatPanel({
         case 'set_ws2_case': {
           const data = args as Worksheet2InitialState;
           attempted = true;
-          if (['fixed-wing', 'helicopter'].includes(data.searchPlatform ?? '')
-            && Number.isFinite(data.searchTas) && (data.searchTas ?? 0) > 0
-            && Number.isInteger(data.visibilityIndex) && (data.visibilityIndex ?? -1) >= 0 && (data.visibilityIndex ?? 6) <= 5
-            && ['Yes', 'No'].includes(data.isFatigue ?? '')
-            && (data.searchNumber === undefined || [1, 2, 3, 4, 5].includes(data.searchNumber))
-            && [500, 1000, 1500, 2000].includes(data.selectedHeight ?? 0)
-            && W2_TARGET_OPTIONS.some((target) => target.id === data.searchObject)) {
+          // Gate DUA TINGKAT: platform + objek = fakta inti (wajib); TAS,
+          // visibilitas, kelelahan = pilihan planner (boleh menyusul — lembar
+          // tetap terisi parsial dan planner melengkapinya manual). Sebelumnya
+          // SEMUA field wajib → soal tanpa visibilitas/fatigue menolak seluruh
+          // WS 2 padahal pratinjau menampilkannya (hanya AWA yang terisi).
+          const coreOk = ['fixed-wing', 'helicopter'].includes(data.searchPlatform ?? '')
+            && W2_TARGET_OPTIONS.some((target) => target.id === data.searchObject);
+          const missing: string[] = [];
+          if (!(Number.isFinite(data.searchTas) && (data.searchTas ?? 0) > 0)) missing.push('TAS pencarian');
+          if (!(Number.isInteger(data.visibilityIndex) && (data.visibilityIndex ?? -1) >= 0 && (data.visibilityIndex ?? 6) <= 5)) missing.push('visibilitas');
+          if (!['Yes', 'No'].includes(data.isFatigue ?? '')) missing.push('kelelahan (fatigue)');
+          if (coreOk) {
             onApplyWS2?.(data);
             applied = true;
             appliedWorksheets.push('ws2');
+            if (missing.length > 0) incompleteWorksheets.push(`WS 2 — lengkapi: ${missing.join(', ')}`);
           } else {
             failedWorksheets.push('WS 2');
           }
@@ -466,18 +476,19 @@ export default function AIChatPanel({
         case 'set_ws3_case': {
           const data = args as Worksheet3InitialState;
           attempted = true;
-          if (['person', 'vehicle', 'aircraft-under-5700', 'aircraft-over-5700'].includes(data.searchObject ?? '')
-            && [5, 10, 20, 30, 40].includes(data.visibilityKm ?? 0)
-            && ['under-15', '15-60', '60-85', 'over-85'].includes(data.vegetationType ?? '')
-            && typeof data.isFatigue === 'boolean'
-            && ['fixed-wing', 'helicopter'].includes(data.searchPlatform ?? '')
-            && [1, 2, 3, 4, 5].includes(data.searchNumber ?? 0)
-            && (data.searchSpeedKts === undefined || (Number.isFinite(data.searchSpeedKts) && data.searchSpeedKts >= 0))
-            && (data.searchTas === undefined || (Number.isFinite(data.searchTas) && data.searchTas >= 0))
-            && (data.searchAreaNm2 === undefined || (Number.isFinite(data.searchAreaNm2) && data.searchAreaNm2 >= 0))) {
+          // Gate dua tingkat (lihat WS 2): objek = fakta inti; visibilitas,
+          // vegetasi, fatigue, platform = pilihan planner yang boleh menyusul.
+          const coreOk = ['person', 'vehicle', 'aircraft-under-5700', 'aircraft-over-5700'].includes(data.searchObject ?? '');
+          const missing: string[] = [];
+          if (![5, 10, 20, 30, 40].includes(data.visibilityKm ?? 0)) missing.push('visibilitas (km)');
+          if (!['under-15', '15-60', '60-85', 'over-85'].includes(data.vegetationType ?? '')) missing.push('vegetasi');
+          if (typeof data.isFatigue !== 'boolean') missing.push('kelelahan (fatigue)');
+          if (!['fixed-wing', 'helicopter'].includes(data.searchPlatform ?? '')) missing.push('platform pencarian');
+          if (coreOk) {
             onApplyWS3?.(data);
             applied = true;
             appliedWorksheets.push('ws3');
+            if (missing.length > 0) incompleteWorksheets.push(`WS 3 — lengkapi: ${missing.join(', ')}`);
           } else {
             failedWorksheets.push('WS 3 (Land)');
           }
@@ -500,13 +511,20 @@ export default function AIChatPanel({
           const validWaypoints = data.routePoints === undefined || (Array.isArray(data.routePoints) && data.routePoints.length === 4 && data.routePoints.every((point) => point !== null && typeof point === 'object' && typeof point.name === 'string'
             && Number.isFinite(point.lat) && Math.abs(point.lat) <= 90 && Number.isFinite(point.lng) && Math.abs(point.lng) <= 180
             && typeof point.active === 'boolean'));
-          if ((validStart && (validLegs || validWaypoints) || validLegacyTr)
-            && validTargetNav && validFixErrors && validWaypoints
-            && Number.isFinite(data.yNavError) && (data.yNavError ?? -1) >= 0
-            && validFactors.includes(data.safetyFactor ?? 0)) {
+          // Gate dua tingkat (lihat WS 2): data rute/TR + y = fakta inti; tipe
+          // navigasi, safety factor, fix error dasar boleh menyusul (default
+          // planner: circle 1.1 diisi normalizer).
+          const routeOk = (validStart && (validLegs || validWaypoints)) || validLegacyTr;
+          const coreOk = routeOk && Number.isFinite(data.yNavError) && (data.yNavError ?? -1) >= 0;
+          const missing: string[] = [];
+          if (!validTargetNav) missing.push('tipe navigasi target');
+          if (!validFactors.includes(data.safetyFactor ?? 0)) missing.push('safety factor');
+          if (requiresBaseErrors && !validFixErrors) missing.push('fix error dasar (custom)');
+          if (coreOk && validFixErrors) {
             onApplyWS4?.(data);
             applied = true;
             appliedWorksheets.push('ws4');
+            if (missing.length > 0) incompleteWorksheets.push(`WS 4 — lengkapi: ${missing.join(', ')}`);
           } else {
             failedWorksheets.push('WS 4');
           }
@@ -518,16 +536,20 @@ export default function AIChatPanel({
           const validVisibility = data.eyeHeight === 'MERSHIP'
             ? ['5', '10', '20', '30', '40'].includes(data.visibilityKm ?? '')
             : ['2', '5', '10', '15', '20', '>25'].includes(data.visibilityKm ?? '');
-          if (['rescue-vessel', 'patrol-boat', 'rib', 'sea-rider'].includes(data.sruType ?? '')
+          // Gate dua tingkat (lihat WS 2): jenis SRU + eye height + objek = inti;
+          // visibilitas/kelelahan/kecepatan = pilihan planner yang boleh menyusul.
+          const coreOk = ['rescue-vessel', 'patrol-boat', 'rib', 'sea-rider'].includes(data.sruType ?? '')
             && ['8', '14', 'MERSHIP'].includes(data.eyeHeight ?? '')
-            && validVisibility
-            && ['Yes', 'No'].includes(data.isFatigue ?? '')
-            && (data.searchNumber === undefined || [1, 2, 3, 4, 5].includes(data.searchNumber))
-            && (data.vesselSpeedKts === undefined || (Number.isFinite(data.vesselSpeedKts) && data.vesselSpeedKts >= 0))
-            && W8_TARGET_OPTIONS.some((target) => target.id === data.searchObject)) {
+            && W8_TARGET_OPTIONS.some((target) => target.id === data.searchObject);
+          const missing: string[] = [];
+          if (!validVisibility) missing.push('visibilitas (km)');
+          if (!['Yes', 'No'].includes(data.isFatigue ?? '')) missing.push('kelelahan (fatigue)');
+          if (!(data.vesselSpeedKts === undefined || (Number.isFinite(data.vesselSpeedKts) && data.vesselSpeedKts >= 0))) missing.push('kecepatan kapal');
+          if (coreOk) {
             onApplyWS8?.(data);
             applied = true;
             appliedWorksheets.push('ws8');
+            if (missing.length > 0) incompleteWorksheets.push(`WS 8 — lengkapi: ${missing.join(', ')}`);
           } else {
             failedWorksheets.push('WS 8');
           }
@@ -624,7 +646,7 @@ export default function AIChatPanel({
         : appliedWorksheets.includes('awa') ? 'awa'
           : appliedWorksheets.includes('asw') ? 'asw' : '';
     if (preferredWorksheet) onFocusWorksheet?.(preferredWorksheet);
-    return { applied, invalidIntercept, attempted, appliedWorksheetNames: appliedWorksheets, failedWorksheets, preferredWorksheet };
+    return { applied, invalidIntercept, attempted, appliedWorksheetNames: appliedWorksheets, failedWorksheets, incompleteWorksheetNames: incompleteWorksheets, preferredWorksheet };
   }, [onApplyASW, onApplyAWA, onApplyLKP, onApplyAeroDrift, onApplyDatum, onApplyWS2, onApplyWS3, onApplyWS4, onApplyWS8, onApplySearchPattern, onApplyIntercept, onFocusWorksheet]);
 
   // Load API key and chat history from localStorage
@@ -907,8 +929,12 @@ export default function AIChatPanel({
     (msg: ChatMessage, idx: number) => {
       if (!msg.functionCalls) return;
       const result = applyFunctionCalls(msg.functionCalls);
+      const incomplete = result.incompleteWorksheetNames ?? [];
+      const partialNote = incomplete.length > 0
+        ? `\n\n✍️ Diterapkan dengan data parsial — lengkapi pilihan planner berikut langsung di worksheet: ${incomplete.join('; ')}.`
+        : '';
       if (result.applied && result.failedWorksheets.length === 0) {
-        setMessages((prev) => prev.map((m, i) => (i === idx ? { ...m, applied: true } : m)));
+        setMessages((prev) => prev.map((m, i) => (i === idx ? { ...m, applied: true, content: partialNote ? m.content + partialNote : m.content } : m)));
         // SAR Workflow Memory: konfirmasi pengguna = keputusan tercatat di konteks.
         onLogConversation?.(
           'approved-action',
@@ -921,7 +947,7 @@ export default function AIChatPanel({
       // pengguna bisa mengulang setelah data dilengkapi.
       let note: string;
       if (result.applied) {
-        note = `\n\n⚠️ Sebagian diterapkan (${result.appliedWorksheetNames.join(', ')}). GAGAL diterapkan: ${result.failedWorksheets.join(', ')} — ada nilai wajib yang kurang atau tidak valid. Lengkapi datanya, lalu minta asisten mengekstrak ulang atau konfirmasi lagi.`;
+        note = `\n\n⚠️ Sebagian diterapkan (${result.appliedWorksheetNames.join(', ')}).${partialNote} GAGAL diterapkan: ${result.failedWorksheets.join(', ')} — ada nilai wajib inti yang kurang atau tidak valid. Lengkapi datanya, lalu minta asisten mengekstrak ulang atau konfirmasi lagi.`;
       } else if (result.invalidIntercept) {
         note = '\n\n⚠️ Data Intercept belum lengkap: posisi target dan SRU/pangkalan, kecepatan keduanya, serta haluan target wajib diisi sebelum data bisa diterapkan.';
       } else {

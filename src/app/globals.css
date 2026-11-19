@@ -788,7 +788,9 @@
 }
 
 .ref-cell-blink {
-  animation: ref-cell-blink 1.1s ease-in-out infinite;
+  /* Berkedip 3x (±3,3 detik) lalu BERHENTI dan menetap sebagai sorotan kuning —
+     bukan kedip tanpa henti; nilai worksheet tetap bisa dibaca dan diubah. */
+  animation: ref-cell-blink 1.1s ease-in-out 3 forwards;
   font-weight: 800;
 }
 

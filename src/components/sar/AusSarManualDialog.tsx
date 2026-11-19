@@ -126,6 +126,9 @@ interface AusSarManualDialogProps {
 export default function AusSarManualDialog({ open, onOpenChange, initialDocId, initialRef }: AusSarManualDialogProps) {
   const [selectedDocId, setSelectedDocId] = useState<string>('combined');
   const [overrideInput, setOverrideInput] = useState<string>('');
+  // Nilai yang baru diterapkan ke worksheet (dari klik sel tabel / tombol
+  // Terapkan) — badge umpan balik bahwa nilai bisa terus diubah.
+  const [appliedValue, setAppliedValue] = useState<string | null>(null);
   const [panelHidden, setPanelHidden] = useState(false);
   // Rujukan dari worksheet (mis. tombol "Lihat Table I-1/I-2" Worksheet 1):
   // saat dialog dibuka dengan initialDocId yang dikenal, langsung tampilkan
@@ -140,6 +143,7 @@ export default function AusSarManualDialog({ open, onOpenChange, initialDocId, i
   useEffect(() => {
     if (open && initialRef) {
       setOverrideInput(initialRef.currentValue !== null ? String(initialRef.currentValue) : '');
+      setAppliedValue(null);
       setPanelHidden(false);
     }
   }, [open, initialRef]);
@@ -173,6 +177,21 @@ export default function AusSarManualDialog({ open, onOpenChange, initialDocId, i
     const parsed = Number(overrideInput.replace(',', '.'));
     if (!Number.isFinite(parsed)) return;
     activeRef.applyOverride(parsed);
+    setAppliedValue(overrideInput.replace(',', '.'));
+  };
+
+  /** Klik sel nilai pada tabel rujukan → nilai LANGSUNG dipakai worksheet.
+   *  Nilai di worksheet tetap bisa diubah (input override, klik sel lain,
+   *  atau Reset kembali ke nilai tabel asli). */
+  const handleApplyCell = (raw: unknown) => {
+    if (!activeRef?.allowOverride || !activeRef?.applyOverride) return;
+    const text = String(raw ?? '').trim();
+    if (!text || text === '—') return;
+    const parsed = Number(text.replace(',', '.'));
+    if (!Number.isFinite(parsed)) return;
+    activeRef.applyOverride(parsed);
+    setOverrideInput(String(parsed));
+    setAppliedValue(text);
   };
 
   return (
@@ -310,13 +329,20 @@ export default function AusSarManualDialog({ open, onOpenChange, initialDocId, i
                             )}
                             {row.cells.map((cell, ci) => {
                               const isSelected = ri === rowIndex && ci === colIndex;
+                              const cellText = String(cell ?? '').trim();
+                              const cellNum = Number(cellText.replace(',', '.'));
+                              const clickable = activeRef.allowOverride && !!activeRef.applyOverride
+                                && cellText !== '' && cellText !== '—' && Number.isFinite(cellNum);
                               return (
                                 <td
                                   key={`${row.key}-${def.colKeys[ci]}`}
+                                  onClick={clickable ? () => handleApplyCell(cellText) : undefined}
+                                  title={clickable ? `Klik untuk pakai nilai ${cellText} di worksheet — tetap bisa diubah` : undefined}
                                   className={cn(
                                     'border border-slate-300 px-2 py-1 text-center font-mono',
-                                    // Blinking HANYA pada nilai yang dipilih pada tabel rujukan —
-                                    // tidak ada efek berkedip pada nilai di worksheet.
+                                    clickable && 'cursor-pointer hover:bg-amber-100 transition-colors',
+                                    // Blinking HANYA pada sel tabel rujukan — animasi 3x
+                                    // lalu berhenti (menetap sebagai sorotan kuning).
                                     isSelected && 'ref-cell-blink',
                                   )}
                                 >
@@ -345,6 +371,12 @@ export default function AusSarManualDialog({ open, onOpenChange, initialDocId, i
                       </span>
                     )}
 
+                    {appliedValue && (
+                      <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-300 rounded px-1.5 py-0.5">
+                        ✓ diterapkan: <span className="font-mono">{appliedValue}</span> — tetap bisa diubah
+                      </span>
+                    )}
+
                     {activeRef.allowOverride && activeRef.applyOverride && (
                       <span className="flex items-center gap-1.5 ml-auto">
                         <PencilLine className="h-3.5 w-3.5 text-amber-700" />
@@ -367,6 +399,7 @@ export default function AusSarManualDialog({ open, onOpenChange, initialDocId, i
                           type="button"
                           onClick={() => {
                             setOverrideInput('');
+                            setAppliedValue(null);
                             activeRef.applyOverride?.(0);
                           }}
                           title="Kembalikan ke nilai tabel appendix"
@@ -379,7 +412,7 @@ export default function AusSarManualDialog({ open, onOpenChange, initialDocId, i
                   </div>
                   {activeRef.allowOverride && (
                     <div className="text-[10px] text-slate-500">
-                      Ubah nilai di atas lalu klik Terapkan — worksheet dan bagian terkait (W, S, C, POD, T) otomatis dihitung ulang. Reset mengembalikan nilai asli tabel.
+                      Klik langsung nilai pada tabel di atas untuk memakainya, atau ubah angka lalu klik Terapkan — worksheet dan bagian terkait (W, S, C, POD, T) otomatis dihitung ulang. Nilai hasil klik tetap bisa diubah kapan saja. Reset mengembalikan nilai asli tabel.
                     </div>
                   )}
                   {!activeRef.allowOverride && (

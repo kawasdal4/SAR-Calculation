@@ -650,6 +650,7 @@ export function normalizeCaseToolArgs(toolName: string, rawArgs: Args | undefine
       }
       const safety = coerceNumber(args.safetyFactor);
       if (safety !== undefined) args.safetyFactor = snapTo(safety, WS4_SAFETY_FACTORS);
+      else if (args.safetyFactor === undefined) args.safetyFactor = 1.1; // default planner: pencarian pertama (circle 1.1)
       const legs = coerceNumberArray(args.routeLegDistancesNm);
       if (legs) args.routeLegDistancesNm = legs;
       const trList = coerceNumberArray(args.trList);

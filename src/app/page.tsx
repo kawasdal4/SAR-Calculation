@@ -1444,6 +1444,11 @@ export default function Home() {
   const shownWs2Key = ws2Sheets.some((sheet) => sheet.key === activeWs2Key) ? activeWs2Key : ws2Sheets[0]?.key ?? '';
   const shownWs3Key = ws3Sheets.some((sheet) => sheet.key === activeWs3Key) ? activeWs3Key : ws3Sheets[0]?.key ?? '';
   const shownWs8Key = ws8Sheets.some((sheet) => sheet.key === activeWs8Key) ? activeWs8Key : ws8Sheets[0]?.key ?? '';
+  // Data lembar aktif WS 2/3/8 untuk salinan read-only di AllWorksheetsView
+  // (tab default) — agar hasil apply AI terlihat sama dengan tab aslinya.
+  const activeWs2Data = ws2Sheets.find((sheet) => sheet.key === shownWs2Key)?.data ?? null;
+  const activeWs3Data = ws3Sheets.find((sheet) => sheet.key === shownWs3Key)?.data ?? null;
+  const activeWs8Data = ws8Sheets.find((sheet) => sheet.key === shownWs8Key)?.data ?? null;
   // === Resolusi lembar per-SRU untuk tab Search Pattern ===
   // Pilih lembar yang cocok dengan SRU terpilih: ikatan assetId langsung
   // terlebih dahulu, lalu kecocokan jenis/platform, lalu lembar pertama
@@ -2370,6 +2375,9 @@ export default function Home() {
                 exitPoint={exitPoint}
                 assets={assets}
                 onAssetsChange={setAssets}
+                ws2Initial={activeWs2Data}
+                ws3Initial={activeWs3Data}
+                ws8Initial={activeWs8Data}
                 /* Data live untuk lembar AWA/ASW/ADW di summary view + deteksi
                    "worksheet terpakai" agar cetak keseluruhan melewatkan lembar kosong. */
                 awaState={{
