@@ -758,7 +758,14 @@ async function fetchAvailableGeminiModels(apiKey: string): Promise<string[]> {
     const names = rawModels
       .map((m) => (typeof m?.name === 'string' ? m.name.replace(/^models\//, '') : ''))
       .filter((name) => /^gemini[\w.\-]*$/.test(name)
-        && !/(embedding|imagen|veo|tts|image|live|native-audio|aqa|robotics|computer-use|omni|transcribe|banana|decision)/i.test(name));
+        && !/(embedding|imagen|veo|tts|image|live|native-audio|aqa|robotics|computer-use|omni|transcribe|banana|decision)/i.test(name)
+        // Keluarga 2.x ditutup Google untuk pengguna baru ("no longer
+        // available to new users") — kunci AQ. baru pasti ditolak; kunci lama
+        // masih bisa pakai env GEMINI_MODEL_FALLBACKS. Alias flash-latest/
+        // flash-lite-latest mengarah ke pool yang sama dengan rantai kurasi,
+        // jadi mencobanya hanya mengulang kegagalan yang sama.
+        && !/^gemini-2\./.test(name)
+        && !/^gemini-(flash|flash-lite)-latest$/.test(name));
     cachedAvailableGeminiModels = { names, fetchedAt: Date.now() };
     console.info(`[AI chat] models.list: ${names.length} model gemini tersedia (cache 5 menit).`);
     return names;
@@ -1093,6 +1100,13 @@ ATURAN MEMORI WORKSPACE:
     // model berkuota 0 (mis. computer-use/argon/carbon di Free Tier) akan
     // menolak terus sampai tier naik atau model diganti.
     const isDailyQuotaError = (message: string): boolean => /requests?\s+per\s+day/i.test(message);
+    // Kuota TPM ("limit: N tokens per minute"): payload yang sama persis
+    // dikirim ulang 1-2 detik kemudian pasti kena limit yang sama — retry
+    // cepat sia-sia dan justru membakar kuota lebih cepat.
+    const isTpmQuotaError = (message: string): boolean => /tokens?\s+per\s+minute/i.test(message);
+    // Model usang untuk kunci baru ("no longer available to new users"):
+    // non-transien dan permanen untuk kunci ini.
+    const isDeprecatedError = (message: string): boolean => /no longer available/i.test(message);
     // Rantai model efektif untuk permintaan ini: rantai terkurasi + model gemini
     // lain yang tersedia di akun (penemuan dinamis, cache 5 menit). Digabung
     // SEBELUM loop agar model yang baru dirilis Google langsung ikut dicoba.
@@ -1103,12 +1117,22 @@ ATURAN MEMORI WORKSPACE:
     const triedModels: string[] = [];
     let result: Record<string, unknown> | undefined;
     let lastError: Error | undefined;
+    // Error model PERTAMA di rantai (kandidat utama) — paling mewakili
+    // penyebab gagalnya jalur normal; error model terakhir biasanya berasal
+    // dari cadangan paling bawah yang memang tak bisa dipakai.
+    let primaryError: Error | undefined;
     let dailyQuotaSeen = false;
+    let tpmQuotaSeen = false;
+    let deprecatedSeen = false;
+    // Lampiran besar: retry mengirim ulang payload yang sama (±puluhan ribu
+    // token) — hampir pasti kena TPM/RPM lagi dan menghabiskan kuota lebih
+    // cepat. Satu retry cukup untuk lonjakan singkat.
+    const maxRetriesPerModel = incomingFiles.length > 0 ? Math.min(MAX_RETRIES_PER_MODEL, 1) : MAX_RETRIES_PER_MODEL;
     let usedModel: string = modelChain[0];
     for (let modelIdx = 0; modelIdx < modelChain.length; modelIdx += 1) {
       const model = modelChain[modelIdx];
       triedModels.push(model);
-      for (let attempt = 0; attempt <= MAX_RETRIES_PER_MODEL; attempt += 1) {
+      for (let attempt = 0; attempt <= maxRetriesPerModel; attempt += 1) {
         // Timeout dinamis per percobaan: sisa anggaran dikurangi (a) cadangan
         // 50s per model yang belum dicoba — model lite di urutan akhir paling
         // sering berhasil saat high-demand, dan dulu tidak pernah mendapat
@@ -1173,14 +1197,19 @@ ATURAN MEMORI WORKSPACE:
 
           const detail = (payload as { error?: { message?: string } })?.error?.message || `Gemini API returned HTTP ${response.status}`;
           lastError = new Error(`${detail} (model: ${model}, Interactions API)`);
-          // Kuota harian (RPD) habis/0 di tier ini: retry cepat tak akan
-          // berhasil (reset hanya tengah malam Pasifik) — langsung pindah ke
-          // model berikutnya tanpa backoff, dan tandai untuk pesan akhir.
-          if (response.status === 429 && isDailyQuotaError(detail)) {
-            dailyQuotaSeen = true;
-            console.warn(`[AI chat] Kuota harian ${model} habis/0 di tier ini; lanjut ke model berikutnya tanpa retry.`);
+          // Kuota harian (RPD) habis/0 atau kuota TPM: retry cepat tak akan
+          // berhasil — RPD reset tengah malam Pasifik, TPM gagal lagi dengan
+          // payload yang sama. Langsung pindah ke model berikutnya tanpa
+          // backoff, dan tandai untuk pesan akhir.
+          if (response.status === 429 && (isDailyQuotaError(detail) || isTpmQuotaError(detail))) {
+            if (isDailyQuotaError(detail)) dailyQuotaSeen = true; else tpmQuotaSeen = true;
+            console.warn(`[AI chat] Kuota ${model} habis/0 di tier ini (RPD/TPM); lanjut ke model berikutnya tanpa retry.`);
             break;
           }
+          // Model usang untuk kunci ini ("no longer available to new users"):
+          // non-transien, langsung pindah model; tandai agar pesan akhir tidak
+          // menyarankan "periksa koneksi internet".
+          if (isDeprecatedError(detail)) deprecatedSeen = true;
           const transient = response.status === 429 || response.status >= 500;
           if (transient) suggestedRetryDelayMs = extractRetryDelayMs(payload);
           if (!transient) {
@@ -1206,7 +1235,7 @@ ATURAN MEMORI WORKSPACE:
           lastError = requestError instanceof Error ? requestError : new Error('Koneksi ke Gemini gagal.');
         }
 
-        if (attempt < MAX_RETRIES_PER_MODEL) {
+        if (attempt < maxRetriesPerModel) {
           // Hormati retryDelay yang disarankan Google bila ada; fallback backoff
           // eksponensial. Jitter ±15% (panduan resmi: hindari banyak klien
           // mengulang serempak). Dibatasi 45s dan sisa anggaran waktu total.
@@ -1219,12 +1248,18 @@ ATURAN MEMORI WORKSPACE:
           }
         }
       }
+      if (modelIdx === 0 && !result && lastError) primaryError = lastError;
       if (result) break;
       if (Date.now() >= geminiDeadlineMs) break;
       console.warn(`[AI chat] Model ${model} gagal; mencoba fallback berikutnya jika tersedia.`);
     }
     if (!result) {
-      const base = lastError?.message || 'Gemini sedang sibuk. Silakan coba lagi beberapa saat lagi.';
+      // Error model PERTAMA (utama) lebih mewakili akar masalah daripada error
+      // model terakhir yang sering hanya cadangan usang di dasar rantai.
+      const base = primaryError?.message || lastError?.message || 'Gemini sedang sibuk. Silakan coba lagi beberapa saat lagi.';
+      const lastNote = primaryError && lastError && lastError.message !== primaryError.message
+        ? ` Error model terakhir yang dicoba: ${lastError.message}.`
+        : '';
       // Daftar model dipotong agar pesan tetap terbaca (rantai bisa >20 model).
       const triedNote = triedModels.length > 1
         ? ` Model yang sudah dicoba: ${triedModels.slice(0, 4).join(', ')}${triedModels.length > 4 ? ` … +${triedModels.length - 4} lainnya` : ''}.`
@@ -1232,14 +1267,18 @@ ATURAN MEMORI WORKSPACE:
       // "High demand" adalah lonjakan kapasitas di sisi Google, bukan masalah
       // koneksi pengguna — saran akhir disesuaikan agar tidak menyesatkan.
       const highDemand = /high demand|resource exhausted|overloaded|unavailable/i.test(base);
-      // Kuota harian (RPD) habis/0 = masalah kuota/tier, bukan koneksi —
-      // saran spesifik: reset kuota, naik tier, atau batasi rantai model.
+      // Urutan prioritas saran: kuota harian → kuota TPM → model usang untuk
+      // kunci ini → lonjakan kapasitas → saran umum.
       const advice = dailyQuotaSeen || /requests?\s+per\s+day/i.test(base)
         ? 'Kuota harian Free Tier Gemini untuk model-model ini sudah habis atau 0 (kuota per model; reset tengah malam Waktu Pasifik, ±15:00 WIB). Solusi: coba lagi setelah reset kuota, aktifkan billing pada project Google AI Studio Anda (Tier 1 — berlaku instan), atau set env GEMINI_MODEL_FALLBACKS hanya ke model berkuota Free Tier (mis. gemini-4-hydrogen,gemini-3.5-flash-lite).'
-        : highDemand
-          ? 'Semua model Google sedang mengalami lonjakan permintaan; biasanya pulih dalam beberapa menit — tunggu sebentar lalu kirim ulang pesan Anda.'
-          : 'Coba kirim ulang pesan Anda; bila terus gagal, periksa koneksi internet atau lampirkan berkas yang lebih kecil.';
-      throw new Error(`${base}${triedNote} ${advice}`);
+        : tpmQuotaSeen || /tokens?\s+per\s+minute/i.test(base)
+          ? 'Ukuran permintaan (lampiran + prompt + skema tool) melebihi limit token-per-menit Free Tier. Solusi: lampirkan berkas lebih kecil atau pecah soal, beri jeda ±1 menit sebelum mencoba lagi, atau aktifkan billing (Tier 1).'
+          : deprecatedSeen
+            ? 'Sebagian model yang dicoba tidak tersedia untuk kunci API Anda (model lama ditutup untuk pengguna baru). Cek kuota aktif tiap model di aistudio.google.com/rate-limit, lalu set env GEMINI_MODEL_FALLBACKS di Vercel ke model yang masih berkuota — atau aktifkan billing (Tier 1, berlaku instan).'
+            : highDemand
+              ? 'Semua model Google sedang mengalami lonjakan permintaan; biasanya pulih dalam beberapa menit — tunggu sebentar lalu kirim ulang pesan Anda.'
+              : 'Coba kirim ulang pesan Anda; bila terus gagal, periksa koneksi internet atau lampirkan berkas yang lebih kecil.';
+      throw new Error(`${base}${lastNote}${triedNote} ${advice}`);
     }
 
     if (!Array.isArray(result.steps)) {
