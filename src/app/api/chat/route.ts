@@ -695,16 +695,17 @@ const tools: FunctionDeclaration[] = [
   },
 ];
 
-// Rantai fallback default (Nov 2026, daftar resmi Gemini API — semuanya
-// mendukung function calling dan tanpa syarat billing): model utama yang
-// terkurasi dulu, lalu model dengan pool kapasitas TERPISAH. gemini-3.7-flash
-// sengaja dibuang: Dev API kini mengalihkannya ke gemini-3.8-flash, jadi
-// mencobanya setelah 3.8 gagal hanya mengulang pool yang sama.
-// gemini-4-hydrogen (rilis 12 Nov 2026, fokus agentic, kapasitas baru) menjadi
-// fallback kedua; gemini-3.6-flash & 3.1-flash-lite (GA, masih dilayani) jadi
-// cadangan lanjutan. Override lewat env GEMINI_MODEL_FALLBACKS (dipisah koma;
-// nama divalidasi karakter aman; env kosong/tak valid kembali ke default).
-const GEMINI_MODELS_DEFAULT = ['gemini-3.8-flash', 'gemini-4-hydrogen', 'gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.1-flash-lite'] as const;
+// Rantai fallback default (Nov 2026): urutan menurut ketersediaan kuota Free
+// Tier yang terverifikasi — gemini-4-hydrogen di depan karena dikonfirmasi
+// resmi tim Google (forum AI Dev, 18 Nov 2026) TETAP tersedia di Free Tier,
+// sementara gemini-4-argon/carbon/neon, omni, dan computer-use punya kuota
+// Free Tier 0 request/hari (kebijakan, bukan bug). gemini-3.8-flash menyusul
+// (pool utama), lalu model lite dengan pool Free terbesar, lalu 3.6-flash.
+// gemini-3.7-flash sengaja dibuang: Dev API kini mengalihkannya ke
+// gemini-3.8-flash, jadi mencobanya setelah 3.8 gagal hanya mengulang pool
+// yang sama. Override lewat env GEMINI_MODEL_FALLBACKS (dipisah koma; nama
+// divalidasi karakter aman; env kosong/tak valid kembali ke default).
+const GEMINI_MODELS_DEFAULT = ['gemini-4-hydrogen', 'gemini-3.8-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-3.6-flash'] as const;
 const envModelFallbacks = (process.env.GEMINI_MODEL_FALLBACKS ?? '')
   .split(',')
   .map((name) => name.trim())
@@ -757,7 +758,7 @@ async function fetchAvailableGeminiModels(apiKey: string): Promise<string[]> {
     const names = rawModels
       .map((m) => (typeof m?.name === 'string' ? m.name.replace(/^models\//, '') : ''))
       .filter((name) => /^gemini[\w.\-]*$/.test(name)
-        && !/(embedding|imagen|veo|tts|image|live|native-audio|aqa|robotics)/i.test(name));
+        && !/(embedding|imagen|veo|tts|image|live|native-audio|aqa|robotics|computer-use|omni|transcribe|banana|decision)/i.test(name));
     cachedAvailableGeminiModels = { names, fetchedAt: Date.now() };
     console.info(`[AI chat] models.list: ${names.length} model gemini tersedia (cache 5 menit).`);
     return names;
@@ -1086,6 +1087,12 @@ ATURAN MEMORI WORKSPACE:
       } catch { /* bentuk detail tidak terduga — abaikan */ }
       return null;
     };
+    // Bedakan 429 kuota HARIAN ("limit: N requests per day on Free Tier",
+    // reset hanya tengah malam Waktu Pasifik) dari 429 "high demand" (lonjakan
+    // kapasitas, pulih dalam detik). Retry cepat pada kuota harian sia-sia —
+    // model berkuota 0 (mis. computer-use/argon/carbon di Free Tier) akan
+    // menolak terus sampai tier naik atau model diganti.
+    const isDailyQuotaError = (message: string): boolean => /requests?\s+per\s+day/i.test(message);
     // Rantai model efektif untuk permintaan ini: rantai terkurasi + model gemini
     // lain yang tersedia di akun (penemuan dinamis, cache 5 menit). Digabung
     // SEBELUM loop agar model yang baru dirilis Google langsung ikut dicoba.
@@ -1096,6 +1103,7 @@ ATURAN MEMORI WORKSPACE:
     const triedModels: string[] = [];
     let result: Record<string, unknown> | undefined;
     let lastError: Error | undefined;
+    let dailyQuotaSeen = false;
     let usedModel: string = modelChain[0];
     for (let modelIdx = 0; modelIdx < modelChain.length; modelIdx += 1) {
       const model = modelChain[modelIdx];
@@ -1165,6 +1173,14 @@ ATURAN MEMORI WORKSPACE:
 
           const detail = (payload as { error?: { message?: string } })?.error?.message || `Gemini API returned HTTP ${response.status}`;
           lastError = new Error(`${detail} (model: ${model}, Interactions API)`);
+          // Kuota harian (RPD) habis/0 di tier ini: retry cepat tak akan
+          // berhasil (reset hanya tengah malam Pasifik) — langsung pindah ke
+          // model berikutnya tanpa backoff, dan tandai untuk pesan akhir.
+          if (response.status === 429 && isDailyQuotaError(detail)) {
+            dailyQuotaSeen = true;
+            console.warn(`[AI chat] Kuota harian ${model} habis/0 di tier ini; lanjut ke model berikutnya tanpa retry.`);
+            break;
+          }
           const transient = response.status === 429 || response.status >= 500;
           if (transient) suggestedRetryDelayMs = extractRetryDelayMs(payload);
           if (!transient) {
@@ -1209,13 +1225,20 @@ ATURAN MEMORI WORKSPACE:
     }
     if (!result) {
       const base = lastError?.message || 'Gemini sedang sibuk. Silakan coba lagi beberapa saat lagi.';
-      const triedNote = triedModels.length > 1 ? ` Model yang sudah dicoba: ${triedModels.join(', ')}.` : '';
+      // Daftar model dipotong agar pesan tetap terbaca (rantai bisa >20 model).
+      const triedNote = triedModels.length > 1
+        ? ` Model yang sudah dicoba: ${triedModels.slice(0, 4).join(', ')}${triedModels.length > 4 ? ` … +${triedModels.length - 4} lainnya` : ''}.`
+        : '';
       // "High demand" adalah lonjakan kapasitas di sisi Google, bukan masalah
       // koneksi pengguna — saran akhir disesuaikan agar tidak menyesatkan.
       const highDemand = /high demand|resource exhausted|overloaded|unavailable/i.test(base);
-      const advice = highDemand
-        ? 'Semua model Google sedang mengalami lonjakan permintaan; biasanya pulih dalam beberapa menit — tunggu sebentar lalu kirim ulang pesan Anda.'
-        : 'Coba kirim ulang pesan Anda; bila terus gagal, periksa koneksi internet atau lampirkan berkas yang lebih kecil.';
+      // Kuota harian (RPD) habis/0 = masalah kuota/tier, bukan koneksi —
+      // saran spesifik: reset kuota, naik tier, atau batasi rantai model.
+      const advice = dailyQuotaSeen || /requests?\s+per\s+day/i.test(base)
+        ? 'Kuota harian Free Tier Gemini untuk model-model ini sudah habis atau 0 (kuota per model; reset tengah malam Waktu Pasifik, ±15:00 WIB). Solusi: coba lagi setelah reset kuota, aktifkan billing pada project Google AI Studio Anda (Tier 1 — berlaku instan), atau set env GEMINI_MODEL_FALLBACKS hanya ke model berkuota Free Tier (mis. gemini-4-hydrogen,gemini-3.5-flash-lite).'
+        : highDemand
+          ? 'Semua model Google sedang mengalami lonjakan permintaan; biasanya pulih dalam beberapa menit — tunggu sebentar lalu kirim ulang pesan Anda.'
+          : 'Coba kirim ulang pesan Anda; bila terus gagal, periksa koneksi internet atau lampirkan berkas yang lebih kecil.';
       throw new Error(`${base}${triedNote} ${advice}`);
     }
 
