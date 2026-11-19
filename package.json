@@ -19,7 +19,8 @@
     "test:dtg": "node --test tests/dtg.test.mjs",
     "test:n13": "node --test tests/tableN13.test.mjs",
     "test:registry": "bun test tests/capabilityRegistry.test.ts",
-    "test:case": "bun test tests/caseSchema.test.ts tests/caseAdapter.test.ts tests/casePipeline.test.ts tests/regressionBaseline.test.ts"
+    "test:case": "bun test tests/caseSchema.test.ts tests/caseAdapter.test.ts tests/casePipeline.test.ts tests/regressionBaseline.test.ts tests/scenarioBank.test.ts tests/caseGenerator.test.ts tests/caseNaskah.test.ts",
+    "test:generator": "bun test tests/scenarioBank.test.ts tests/caseGenerator.test.ts tests/caseNaskah.test.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

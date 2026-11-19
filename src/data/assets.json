@@ -1,0 +1,385 @@
+[
+  {
+    "id": "asset-heli-as365",
+    "kind": "asset",
+    "name": "Eurocopter AS-365 N3+ (Turbin)",
+    "category": "helicopter",
+    "specs": {
+      "engine": "turbine",
+      "enduranceHours": 2,
+      "enduranceMinutes": 45,
+      "tasMaxKts": 150,
+      "tasSearchKts": 90,
+      "visibilityKm": 10,
+      "frequencies": [
+        "123.1"
+      ],
+      "navigation": [
+        "GPS"
+      ]
+    },
+    "source": "Soal Final Test Diklat SAR Planning Angk. XL 2026 (PDF, lampiran pemilik) — tabel SRU",
+    "updatedRef": "2026-11-20",
+    "units": "kecepatan kts, endurance jam/menit, visibility km",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "asset-heli-bell505",
+    "kind": "asset",
+    "name": "Bell 505 Jet Ranger X (Turbin)",
+    "category": "helicopter",
+    "specs": {
+      "engine": "turbine",
+      "enduranceHours": 2,
+      "enduranceMinutes": 30,
+      "tasMaxKts": 120,
+      "tasSearchKts": 90,
+      "visibilityKm": 10,
+      "frequencies": [
+        "123.1"
+      ],
+      "navigation": [
+        "GPS"
+      ]
+    },
+    "source": "Soal Final Test Diklat SAR Planning Angk. XL 2026 (PDF, lampiran pemilik) — tabel SRU",
+    "updatedRef": "2026-11-20",
+    "units": "kecepatan kts, endurance jam/menit, visibility km",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "asset-kapal-40m",
+    "kind": "asset",
+    "name": "Rescue Boat Kapal 40 m (KN SAR kelas Drupada)",
+    "category": "vessel",
+    "specs": {
+      "enduranceHours": 50,
+      "tasMaxKts": 20,
+      "tasSearchKts": 15,
+      "visibilityKm": 20,
+      "frequencies": [
+        "Ch.16",
+        "123.1"
+      ],
+      "navigation": [
+        "GPS"
+      ],
+      "sruType": "rescue-vessel"
+    },
+    "source": "Soal Final Test Diklat SAR Planning Angk. XL 2026 (PDF, lampiran pemilik) — tabel SRU",
+    "updatedRef": "2026-11-20",
+    "units": "kecepatan kts, endurance jam, visibility km",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "asset-pesawat-cessna208",
+    "kind": "asset",
+    "name": "Cessna 208 Caravan",
+    "category": "fixed-wing",
+    "specs": {
+      "flag": "Indonesia",
+      "lengthM": 11.46,
+      "wingspanM": 15.88,
+      "heightM": 4.55,
+      "wingAreaM2": 25.9,
+      "cabinHeightM": 1.37,
+      "cabinWidthM": 1.63,
+      "cruiseSpeedKts": 186,
+      "cruiseSpeedKmh": 344,
+      "stallSpeedKts": 61,
+      "rangeNm": 1070,
+      "serviceCeilingFt": 25000,
+      "rateOfClimbFpm": 1234,
+      "wingLoadingKgM2": 140,
+      "frequencies": [
+        "121.5 MHz"
+      ],
+      "payload": "Logistik",
+      "navigation": [
+        "GPS"
+      ]
+    },
+    "source": "Soal Final Test Diklat SAR Planning Angk. XL 2026 (PDF, lampiran pemilik) — blok Data Pesawat",
+    "updatedRef": "2026-11-20",
+    "units": "panjang m, kecepatan kts/km/h, jarak NM, ketinggian ft",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "asset-raft-6p",
+    "kind": "asset",
+    "name": "Life raft 6 orang",
+    "category": "liferaft",
+    "specs": {
+      "lifeRaftCapacityPerRaft": 6
+    },
+    "source": "Soal Final Test Diklat SAR Planning Angk. XL 2026 (PDF, lampiran pemilik) — perlengkapan keselamatan",
+    "updatedRef": "2026-11-20",
+    "units": "kapasitas orang per unit",
+    "verification": "VERIFIED",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "sim-heli-turbin-sedang",
+    "kind": "asset",
+    "name": "Helikopter SAR Turbin Sedang (SIMULASI)",
+    "category": "helicopter",
+    "specs": {
+      "engine": "turbine",
+      "enduranceHours": 2,
+      "enduranceMinutes": 40,
+      "tasMaxKts": 140,
+      "tasSearchKts": 90,
+      "visibilityKm": 10,
+      "frequencies": [
+        "123.1"
+      ],
+      "navigation": [
+        "GPS"
+      ]
+    },
+    "source": "Draft generator Fase 5a — data sintetis berlabel SIMULATION untuk latihan; BUKAN data resmi armada; tasSearch disesuaikan kolom tabel Fs Tabel I-8 (60/90/120/140 kts)",
+    "updatedRef": "2026-11-20",
+    "units": "kecepatan kts, endurance jam/menit, visibility km",
+    "verification": "SIMULATION",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "sim-heli-ringan-piston",
+    "kind": "asset",
+    "name": "Helikopter Latihan Piston Ringan (SIMULASI)",
+    "category": "helicopter",
+    "specs": {
+      "engine": "piston",
+      "enduranceHours": 3,
+      "enduranceMinutes": 0,
+      "tasMaxKts": 100,
+      "tasSearchKts": 60,
+      "visibilityKm": 10,
+      "frequencies": [
+        "123.1"
+      ],
+      "navigation": [
+        "GPS"
+      ]
+    },
+    "source": "Draft generator Fase 5a — data sintetis berlabel SIMULATION untuk latihan; BUKAN data resmi armada; tasSearch disesuaikan kolom tabel Fs Tabel I-8 (60/90/120/140 kts)",
+    "updatedRef": "2026-11-20",
+    "units": "kecepatan kts, endurance jam/menit, visibility km",
+    "verification": "SIMULATION",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "sim-kapal-patroli-25m",
+    "kind": "asset",
+    "name": "Kapal Patroli 25 m (SIMULASI)",
+    "category": "vessel",
+    "specs": {
+      "enduranceHours": 30,
+      "tasMaxKts": 18,
+      "tasSearchKts": 12,
+      "visibilityKm": 15,
+      "frequencies": [
+        "Ch.16",
+        "123.1"
+      ],
+      "navigation": [
+        "GPS"
+      ],
+      "sruType": "patrol-boat"
+    },
+    "source": "Draft generator Fase 5a — data sintetis berlabel SIMULATION untuk latihan; BUKAN data resmi armada",
+    "updatedRef": "2026-11-20",
+    "units": "kecepatan kts, endurance jam, visibility km",
+    "verification": "SIMULATION",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "sim-rib-searider",
+    "kind": "asset",
+    "name": "RIB Sea Rider (SIMULASI)",
+    "category": "vessel",
+    "specs": {
+      "enduranceHours": 8,
+      "tasMaxKts": 28,
+      "tasSearchKts": 20,
+      "visibilityKm": 10,
+      "frequencies": [
+        "Ch.16"
+      ],
+      "navigation": [
+        "GPS"
+      ],
+      "sruType": "rib"
+    },
+    "source": "Draft generator Fase 5a — data sintetis berlabel SIMULATION untuk latihan; BUKAN data resmi armada",
+    "updatedRef": "2026-11-20",
+    "units": "kecepatan kts, endurance jam, visibility km",
+    "verification": "SIMULATION",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "sim-pesawat-turboprop-patroli",
+    "kind": "asset",
+    "name": "Pesawat Patroli Turbo-prop (SIMULASI)",
+    "category": "fixed-wing",
+    "specs": {
+      "flag": "Indonesia",
+      "lengthM": 21,
+      "wingspanM": 28,
+      "heightM": 7.2,
+      "wingAreaM2": 60,
+      "cabinHeightM": 1.8,
+      "cabinWidthM": 1.9,
+      "cruiseSpeedKts": 210,
+      "cruiseSpeedKmh": 389,
+      "stallSpeedKts": 75,
+      "rangeNm": 1500,
+      "serviceCeilingFt": 25000,
+      "rateOfClimbFpm": 1000,
+      "wingLoadingKgM2": 130,
+      "frequencies": [
+        "121.5 MHz",
+        "123.1"
+      ],
+      "payload": "Peralatan SAR",
+      "navigation": [
+        "GPS"
+      ],
+      "enduranceHours": 6,
+      "tasMaxKts": 210,
+      "tasSearchKts": 150,
+      "visibilityKm": 20
+    },
+    "source": "Draft generator Fase 5a — data sintetis berlabel SIMULATION untuk latihan; BUKAN data resmi armada",
+    "updatedRef": "2026-11-20",
+    "units": "panjang m, kecepatan kts/km/h, jarak NM, ketinggian ft",
+    "verification": "SIMULATION",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "sim-pesawat-turboprop-19pax",
+    "kind": "asset",
+    "name": "Pesawat Latihan Turbo-prop 19 Kursi (SIMULASI)",
+    "category": "fixed-wing",
+    "specs": {
+      "flag": "Indonesia",
+      "lengthM": 18,
+      "wingspanM": 25,
+      "heightM": 5.2,
+      "wingAreaM2": 42,
+      "cabinHeightM": 1.5,
+      "cabinWidthM": 1.6,
+      "cruiseSpeedKts": 220,
+      "cruiseSpeedKmh": 407,
+      "stallSpeedKts": 70,
+      "rangeNm": 1200,
+      "serviceCeilingFt": 25000,
+      "rateOfClimbFpm": 1100,
+      "wingLoadingKgM2": 130,
+      "frequencies": [
+        "121.5 MHz"
+      ],
+      "payload": "Penumpang",
+      "navigation": [
+        "GPS"
+      ]
+    },
+    "source": "Draft generator Fase 5a — data sintetis berlabel SIMULATION untuk latihan; BUKAN data resmi armada",
+    "updatedRef": "2026-11-20",
+    "units": "panjang m, kecepatan kts/km/h, jarak NM, ketinggian ft",
+    "verification": "SIMULATION",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "sim-pesawat-piston-6pax",
+    "kind": "asset",
+    "name": "Pesawat Latihan Piston 6 Kursi (SIMULASI)",
+    "category": "fixed-wing",
+    "specs": {
+      "flag": "Indonesia",
+      "lengthM": 9.5,
+      "wingspanM": 12.5,
+      "heightM": 3,
+      "wingAreaM2": 16.2,
+      "cabinHeightM": 1.3,
+      "cabinWidthM": 1.2,
+      "cruiseSpeedKts": 140,
+      "cruiseSpeedKmh": 259,
+      "stallSpeedKts": 55,
+      "rangeNm": 700,
+      "serviceCeilingFt": 14000,
+      "rateOfClimbFpm": 720,
+      "wingLoadingKgM2": 90,
+      "frequencies": [
+        "121.5 MHz"
+      ],
+      "payload": "Penumpang",
+      "navigation": [
+        "GPS"
+      ]
+    },
+    "source": "Draft generator Fase 5a — data sintetis berlabel SIMULATION untuk latihan; BUKAN data resmi armada",
+    "updatedRef": "2026-11-20",
+    "units": "panjang m, kecepatan kts/km/h, jarak NM, ketinggian ft",
+    "verification": "SIMULATION",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "sim-raft-10p",
+    "kind": "asset",
+    "name": "Life raft 10 orang (SIMULASI)",
+    "category": "liferaft",
+    "specs": {
+      "lifeRaftCapacityPerRaft": 10
+    },
+    "source": "Draft generator Fase 5a — data sintetis berlabel SIMULATION untuk latihan; BUKAN data resmi",
+    "updatedRef": "2026-11-20",
+    "units": "kapasitas orang per unit",
+    "verification": "SIMULATION",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "sim-raft-20p",
+    "kind": "asset",
+    "name": "Life raft 20 orang (SIMULASI)",
+    "category": "liferaft",
+    "specs": {
+      "lifeRaftCapacityPerRaft": 20
+    },
+    "source": "Draft generator Fase 5a — data sintetis berlabel SIMULATION untuk latihan; BUKAN data resmi",
+    "updatedRef": "2026-11-20",
+    "units": "kapasitas orang per unit",
+    "verification": "SIMULATION",
+    "approval": "DRAFT"
+  },
+  {
+    "id": "sim-kapal-kargo-60m",
+    "kind": "asset",
+    "name": "Kapal Kargo 60 m (SIMULASI)",
+    "category": "vessel",
+    "specs": {
+      "flag": "Indonesia",
+      "lengthM": 60,
+      "heightM": 8,
+      "cruiseSpeedKts": 12,
+      "rangeNm": 3000,
+      "frequencies": [
+        "Ch.16"
+      ],
+      "navigation": [
+        "GPS",
+        "AIS"
+      ],
+      "payload": "Kargo umum"
+    },
+    "source": "Draft generator Fase 5a — data sintetis berlabel SIMULATION untuk latihan; BUKAN data resmi",
+    "updatedRef": "2026-11-20",
+    "units": "panjang m, kecepatan kts, jarak NM",
+    "verification": "SIMULATION",
+    "approval": "DRAFT"
+  }
+]

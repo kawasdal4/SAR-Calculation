@@ -173,12 +173,30 @@ export function runCasePipeline(
         : awaResult.errors.join(' '),
     });
   } else {
-    steps.push({ step: 'awa', status: 'error', detail: 'Tabel angin per ketinggian tidak tersedia.' });
+    steps.push({
+      step: 'awa',
+      status: sarCase.incident.type === 'vessel-sinking' ? 'skipped' : 'error',
+      detail: sarCase.incident.type === 'vessel-sinking'
+        ? 'Tidak berlaku untuk insiden kapal (tanpa tabel angin per ketinggian).'
+        : 'Tabel angin per ketinggian tidak tersedia.',
+    });
   }
 
   // ── 3. Aeronautical Drift (ditching) ─────────────────────────────────────
   let landingPos: LatLng | undefined;
-  if (awaResult?.isValid && seeds.aero && seeds.lkp) {
+  const isVesselIncident = sarCase.incident.type === 'vessel-sinking';
+  if (isVesselIncident) {
+    // Cabang aditif kapal (Fase 5a): tanpa ADW — LKP (posisi terakhir)
+    // dipakai langsung sebagai titik awal datum. Jalur ditching tidak berubah.
+    landingPos = seeds.lkp;
+    steps.push({
+      step: 'aero-drift',
+      status: landingPos ? 'skipped' : 'error',
+      detail: landingPos
+        ? 'Tidak berlaku untuk insiden kapal — LKP dipakai sebagai titik awal datum.'
+        : 'Koordinat LKP tidak tersedia.',
+    });
+  } else if (awaResult?.isValid && seeds.aero && seeds.lkp) {
     const seedAero = seeds.aero as unknown as Partial<AeroDriftInput>;
     const aeroInput: AeroDriftInput = {
       caseTitle: seedAero.caseTitle ?? sarCase.caseTitle ?? '',
@@ -344,9 +362,24 @@ export function runCasePipeline(
     const sideNm = Math.sqrt(aoSquareNm2); // sisi persegi = 2R
     const orientationDeg = options.patternOrientationDeg ?? bearingDeg(landingPos, center);
     const firstReadyS = [...ws2Rows, ...ws8Rows].find((entry) => entry.result.ready && entry.result.S > 0)?.result.S;
-    const trackSpacingNm = options.trackSpacingNm ?? firstReadyS ?? 0;
+    let trackSpacingNm = options.trackSpacingNm ?? firstReadyS ?? 0;
+    // Guard aditif (Fase 5a): bila S dari lembar worksheet > setengah sisi area,
+    // pola PS/CS hanya punya 1 leg dengan panjang leg 0 (degenerate). Kurangi S
+    // ke setengah sisi agar pola punya minimal 2 leg — catat sebagai asumsi
+    // planner. Override eksplisit planner (options.trackSpacingNm) tetap
+    // dihormati tanpa perubahan.
+    if (options.trackSpacingNm === undefined && sideNm > 0 && trackSpacingNm > sideNm / 2) {
+      assumptions.push({
+        field: 'pattern.trackSpacingNm',
+        value: (sideNm / 2).toFixed(2),
+        reason: `S (${trackSpacingNm.toFixed(2)} NM) dikurangi ke setengah sisi area (${(sideNm / 2).toFixed(2)} NM) agar pola memiliki minimal 2 leg (pilihan planner).`,
+      });
+      trackSpacingNm = sideNm / 2;
+    }
     if (trackSpacingNm <= 0) {
       steps.push({ step: 'search-pattern', status: 'skipped', detail: 'Track spacing (S) belum tersedia dari lembar WS 2/WS 8 — pola tidak dibuat.' });
+    } else if (trackSpacingNm * 2 > sideNm) {
+      steps.push({ step: 'search-pattern', status: 'error', detail: `S (${trackSpacingNm.toFixed(2)} NM) melebihi setengah sisi area — pola degenerate; atur S manual via planner.` });
     } else {
       const patternType: SearchPatternType = options.patternType ?? seeds.pattern?.patternType ?? 'PS';
       const sruSpeedKts = options.sruSpeedKts ?? seeds.assets.find((asset) => asset.searchSpeedKts > 0)?.searchSpeedKts ?? 15;

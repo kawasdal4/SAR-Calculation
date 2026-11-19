@@ -85,6 +85,7 @@ import { computeDatumWs1, ws1DatumDtgUtc } from '@/lib/sar/datumWs1';
 import type { MapMarker, MapLine, MapPolygon, MapCircle } from '@/components/sar/SeaMap';
 import BasicCalculation from '@/components/sar/BasicCalculation';
 import ChartDistanceGuide from '@/components/sar/chart-distance/ChartDistanceGuide';
+import ScenarioGeneratorPanel from '@/components/sar/ScenarioGeneratorPanel';
 import { selectiveWorkspaceContext, workflowPlanText, type ContextEntry } from '@/lib/sar/workspaceContext';
 import { buildChangeRows, planUndo, undoRowsToSetFieldsValues, invertRows, postChangeLogBatch, type AiBatchInfo } from '@/lib/ai/changeLog';
 import SeaMapMount from '@/components/sar/SeaMapMount';
@@ -2708,6 +2709,9 @@ export default function Home() {
                 <TabsTrigger value="basic-calc" className="text-xs px-2 py-1.5">
                   <Calculator className="h-3.5 w-3.5 mr-1" /> Hitung Dasar
                 </TabsTrigger>
+                <TabsTrigger value="generator" className="text-xs px-2.5 py-1.5 font-bold data-[state=active]:bg-violet-600 data-[state=active]:text-white">
+                  <Sparkles className="h-3.5 w-3.5 mr-1 text-violet-300" /> Generator Soal
+                </TabsTrigger>
               </TabsList>
             </div>
 
@@ -3441,6 +3445,11 @@ export default function Home() {
               <BasicCalculation key={`calc-${caseVersion}`} />
               {/* PHASE 4: panduan + kalkulator jarak peta laut & peta udara (1 menit = 1 NM) */}
               <ChartDistanceGuide key={`chart-dist-${caseVersion}`} />
+            </TabsContent>
+
+            {/* TAB: GENERATOR SOAL (Fase 5a — parameter ber-seed + bank lokasi/aset) */}
+            <TabsContent value="generator" className="mt-0 space-y-4" key="generator-tab">
+              <ScenarioGeneratorPanel onApplyCaseSteps={handleApplyCaseSteps} />
             </TabsContent>
           </Tabs>
         </section>
