@@ -34,7 +34,7 @@ import type { Worksheet8InitialState } from '@/components/sar/worksheets/Workshe
 import { W2_TARGET_OPTIONS, W8_TARGET_OPTIONS } from '@/lib/sar/wscPodTables';
 import type { SearchPatternPlanInitialState } from '@/lib/sar/searchPatterns';
 import type { AeroDriftInitialState } from '@/components/sar/AeronauticalDriftWorksheet';
-import { LEEWAY_OBJECT_TYPES, parseAltitudeFt } from '@/lib/sar/sarCalculations';
+import { LEEWAY_OBJECT_TYPES, mapNavAidToFixError, parseAltitudeFt } from '@/lib/sar/sarCalculations';
 
 interface UploadedAttachment {
   name: string;
@@ -77,7 +77,11 @@ interface AIChatPanelProps {
     seaCurrentSpeed: number;
     seaCurrentErr?: number;
     leewayObjectId?: string;
+    /** ID alat navigasi distress craft dari Table J-1 (mis. 'gps') — dipetakan ke X. */
+    xNavAid?: string;
     X?: number;
+    /** ID alat navigasi SRU pencari dari Table J-1 (mis. 'gps') — dipetakan ke Y. */
+    yNavAid?: string;
     Y?: number;
     /** Safety factor dari analisis soal: pencarian ke-1 → 1.1, ke-2 → 1.6, dst. */
     fs?: number;
@@ -421,7 +425,13 @@ export default function AIChatPanel({
             && Number.isFinite(data.lkp?.lat) && Math.abs(data.lkp?.lat ?? 999) <= 90
             && Number.isFinite(data.lkp?.lng) && Math.abs(data.lkp?.lng ?? 999) <= 180;
           if (currentsOk && leewayIds.includes(data.leewayObjectId ?? '') && (adwLandingOk || explicitOk)) {
-            onApplyDatum?.(data);
+            // Table J (Appendix J): id alat navigasi → fix error NM dipetakan
+            // DETERMINISTIK di aplikasi (satu sumber kebenaran: TABLE_J1/J2_NAV_ERRORS),
+            // bukan angka yang dikira-kira model — mis. yNavAid 'gps' → Y = 0.1 NM.
+            // X/Y numerik tetap dipakai hanya bila id tidak dikenal/tidak dikirim.
+            const xFromNavAid = mapNavAidToFixError(data.xNavAid);
+            const yFromNavAid = mapNavAidToFixError(data.yNavAid);
+            onApplyDatum?.({ ...data, X: xFromNavAid ?? data.X, Y: yFromNavAid ?? data.Y });
             applied = true;
             appliedWorksheets.push('datum');
           } else {
@@ -991,11 +1001,12 @@ export default function AIChatPanel({
         return `📍 LKP: ${formatDMS(a.lat ?? 0, false)}, ${formatDMS(a.lng ?? 0, true)}`;
       }
       case 'set_datum_case': {
-        const a = fc.args as { lkpSource?: string; lkp?: { lat?: number; lng?: number }; driftInterval?: number; seaCurrentDir?: number; seaCurrentSpeed?: number; leewayObjectId?: string };
+        const a = fc.args as { lkpSource?: string; lkp?: { lat?: number; lng?: number }; driftInterval?: number; seaCurrentDir?: number; seaCurrentSpeed?: number; leewayObjectId?: string; xNavAid?: string; yNavAid?: string };
         const lkpText = a.lkpSource === 'adw-landing'
           ? 'LKP otomatis dari posisi ditching hasil ADW'
           : a.lkp ? `${formatDMS(a.lkp.lat ?? 0, false)}, ${formatDMS(a.lkp.lng ?? 0, true)}` : 'LKP?';
-        return `🧭 Datum / WS 1: ${lkpText}\ndrift ${a.driftInterval ?? 0} jam · arus ${a.seaCurrentDir ?? 0}°T / ${a.seaCurrentSpeed ?? 0} kt${a.leewayObjectId ? ` · objek ${a.leewayObjectId}` : ''}`;
+        const navText = [a.xNavAid ? `x ${a.xNavAid}` : null, a.yNavAid ? `y ${a.yNavAid} (Table J-1)` : null].filter(Boolean).join(' · ');
+        return `🧭 Datum / WS 1: ${lkpText}\ndrift ${a.driftInterval ?? 0} jam · arus ${a.seaCurrentDir ?? 0}°T / ${a.seaCurrentSpeed ?? 0} kt${a.leewayObjectId ? ` · objek ${a.leewayObjectId}` : ''}${navText ? ` · ${navText}` : ''}`;
       }
       case 'set_ws2_case': {
         const a = fc.args as Worksheet2InitialState;

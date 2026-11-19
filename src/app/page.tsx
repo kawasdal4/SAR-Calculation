@@ -858,7 +858,11 @@ export default function Home() {
     seaCurrentSpeed: number;
     seaCurrentErr?: number;
     leewayObjectId?: string;
+    /** ID alat navigasi distress craft (Table J-1, mis. 'gps') — sudah dipetakan ke X oleh AIChatPanel. */
+    xNavAid?: string;
     X?: number;
+    /** ID alat navigasi SRU pencari (Table J-1, mis. 'gps') — sudah dipetakan ke Y oleh AIChatPanel. */
+    yNavAid?: string;
     Y?: number;
     /** Safety factor (circle) hasil analisis soal: pencarian ke-1 → 1.1, ke-2 → 1.6, dst. */
     fs?: number;

@@ -1071,6 +1071,23 @@ export function getTableJ1ErrorById(id: string): number | undefined {
   return TABLE_J1_NAV_ERRORS.find((e) => e.id === id)?.errorNm;
 }
 
+/** Label alat navigasi Table J-1/J-2 untuk tampilan (mis. 'gps' → 'GPS'). */
+export function getNavAidLabelById(id: string): string | undefined {
+  return TABLE_J_ALL_NAV_ERRORS.find((e) => e.id === id)?.label;
+}
+
+/**
+ * Pemetaan deterministik id alat navigasi (Table J-1/J-2, Appendix J) → fix error NM.
+ * Dipakai AIChatPanel untuk mengonversi xNavAid/yNavAid dari AI (mis. 'gps' → 0.1 NM)
+ * sehingga fix error search/distress craft SELALU berasal dari Table J — bukan
+ * angka yang dikira-kira model. ID tidak dikenal → undefined (fallback ke X/Y numerik).
+ */
+export function mapNavAidToFixError(id?: string | null): number | undefined {
+  if (!id) return undefined;
+  const normalized = String(id).toLowerCase().trim();
+  return TABLE_J_ALL_NAV_ERRORS.find((e) => e.id === normalized)?.errorNm;
+}
+
 // ============================================================================
 // DATUM WORKSHEET (MARINE) - Appendix K-13
 // ============================================================================

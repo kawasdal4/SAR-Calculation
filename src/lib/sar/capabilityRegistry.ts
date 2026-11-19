@@ -372,8 +372,8 @@ export const SAR_CAPABILITY_REGISTRY: SARCapability[] = [
       seaCurrentDir: f('number', 'Arah arus laut (SET, °T)'),
       seaCurrentSpeed: f('number', 'Kecepatan arus laut', { unit: 'kts' }),
       leewayObjectId: f('string', 'ID objek Table I-1 (13 jenis, mis. raft-noballast-drogue)'),
-      X: f('number', 'Error posisi target (NM, Table J)'),
-      Y: f('number', 'Error posisi SRU (NM, Table J)'),
+      X: f('number', 'Error posisi target (NM, Table J-1 — GPS 0.1, Radar/Visual/LORAN C 1.0, Celestial 2.0, MRB 4.0, INS/VOR-TACAN 0.5)'),
+      Y: f('number', 'Error posisi SRU (NM, Table J-1 — SRU pencari pakai GPS → 0.1, Radar/Visual/LORAN C 1.0, Celestial 2.0, MRB 4.0, INS/VOR-TACAN 0.5)'),
     }, ['start', 'driftInterval', 'aswDirFrom', 'aswSpeed', 'seaCurrentDir', 'seaCurrentSpeed', 'leewayObjectId']),
     outputSchema: schema({
       datumLeft: f('object', 'Datum kiri {lat, lng}'),
@@ -439,8 +439,8 @@ export const SAR_CAPABILITY_REGISTRY: SARCapability[] = [
     implementation: ['src/lib/sar/sarCalculations.ts#computeWs1SearchArea', 'src/lib/sar/sarCalculations.ts#computeE', 'src/components/sar/worksheets/Worksheet1.tsx'],
     inputSchema: schema({
       De: f('number', 'Total drift error (NM) — alternatif memberi E langsung', { unit: 'NM' }),
-      X: f('number', 'Fix error distress craft (Table J)', { unit: 'NM' }),
-      Y: f('number', 'Fix error SRU (Table J)', { unit: 'NM' }),
+      X: f('number', 'Fix error distress craft (Table J-1 — GPS 0.1, Radar/Visual/LORAN C 1.0, Celestial 2.0, MRB 4.0, INS/VOR-TACAN 0.5)', { unit: 'NM' }),
+      Y: f('number', 'Fix error SRU (Table J-1 — SRU pencari pakai GPS → 0.1, Radar/Visual/LORAN C 1.0, Celestial 2.0, MRB 4.0, INS/VOR-TACAN 0.5)', { unit: 'NM' }),
       E: f('number', 'Total probable error langsung (NM); bila diberikan, De/X/Y diabaikan', { unit: 'NM' }),
       fs: f('number', 'Faktor keselamatan (opsi worksheet: 1.1/1.6/2.0/2.3/2.5)'),
     }, ['fs']),
