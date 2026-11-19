@@ -20,6 +20,7 @@ import {
   File,
   UploadCloud,
   HelpCircle,
+  ClipboardList,
 } from 'lucide-react';
 import { formatDMS } from '@/lib/sar/coordFormat';
 import { toBasarnasTimeFormat } from '@/lib/sar/aswTime';
@@ -38,6 +39,13 @@ import type { SearchPatternPlanInitialState } from '@/lib/sar/searchPatterns';
 import type { AeroDriftInitialState } from '@/components/sar/AeronauticalDriftWorksheet';
 import { LEEWAY_OBJECT_TYPES, mapNavAidToFixError, parseAltitudeFt } from '@/lib/sar/sarCalculations';
 import { normalizeCaseToolArgs } from '@/lib/sar/caseToolNormalize';
+import CaseExtractionCard, { type CaseExtractionData } from '@/components/sar/CaseExtractionCard';
+import {
+  buildCaseExtractionResult,
+  mergeUserFieldValue,
+  type CaseApplyStep,
+} from '@/lib/ai/parseCase';
+import type { SarCaseSchema } from '@/lib/sar/caseSchema';
 
 interface UploadedAttachment {
   name: string;
@@ -57,6 +65,21 @@ interface ChatMessage {
   /** Fase 2: hasil tool server-side (get_state, lookup_table, run_worksheet,
    *  run_pipeline, validate_plan) — informasi saja; tool ini tidak mengubah state. */
   serverToolCalls?: Array<{ name: string; ok: boolean; summary: string }>;
+  /** === Fase 3: alur parse-case (Ekstrak → Konfirmasi → Terapkan → Hitung → Review) === */
+  /** Payload /api/ai/parse-case + kasus mentah untuk koreksi pengguna. */
+  caseExtraction?: CaseExtractionData & { rawCase: SarCaseSchema };
+  /** Langkah apply plan yang sudah diterapkan (mode per-langkah/full). */
+  extractionAppliedStepIds?: string[];
+  /** Seluruh langkah diterapkan dalam satu batch (mode otomatis penuh). */
+  extractionAppliedAll?: boolean;
+  /** Mode penerapan pratinjau ekstraksi. */
+  extractionMode?: 'full' | 'step';
+  /** Field HILANG yang disetujui pengguna sebagai asumsi (keputusan no.6). */
+  extractionApprovedMissing?: string[];
+  /** Error validasi input pengguna per field (path → pesan). */
+  extractionFieldErrors?: Record<string, string>;
+  /** Tombol "Hitung & Review dengan AI" sudah ditekan. */
+  extractionReviewRequested?: boolean;
 }
 
 interface AIChatPanelProps {
@@ -104,6 +127,10 @@ interface AIChatPanelProps {
    *  no.5). Validasi registry dilakukan di sini dengan parseSetFieldsArgs;
    *  applier di page menulis state via setter yang sama dengan handler lain. */
   onApplySetFields?: (applied: SetFieldsApplied) => boolean;
+  /** Fase 3: terapkan langkah hasil parse-case lewat handler apply halaman
+   *  yang SAMA (keputusan no.5 — satu mekanisme update). Return = id langkah
+   *  yang berhasil/gagal (untuk pratinjau per-langkah). */
+  onApplyCaseSteps?: (steps: CaseApplyStep[]) => { applied: string[]; failed: string[] };
   /** Fase 2: snapshot state worksheet (buildState().state) untuk tool server-side
    *  get_state/run_pipeline/validate_plan — hanya-dibaca di server. */
   stateSnapshot?: Record<string, unknown> | null;
@@ -141,6 +168,11 @@ interface AIChatPanelProps {
 // (untuk AiSessionLog + previous_interaction_id server-side).
 const SESSION_KEY = 'sar-ai-chat-session';
 const CHAT_HISTORY_KEY = 'sar-ai-chat-history';
+
+/** Fase 3: prompt review pasca-apply — AI menjalankan run_pipeline +
+ *  validate_plan (tool server Fase 2) lalu MENYAMPAIKAN catatan/peringatan;
+ *  DILARANG mengubah angka atau mengisi ulang worksheet. */
+const CASE_REVIEW_PROMPT = 'Data kasus hasil ekstraksi soal sudah diterapkan ke worksheet. Jalankan validate_plan untuk memeriksa konsistensi data dan run_pipeline untuk menghitung seluruh rantai, lalu REVIEW hasilnya: ringkas langkah yang ok/skipped/error, peringatan penting, asumsi yang dipakai, dan data yang masih kurang untuk tahap berikutnya. DILARANG mengubah angka, mengisi ulang worksheet, atau menghitung sendiri — semua angka hanya dari tool aplikasi.';
 
 const QUICK_PROMPTS = [
   {
@@ -316,6 +348,7 @@ export default function AIChatPanel({
   onApplySearchPattern,
   onApplyIntercept,
   onApplySetFields,
+  onApplyCaseSteps,
   stateSnapshot,
   onAiBatchStart,
   onAiBatchEnd,
@@ -958,8 +991,182 @@ export default function AIChatPanel({
         setAutoRetryNote(null);
       }
     },
-    [sessionId, activeWorkspace, attachedFiles, isLoading, messages, applyFunctionCalls]
+    [sessionId, activeWorkspace, attachedFiles, isLoading, messages, applyFunctionCalls, stateSnapshot]
   );
+
+  // ═══ Fase 3: alur parse-case (Ekstrak → Konfirmasi → Terapkan → Hitung → Review) ═══
+
+  /** Kirim soal (lampiran + teks) ke /api/ai/parse-case: SATU panggilan tanpa
+   *  tools, hasil = kasus tervalidasi Zod + pratinjau per-field + apply plan.
+   *  Tidak ada state worksheet yang berubah sampai pengguna konfirmasi. */
+  const sendParseCase = useCallback(async () => {
+    if (isLoading) return;
+    const filesToSend = [...attachedFiles];
+    const note = input.trim();
+    if (filesToSend.length === 0 && !note) return;
+
+    const userMsg: ChatMessage = {
+      role: 'user',
+      content: note || 'Ekstrak data kasus dari soal terlampir.',
+      files: filesToSend.map((f) => ({ name: f.name, type: f.type, size: f.size })),
+    };
+    const newMessages = [...messages, userMsg];
+    setMessages(newMessages);
+    setInput('');
+    setAttachedFiles([]);
+    setIsLoading(true);
+
+    try {
+      const requestPayload: Record<string, unknown> = {
+        text: note || 'Ekstrak seluruh data kasus dari soal terlampir.',
+        files: filesToSend.map((f) => ({ name: f.name, type: f.type, base64: f.base64 })),
+      };
+      if (sessionId) requestPayload.sessionId = sessionId;
+      if (activeWorkspace?.id) requestPayload.caseId = activeWorkspace.id;
+
+      const res = await fetch('/api/ai/parse-case', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestPayload),
+      });
+      const data = await res.json() as {
+        ok?: boolean;
+        error?: string;
+        detail?: string[];
+        attempts?: number;
+        warnings?: string[];
+        case?: SarCaseSchema;
+        completeness?: CaseExtractionData['completeness'];
+        fieldRows?: CaseExtractionData['fieldRows'];
+        applyPlan?: CaseExtractionData['applyPlan'];
+        assumptions?: CaseExtractionData['assumptions'];
+        model?: string;
+      };
+      if (!res.ok || !data.ok || !data.case) {
+        const detail = Array.isArray(data.detail) && data.detail.length > 0 ? ` (${data.detail.slice(0, 3).join('; ')})` : '';
+        throw new Error(`${data.error || 'Ekstraksi gagal.'}${detail}`);
+      }
+      const assistantMsg: ChatMessage = {
+        role: 'assistant',
+        content: `📋 Ekstraksi soal kasus selesai (model ${data.model ?? '?'}${data.attempts ? `, ${data.attempts} percobaan` : ''}). Tinjau data per field di bawah: lengkapi atau setujui data yang HILANG, lalu terapkan ke worksheet — tidak ada data yang berubah sebelum Anda konfirmasi.`,
+        caseExtraction: {
+          caseTitle: data.case.caseTitle,
+          incidentType: data.case.incident.type,
+          fieldRows: data.fieldRows ?? [],
+          applyPlan: data.applyPlan ?? { steps: [], skipped: [] },
+          completeness: data.completeness ?? { complete: true, missingCount: 0, assumedCount: 0 },
+          assumptions: data.assumptions ?? [],
+          model: data.model,
+          attempts: data.attempts,
+          warnings: data.warnings,
+          rawCase: data.case,
+        },
+        extractionAppliedStepIds: [],
+        extractionAppliedAll: false,
+        extractionMode: 'full',
+        extractionApprovedMissing: [],
+        extractionFieldErrors: {},
+      };
+      setMessages([...newMessages, assistantMsg]);
+      // SAR Workflow Memory: hasil ekstraksi dicatat sebagai konteks (angka belum diterapkan).
+      onLogConversation?.('note', `Soal kasus diekstraksi via parse-case (${(data.fieldRows ?? []).length} field; ${(data.completeness?.missingCount ?? 0)} hilang) — menunggu konfirmasi pengguna.`);
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : 'Unknown error';
+      setMessages([
+        ...newMessages,
+        { role: 'assistant', content: `❌ Ekstraksi gagal: ${errMsg}` },
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [activeWorkspace, attachedFiles, input, isLoading, messages, sessionId, onLogConversation]);
+
+  /** Isi nilai field HILANG: validasi + merge ke kasus → rencana penerapan
+   *  dihitung ULANG oleh lib yang sama (deterministik) — tidak ada re-fetch. */
+  const handleCaseFieldValue = useCallback((idx: number, field: string, rawValue: string) => {
+    setMessages((prev) => prev.map((msg, i) => {
+      if (i !== idx || !msg.caseExtraction) return msg;
+      const workingCase = structuredClone(msg.caseExtraction.rawCase) as SarCaseSchema;
+      const merged = mergeUserFieldValue(workingCase, field, rawValue);
+      if (!merged.ok) {
+        return { ...msg, extractionFieldErrors: { ...(msg.extractionFieldErrors ?? {}), [field]: merged.error ?? 'Nilai tidak valid.' } };
+      }
+      // Nilai diisi pengguna dicatat sebagai asumsi (keputusan no.6 — bukan dari soal).
+      workingCase.meta = {
+        ...workingCase.meta,
+        assumptions: [...(workingCase.meta?.assumptions ?? []), merged.assumption!],
+      };
+      const rebuilt = buildCaseExtractionResult(workingCase, {});
+      if (!rebuilt.ok) {
+        return { ...msg, extractionFieldErrors: { ...(msg.extractionFieldErrors ?? {}), [field]: rebuilt.detail?.[0] ?? 'Kasus tidak valid setelah koreksi.' } };
+      }
+      onLogConversation?.('decision', `Field ${field} diisi pengguna pada panel ekstraksi: ${rawValue.trim()}`);
+      return {
+        ...msg,
+        extractionFieldErrors: Object.fromEntries(Object.entries(msg.extractionFieldErrors ?? {}).filter(([key]) => key !== field)),
+        caseExtraction: {
+          ...msg.caseExtraction,
+          caseTitle: rebuilt.case.caseTitle,
+          fieldRows: rebuilt.fieldRows,
+          applyPlan: rebuilt.applyPlan,
+          completeness: rebuilt.completeness,
+          assumptions: rebuilt.assumptions,
+          rawCase: workingCase,
+        },
+      };
+    }));
+  }, [onLogConversation]);
+
+  /** Field HILANG disetujui sebagai asumsi → blokir penerapan dilepas;
+   *  nilai tetap kosong dan WAJIB dilengkapi manual di worksheet. */
+  const handleApproveMissing = useCallback((idx: number, field: string) => {
+    setMessages((prev) => prev.map((msg, i) => {
+      if (i !== idx || !msg.caseExtraction) return msg;
+      const approved = msg.extractionApprovedMissing ?? [];
+      if (approved.includes(field)) return msg;
+      return { ...msg, extractionApprovedMissing: [...approved, field] };
+    }));
+    onLogConversation?.('decision', `Field ${field} disetujui pengguna sebagai asumsi (lengkap manual di worksheet).`);
+  }, [onLogConversation]);
+
+  /** Terapkan langkah apply plan lewat handler apply halaman yang SAMA.
+   *  Mode 'full': semua langkah tersisa dalam SATU batch (keputusan no.10).
+   *  Mode 'step': satu klik = satu langkah = satu batch tersendiri. */
+  const handleApplyCaseSteps = useCallback((idx: number, steps: CaseApplyStep[], asFull: boolean) => {
+    if (!onApplyCaseSteps || steps.length === 0) return;
+    onAiBatchStart?.();
+    const result = onApplyCaseSteps(steps);
+    onAiBatchEnd?.(
+      [...new Set(steps.map((step) => step.worksheet))],
+      result.applied.length > 0,
+    );
+    const failedIds = new Set(result.failed);
+    const appliedIds = steps.filter((step) => !failedIds.has(step.id)).map((step) => step.id);
+    setMessages((prev) => prev.map((msg, i) => {
+      if (i !== idx || !msg.caseExtraction) return msg;
+      const previous = msg.extractionAppliedStepIds ?? [];
+      return {
+        ...msg,
+        extractionAppliedStepIds: [...previous, ...appliedIds],
+        extractionAppliedAll: asFull ? true : msg.extractionAppliedAll,
+        content: result.failed.length > 0
+          ? `${msg.content}\n\n⚠️ ${appliedIds.length} langkah diterapkan; GAGAL: ${result.failed.join(', ')}.`
+          : msg.content,
+      };
+    }));
+    // SAR Workflow Memory: konfirmasi pengguna = keputusan tercatat di konteks.
+    onLogConversation?.(
+      'approved-action',
+      `Pengguna mengonfirmasi penerapan hasil ekstraksi (${appliedIds.length} langkah: ${steps.map((s) => s.worksheet).join(', ')})`,
+    );
+  }, [onApplyCaseSteps, onAiBatchStart, onAiBatchEnd, onLogConversation]);
+
+  /** Hitung & Review: jalankan validate_plan + run_pipeline (tool server) dan
+   *  minta AI mereview — AI dilarang mengubah angka (teks prompt sudah mengunci). */
+  const handleRunCaseReview = useCallback((idx: number) => {
+    setMessages((prev) => prev.map((msg, i) => (i === idx ? { ...msg, extractionReviewRequested: true } : msg)));
+    void sendMessage(CASE_REVIEW_PROMPT);
+  }, [sendMessage]);
 
   /** Jawaban klarifikasi waktu (datum time / waktu insiden A.1): catat keputusan, kirim ke chat agar AI meneruskan set_asw_case / set_aero_drift_case dengan nilai terkonfirmasi. */
   const handleClarifyAnswer = useCallback(
@@ -1314,6 +1521,16 @@ export default function AIChatPanel({
                     Upload soal latihan/kasus (PDF, Office, Gambar) atau ketik pertanyaan SAR.
                   </p>
                 </div>
+                {/* Fase 3: pintasan alur Ekstrak → Konfirmasi → Terapkan → Hitung → Review */}
+                <button
+                  type="button"
+                  onClick={() => sendParseCase()}
+                  disabled={isLoading || (attachedFiles.length === 0 && !input.trim())}
+                  className="w-full mx-1 text-[11px] font-bold text-white bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-300 rounded-lg py-2 flex items-center justify-center gap-1.5 transition-colors"
+                  title="Lampirkan soal (PDF/gambar) lalu tekan: ekstraksi satu panggilan + pratinjau per-field"
+                >
+                  <ClipboardList className="h-4 w-4" /> Ekstrak Soal Kasus ke Worksheet
+                </button>
                 <div className="grid grid-cols-2 gap-2 px-1 text-left">
                   {QUICK_PROMPTS.map((qp) => (
                     <button
@@ -1386,6 +1603,31 @@ export default function AIChatPanel({
                         </div>
                       ))}
                     </div>
+                  )}
+
+                  {/* Fase 3: pratinjau per-field hasil parse-case — menggantikan
+                      pratinjau tool-by-tool untuk alur soal kasus. */}
+                  {msg.caseExtraction && (
+                    <CaseExtractionCard
+                      data={msg.caseExtraction}
+                      mode={msg.extractionMode ?? 'full'}
+                      onModeChange={(mode) => setMessages((prev) => prev.map((m, i) => (i === idx ? { ...m, extractionMode: mode } : m)))}
+                      appliedStepIds={msg.extractionAppliedStepIds ?? []}
+                      appliedAll={msg.extractionAppliedAll ?? false}
+                      approvedMissingPaths={msg.extractionApprovedMissing ?? []}
+                      fieldErrors={msg.extractionFieldErrors ?? {}}
+                      busyStepId={isLoading ? 'all' : null}
+                      reviewRequested={msg.extractionReviewRequested ?? false}
+                      onApplyAll={() => {
+                        const pending = (msg.caseExtraction?.applyPlan.steps ?? [])
+                          .filter((step) => !(msg.extractionAppliedStepIds ?? []).includes(step.id));
+                        handleApplyCaseSteps(idx, pending, true);
+                      }}
+                      onApplyStep={(step) => handleApplyCaseSteps(idx, [step], false)}
+                      onFieldValue={(field, rawValue) => handleCaseFieldValue(idx, field, rawValue)}
+                      onApproveMissing={(field) => handleApproveMissing(idx, field)}
+                      onRunReview={() => handleRunCaseReview(idx)}
+                    />
                   )}
 
                   {/* Function Call / Action Card */}
@@ -1519,24 +1761,36 @@ export default function AIChatPanel({
 
           {/* Attached Files Chips Bar */}
           {attachedFiles.length > 0 && (
-            <div className="px-3 py-1.5 bg-slate-50 border-t border-slate-200 flex flex-wrap gap-1.5 max-h-24 overflow-y-auto shrink-0">
-              {attachedFiles.map((f, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-1 bg-white border border-slate-300 rounded px-2 py-0.5 text-[11px] font-mono shadow-2xs text-slate-800"
-                >
-                  {getFileIcon(f.name)}
-                  <span className="truncate max-w-[130px] font-medium">{f.name}</span>
-                  <span className="text-[9px] text-slate-500">({formatFileSize(f.size)})</span>
-                  <button
-                    type="button"
-                    onClick={() => removeAttachedFile(i)}
-                    className="text-slate-400 hover:text-rose-600 ml-1"
+            <div className="px-3 py-1.5 bg-slate-50 border-t border-slate-200 space-y-1.5 shrink-0">
+              <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                {attachedFiles.map((f, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-1 bg-white border border-slate-300 rounded px-2 py-0.5 text-[11px] font-mono shadow-2xs text-slate-800"
                   >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              ))}
+                    {getFileIcon(f.name)}
+                    <span className="truncate max-w-[130px] font-medium">{f.name}</span>
+                    <span className="text-[9px] text-slate-500">({formatFileSize(f.size)})</span>
+                    <button
+                      type="button"
+                      onClick={() => removeAttachedFile(i)}
+                      className="text-slate-400 hover:text-rose-600 ml-1"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              {/* Fase 3: aksi ekstraksi langsung dari lampiran soal kasus */}
+              <button
+                type="button"
+                onClick={() => sendParseCase()}
+                disabled={isLoading}
+                className="w-full text-[11px] font-bold text-white bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-300 rounded-lg py-1.5 flex items-center justify-center gap-1.5 transition-colors"
+                title="Ekstrak data kasus dari lampiran: satu panggilan + pratinjau per-field + apply plan"
+              >
+                <ClipboardList className="h-3.5 w-3.5" /> Ekstrak Soal Kasus ke Worksheet
+              </button>
             </div>
           )}
 

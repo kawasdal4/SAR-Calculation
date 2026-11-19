@@ -298,6 +298,15 @@ export const metaSchema = z.object({
     field: z.string(),
     reason: z.string(),
   })).optional(),
+  /** Fase 3 (keputusan no.6): provenance per-field dari ekstraksi — teks
+   *  sumber di soal + status verifikasi. HANYA nilai yang MEMANG tertulis
+   *  di soal yang boleh berstatus VERIFIED; hasil tafsiran/penurunan model
+   *  WAJIB UNVERIFIED (tidak boleh dianggap resmi/final). */
+  fieldSources: z.array(z.object({
+    field: z.string(),
+    source: z.string(),
+    status: verificationStatusSchema.optional(),
+  })).optional(),
   source: z.enum(['pdf', 'text', 'generator', 'manual', 'unknown']).optional(),
   /** Seed generator soal (kosong/acak untuk soal manual). */
   seed: z.string().optional(),

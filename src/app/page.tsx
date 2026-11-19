@@ -100,6 +100,7 @@ import { PrintScopeController } from '@/components/sar/SheetPrintMenu';
 import AeronauticalDriftWorksheet from '@/components/sar/AeronauticalDriftWorksheet';
 import type { AeroDriftResult } from '@/lib/sar/aeroDriftCalculations';
 import type { SetFieldsApplied, SetFieldsWorksheet } from '@/lib/ai/tools/setFields';
+import type { CaseApplyStep } from '@/lib/ai/parseCase';
 import InterceptWorksheet from '@/components/sar/InterceptWorksheet';
 import type { InterceptInput } from '@/lib/sar/interceptCalculations';
 import Worksheet1 from '@/components/sar/worksheets/Worksheet1';
@@ -1652,6 +1653,61 @@ export default function Home() {
   useEffect(() => {
     handleApplySetFieldsRef.current = handleApplySetFields;
   });
+
+  // === Fase 3: terapkan langkah hasil parse-case (buildApplyPlan) lewat handler
+  // apply yang SAMA di atas (keputusan no.5 — satu mekanisme update; payload
+  // langkah PERSIS bentuk payload handler). Urutan mengikuti rantai worksheet:
+  // ASW → AWA → ADW → Datum → lembar WS 2/WS 8 → Alokasi Aset.
+  const handleApplyCaseSteps = useCallback((steps: CaseApplyStep[]): { applied: string[]; failed: string[] } => {
+    const applied: string[] = [];
+    const failed: string[] = [];
+    for (const step of steps) {
+      try {
+        switch (step.worksheet) {
+          case 'asw':
+            handleApplyASW(step.payload as Parameters<typeof handleApplyASW>[0]);
+            break;
+          case 'awa':
+            handleApplyAWA(step.payload as Parameters<typeof handleApplyAWA>[0]);
+            break;
+          case 'aero':
+            handleApplyAeroDrift(step.payload as AeroDriftInitialState);
+            break;
+          case 'datum': {
+            const payload = step.payload as Parameters<typeof handleApplyDatum>[0];
+            // Pengaman ganda: drift interval WAJIB angka (hasil fungsi resmi
+            // computeASW di buildApplyPlan — tidak pernah dikarang).
+            if (!Number.isFinite(payload.driftInterval) || (payload.driftInterval ?? 0) <= 0) {
+              failed.push(step.id);
+              continue;
+            }
+            handleApplyDatum(payload);
+            break;
+          }
+          case 'ws2':
+            handleApplyWS2(step.payload as Worksheet2InitialState);
+            break;
+          case 'ws8':
+            handleApplyWS8(step.payload as Worksheet8InitialState);
+            break;
+          case 'assets':
+            handleApplyAssetAllocation(step.payload as unknown as AssetAllocationCaseInput);
+            break;
+          default:
+            failed.push(step.id);
+            continue;
+        }
+        applied.push(step.id);
+      } catch (error) {
+        console.warn(`[parse-case apply] Langkah ${step.id} gagal:`, error);
+        failed.push(step.id);
+      }
+    }
+    if (applied.length > 0) {
+      toast.success(`Kasus ekstraksi diterapkan: ${applied.length} langkah (${[...new Set(steps.filter((s) => applied.includes(s.id)).map((s) => s.worksheet))].join(', ')}).`);
+    }
+    return { applied, failed };
+  }, [handleApplyASW, handleApplyAWA, handleApplyAeroDrift, handleApplyDatum, handleApplyWS2, handleApplyWS8, handleApplyAssetAllocation]);
 
 
   useEffect(() => {
@@ -3693,6 +3749,7 @@ export default function Home() {
         aiBatches={aiBatches}
         onUndoAiBatch={handleUndoAiBatch}
         onFocusWorksheet={(worksheet) => setActiveTab(worksheet === 'datum' ? 'ws1' : worksheet)}
+        onApplyCaseSteps={handleApplyCaseSteps}
         activeWorkspace={activeSarCase}
         workspaceEntries={wsContextEntries}
         workspaceContextBlock={workspaceContextBlock}
