@@ -18,6 +18,18 @@ import {
 import { formatDMS } from '@/lib/sar/coordFormat';
 import type { DatumData, DatumResults } from '@/components/sar/DatumWorksheet';
 
+/** Mirror pengukuran peta Worksheet 1 untuk hitungan gambar di sisi halaman. */
+export interface Ws1Measured {
+  /** Jarak terukur LKP → datum kiri (NM); '' = pakai estimasi analitik. */
+  left: string;
+  /** Jarak terukur LKP → datum kanan (NM). */
+  right: string;
+  /** Jarak terukur antara datum kiri dan kanan (NM). */
+  leftRight: string;
+  /** Persentase drift error (§4.7.61, default 12.5%). */
+  driftErrorPercent: number;
+}
+
 /** Hasil turunan Worksheet 1 yang dilaporkan ke peta (titik datum, galat, radius). */
 export interface Ws1Derived {
   /** Titik ujung rantai: arus laut → arus angin → leeway kiri/kanan. */
@@ -64,10 +76,12 @@ interface Worksheet1Props {
   aswTotalHours?: number;
   readOnly?: boolean;
   onAoChange?: (ao: number) => void;
-  /** Melaporkan titik datum & galat hasil Worksheet 1 untuk digambar di peta laut. */
-  onDerivedChange?: (derived: Ws1Derived | null) => void;
   selectedFs?: number;
   onFsChange?: (fs: number) => void;
+  /** Mirror pengukuran peta (jarak L/R terukur + persen de) ke halaman agar
+   *  hitungan gambar peta di sisi halaman memakai nilai yang sama selagi
+   *  tab ini terpasang; null saat unmount. */
+  onMeasuredChange?: (measured: Ws1Measured | null) => void;
 }
 
 /** Format derajat-menit (Panduan bagian 5: posisi datum dalam derajat-menit dan desimal). */
@@ -89,7 +103,7 @@ export default function Worksheet1({
   aswTotalHours,
   readOnly = false,
   onAoChange,
-  onDerivedChange,
+  onMeasuredChange,
   selectedFs,
   onFsChange,
 }: Worksheet1Props) {
@@ -266,36 +280,19 @@ export default function Worksheet1({
     }
   };
 
-  // Lapor Ao (persegi, kompatibilitas downstream) + hasil turunan untuk peta.
+  // Lapor Ao (persegi, kompatibilitas downstream) + mirror pengukuran peta ke
+  // halaman: hitungan gambar peta di sisi halaman (ws1Computed) memakai nilai
+  // yang sama selagi tab terpasang, dan kembali analitik saat unmount.
   useEffect(() => { onAoChange?.(Ao); }, [Ao, onAoChange]);
   useEffect(() => {
-    onDerivedChange?.({
-      P1: { lat: ws1.P1.lat, lng: ws1.P1.lng },
-      P2: { lat: ws1.P2.lat, lng: ws1.P2.lng },
-      L: { lat: ws1.L.lat, lng: ws1.L.lng },
-      R: { lat: ws1.R.lat, lng: ws1.R.lng },
-      datumB: { lat: ws1.datumB.lat, lng: ws1.datumB.lng },
-      bearingAB: ws1.bearingAB,
-      distanceAB: ws1.distanceAB,
-      dL: ws1.dL,
-      dR: ws1.dR,
-      LR: ws1.LR,
-      deL,
-      deR,
-      De,
-      E,
-      fs: fsSelected,
-      RUp: R_round,
-      areaCircleNM2: areaCircle,
-      areaSquareNM2: Ao,
-      hours,
-      datumDtg,
-      useWindCurrent,
-      lwClampedToZero: ws1.lwClampedToZero,
-      warnings: allWarnings,
-      assumptions: ws1.assumptions,
+    onMeasuredChange?.({
+      left: measuredDistances.left,
+      right: measuredDistances.right,
+      leftRight: measuredDistances.leftRight,
+      driftErrorPercent,
     });
-  }, [ws1, deL, deR, De, E, fsSelected, R_round, areaCircle, Ao, hours, datumDtg, useWindCurrent, allWarnings, onDerivedChange]);
+    return () => onMeasuredChange?.(null);
+  }, [measuredDistances, driftErrorPercent, onMeasuredChange]);
 
   return (
     <Card className="border-slate-400 shadow-md bg-white overflow-hidden text-slate-900 print:shadow-none print:border-none">

@@ -57,7 +57,7 @@ import SearchPlanWorksheet, {
   type SearchPlanResults,
   type SearchPlanInitialState,
 } from '@/components/sar/SearchPlanWorksheet';
-import type { Ws1Derived } from '@/components/sar/worksheets/Worksheet1';
+import type { Ws1Derived, Ws1Measured } from '@/components/sar/worksheets/Worksheet1';
 import CaseManager from '@/components/sar/CaseManager';
 import ExportButtons from '@/components/sar/ExportButtons';
 import CopyrightFooter from '@/components/sar/CopyrightFooter';
@@ -71,10 +71,12 @@ import {
   rectangleCorners,
   distanceNm,
   bearingDeg,
+  computeWs1SearchArea,
   WS1_FS_OPTIONS,
+  WS1_DEFAULT_DRIFT_ERROR_PERCENT,
 } from '@/lib/sar/sarCalculations';
 import { formatDMS } from '@/lib/sar/coordFormat';
-import { computeDatumWs1 } from '@/lib/sar/datumWs1';
+import { computeDatumWs1, ws1DatumDtgUtc } from '@/lib/sar/datumWs1';
 import type { MapMarker, MapLine, MapPolygon, MapCircle } from '@/components/sar/SeaMap';
 import BasicCalculation from '@/components/sar/BasicCalculation';
 import ChartDistanceGuide from '@/components/sar/chart-distance/ChartDistanceGuide';
@@ -190,8 +192,10 @@ export default function Home() {
   const [searchResults, setSearchResults] = useState<SearchPlanResults | null>(null);
   const [worksheet1Ao, setWorksheet1Ao] = useState(0);
   const [worksheet1Fs, setWorksheet1Fs] = useState(1.1);
-  /** Hasil turunan Worksheet 1 (rantai titik datum Panduan) untuk penggambaran peta. */
-  const [ws1Derived, setWs1Derived] = useState<Ws1Derived | null>(null);
+  // Mirror pengukuran peta dari Worksheet 1 (jarak L/R terukur + persen de).
+  // Dilaporkan Worksheet1 selagi tabnya terpasang; null saat unmount — nilai
+  // lokal Worksheet 1 memang hilang dan kembali dihitung analitik.
+  const [ws1Measured, setWs1Measured] = useState<Ws1Measured | null>(null);
   // === Lembar worksheet per-SRU (WS 2/3/8): 1 alut/SRU = 1 lembar.
   // Kasus dengan 1 fixed wing + 1 helikopter → Worksheet 2 berisi 2 lembar. ===
   const [ws2Sheets, setWs2Sheets] = useState<Array<WorksheetSheet<Worksheet2InitialState>>>([]);
@@ -209,13 +213,17 @@ export default function Home() {
   const [lkp, setLkp] = useState<LatLng>({ lat: 0, lng: 0 });
   const [isLkpSet, setIsLkpSet] = useState(false);
 
-  // Fallback: hitung rantai Panduan langsung dari state halaman (dipakai bila
-  // tab Worksheet 1 belum pernah dibuka; Worksheet 1 meng-override lewat
-  // onDerivedChange bila terpasang, termasuk hasil ukur peta bila diisi).
+  // SATU SUMBER gambar peta untuk rantai Worksheet 1: hitung rantai Panduan
+  // langsung dari state halaman — SELALU segar, dari tab mana pun. Sebelumnya
+  // ws1Map = ws1Derived ?? ws1Computed: ws1Derived hanya diperbarui selagi tab
+  // WS 1 terpasang lalu MBEKU setelah tab ditutup (Radix unmount), sehingga
+  // perubahan Fs dari tool AI (setWorksheet1Fs) maupun data ASW/Datum yang
+  // baru tidak pernah menggambar ulang lingkaran R & kotak Ao di peta laut.
   const ws1Computed = useMemo<Ws1Derived>(() => {
+    const hours = asw.totalHours && asw.totalHours > 0 ? asw.totalHours : (datumData?.driftInterval ?? 0);
     const r = computeDatumWs1({
       lkp,
-      hours: asw.totalHours && asw.totalHours > 0 ? asw.totalHours : (datumData?.driftInterval ?? 0),
+      hours,
       seaCurrentDir: datumData?.seaCurrent.dir ?? 0,
       seaCurrentSpeed: datumData?.seaCurrent.mag ?? 0,
       windFrom: asw.aswSpeed > 0 ? asw.aswDirFrom : 0,
@@ -229,6 +237,33 @@ export default function Home() {
       searchNumber: 1,
       useWindCurrent: datumData?.useWindCurrent !== false,
     });
+    // Override hasil ukur peta — logika identik Worksheet 1 (§4.7.61): bila
+    // jarak terukur diisi di Worksheet 1, de(L)/de(R)/L–R mengikuti ukuran itu.
+    const numericOverride = (value: string | undefined, fallback: number) =>
+      value !== undefined && value.trim() !== '' && Number.isFinite(Number(value)) && Number(value) >= 0
+        ? Number(value)
+        : fallback;
+    const distL = numericOverride(ws1Measured?.left, r.dL);
+    const distR = numericOverride(ws1Measured?.right, r.dR);
+    const distLR = numericOverride(ws1Measured?.leftRight, r.LR);
+    const dePercent = ws1Measured?.driftErrorPercent ?? WS1_DEFAULT_DRIFT_ERROR_PERCENT;
+    const deL = distL * dePercent / 100;
+    const deR = distR * dePercent / 100;
+    const De = (deL + deR + distLR) / 2;
+    const { E, R: RUp, Ao } = computeWs1SearchArea({
+      De,
+      X: datumResults?.X ?? 0,
+      Y: datumResults?.Y ?? 0,
+      fs: worksheet1Fs,
+    });
+    const useWindCurrent = datumData?.useWindCurrent !== false;
+    const extraWarnings: string[] = [];
+    if (hours <= 0) {
+      extraWarnings.push('Hours of drift (a) = 0 — isi Total Hours (D) di worksheet ASW atau Drift Interval di Worksheet Datum.');
+    }
+    if (useWindCurrent && asw.aswSpeed > 0 && r.wcSpeed === 0) {
+      extraWarnings.push('Arus angin (WC) = 0 — cek worksheet ASW.');
+    }
     return {
       P1: r.P1,
       P2: r.P2,
@@ -240,23 +275,23 @@ export default function Home() {
       dL: r.dL,
       dR: r.dR,
       LR: r.LR,
-      deL: r.deL,
-      deR: r.deR,
-      De: r.De,
-      E: r.E,
-      fs: r.fs,
-      RUp: r.RUp,
-      areaCircleNM2: r.areaCircleNM2,
-      areaSquareNM2: r.areaSquareNM2,
-      hours: r.hours,
-      datumDtg: null,
-      useWindCurrent: datumData?.useWindCurrent !== false,
+      deL,
+      deR,
+      De,
+      E,
+      fs: worksheet1Fs,
+      RUp,
+      areaCircleNM2: Math.PI * RUp * RUp,
+      areaSquareNM2: Ao,
+      hours,
+      datumDtg: ws1DatumDtgUtc(asw.distressTime, hours),
+      useWindCurrent,
       lwClampedToZero: r.lwClampedToZero,
-      warnings: r.warnings,
+      warnings: [...r.warnings.filter((w) => !w.startsWith('Jika lingkaran radius')), ...extraWarnings],
       assumptions: r.assumptions,
     };
-  }, [lkp, asw, datumData, datumResults, worksheet1Fs]);
-  const ws1Map: Ws1Derived = ws1Derived ?? ws1Computed;
+  }, [lkp, asw, datumData, datumResults, worksheet1Fs, ws1Measured]);
+  const ws1Map: Ws1Derived = ws1Computed;
   const [pickMode, setPickMode] = useState<boolean>(false);
   const [pickSruMode, setPickSruMode] = useState<boolean>(false);
   const [mainMapToolMode, setMainMapToolMode] = useState<'pan' | 'drop' | 'measure'>('pan');
@@ -459,6 +494,7 @@ export default function Home() {
     if (typeof state.tsReturnOffsetText === 'string') setTsReturnOffsetText(state.tsReturnOffsetText);
     setWorksheet1Ao(0);
     setWorksheet1Fs(1.1);
+    setWs1Measured(null);
     if (assetsLoaded && Array.isArray(assetsLoaded)) setAssets(assetsLoaded);
 
     // Lembar worksheet per-SRU: muat array lembar tersimpan; kasus lama (satu
@@ -568,6 +604,7 @@ export default function Home() {
     setSearchResults(null);
     setWorksheet1Ao(0);
     setWorksheet1Fs(0);
+    setWs1Measured(null);
     // Lembar per-SRU kembali ke satu lembar default kosong
     setWs2Sheets([{ key: 'default', label: 'SRU 1', assetId: null, data: {} }]);
     setWs3Sheets([{ key: 'default', label: 'SRU 1', assetId: null, data: {} }]);
@@ -668,6 +705,7 @@ export default function Home() {
         setSearchResults(null);
         setWorksheet1Ao(0);
         setWorksheet1Fs(0);
+        setWs1Measured(null);
         setDatumState(null);
         setSearchState(null);
         setLkp({ lat: 0, lng: 0 });
@@ -1062,8 +1100,11 @@ export default function Home() {
     }
   }, [datumState?.driftInterval]);
 
-  // Luas Search Area dari Worksheet 1 (Ao)
-  const ws1Ao = worksheet1Ao;
+  // Luas Search Area dari Worksheet 1 (Ao) — diambil dari ws1Computed (satu
+  // sumber gambar peta) agar SELALU segar: state worksheet1Ao hanya diperbarui
+  // selagi tab WS 1 terpasang, jadi Ao/kotak hijau/pola akan beku bila Fs atau
+  // data datum berubah dari jalur lain (tool AI, tab lain).
+  const ws1Ao = ws1Computed.areaSquareNM2;
 
   // Titik Datum B (Panduan Datum Worksheet 1 §4.7.60): midpoint geodesik garis
   // L–R dari Worksheet 1; fallback ke rata-rata Datum Left/Right (K-13).
@@ -1092,19 +1133,25 @@ export default function Home() {
     setPatternOrientationText(driftOrientationDeg.toFixed(1));
   }, [driftOrientationDeg]);
 
-  // Ukuran sisi Search Area berbentuk persegi (Square: Panjang = Lebar = Sisi S)
+  // Ukuran sisi Search Area berbentuk persegi (Square: Panjang = Lebar = Sisi S).
+  // Ao Worksheet 1 adalah sumber kanonik (dipakai WS 2/WS 8/Alokasi Aset) —
+  // perubahan Fs di WS 1 langsung mengubah ukuran pola di peta laut. Ao WS 3
+  // hanya fallback bila WS 1 belum menghitung (ws1Ao = 0).
   const searchSquareSide = useMemo(() => {
+    if (ws1Ao > 0) {
+      return Number(Math.sqrt(ws1Ao).toFixed(2));
+    }
     if (searchResults?.Ao && searchResults.Ao > 0) {
       return Number(Math.sqrt(searchResults.Ao).toFixed(2));
     }
     if (searchResults?.searchAreaLength && searchResults?.searchAreaWidth) {
       return Number(Math.max(searchResults.searchAreaLength, searchResults.searchAreaWidth).toFixed(2));
     }
-    return Number(Math.sqrt(ws1Ao).toFixed(2));
+    return 0;
   }, [searchResults, ws1Ao]);
 
   // Search Area parameters (Persegi dengan kemiringan searah drift dari LKP ke Datum)
-  const searchAreaCenter = searchResults?.searchAreaCenter ?? datumCenterPoint;
+  const searchAreaCenter = ws1Ao > 0 ? datumCenterPoint : (searchResults?.searchAreaCenter ?? datumCenterPoint);
   const searchAreaLength = searchSquareSide;
   const searchAreaWidth = searchSquareSide;
   const searchAreaOrientation = driftOrientationDeg;
@@ -2180,7 +2227,7 @@ export default function Home() {
                 aswDistressTime={asw.distressTime}
                 aswTotalHours={asw.totalHours}
                 onAoChange={setWorksheet1Ao}
-                onDerivedChange={setWs1Derived}
+                onMeasuredChange={setWs1Measured}
                 selectedFs={worksheet1Fs}
                 onFsChange={setWorksheet1Fs}
               />
@@ -2228,7 +2275,7 @@ export default function Home() {
               {/* Penjabaran hitungan Datum Position & Search Area lingkaran (π × R²) —
                   DIKELUARKAN dari worksheet (form asli tidak memuatnya); hitungan
                   berjalan di belakang layar untuk peta laut, penjabaran di bawah ini. */}
-              <DatumPositionCard datum={datumResults ?? datumDisplay} derived={ws1Derived} />
+              <DatumPositionCard datum={datumResults ?? datumDisplay} derived={ws1Map} />
             </TabsContent>
 
             {/* TAB 5: WORKSHEET 2 (LEEWAY DIVERGENCE & SUB-AREA DECISION USING AO) */}
