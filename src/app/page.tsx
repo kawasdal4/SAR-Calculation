@@ -118,6 +118,8 @@ import AssetAllocationWorksheet, {
 } from '@/components/sar/AssetAllocationWorksheet';
 import {
   type SruAssetInput,
+  type AssetAllocationCaseInput,
+  assetDomain,
   calculateAssetAllocationSummary,
 } from '@/lib/sar/assetAllocation';
 
@@ -958,6 +960,46 @@ export default function Home() {
     setActiveTab('ws8');
   }, [assets, ws8Sheets]);
 
+  const handleApplyAssetAllocation = useCallback((data: AssetAllocationCaseInput) => {
+    // Worksheet Alokasi Aset: 1 alut = 1 lembar — tambahkan/perbarui aset milik
+    // sruName saja; lembar SRU lain tidak tersentuh. AI mengklasifikasi udara/
+    // laut lewat sruType dan menentukan pangkalan dari soal; bila soal tidak
+    // memberi koordinat, AI meresolusi nama bandara/dermaga pada peta ONC dan
+    // mengirim homeBaseLat/homeBaseLng hasil pembacaan chart (asumsi).
+    const sruName = (data.sruName ?? '').trim();
+    const isAir = assetDomain(data.sruType) === 'udara';
+    const hasCoords = Number.isFinite(data.homeBaseLat) && Number.isFinite(data.homeBaseLng)
+      && (data.homeBaseLat !== 0 || data.homeBaseLng !== 0);
+    const preset = SRU_BASE_PRESETS.find((p) => p.name.toLowerCase() === data.homeBaseName.trim().toLowerCase());
+    setAssets((prev) => {
+      const existing = sruName !== ''
+        ? prev.find((asset) => asset.name.trim().toLowerCase() === sruName.toLowerCase())
+        : undefined;
+      const next: SruAssetInput = {
+        id: existing?.id ?? `sru-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        name: sruName || existing?.name?.trim() || 'SRU',
+        type: data.sruType,
+        homeBaseName: data.homeBaseName.trim(),
+        homeBasePos: hasCoords
+          ? { lat: data.homeBaseLat ?? 0, lng: data.homeBaseLng ?? 0 }
+          : existing?.homeBasePos ?? preset?.pos ?? { lat: 0, lng: 0 },
+        transitSpeedKts: data.transitSpeedKts ?? existing?.transitSpeedKts ?? 0,
+        searchSpeedKts: data.searchSpeedKts ?? existing?.searchSpeedKts ?? 0,
+        enduranceHours: data.enduranceHours ?? existing?.enduranceHours ?? 0,
+        sweepWidthNm: data.sweepWidthNm ?? existing?.sweepWidthNm ?? 0,
+        assignedSubArea: data.assignedSubArea ?? existing?.assignedSubArea ?? '-',
+        airEngineType: isAir ? data.airEngineType ?? existing?.airEngineType : undefined,
+        tafCondition: isAir ? data.tafCondition ?? existing?.tafCondition : undefined,
+        maritimeTsfMins: !isAir ? data.maritimeTsfMins ?? existing?.maritimeTsfMins : undefined,
+      };
+      return existing
+        ? prev.map((asset) => (asset.id === existing.id ? next : asset))
+        : [...prev, next];
+    });
+    setCaseVersion((version) => version + 1);
+    setActiveTab('asset-allocation');
+  }, []);
+
   const handleApplySearchPattern = useCallback((data: SearchPatternPlanInitialState) => {
     setPatternType(data.patternType);
     setPatternOrientationText(String(data.orientationDeg));
@@ -1300,12 +1342,14 @@ export default function Home() {
       });
     }
 
-    // SRU Home Bases
-    assets.forEach((asset, idx) => {
+    // SRU Home Bases — dilewati bila posisi pangkalan belum valid (0,0):
+    // pangkalan dari AI (bandara/dermaga via ONC) atau preset dipetakan di sini.
+    assets.forEach((asset) => {
+      if (asset.homeBasePos.lat === 0 && asset.homeBasePos.lng === 0) return;
       list.push({
         position: asset.homeBasePos,
         label: `Pangkalan ${asset.name}: ${formatDMS(asset.homeBasePos.lat, false)}, ${formatDMS(asset.homeBasePos.lng, true)}`,
-        color: idx === 0 ? '#8b5cf6' : '#0284c7',
+        color: assetDomain(asset.type) === 'udara' ? '#7c3aed' : '#0284c7',
       });
     });
 
@@ -1352,22 +1396,30 @@ export default function Home() {
     const palette = ['#8b5cf6', '#0284c7', '#0d9488', '#d97706'];
 
     assetSummary.perAsset.forEach((calc, idx) => {
+      // Lembar tanpa pangkalan valid (0,0) belum punya rute transit.
+      if (calc.asset.homeBasePos.lat === 0 && calc.asset.homeBasePos.lng === 0) return;
+      const hasCsp = csp.lat !== 0 || csp.lng !== 0;
+      const hasExit = exitPoint.lat !== 0 || exitPoint.lng !== 0;
       const col = palette[idx % palette.length];
       // Transit Go: Base -> CSP
-      list.push({
-        from: calc.asset.homeBasePos,
-        to: csp,
-        color: col,
-        label: `${calc.asset.name} Go: ${calc.transitGoDistanceNm.toFixed(1)} NM (${(calc.transitGoHours * 60).toFixed(0)}m)`,
-      });
+      if (hasCsp) {
+        list.push({
+          from: calc.asset.homeBasePos,
+          to: csp,
+          color: col,
+          label: `${calc.asset.name} Go: ${calc.transitGoDistanceNm.toFixed(1)} NM (${(calc.transitGoHours * 60).toFixed(0)}m)`,
+        });
+      }
       // Transit Back: Exit Point -> Base
-      list.push({
-        from: exitPoint,
-        to: calc.asset.homeBasePos,
-        color: col,
-        dashed: true,
-        label: `${calc.asset.name} Back: ${calc.transitBackDistanceNm.toFixed(1)} NM (${(calc.transitBackHours * 60).toFixed(0)}m)`,
-      });
+      if (hasExit) {
+        list.push({
+          from: exitPoint,
+          to: calc.asset.homeBasePos,
+          color: col,
+          dashed: true,
+          label: `${calc.asset.name} Back: ${calc.transitBackDistanceNm.toFixed(1)} NM (${(calc.transitBackHours * 60).toFixed(0)}m)`,
+        });
+      }
     });
     return list;
   }, [assetSummary.perAsset, csp, exitPoint]);
@@ -2922,6 +2974,7 @@ export default function Home() {
         onApplyWS3={handleApplyWS3}
         onApplyWS4={handleApplyWS4}
         onApplyWS8={handleApplyWS8}
+        onApplyAssetAllocation={handleApplyAssetAllocation}
         onApplySearchPattern={handleApplySearchPattern}
         onApplyIntercept={handleApplyIntercept}
         onFocusWorksheet={(worksheet) => setActiveTab(worksheet === 'datum' ? 'ws1' : worksheet)}

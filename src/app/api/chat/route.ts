@@ -44,6 +44,7 @@ KEBIJAKAN DEFAULT PILIHAN PLANNER (WAJIB — JANGAN DITANYAKAN KEPADA PENGGUNA):
 - WS8 eyeHeight: kapal patroli/rescue vessel → "14" (Eye height 14 ft, Patrol boat); perahu kecil/RIB/Sea Rider → "8" (Small craft); kapal besar/jembatan tinggi → "MERSHIP". Tulis sebagai asumsi di jawaban.
 - MULTI-SRU — 1 SRU = 1 LEMBAR WORKSHEET: Worksheet 2/3/8 adalah worksheet per-alut. Bila kasus memuat LEBIH DARI SATU SRU sejenis (contoh: 1 pesawat fixed wing + 1 helikopter untuk pencarian di laut → set_ws2_case dipanggil 2 KALI; 2 kapal patroli → set_ws8_case dipanggil 2 KALI), panggil tool worksheet terkait SEKALI UNTUK SETIAP SRU pada respons yang sama, dengan sruName berbeda (nama alut/unit/callsign dari soal). DILARANG menggabungkan dua SRU dalam satu panggilan atau hanya mengisi SRU pertama. Bila hanya ada satu SRU sejenis, satu panggilan tanpa sruName cukup.
 - searchNumber (WS2/WS3/WS8 dan POD Search Plan): urutan pencarian dalam kasus — pencarian pertama → 1, pencarian kedua → 2, dan seterusnya; bila soal tidak menyebut nomor pencarian, gunakan 1.
+- Alokasi Aset (set_asset_allocation_case): WAJIB dipanggil untuk SETIAP SRU (1 alut = 1 lembar). Klasifikasi udara/laut dari jenis alut: pesawat/helikopter → fixed-wing-aircraft/helicopter; kapal/perahu → rescue-vessel/patrol-boat/rib/sea-rider. Pangkalan asal (bandara/dermaga/pelabuhan) diambil dari soal; bila soal tidak memberi koordinat, tetapkan homeBaseLat/homeBaseLng dengan membaca nama bandara/dermaga pada peta ONC dan nyatakan sebagai asumsi di jawaban.
 - Safety Factor WS4 tetap harus dipilih eksplisit dari pengguna (kebijakan SMC), kecuali nomor pencariannya disebut di soal.
 - Contoh alur BENAR kasus pesawat lengkap ditching (SRX48/SRX26): panggil set_asw_case (bila ada observasi angin permukaan berurut) + set_awa_case + set_aero_drift_case + set_datum_case (dengan lkpSource "adw-landing", TANPA koordinat lkp) bersamaan dalam satu respons; hanya worksheet yang benar-benar kekurangan FAKTA wajib yang ditunda dan ditanyakan via ask_for_case_data.
 - Tombol "Terapkan ke Worksheet" di panel chat HANYA muncul bila Anda memanggil tool set_* pada respons yang sama. JANGAN menulis instruksi "klik Terapkan" bila Anda tidak memanggil tool worksheet di respons itu; cukup sebutkan data yang masih kurang sebagai gantinya.
@@ -651,6 +652,30 @@ const tools: FunctionDeclaration[] = [
     },
   },
   {
+    name: 'set_asset_allocation_case',
+    description: 'Mengisi SATU lembar Worksheet Alokasi Aset SRU dari kasus (1 alut = 1 lembar — panggil sekali untuk SETIAP SRU dengan sruName berbeda). Klasifikasikan alut dari soal: pesawat/helikopter → alut udara (fixed-wing-aircraft/helicopter), kapal/perahu → alut laut (rescue-vessel/patrol-boat/rib/sea-rider). Tentukan pangkalan asal (bandara untuk alut udara, dermaga/pelabuhan/pangkalan untuk alut laut) dari narasi soal. Bila soal TIDAK memberi koordinat pangkalan, tetapkan homeBaseLat/homeBaseLng dengan membaca nama bandara/dermaga tersebut pada peta ONC (chart ONC menampilkan airfield dan pelabuhan) dan nyatakan sebagai asumsi di jawaban — aplikasi akan memplot posisinya di peta laut untuk penghitungan Transit Go dan Transit Back. Sweep width S ambil dari rencana pencarian/worksheet terkait bila sudah ada.',
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        caseTitle: { type: SchemaType.STRING },
+        sruName: { type: SchemaType.STRING, description: 'Nama/callsign SRU pemilik lembar ini (dari soal). WAJIB — 1 alut = 1 lembar.' },
+        sruType: { type: SchemaType.STRING, description: 'Jenis alut dari soal: rescue-vessel, patrol-boat, rib, sea-rider (alut laut) atau helicopter, fixed-wing-aircraft (alut udara). Klasifikasi udara/laut mengikuti jenis ini.' },
+        homeBaseName: { type: SchemaType.STRING, description: 'Nama pangkalan asal dari soal (mis. Bandara Hang Nadim, Dermaga Batu Ampar, Pangkalan TNI AL Tanjung Priok).' },
+        homeBaseLat: { type: SchemaType.NUMBER, description: 'Latitude pangkalan desimal (negatif = selatan). Dari koordinat soal; bila tidak ada, resolusikan dari peta ONC berdasar nama bandara/dermaga dan nyatakan sebagai asumsi.' },
+        homeBaseLng: { type: SchemaType.NUMBER, description: 'Longitude pangkalan desimal (negatif = barat). Sama dengan homeBaseLat.' },
+        transitSpeedKts: { type: SchemaType.NUMBER, description: 'Kecepatan transit/jelajah (V_TAS untuk udara, speed kapal untuk laut) dalam knot dari soal.' },
+        searchSpeedKts: { type: SchemaType.NUMBER, description: 'Kecepatan saat mencari dalam knot dari soal.' },
+        enduranceHours: { type: SchemaType.NUMBER, description: 'Endurance bahan bakar dalam jam dari soal.' },
+        sweepWidthNm: { type: SchemaType.NUMBER, description: 'Track spacing S (NM) dari rencana pencarian/worksheet terkait; bila belum ada, kirim 0.' },
+        maritimeTsfMins: { type: SchemaType.NUMBER, description: 'HANYA alut laut: TSF (Time Safety Factor) dalam menit dari instruksi soal. Biarkan kosong untuk alut udara.' },
+        airEngineType: { type: SchemaType.STRING, description: 'HANYA alut udara: piston atau turbine. Biarkan kosong untuk alut laut.' },
+        tafCondition: { type: SchemaType.STRING, description: 'HANYA alut udara: kondisi cuaca TAF — cerah, inter, atau tempo. Biarkan kosong untuk alut laut.' },
+        assignedSubArea: { type: SchemaType.STRING, description: 'Sub-area yang ditugaskan bila soal menyebut (mis. Sub-Area 1, Datum Kiri).' },
+      },
+      required: ['sruName', 'sruType', 'homeBaseName'],
+    },
+  },
+  {
     name: 'set_lkp',
     description: 'Mengatur posisi LKP (Last Known Position) untuk operasi SAR.',
     parameters: {
@@ -707,7 +732,7 @@ const GEMINI_REQUEST_TIMEOUT_MS = Number.isFinite(envTimeoutMs) && envTimeoutMs 
 // compute Vercel Hobby/Pro (default & maksimum 300s). Override: env GEMINI_TOTAL_BUDGET_MS (min 15s).
 const envBudgetMs = Number(process.env.GEMINI_TOTAL_BUDGET_MS);
 const GEMINI_TOTAL_BUDGET_MS = Number.isFinite(envBudgetMs) && envBudgetMs >= 15_000 ? envBudgetMs : 260_000;
-const WORKSHEET_TOOL_NAMES = ['set_asw_case', 'set_awa_case', 'set_aero_drift_case', 'set_lkp', 'set_datum_case', 'set_ws2_case', 'set_ws3_case', 'set_ws4_case', 'set_ws8_case', 'set_search_pattern_case', 'set_intercept_case', 'ask_for_case_data'];
+const WORKSHEET_TOOL_NAMES = ['set_asw_case', 'set_awa_case', 'set_aero_drift_case', 'set_lkp', 'set_datum_case', 'set_ws2_case', 'set_ws3_case', 'set_ws4_case', 'set_ws8_case', 'set_asset_allocation_case', 'set_search_pattern_case', 'set_intercept_case', 'ask_for_case_data'];
 
 // Penemuan model dinamis: models.list memuat model yang bisa dilihat kunci —
 // sinyal kandidat saja (troubleshooting resmi: tidak menjamin inferensi aktif).
@@ -756,7 +781,7 @@ function buildModelChain(availableModels: string[]): readonly string[] {
  * Instruksi tambahan yang disuntikkan pada pass paksa agar model tidak
  * lagi menjawab teks/list worksheet tanpa memanggil tool.
  */
-const FORCED_RETRY_INSTRUCTION = 'PENTING: ini soal kasus perhitungan SAR. Panggil SEKARANG, pada respons ini, SEMUA tool worksheet yang relevan dalam SATU respons (set_asw_case, set_awa_case, set_aero_drift_case, set_lkp, set_datum_case, set_ws2_case, set_ws8_case, set_ws3_case, set_ws4_case, set_intercept_case, set_search_pattern_case) dengan data dari soal. Worksheet 2/3/8 per-SRU: bila kasus punya LEBIH DARI SATU SRU sejenis (mis. 1 fixed wing + 1 helikopter), panggil tool terkait SEKALI UNTUK SETIAP SRU dengan sruName berbeda — 1 alut = 1 lembar. Pilihan planner dipakai default tanpa bertanya: intervalMode ASW dari jam observasi (hanya 00/06/12/18 → "6h"; ada 03/09/15/21 → "3h"), windData ASW dengan obsTime (waktu observasi apa adanya dari soal) di setiap baris, WS2 selectedHeight 1000 ft bila tidak disebut, WS8 eyeHeight "14" untuk kapal patroli/rescue, "8" untuk perahu kecil/RIB, "MERSHIP" untuk kapal besar, searchNumber 1. Kasus ditching di laut: Altmin = 0 ft (permukaan laut) boleh diasumsikan dan dinyatakan sebagai asumsi, dan set_datum_case dikirim dengan lkpSource "adw-landing" TANPA koordinat lkp karena aplikasi memakai posisi ditching hasil ADW. Hanya bila ada FAKTA soal yang wajib dan benar-benar tidak ada, panggil ask_for_case_data untuk fakta itu dan tetap isi worksheet lain yang datanya lengkap.';
+const FORCED_RETRY_INSTRUCTION = 'PENTING: ini soal kasus perhitungan SAR. Panggil SEKARANG, pada respons ini, SEMUA tool worksheet yang relevan dalam SATU respons (set_asw_case, set_awa_case, set_aero_drift_case, set_lkp, set_datum_case, set_ws2_case, set_ws8_case, set_ws3_case, set_ws4_case, set_asset_allocation_case, set_intercept_case, set_search_pattern_case) dengan data dari soal. Worksheet 2/3/8 dan Alokasi Aset per-SRU: bila kasus punya LEBIH DARI SATU SRU (mis. 1 fixed wing + 1 helikopter), panggil tool terkait SEKALI UNTUK SETIAP SRU dengan sruName berbeda — 1 alut = 1 lembar. set_asset_allocation_case WAJIB dipanggil untuk SETIAP SRU: klasifikasikan alut udara (fixed-wing-aircraft/helicopter) atau laut (rescue-vessel/patrol-boat/rib/sea-rider) dari jenis alut di soal, tentukan pangkalan asal (bandara/dermaga/pelabuhan) dari soal; bila soal tidak memberi koordinat pangkalan, tetapkan homeBaseLat/homeBaseLng dengan membaca nama bandara/dermaga pada peta ONC dan nyatakan sebagai asumsi. Pilihan planner dipakai default tanpa bertanya: intervalMode ASW dari jam observasi (hanya 00/06/12/18 → "6h"; ada 03/09/15/21 → "3h"), windData ASW dengan obsTime (waktu observasi apa adanya dari soal) di setiap baris, WS2 selectedHeight 1000 ft bila tidak disebut, WS8 eyeHeight "14" untuk kapal patroli/rescue, "8" untuk perahu kecil/RIB, "MERSHIP" untuk kapal besar, searchNumber 1. Kasus ditching di laut: Altmin = 0 ft (permukaan laut) boleh diasumsikan dan dinyatakan sebagai asumsi, dan set_datum_case dikirim dengan lkpSource "adw-landing" TANPA koordinat lkp karena aplikasi memakai posisi ditching hasil ADW. Hanya bila ada FAKTA soal yang wajib dan benar-benar tidak ada, panggil ask_for_case_data untuk fakta itu dan tetap isi worksheet lain yang datanya lengkap.';
 
 /**
  * Coba ulang sekali dengan tool_choice paksa yang hanya mengizinkan tool

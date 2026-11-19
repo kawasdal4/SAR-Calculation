@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Layers, Plus, X } from 'lucide-react';
 
 /**
@@ -29,10 +29,13 @@ type WorksheetSheetBarProps = {
   onAddBlank: () => void;
   onAddAsset: (assetId: string) => void;
   onRemove: (key: string) => void;
+  /** Kontrol tambah lembar kustom (mis. tombol alut laut/udara di Alokasi Aset);
+   *  bila diisi, menu default "Tambah lembar" digantikan. */
+  addControls?: ReactNode;
 };
 
 /** Bar pilih lembar worksheet: chips per SRU + tambah lembar (kosong / dari daftar aset). */
-export default function WorksheetSheetBar({ title, sheets, activeKey, assets, boundAssetIds, onSelect, onAddBlank, onAddAsset, onRemove }: WorksheetSheetBarProps) {
+export default function WorksheetSheetBar({ title, sheets, activeKey, assets, boundAssetIds, onSelect, onAddBlank, onAddAsset, onRemove, addControls }: WorksheetSheetBarProps) {
   const [adding, setAdding] = useState(false);
   const unboundAssets = assets.filter((asset) => !boundAssetIds.includes(asset.id));
   return (
@@ -70,16 +73,20 @@ export default function WorksheetSheetBar({ title, sheets, activeKey, assets, bo
             )}
           </span>
         ))}
-        <button
-          type="button"
-          onClick={() => setAdding((value) => !value)}
-          className="inline-flex items-center gap-1 rounded-full border border-dashed border-slate-400 px-2 py-0.5 text-[11px] font-semibold text-slate-600 hover:border-emerald-600 hover:text-emerald-700"
-        >
-          <Plus className="h-3 w-3" />
-          Tambah lembar
-        </button>
+        {addControls !== undefined ? (
+          addControls
+        ) : (
+          <button
+            type="button"
+            onClick={() => setAdding((value) => !value)}
+            className="inline-flex items-center gap-1 rounded-full border border-dashed border-slate-400 px-2 py-0.5 text-[11px] font-semibold text-slate-600 hover:border-emerald-600 hover:text-emerald-700"
+          >
+            <Plus className="h-3 w-3" />
+            Tambah lembar
+          </button>
+        )}
       </div>
-      {adding && (
+      {adding && addControls === undefined && (
         <div className="mt-1.5 flex flex-wrap gap-1.5 text-[11px]">
           <button
             type="button"

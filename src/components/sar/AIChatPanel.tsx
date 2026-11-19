@@ -26,6 +26,7 @@ import { toBasarnasTimeFormat } from '@/lib/sar/aswTime';
 import { buildChatPreviewContract, buildChatPreviewContracts, CHAT_NON_MUTATING_TOOLS, TARGET_LABELS } from '@/lib/sar/chatPreview';
 import { nextWorkflowSteps, selectiveWorkspaceContext, workflowPlanText, type ContextEntry } from '@/lib/sar/workspaceContext';
 import type { InterceptInput } from '@/lib/sar/interceptCalculations';
+import type { AssetAllocationCaseInput } from '@/lib/sar/assetAllocation';
 import type { Worksheet2InitialState } from '@/components/sar/worksheets/Worksheet2';
 import type { Worksheet3InitialState } from '@/components/sar/worksheets/Worksheet3';
 import type { Worksheet4InitialState } from '@/components/sar/worksheets/Worksheet4';
@@ -85,6 +86,8 @@ interface AIChatPanelProps {
   onApplyWS3?: (data: Worksheet3InitialState) => void;
   onApplyWS4?: (data: Worksheet4InitialState) => void;
   onApplyWS8?: (data: Worksheet8InitialState) => void;
+  /** Worksheet Alokasi Aset: 1 alut = 1 lembar — dipanggil untuk SETIAP SRU. */
+  onApplyAssetAllocation?: (data: AssetAllocationCaseInput) => void;
   onApplySearchPattern?: (data: SearchPatternPlanInitialState) => void;
   onApplyIntercept?: (data: InterceptInput) => boolean;
   onFocusWorksheet?: (worksheet: string) => void;
@@ -280,6 +283,7 @@ export default function AIChatPanel({
   onApplyWS3,
   onApplyWS4,
   onApplyWS8,
+  onApplyAssetAllocation,
   onApplySearchPattern,
   onApplyIntercept,
   onFocusWorksheet,
@@ -510,6 +514,28 @@ export default function AIChatPanel({
             appliedWorksheets.push('ws8');
           } else {
             failedWorksheets.push('WS 8');
+          }
+          break;
+        }
+        case 'set_asset_allocation_case': {
+          const data = args as unknown as AssetAllocationCaseInput;
+          attempted = true;
+          const validType = ['rescue-vessel', 'patrol-boat', 'rib', 'sea-rider', 'helicopter', 'fixed-wing-aircraft'].includes(data.sruType ?? '');
+          const validBaseName = typeof data.homeBaseName === 'string' && data.homeBaseName.trim() !== '';
+          const validBaseCoords = (data.homeBaseLat === undefined && data.homeBaseLng === undefined)
+            || (Number.isFinite(data.homeBaseLat) && Math.abs(data.homeBaseLat ?? 0) <= 90
+              && Number.isFinite(data.homeBaseLng) && Math.abs(data.homeBaseLng ?? 0) <= 180);
+          const nonNegative = (value?: number) => value === undefined || (Number.isFinite(value) && value >= 0);
+          if (validType && validBaseName && validBaseCoords
+            && nonNegative(data.transitSpeedKts) && nonNegative(data.searchSpeedKts)
+            && nonNegative(data.enduranceHours) && nonNegative(data.sweepWidthNm)
+            && (data.airEngineType === undefined || ['piston', 'turbine'].includes(data.airEngineType))
+            && (data.tafCondition === undefined || ['cerah', 'inter', 'tempo'].includes(data.tafCondition))) {
+            onApplyAssetAllocation?.(data);
+            applied = true;
+            appliedWorksheets.push('asset-allocation');
+          } else {
+            failedWorksheets.push('Alokasi Aset');
           }
           break;
         }

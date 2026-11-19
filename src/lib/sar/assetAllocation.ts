@@ -29,6 +29,36 @@ export interface SruAssetInput {
   maritimeTsfMins?: number;
 }
 
+/** Domain alut dari jenis SRU: udara (fixed-wing/helikopter) atau laut. */
+export function assetDomain(type: SruType): 'udara' | 'laut' {
+  return type === 'helicopter' || type === 'fixed-wing-aircraft' ? 'udara' : 'laut';
+}
+
+/**
+ * Payload tool AI `set_asset_allocation_case` untuk SATU lembar Worksheet
+ * Alokasi Aset (1 alut = 1 lembar). AI asisten mengklasifikasi alut udara/laut
+ * dari `sruType` dan menentukan posisi pangkalan (bandara/dermaga/pelabuhan)
+ * dari soal; bila soal tidak memberi koordinat, AI meresolusi nama
+ * bandara/dermaga pada peta ONC dan mengirim homeBaseLat/homeBaseLng hasil
+ * pembacaan chart (dinyatakan sebagai asumsi).
+ */
+export interface AssetAllocationCaseInput {
+  caseTitle?: string;
+  sruName: string;
+  sruType: SruType;
+  homeBaseName: string;
+  homeBaseLat?: number;
+  homeBaseLng?: number;
+  transitSpeedKts?: number;
+  searchSpeedKts?: number;
+  enduranceHours?: number;
+  sweepWidthNm?: number;
+  maritimeTsfMins?: number;
+  airEngineType?: 'piston' | 'turbine';
+  tafCondition?: 'cerah' | 'inter' | 'tempo';
+  assignedSubArea?: string;
+}
+
 export interface SruAssetCalculation {
   asset: SruAssetInput;
   transitGoDistanceNm: number;
