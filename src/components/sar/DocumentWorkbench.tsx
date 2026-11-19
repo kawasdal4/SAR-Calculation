@@ -68,7 +68,7 @@ interface BankRecord {
 
 // Bank Data lokal (fallback serverless/Vercel — DB read-only).
 const LOCAL_BANKS_KEY = 'sar-data-bank-local';
-const AI_KEY_STORAGE = 'sar-ai-api-key';
+// Fase 2: API key tidak lagi dibaca dari browser — server memakai env GEMINI_API_KEY.
 const isLocalBank = (id: string | null) => !!id && id.startsWith('local_');
 
 function readLocalBanks(): BankRecord[] {
@@ -239,13 +239,11 @@ export default function DocumentWorkbench(props: DocumentWorkbenchProps) {
     }
     setAnalyzing(true);
     try {
-      // Key Gemini (bila diisi di panel AI Asisten) → analisis tetap jalan di serverless.
-      let apiKey: string | undefined;
-      try { apiKey = localStorage.getItem(AI_KEY_STORAGE) ?? undefined; } catch { /* abaikan */ }
+      // Fase 2: tanpa apiKey — server memakai env GEMINI_API_KEY (server-side).
       const res = await fetch('/api/data-bank', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rawText, bankId: isLocalBank(bankId) ? null : bankId, apiKey }),
+        body: JSON.stringify({ rawText, bankId: isLocalBank(bankId) ? null : bankId }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);

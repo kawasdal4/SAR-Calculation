@@ -1,5 +1,24 @@
-import { type FunctionDeclaration, SchemaType } from '@google/generative-ai';
+// Fase 2: SDK deprecated `@google/generative-ai` DIHAPUS. Panggilan LLM kini
+// via SDK resmi `@google/genai` (src/lib/ai/geminiClient.ts); bentuk body
+// Interactions API TIDAK berubah. Deklarasi tool tetap subset OpenAPI dengan
+// tipe UPPERCASE, dinormalisasi ke lowercase oleh normalizeSchema.
+const SchemaType = {
+  STRING: 'STRING',
+  NUMBER: 'NUMBER',
+  INTEGER: 'INTEGER',
+  BOOLEAN: 'BOOLEAN',
+  OBJECT: 'OBJECT',
+  ARRAY: 'ARRAY',
+} as const;
+type SchemaType = typeof SchemaType;
+interface FunctionDeclaration {
+  name: string;
+  description: string;
+  parameters: Record<string, unknown>;
+}
 import { NextRequest, NextResponse } from 'next/server';
+import { getGeminiApiKey, missingApiKeyMessage, getAgentModel, getModelFallbacks, getThinkingLevel } from '@/lib/ai/config';
+import { callGeminiInteraction, isInteractionExpiredError, type InteractionUsage } from '@/lib/ai/geminiClient';
 import { processUploadedFile } from '@/lib/sar/fileExtractor';
 import type { DataBankField, RawQuestion } from '@/lib/sar/dataBank';
 import { buildChainCompletionInstruction, computeMissingWorksheetTools, matchWorksheetToolNames, parseDeclaredWorksheetTools, type WorksheetToolName } from '@/lib/sar/caseChain';
@@ -713,19 +732,15 @@ const tools: FunctionDeclaration[] = [
 // gemini-3.8-flash, jadi mencobanya setelah 3.8 gagal hanya mengulang pool
 // yang sama. Override lewat env GEMINI_MODEL_FALLBACKS (dipisah koma; nama
 // divalidasi karakter aman; env kosong/tak valid kembali ke default).
-const GEMINI_MODELS_DEFAULT = ['gemini-4-hydrogen', 'gemini-3.8-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-3.6-flash'] as const;
-const envModelFallbacks = (process.env.GEMINI_MODEL_FALLBACKS ?? '')
-  .split(',')
-  .map((name) => name.trim())
-  .filter((name) => /^[\w.\-]+$/.test(name));
-const GEMINI_MODELS: readonly string[] = envModelFallbacks.length > 0 ? envModelFallbacks : GEMINI_MODELS_DEFAULT;
-// thinking_level hanya dikirim untuk model yang terdokumentasi menerimanya;
-// model lain memakai default model agar permintaan tidak ditolak (HTTP 400) —
-// penting sejak rantai memuat gemini-4-* yang konvensi API-nya bisa berbeda.
-const MODEL_THINKING_LEVEL: Record<string, 'minimal' | 'low'> = {
-  'gemini-3.5-flash-lite': 'minimal',
-  'gemini-3.8-flash': 'low',
-};
+// Fase 2 (keputusan no.2): model utama dari env GEMINI_MODEL_AGENT → GEMINI_MODEL
+// → default 'gemini-3.8-flash'. gemini-4-hydrogen BUKAN default — hanya masuk
+// rantai bila diatur eksplisit lewat GEMINI_MODEL_FALLBACKS setelah
+// kompatibilitas endpoint, akses model, dan biaya diverifikasi.
+const GEMINI_PRIMARY_MODEL = getAgentModel();
+const GEMINI_MODELS: readonly string[] = [GEMINI_PRIMARY_MODEL, ...getModelFallbacks(GEMINI_PRIMARY_MODEL)];
+// thinking_level per model diambil dari src/lib/ai/config.ts (satu sumber;)
+// model tanpa level terdokumentasi memakai default model (tanpa field) agar
+// permintaan tidak ditolak (HTTP 400).
 // 2 retry per model (total 3 percobaan): 429 "high demand" kembali cepat
 // (~1–3 detik) dan Google menyertakan retryDelay yang dihormati backoff di
 // bawah — percobaan ketiga sering lolos begitu lonjakan mereda. Percobaan
@@ -809,7 +824,6 @@ const FORCED_RETRY_INSTRUCTION = 'PENTING: ini soal kasus perhitungan SAR. Pangg
  */
 async function runForcedWorksheetRetry(
   input: Array<Record<string, string>>,
-  apiKey: string,
   primaryModel: string,
   modelChain: readonly string[],
   normalizeSchemaFn: (value: unknown) => unknown,
@@ -829,42 +843,38 @@ async function runForcedWorksheetRetry(
     }
     try {
       console.info(`[AI chat] Kasus tanpa panggilan worksheet; ulangi dengan tool_choice paksa (model=${model}, timeoutMs=${Math.round(attemptTimeoutMs / 1000)}s).`);
-      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-        signal: AbortSignal.timeout(attemptTimeoutMs),
-        body: JSON.stringify({
-          model,
-          input: [...input, { type: 'text', text: FORCED_RETRY_INSTRUCTION }],
-          system_instruction: systemPrompt,
-          generation_config: {
-            max_output_tokens: 32768,
-            ...(MODEL_THINKING_LEVEL[model] ? { thinking_level: MODEL_THINKING_LEVEL[model] } : {}),
-            // Paksa function call dengan bentuk TERDOKUMENTASI Interactions API:
-            // string "any". Pembatasan tool dilakukan lewat array tools di bawah
-            // (bentuk lama { allowed_tools: { mode, tools } } hanya terdokumentasi
-            // untuk tool mcp_server dan bisa ditolak/diabaikan API — membuat
-            // jaring pengaman mati diam-diam saat pass pertama tidak memanggil
-            // satu pun tool worksheet).
-            tool_choice: 'any',
-          },
-          tools: tools
-            .filter((tool) => WORKSHEET_TOOL_NAMES.includes(tool.name))
-            .map((tool) => ({
-              type: 'function',
-              name: tool.name,
-              description: tool.description,
-              parameters: normalizeSchemaFn(tool.parameters),
-            })),
-          store: false,
-        }),
+      // Fase 2: transport SDK @google/genai (bentuk body tidak berubah).
+      const callResult = await callGeminiInteraction({
+        model,
+        input: [...input, { type: 'text', text: FORCED_RETRY_INSTRUCTION }],
+        systemInstruction: systemPrompt,
+        generationConfig: {
+          max_output_tokens: 32768,
+          ...(getThinkingLevel(model) ? { thinking_level: getThinkingLevel(model) } : {}),
+          // Paksa function call dengan bentuk TERDOKUMENTASI Interactions API:
+          // string "any". Pembatasan tool dilakukan lewat array tools di bawah
+          // (bentuk lama { allowed_tools: { mode, tools } } hanya terdokumentasi
+          // untuk tool mcp_server dan bisa ditolak/diabaikan API — membuat
+          // jaring pengaman mati diam-diam saat pass pertama tidak memanggil
+          // satu pun tool worksheet).
+          tool_choice: 'any',
+        },
+        tools: tools
+          .filter((tool) => WORKSHEET_TOOL_NAMES.includes(tool.name))
+          .map((tool) => ({
+            type: 'function',
+            name: tool.name,
+            description: tool.description,
+            parameters: normalizeSchemaFn(tool.parameters),
+          })),
+        store: false,
+        timeoutMs: attemptTimeoutMs,
       });
-      if (!response.ok) {
-        console.warn(`[AI chat] Forced worksheet retry gagal (HTTP ${response.status}, model=${model}).`);
+      if (!callResult.ok) {
+        console.warn(`[AI chat] Forced worksheet retry gagal (HTTP ${callResult.status}, model=${model}).`);
         continue;
       }
-      const payload = await response.json().catch(() => ({}));
-      const retrySteps = Array.isArray(payload?.steps) ? payload.steps as Array<{ type?: string; name?: string; arguments?: unknown }> : [];
+      const retrySteps = callResult.steps as Array<{ type?: string; name?: string; arguments?: unknown }>;
       if (retrySteps.some((step) => step.type === 'function_call' && typeof step.name === 'string')) {
         return retrySteps;
       }
@@ -885,7 +895,6 @@ async function runForcedWorksheetRetry(
  */
 async function runChainCompletionPass(
   input: Array<Record<string, string>>,
-  apiKey: string,
   primaryModel: string,
   modelChain: readonly string[],
   normalizeSchemaFn: (value: unknown) => unknown,
@@ -912,44 +921,40 @@ async function runChainCompletionPass(
     }
     try {
       console.info(`[AI chat] Worksheet kasus belum lengkap; jalankan pass penyambung (model=${model}, timeoutMs=${Math.round(attemptTimeoutMs / 1000)}s).`);
-      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-        signal: AbortSignal.timeout(attemptTimeoutMs),
-        body: JSON.stringify({
-          model,
-          input: [...input, { type: 'text', text: instruction }],
-          system_instruction: systemPrompt,
-          generation_config: {
-            max_output_tokens: 32768,
-            ...(MODEL_THINKING_LEVEL[model] ? { thinking_level: MODEL_THINKING_LEVEL[model] } : {}),
-            // Paksa panggilan tool dengan bentuk terdokumentasi "any"
-            // (pembatasan tool lewat array tools di bawah — bentuk
-            // { allowed_tools: {...} } top-level bisa ditolak/diabaikan API):
-            // pass sebelumnya sering hanya menjawab teks ("belum ada yang
-            // perlu ditambahkan") walau tool masih hilang. Array dibatasi ke
-            // tool yang hilang + ask_for_case_data sehingga model tidak bisa
-            // menjawab tanpa tool dan tidak mengulang tool lain.
-            ...(allowedToolNames && allowedToolNames.length > 0 ? { tool_choice: 'any' } : {}),
-          },
-          tools: (allowedToolNames && allowedToolNames.length > 0
-            ? tools.filter((tool) => allowedToolNames.includes(tool.name))
-            : tools
-          ).map((tool) => ({
-            type: 'function',
-            name: tool.name,
-            description: tool.description,
-            parameters: normalizeSchemaFn(tool.parameters),
-          })),
-          store: false,
-        }),
+      // Fase 2: transport SDK @google/genai (bentuk body tidak berubah).
+      const callResult = await callGeminiInteraction({
+        model,
+        input: [...input, { type: 'text', text: instruction }],
+        systemInstruction: systemPrompt,
+        generationConfig: {
+          max_output_tokens: 32768,
+          ...(getThinkingLevel(model) ? { thinking_level: getThinkingLevel(model) } : {}),
+          // Paksa panggilan tool dengan bentuk terdokumentasi "any"
+          // (pembatasan tool lewat array tools di bawah — bentuk
+          // { allowed_tools: {...} } top-level bisa ditolak/diabaikan API):
+          // pass sebelumnya sering hanya menjawab teks ("belum ada yang
+          // perlu ditambahkan") walau tool masih hilang. Array dibatasi ke
+          // tool yang hilang + ask_for_case_data sehingga model tidak bisa
+          // menjawab tanpa tool dan tidak mengulang tool lain.
+          ...(allowedToolNames && allowedToolNames.length > 0 ? { tool_choice: 'any' } : {}),
+        },
+        tools: (allowedToolNames && allowedToolNames.length > 0
+          ? tools.filter((tool) => allowedToolNames.includes(tool.name))
+          : tools
+        ).map((tool) => ({
+          type: 'function',
+          name: tool.name,
+          description: tool.description,
+          parameters: normalizeSchemaFn(tool.parameters),
+        })),
+        store: false,
+        timeoutMs: attemptTimeoutMs,
       });
-      if (!response.ok) {
-        console.warn(`[AI chat] Chain completion pass gagal (HTTP ${response.status}, model=${model}).`);
+      if (!callResult.ok) {
+        console.warn(`[AI chat] Chain completion pass gagal (HTTP ${callResult.status}, model=${model}).`);
         continue;
       }
-      const payload = await response.json().catch(() => ({}));
-      const steps = Array.isArray(payload?.steps) ? payload.steps as Array<{ type?: string; name?: string; arguments?: unknown }> : [];
+      const steps = callResult.steps as Array<{ type?: string; name?: string; arguments?: unknown }>;
       if (steps.some((step) => step.type === 'function_call' && typeof step.name === 'string')) {
         return steps;
       }
@@ -965,16 +970,72 @@ async function runChainCompletionPass(
 // and document understanding can exceed the shorter 60-second default.
 export const maxDuration = 300;
 
+// Variabel yang perlu terlihat di catch untuk logging AiSessionLog.
+let hoistedSessionId: string | null = null;
+let hoistedCaseId: string | null = null;
+let hoistedUserPrompt = '';
+let hoistedStartedAt = 0;
+
+/** Catat satu turn ke AiSessionLog (keputusan no.4 & 9). Best-effort: kegagalan
+ *  DB TIDAK memengaruhi jawaban. Tanpa API key/dokumen mentah — hanya teks
+ *  turn yang dipangkas + ringkasan tool. */
+async function logAiSessionTurn(data: {
+  sessionId: string | null;
+  caseId: string | null;
+  prevInteractionId: string | null;
+  interactionId: string | null;
+  model: string | null;
+  status: string;
+  errorMessage?: string;
+  usage?: InteractionUsage;
+  toolNames?: string[];
+  userText: string;
+  assistantText: string;
+  durationMs?: number;
+}): Promise<void> {
+  try {
+    const { db } = await import('@/lib/db');
+    const toolSummary = (data.toolNames ?? []).slice(0, 20).map((name) => ({ name }));
+    await db.aiSessionLog.create({
+      data: {
+        sessionId: data.sessionId ?? 'unknown',
+        caseId: data.caseId,
+        prevInteractionId: data.prevInteractionId,
+        interactionId: data.interactionId,
+        model: data.model,
+        status: data.status,
+        errorMessage: data.errorMessage ? data.errorMessage.slice(0, 500) : null,
+        usageJson: data.usage ? JSON.stringify(data.usage) : null,
+        toolCallsJson: toolSummary.length > 0 ? JSON.stringify(toolSummary) : null,
+        turnJson: JSON.stringify({
+          user: data.userText.slice(0, 4000),
+          assistant: data.assistantText.slice(0, 4000),
+        }),
+        durationMs: data.durationMs ?? null,
+      },
+    });
+  } catch (dbErr) {
+    console.warn('[AI chat] AiSessionLog gagal (non-fatal):', dbErr instanceof Error ? dbErr.message : dbErr);
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const { messages, apiKey, files, workspaceContext } = await req.json();
+    // Fase 2 (keputusan no.1): API key HANYA dari env server-side — key dari
+    // client (kalau masih dikirim versi lama) DIABAIKAN dan tidak pernah dipakai.
+    const { messages, files, workspaceContext, sessionId, caseId } = await req.json();
 
+    const apiKey = getGeminiApiKey();
     if (!apiKey) {
       return NextResponse.json(
-        { error: 'API Key Gemini diperlukan. Masukkan di pengaturan chat.' },
-        { status: 400 }
+        { error: missingApiKeyMessage() },
+        { status: 503 }
       );
     }
+    // sessionId: UUID client per panel chat (untuk AiSessionLog + chaining).
+    hoistedSessionId = typeof sessionId === 'string' && /^[\w\-]{8,64}$/.test(sessionId) ? sessionId : null;
+    hoistedCaseId = typeof caseId === 'string' && caseId.length > 0 && caseId.length <= 64 ? caseId : null;
+    hoistedStartedAt = Date.now();
 
     // SAR Workflow Memory: konteks terstruktur workspace aktif (retrieval
     // selektif sudah dilakukan klien — hanya blok ringkas yang dikirim).
@@ -1028,6 +1089,7 @@ ATURAN MEMORI WORKSPACE:
     const userPrompt = lastMessage.content?.trim() || (incomingFiles.length > 0
       ? 'Tolong telaah dan analisis dokumen/gambar yang dilampirkan untuk kasus perhitungan SAR.'
       : 'Halo');
+    hoistedUserPrompt = userPrompt;
     // Keep the context useful without resending a long chat history (which can
     // make the model call slow, especially after repeated failed attempts).
     const conversation = messages.slice(-13, -1)
@@ -1042,10 +1104,33 @@ ATURAN MEMORI WORKSPACE:
       .filter((part) => part.type === 'text')
       .map((part) => part.text || '')
       .join('\n');
+    const historyPrefix = conversation ? `Riwayat percakapan:\n${conversation}\n\n` : '';
     input.unshift({
       type: 'text',
-      text: `${conversation ? `Riwayat percakapan:\n${conversation}\n\n` : ''}${userPrompt}`,
+      text: `${historyPrefix}${userPrompt}`,
     });
+    // Fase 2 (keputusan no.4): bila interaction sebelumnya masih bisa di-chain
+    // (previous_interaction_id dikelola server-side via AiSessionLog), kirim
+    // input TANPA blok riwayat — konteks sudah ada di interaction tersimpan.
+    // Fallback bila interaction ID kedaluwarsa: pakai full input (riwayat dari
+    // client) — konteks dibangun ulang dari "database sendiri" + client.
+    const chainedInput = historyPrefix ? input.slice(1) : input;
+    let prevInteractionId: string | null = null;
+    if (hoistedSessionId && messages.length > 1) {
+      try {
+        const { db } = await import('@/lib/db');
+        const lastLog = await db.aiSessionLog.findFirst({
+          where: { sessionId: hoistedSessionId, interactionId: { not: null }, status: { in: ['ok', 'interaction-expired-fallback'] } },
+          orderBy: { createdAt: 'desc' },
+          select: { interactionId: true },
+        });
+        prevInteractionId = lastLog?.interactionId ?? null;
+      } catch (dbErr) {
+        console.warn('[AI chat] Gagal membaca AiSessionLog (fallback: riwayat dari client):', dbErr instanceof Error ? dbErr.message : dbErr);
+      }
+    }
+    let usedPrevInteractionId: string | null = null;
+    let interactionExpiredFallback = false;
 
     const interceptSourceText = `${userPrompt}\n${extractedFileText}`;
     const speedMentions = [...interceptSourceText.matchAll(/\b\d+(?:[.,]\d+)?\s*(?:knots?|kts?|kt)\b/gi)];
@@ -1084,24 +1169,6 @@ ATURAN MEMORI WORKSPACE:
         key === 'type' && typeof child === 'string' ? child.toLowerCase() : normalizeSchema(child),
       ]));
     };
-    // Google 429/5xx ("high demand", RESOURCE_EXHAUSTED) menyertakan RetryInfo di
-    // error.details[].retryDelay ("Ns"). Hormati saran tunggu itu — backoff cepat
-    // (1–2 detik) membuat retry langsung gagal lagi saat model sedang overloaded.
-    const extractRetryDelayMs = (payload: unknown): number | null => {
-      try {
-        const details = (payload as { error?: { details?: unknown[] } })?.error?.details;
-        if (!Array.isArray(details)) return null;
-        for (const item of details) {
-          if (!item || typeof item !== 'object') continue;
-          const record = item as Record<string, unknown>;
-          if (typeof record['@type'] === 'string' && record['@type'].includes('RetryInfo')) {
-            const match = typeof record.retryDelay === 'string' ? record.retryDelay.match(/^([\d.]+)s$/) : null;
-            if (match) return Math.round(parseFloat(match[1]) * 1000);
-          }
-        }
-      } catch { /* bentuk detail tidak terduga — abaikan */ }
-      return null;
-    };
     // Bedakan 429 kuota HARIAN ("limit: N requests per day on Free Tier",
     // reset hanya tengah malam Waktu Pasifik) dari 429 "high demand" (lonjakan
     // kapasitas, pulih dalam detik). Retry cepat pada kuota harian sia-sia —
@@ -1124,6 +1191,8 @@ ATURAN MEMORI WORKSPACE:
     const geminiDeadlineMs = geminiStartedAt + GEMINI_TOTAL_BUDGET_MS;
     const triedModels: string[] = [];
     let result: Record<string, unknown> | undefined;
+    let resultInteractionId: string | null = null;
+    let resultUsage: InteractionUsage | undefined;
     let lastError: Error | undefined;
     // Error model PERTAMA di rantai (kandidat utama) — paling mewakili
     // penyebab gagalnya jalur normal; error model terakhir biasanya berasal
@@ -1166,50 +1235,71 @@ ATURAN MEMORI WORKSPACE:
         console.info(`[AI chat] Gemini request started (model=${model}, attempt=${attempt + 1}, timeoutMs=${Math.round(attemptTimeoutMs / 1000)}s, files=${incomingFiles.length}).`);
         let suggestedRetryDelayMs: number | null = null;
         try {
-          const response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-            signal: AbortSignal.timeout(attemptTimeoutMs),
-            body: JSON.stringify({
-              model,
-              input,
-              system_instruction: effectiveSystemPrompt,
-              generation_config: {
-                max_output_tokens: 32768,
-                ...(MODEL_THINKING_LEVEL[model] ? { thinking_level: MODEL_THINKING_LEVEL[model] } : {}),
-                // Kasus Intercept: paksa function call dengan bentuk
-                // terdokumentasi "any"; pembatasan ke satu tool lewat array
-                // tools di bawah (bentuk { allowed_tools: {...} } top-level
-                // tidak terdokumentasi untuk tool function biasa).
-                ...(interceptCaseDetected ? { tool_choice: 'any' } : {}),
-              },
-              tools: (interceptCaseDetected
-                ? tools.filter((tool) => tool.name === 'set_intercept_case')
-                : tools
-              ).map((tool) => ({
-                type: 'function',
-                name: tool.name,
-                description: tool.description,
-                parameters: normalizeSchema(tool.parameters),
-              })),
-              store: false,
-            }),
+          // Fase 2: transport SDK @google/genai. Bila interaction sebelumnya
+          // bisa di-chain → kirim input ringkas tanpa blok riwayat.
+          const useChain = Boolean(prevInteractionId) && messages.length > 1;
+          const buildCallArgs = (callInput: Array<Record<string, string>> | string) => ({
+            model,
+            input: callInput,
+            systemInstruction: effectiveSystemPrompt,
+            generationConfig: {
+              max_output_tokens: 32768,
+              ...(getThinkingLevel(model) ? { thinking_level: getThinkingLevel(model) } : {}),
+              // Kasus Intercept: paksa function call dengan bentuk
+              // terdokumentasi "any"; pembatasan ke satu tool lewat array
+              // tools di bawah (bentuk { allowed_tools: {...} } top-level
+              // tidak terdokumentasi untuk tool function biasa).
+              ...(interceptCaseDetected ? { tool_choice: 'any' } : {}),
+            },
+            tools: (interceptCaseDetected
+              ? tools.filter((tool) => tool.name === 'set_intercept_case')
+              : tools
+            ).map((tool) => ({
+              type: 'function',
+              name: tool.name,
+              description: tool.description,
+              parameters: normalizeSchema(tool.parameters),
+            })),
+            timeoutMs: attemptTimeoutMs,
           });
-          console.info(`[AI chat] Gemini response received (model=${model}, status=${response.status}, durationMs=${Date.now() - geminiStartedAt}).`);
-          const payload = await response.json().catch(() => ({}));
-          if (response.ok) {
-            result = payload as Record<string, unknown>;
+          let callResult = await callGeminiInteraction({
+            ...buildCallArgs(useChain ? chainedInput : input),
+            previousInteractionId: useChain ? (prevInteractionId ?? undefined) : undefined,
+            store: useChain,
+          });
+          if (useChain) usedPrevInteractionId = prevInteractionId;
+          // Keputusan no.4: interaction ID kedaluwarsa/invalid → REBUILD konteks
+          // dari sumber sendiri (riwayat dari client + full input) sekali coba.
+          if (useChain && !callResult.ok && isInteractionExpiredError(callResult.status, callResult.errorMessage ?? '')) {
+            console.warn(`[AI chat] Interaction ID kedaluwarsa/invalid (HTTP ${callResult.status}); rebuild konteks dari riwayat lokal.`);
+            interactionExpiredFallback = true;
+            usedPrevInteractionId = null;
+            callResult = await callGeminiInteraction(buildCallArgs(input));
+          }
+          console.info(`[AI chat] Gemini response received (model=${model}, ok=${callResult.ok}, status=${callResult.status}, durationMs=${Date.now() - geminiStartedAt}).`);
+          if (callResult.ok) {
+            result = { steps: callResult.steps } as Record<string, unknown>;
+            resultInteractionId = callResult.interactionId;
+            resultUsage = callResult.usage;
             usedModel = model;
             break;
           }
 
-          const detail = (payload as { error?: { message?: string } })?.error?.message || `Gemini API returned HTTP ${response.status}`;
+          // Timeout SDK (AbortSignal) — perlakukan seperti era fetch: model ini
+          // lambat untuk payload ini; langsung coba model berikutnya.
+          if (callResult.errorName === 'TimeoutError' || callResult.errorName === 'AbortError') {
+            lastError = new Error(`Gemini ${model} tidak merespons dalam ${Math.round(attemptTimeoutMs / 1000)} detik.`);
+            console.warn(`[AI chat] Gemini request timed out (model=${model}, attempt=${attempt + 1}, timeoutMs=${Math.round(attemptTimeoutMs)}).`);
+            break;
+          }
+
+          const detail = callResult.errorMessage || `Gemini API returned HTTP ${callResult.status}`;
           lastError = new Error(`${detail} (model: ${model}, Interactions API)`);
           // Kuota harian (RPD) habis/0 atau kuota TPM: retry cepat tak akan
           // berhasil — RPD reset tengah malam Pasifik, TPM gagal lagi dengan
           // payload yang sama. Langsung pindah ke model berikutnya tanpa
           // backoff, dan tandai untuk pesan akhir.
-          if (response.status === 429 && (isDailyQuotaError(detail) || isTpmQuotaError(detail))) {
+          if (callResult.status === 429 && (isDailyQuotaError(detail) || isTpmQuotaError(detail))) {
             if (isDailyQuotaError(detail)) dailyQuotaSeen = true; else tpmQuotaSeen = true;
             console.warn(`[AI chat] Kuota ${model} habis/0 di tier ini (RPD/TPM); lanjut ke model berikutnya tanpa retry.`);
             break;
@@ -1218,28 +1308,20 @@ ATURAN MEMORI WORKSPACE:
           // non-transien, langsung pindah model; tandai agar pesan akhir tidak
           // menyarankan "periksa koneksi internet".
           if (isDeprecatedError(detail)) deprecatedSeen = true;
-          const transient = response.status === 429 || response.status >= 500;
-          if (transient) suggestedRetryDelayMs = extractRetryDelayMs(payload);
+          const transient = callResult.status === 429 || callResult.status >= 500;
+          if (transient) suggestedRetryDelayMs = callResult.suggestedRetryDelayMs ?? null;
           if (!transient) {
             // 401/403 = masalah kunci/akun yang sama untuk semua model — gagal
             // cepat. 404/400 = masalah model/parameter ini saja (model pensiun,
             // parameter ditolak model baru) — lanjut ke model berikutnya, jangan
             // bunuh seluruh rantai fallback.
-            if (response.status === 401 || response.status === 403) throw lastError;
-            console.warn(`[AI chat] Model ${model} menolak permintaan (HTTP ${response.status}); lanjut ke model berikutnya.`);
+            if (callResult.status === 401 || callResult.status === 403) throw lastError;
+            console.warn(`[AI chat] Model ${model} menolak permintaan (HTTP ${callResult.status}); lanjut ke model berikutnya.`);
             break;
           }
         } catch (requestError) {
+          if (requestError instanceof Error && requestError.name === 'GeminiApiKeyMissingError') throw requestError;
           if (requestError instanceof Error && requestError.message.includes('(model:')) throw requestError;
-          if (requestError instanceof Error && (requestError.name === 'TimeoutError' || requestError.name === 'AbortError')) {
-            lastError = new Error(`Gemini ${model} tidak merespons dalam ${Math.round(attemptTimeoutMs / 1000)} detik.`);
-            console.warn(`[AI chat] Gemini request timed out (model=${model}, attempt=${attempt + 1}, timeoutMs=${Math.round(attemptTimeoutMs)}).`);
-            // Timeout = model ini lambat untuk payload ini; mengulang model yang
-            // SAMA biasanya timeout lagi (kasus nyata Vercel: 3.8-flash 2×120s
-            // menghabiskan seluruh anggaran sehingga 3.7 dan lite tidak pernah
-            // dicoba). Langsung pindah ke model berikutnya yang lebih cepat.
-            break;
-          }
           lastError = requestError instanceof Error ? requestError : new Error('Koneksi ke Gemini gagal.');
         }
 
@@ -1313,7 +1395,7 @@ ATURAN MEMORI WORKSPACE:
       .map((fc) => ({ name: fc.name, args: fc.arguments || {} }));
     const firstPassWorksheet = functionCalls.filter((fc) => fc.name !== 'ask_for_case_data' && fc.name !== 'save_case_data_bank');
     if (caseLikeRequest && firstPassWorksheet.length === 0) {
-      const forcedRetrySteps = await runForcedWorksheetRetry(input, apiKey, usedModel, modelChain, normalizeSchema, effectiveSystemPrompt, geminiDeadlineMs);
+      const forcedRetrySteps = await runForcedWorksheetRetry(input, usedModel, modelChain, normalizeSchema, effectiveSystemPrompt, geminiDeadlineMs);
       const retryWorksheet = forcedRetrySteps?.filter((step) => step.type === 'function_call' && typeof step.name === 'string'
         && step.name !== 'save_case_data_bank') ?? [];
       if (retryWorksheet.length > 0) {
@@ -1401,7 +1483,6 @@ ATURAN MEMORI WORKSPACE:
         if (missingTools.length === 0) break;
         const completionSteps = await runChainCompletionPass(
           input,
-          apiKey,
           usedModel,
           modelChain,
           normalizeSchema,
@@ -1511,6 +1592,20 @@ ATURAN MEMORI WORKSPACE:
             // di atas" (tidak ada yang ditampilkan) — minta kirim ulang, karena
             // jaring pengaman pass paksa hanya bisa dicoba pada respons baru.
             'Analisis kasus gagal menghasilkan data worksheet yang bisa diterapkan — kemungkinan model sedang sibuk sehingga jawaban tidak memuat data terstruktur. Silakan kirim ulang pesan + lampiran soal kasus Anda; bila tetap sama, tunggu 1–2 menit lalu coba lagi.');
+      // Fase 2: log sesi (best-effort) sebelum menjawab.
+      await logAiSessionTurn({
+        sessionId: hoistedSessionId,
+        caseId: hoistedCaseId,
+        prevInteractionId: usedPrevInteractionId,
+        interactionId: resultInteractionId,
+        model: usedModel,
+        status: interactionExpiredFallback ? 'interaction-expired-fallback' : 'ok',
+        usage: resultUsage,
+        toolNames: functionCalls.map((fc: { name: string }) => fc.name),
+        userText: hoistedUserPrompt,
+        assistantText: responseText,
+        durationMs: Date.now() - hoistedStartedAt,
+      });
       return NextResponse.json({
         text: `${usedModel !== modelChain[0] ? 'Model utama sedang sibuk; jawaban diproses dengan model cadangan.\n\n' : ''}${responseText}${bankSavedText}${clarificationText}`,
         functionCalls: worksheetCalls.length ? worksheetCalls : null,
@@ -1531,6 +1626,20 @@ ATURAN MEMORI WORKSPACE:
       .filter((part: { type?: string }) => part.type === 'text')
       .map((part: { text?: string }) => part.text || '')
       .join('');
+    // Fase 2: log sesi (best-effort) untuk turn tanpa tool call.
+    await logAiSessionTurn({
+      sessionId: hoistedSessionId,
+      caseId: hoistedCaseId,
+      prevInteractionId: usedPrevInteractionId,
+      interactionId: resultInteractionId,
+      model: usedModel,
+      status: interactionExpiredFallback ? 'interaction-expired-fallback' : 'ok',
+      usage: resultUsage,
+      toolNames: [],
+      userText: hoistedUserPrompt,
+      assistantText: responseText,
+      durationMs: Date.now() - hoistedStartedAt,
+    });
     return NextResponse.json({
       text: `${usedModel !== modelChain[0] ? 'Model utama sedang sibuk; jawaban diproses dengan model cadangan.\n\n' : ''}${responseText || 'Model Gemini tidak mengembalikan teks jawaban.'}${bankSavedText}`,
       functionCalls: null,
@@ -1539,6 +1648,20 @@ ATURAN MEMORI WORKSPACE:
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('Chat API error:', message);
+    // Fase 2: log error ke AiSessionLog (best-effort).
+    await logAiSessionTurn({
+      sessionId: hoistedSessionId,
+      caseId: hoistedCaseId,
+      prevInteractionId: null,
+      interactionId: null,
+      model: null,
+      status: 'error',
+      errorMessage: message,
+      toolNames: [],
+      userText: hoistedUserPrompt,
+      assistantText: '',
+      durationMs: Date.now() - hoistedStartedAt,
+    });
     return NextResponse.json({ error: `Gagal menghubungi Gemini: ${message}` }, { status: 500 });
   }
 }

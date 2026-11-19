@@ -115,7 +115,10 @@ interface AIChatPanelProps {
   ) => void;
 }
 
-const STORAGE_KEY = 'sar-ai-api-key';
+// Fase 2 (keputusan no.1): API key tidak lagi disimpan/dikirim dari browser —
+// hanya env server-side GEMINI_API_KEY. Yang disimpan lokal: ID sesi percakapan
+// (untuk AiSessionLog + previous_interaction_id server-side).
+const SESSION_KEY = 'sar-ai-chat-session';
 const CHAT_HISTORY_KEY = 'sar-ai-chat-history';
 
 const QUICK_PROMPTS = [
@@ -309,7 +312,8 @@ export default function AIChatPanel({
   };
 
   const [showSettings, setShowSettings] = useState(false);
-  const [apiKey, setApiKey] = useState('');
+  // ID sesi percakapan (UUID) — dikirim ke server untuk log & riwayat interaksi.
+  const [sessionId, setSessionId] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   // Jawaban pengguna atas kartu klarifikasi datum time (key: `clarify-<msgIdx>-<fi>`).
@@ -649,11 +653,17 @@ export default function AIChatPanel({
     return { applied, invalidIntercept, attempted, appliedWorksheetNames: appliedWorksheets, failedWorksheets, incompleteWorksheetNames: incompleteWorksheets, preferredWorksheet };
   }, [onApplyASW, onApplyAWA, onApplyLKP, onApplyAeroDrift, onApplyDatum, onApplyWS2, onApplyWS3, onApplyWS4, onApplyWS8, onApplySearchPattern, onApplyIntercept, onFocusWorksheet]);
 
-  // Load API key and chat history from localStorage
+  // Load session ID & chat history from localStorage
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) setApiKey(saved);
+      let saved = localStorage.getItem(SESSION_KEY);
+      if (!saved || !/^[\w\-]{8,64}$/.test(saved)) {
+        saved = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
+          ? crypto.randomUUID()
+          : `ses-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+        localStorage.setItem(SESSION_KEY, saved);
+      }
+      setSessionId(saved);
       const history = localStorage.getItem(CHAT_HISTORY_KEY);
       if (history) {
         try {
@@ -684,14 +694,6 @@ export default function AIChatPanel({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
-
-  const saveApiKey = useCallback((key: string) => {
-    setApiKey(key);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(STORAGE_KEY, key);
-    }
-    setShowSettings(false);
-  }, []);
 
   const handleFiles = async (filesList: FileList | File[]) => {
     const newFiles: UploadedAttachment[] = [];
@@ -752,10 +754,6 @@ export default function AIChatPanel({
     async (text: string) => {
       const trimmed = text.trim();
       if ((!trimmed && attachedFiles.length === 0) || isLoading) return;
-      if (!apiKey) {
-        setShowSettings(true);
-        return;
-      }
 
       const filesToSend = [...attachedFiles];
       const userMsg: ChatMessage = {
@@ -773,9 +771,12 @@ export default function AIChatPanel({
       try {
         const requestPayload: Record<string, unknown> = {
           messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
-          apiKey,
+          // Fase 2: tanpa apiKey (server memakai env GEMINI_API_KEY). sessionId
+          // untuk log & riwayat interaksi server-side; caseId untuk konteks.
           files: filesToSend.map((f) => ({ name: f.name, type: f.type, base64: f.base64 })),
         };
+        if (sessionId) requestPayload.sessionId = sessionId;
+        if (activeWorkspace?.id) requestPayload.caseId = activeWorkspace.id;
         // SAR Workflow Memory: blok konteks selektif workspace aktif ikut dikirim
         // (retrieval selektif — bukan seluruh DB/riwayat).
         if (workspaceContextBlock) requestPayload.workspaceContext = workspaceContextBlock;
@@ -902,7 +903,7 @@ export default function AIChatPanel({
         setAutoRetryNote(null);
       }
     },
-    [apiKey, attachedFiles, isLoading, messages, applyFunctionCalls]
+    [sessionId, activeWorkspace, attachedFiles, isLoading, messages, applyFunctionCalls]
   );
 
   /** Jawaban klarifikasi waktu (datum time / waktu insiden A.1): catat keputusan, kirim ke chat agar AI meneruskan set_asw_case / set_aero_drift_case dengan nilai terkonfirmasi. */
@@ -981,6 +982,15 @@ export default function AIChatPanel({
     setMessages([]);
     if (typeof window !== 'undefined') {
       localStorage.removeItem(CHAT_HISTORY_KEY);
+    }
+    // Sesi baru: riwayat interaksi server-side (previous_interaction_id) tidak
+    // boleh terbawa ke percakapan yang dihapus (mencegah konteks basi).
+    if (typeof window !== 'undefined') {
+      const fresh = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
+        ? crypto.randomUUID()
+        : `ses-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      localStorage.setItem(SESSION_KEY, fresh);
+      setSessionId(fresh);
     }
   }, []);
 
@@ -1118,7 +1128,7 @@ export default function AIChatPanel({
                 type="button"
                 onClick={() => setShowSettings(!showSettings)}
                 className="p-1.5 hover:bg-emerald-500 rounded-lg transition-colors"
-                title="Pengaturan"
+                title="Info Koneksi AI"
               >
                 <Settings className="h-4 w-4" />
               </button>
@@ -1141,38 +1151,18 @@ export default function AIChatPanel({
             </div>
           </div>
 
-          {/* Settings Panel */}
+          {/* Settings Panel — Fase 2: koneksi AI dikelola server */}
           {showSettings && (
-            <div className="p-3 bg-slate-50 border-b border-slate-200 space-y-2 shrink-0">
-              <label className="text-xs font-bold text-slate-700 block">Gemini API Key</label>
+            <div className="p-3 bg-slate-50 border-b border-slate-200 space-y-1.5 shrink-0">
+              <label className="text-xs font-bold text-slate-700 block">Koneksi AI</label>
               <p className="text-[10px] text-slate-500">
-                Dapatkan gratis dari{' '}
-                <a
-                  href="https://aistudio.google.com/apikey"
-                  target="_blank"
-                  rel="noopener"
-                  className="text-emerald-600 underline font-semibold"
-                >
-                  Google AI Studio
-                </a>
-                . Key disimpan aman di local storage browser Anda.
+                Gemini dipanggil lewat server aplikasi dengan API key yang dikonfigurasi admin
+                (environment variable <span className="font-mono">GEMINI_API_KEY</span>). Anda tidak perlu
+                memasukkan atau menyimpan API key di browser.
               </p>
-              <div className="flex gap-2">
-                <input
-                  type="password"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="AIzaSy..."
-                  className="flex-1 text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 font-mono"
-                />
-                <button
-                  type="button"
-                  onClick={() => saveApiKey(apiKey)}
-                  className="text-xs bg-emerald-600 text-white px-3 py-1.5 rounded-lg font-bold hover:bg-emerald-500"
-                >
-                  Simpan
-                </button>
-              </div>
+              {sessionId && (
+                <p className="text-[10px] text-slate-400">Sesi percakapan: <span className="font-mono">{sessionId.slice(0, 13)}…</span></p>
+              )}
             </div>
           )}
 

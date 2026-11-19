@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import ZAI from 'z-ai-web-dev-sdk';
 import { db } from '@/lib/db';
+import { getGeminiApiKey, missingApiKeyMessage, getExtractionModel, getModelFallbacks, getThinkingLevel } from '@/lib/ai/config';
+import { callGeminiInteraction } from '@/lib/ai/geminiClient';
 import {
   type DataBankField,
   CASE_FACT_MAP,
@@ -51,41 +53,32 @@ export async function GET() {
   }
 }
 
-const GEMINI_FALLBACK_MODELS = ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.5-flash-lite'] as const;
+// Fase 2 (keputusan no.1 & 2): model ekstraksi dari env (default gemini-3.8-flash);
+// fallback hanya bila env GEMINI_MODEL_FALLBACKS mengaturnya. Key dari env server-side.
+function geminiModelChain(): string[] {
+  const primary = getExtractionModel();
+  return [primary, ...getModelFallbacks(primary).slice(0, 2)];
+}
 
-/** Analisis via Gemini Interactions API memakai key milik pengguna (untuk deployment non-sandbox, mis. Vercel). */
-async function geminiExtract(apiKey: string, prompt: string): Promise<string> {
+/** Analisis via Gemini Interactions API memakai key server (env GEMINI_API_KEY). */
+async function geminiExtract(prompt: string): Promise<string> {
   let lastError: Error | undefined;
-  for (const model of GEMINI_FALLBACK_MODELS) {
+  for (const model of geminiModelChain()) {
     try {
-      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-        signal: AbortSignal.timeout(120_000),
-        body: JSON.stringify({
-          model,
-          input: [{ type: 'text', text: prompt }],
-          system_instruction: ANALYSIS_SYSTEM_PROMPT,
-          generation_config: { max_output_tokens: 8192, thinking_level: model === 'gemini-3.5-flash-lite' ? 'minimal' : 'low' },
-          store: false,
-        }),
+      const callResult = await callGeminiInteraction({
+        model,
+        input: [{ type: 'text', text: prompt }],
+        systemInstruction: ANALYSIS_SYSTEM_PROMPT,
+        generationConfig: { max_output_tokens: 8192, ...(getThinkingLevel(model) ? { thinking_level: getThinkingLevel(model) } : {}) },
+        store: false,
+        timeoutMs: 120_000,
       });
-      const payload = await response.json().catch(() => ({}));
-      if (response.ok) {
-        const steps = Array.isArray((payload as { steps?: unknown }).steps)
-          ? (payload as { steps: Array<{ type?: string; content?: Array<{ type?: string; text?: string }> }> }).steps
-          : [];
-        const text = steps
-          .filter((s) => s.type === 'model_output')
-          .flatMap((s) => s.content || [])
-          .filter((p) => p.type === 'text')
-          .map((p) => p.text || '')
-          .join('');
-        if (text.trim()) return text;
+      if (callResult.ok) {
+        if (callResult.text.trim()) return callResult.text;
         lastError = new Error('Gemini mengembalikan teks kosong.');
       } else {
-        lastError = new Error((payload as { error?: { message?: string } })?.error?.message || `Gemini HTTP ${response.status}`);
-        if (response.status !== 429 && response.status < 500) throw lastError;
+        lastError = new Error(callResult.errorMessage || `Gemini HTTP ${callResult.status}`);
+        if (callResult.status !== 429 && callResult.status < 500) throw lastError;
       }
     } catch (e) {
       lastError = e instanceof Error ? e : new Error('Koneksi Gemini gagal.');
@@ -107,8 +100,8 @@ export async function POST(req: NextRequest) {
     }
     const caseId: string | null = body.caseId ?? null;
     const bankId: string | null = body.bankId ?? null; // re-analisis bank yang sama
-    const apiKey: string | undefined = typeof body.apiKey === 'string' && body.apiKey.trim()
-      ? body.apiKey.trim() : undefined;
+    // Fase 2 (keputusan no.1): key dari client DIABAIKAN — hanya env server-side.
+    const hasServerKey = getGeminiApiKey() !== null;
 
     let content = '';
     try {
@@ -122,14 +115,14 @@ export async function POST(req: NextRequest) {
       });
       content = completion.choices[0]?.message?.content ?? '';
     } catch (zaiErr) {
-      // SDK sandbox tidak tersedia (mis. deployment Vercel) → pakai key Gemini pengguna.
-      if (!apiKey) {
+      // SDK sandbox tidak tersedia (mis. deployment Vercel) → Gemini dengan key server.
+      if (!hasServerKey) {
         return NextResponse.json({
-          error: 'Analisis AI tidak tersedia di server ini. Isi API key Gemini di panel AI Asisten (ikon kunci) lalu coba lagi.',
+          error: missingApiKeyMessage(),
         }, { status: 503 });
       }
-      console.warn('[data-bank] SDK sandbox gagal, memakai Gemini key pengguna:', (zaiErr as Error).message);
-      content = await geminiExtract(apiKey, buildExtractionPrompt(rawText));
+      console.warn('[data-bank] SDK sandbox gagal, memakai Gemini (key server):', (zaiErr as Error).message);
+      content = await geminiExtract(buildExtractionPrompt(rawText));
     }
     const parsed = extractJsonObject(content);
     if (!parsed) {
