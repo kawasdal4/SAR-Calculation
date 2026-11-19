@@ -1136,6 +1136,34 @@ export default function Home() {
   const ws2TrackSpacing = patternWs2Sheet ? ws2TrackSpacings[patternWs2Sheet.key] ?? null : null;
   const ws3TrackSpacing = patternWs3Sheet ? ws3TrackSpacings[patternWs3Sheet.key] ?? null : null;
   const ws8TrackSpacing = patternWs8Sheet ? ws8TrackSpacings[patternWs8Sheet.key] ?? null : null;
+  // Spacing (S) per aset dari worksheet sumbernya sesuai routing Panduan Agent:
+  // alat udara (fixed-wing/helikopter) → lembar WS 2, alat laut (kapal/RIB/Sea
+  // Rider) → lembar WS 8. Dipakai Worksheet Alokasi Aset untuk mengisi Track
+  // Spacing S per SRU otomatis. Urutan pencocokan lembar: (1) terikat assetId,
+  // (2) platform/jenis alut sama, (3) bila domain itu punya tepat 1 lembar dan
+  // tepat 1 aset (kasus tunggal, lembar default "SRU 1" tak terikat).
+  const assetWorksheetSpacing = useMemo<Record<string, { spacingNm: number; source: 'ws2' | 'ws8' }>>(() => {
+    const map: Record<string, { spacingNm: number; source: 'ws2' | 'ws8' }> = {};
+    const countByDomain = (domain: 'udara' | 'laut') => assets.filter((a) => assetDomain(a.type) === domain).length;
+    for (const asset of assets) {
+      const isAir = assetDomain(asset.type) === 'udara';
+      // Cabang WS 2 (udara) dan WS 8 (laut) dipisah agar tipe data lembar tetap
+      // tepat (Worksheet2InitialState / Worksheet8InitialState).
+      const sheet = isAir
+        ? ws2Sheets.find((s) => s.assetId === asset.id)
+          ?? ws2Sheets.find((s) => (s.data.searchPlatform === 'helicopter' ? 'helicopter' : s.data.searchPlatform === 'fixed-wing' ? 'fixed-wing-aircraft' : undefined) === asset.type)
+          ?? (ws2Sheets.length === 1 && countByDomain('udara') === 1 ? ws2Sheets[0] : undefined)
+        : ws8Sheets.find((s) => s.assetId === asset.id)
+          ?? ws8Sheets.find((s) => s.data.sruType === asset.type)
+          ?? (ws8Sheets.length === 1 && countByDomain('laut') === 1 ? ws8Sheets[0] : undefined);
+      if (!sheet) continue;
+      const ts = isAir ? ws2TrackSpacings[sheet.key] : ws8TrackSpacings[sheet.key];
+      if (ts && ts.spacingNm > 0) {
+        map[asset.id] = { spacingNm: ts.spacingNm, source: isAir ? 'ws2' : 'ws8' };
+      }
+    }
+    return map;
+  }, [assets, ws2Sheets, ws8Sheets, ws2TrackSpacings, ws8TrackSpacings]);
   const caseDerivedSruType = patternWorksheetSource === 'ws8'
     ? patternWs8Sheet?.data.sruType
     : patternWorksheetSource === 'ws2'
@@ -2284,6 +2312,7 @@ export default function Home() {
                 exitPoint={exitPoint}
                 ws1Ao={ws1Ao}
                 assets={assets}
+                worksheetSpacing={assetWorksheetSpacing}
                 onAssetsChange={setAssets}
               />
               <PrintCompanionMap

@@ -1,7 +1,7 @@
 'use client';
 
 import { printActiveWorksheetFit } from '@/lib/sar/printFit';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -51,6 +51,8 @@ interface AssetAllocationWorksheetProps {
   exitPoint: LatLng;
   ws1Ao: number;
   assets: SruAssetInput[];
+  /** Spacing (S) per assetId dari worksheet sumbernya: udara → WS 2, laut → WS 8. */
+  worksheetSpacing?: Record<string, { spacingNm: number; source: 'ws2' | 'ws8' }>;
   onAssetsChange: (assets: SruAssetInput[]) => void;
   className?: string;
 }
@@ -69,12 +71,16 @@ export default function AssetAllocationWorksheet({
   exitPoint,
   ws1Ao,
   assets,
+  worksheetSpacing,
   onAssetsChange,
   className = '',
 }: AssetAllocationWorksheetProps) {
   // Lembar aktif = SRU yang sedang diedit; fallback ke lembar pertama.
   const [activeAssetId, setActiveAssetId] = useState<string>('');
   const activeAsset = assets.find((asset) => asset.id === activeAssetId) ?? assets[0];
+  // Aset yang Track Spacing S-nya diisi manual pengguna (tidak dioverride
+  // otomatis dari WS 2/WS 8 sampai tombol "pakai dari WS" ditekan lagi).
+  const [manualSpacingIds, setManualSpacingIds] = useState<ReadonlySet<string>>(new Set());
 
   // Hitung ringkasan alokasi aset (semua lembar)
   const summary = useMemo(() => {
@@ -120,6 +126,29 @@ export default function AssetAllocationWorksheet({
       })
     );
   };
+
+  // Sumber S untuk lembar aktif: WS 2 (alat udara) atau WS 8 (alat laut).
+  const activeSpacingSource = activeAsset ? worksheetSpacing?.[activeAsset.id] : undefined;
+  const activeSpacingIsManual = activeAsset ? manualSpacingIds.has(activeAsset.id) : false;
+
+  // Sinkronkan Track Spacing S otomatis dari worksheet sumbernya (routing
+  // Panduan Agent: alat udara → S dari WS 2, alat laut → S dari WS 8) untuk
+  // aset yang tidak di-override manual pengguna. Nilai S lembar WS 2/WS 8 per
+  // SRU langsung mengisi lembar Alokasi Aset; bila S di lembar sumber berubah,
+  // nilai di sini ikut diperbarui.
+  useEffect(() => {
+    if (!worksheetSpacing) return;
+    const needsSync = assets.some((a) => {
+      const src = worksheetSpacing[a.id];
+      return Boolean(src) && !manualSpacingIds.has(a.id) && a.sweepWidthNm !== src?.spacingNm;
+    });
+    if (!needsSync) return;
+    onAssetsChange(assets.map((a) => {
+      const src = worksheetSpacing[a.id];
+      if (!src || manualSpacingIds.has(a.id) || a.sweepWidthNm === src.spacingNm) return a;
+      return { ...a, sweepWidthNm: src.spacingNm };
+    }));
+  }, [worksheetSpacing, assets, manualSpacingIds, onAssetsChange]);
 
   return (
     <div className={`space-y-5 ${className}`}>
@@ -345,10 +374,38 @@ export default function AssetAllocationWorksheet({
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500 block mb-1">Track Spacing S (NM)</label>
+                  <div className="flex items-center justify-between gap-1 mb-1">
+                    <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Track Spacing S (NM)</label>
+                    {activeSpacingSource && (
+                      activeSpacingIsManual ? (
+                        <button
+                          type="button"
+                          onClick={() => setManualSpacingIds((prev) => {
+                            const next = new Set(prev);
+                            next.delete(activeAsset.id);
+                            return next;
+                          })}
+                          className="text-[10px] font-semibold text-purple-700 hover:text-purple-900 hover:underline"
+                          title={`Ambil lagi S dari ${activeSpacingSource.source === 'ws2' ? 'Worksheet 2' : 'Worksheet 8'}`}
+                        >
+                          pakai dari {activeSpacingSource.source === 'ws2' ? 'WS 2' : 'WS 8'}
+                        </button>
+                      ) : (
+                        <span
+                          className="text-[10px] font-bold text-emerald-700"
+                          title={`S otomatis dari ${activeSpacingSource.source === 'ws2' ? 'Worksheet 2 — Practical Track Spacing' : 'Worksheet 8 — Practical Track Spacing'} lembar SRU ini`}
+                        >
+                          dari {activeSpacingSource.source === 'ws2' ? 'WS 2' : 'WS 8'}
+                        </span>
+                      )
+                    )}
+                  </div>
                   <input
                     type="number" step="0.1" min="0" value={activeAsset.sweepWidthNm || ''}
-                    onChange={(e) => updateAsset(activeAsset.id, 'sweepWidthNm', Number(e.target.value) || 0)}
+                    onChange={(e) => {
+                      setManualSpacingIds((prev) => new Set(prev).add(activeAsset.id));
+                      updateAsset(activeAsset.id, 'sweepWidthNm', Number(e.target.value) || 0);
+                    }}
                     className="w-full bg-white border border-slate-300 rounded px-2 py-1.5 text-right font-mono font-bold" suppressHydrationWarning
                   />
                 </div>
