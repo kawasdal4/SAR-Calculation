@@ -1,5 +1,6 @@
 'use client';
 
+import { printActiveWorksheetFit } from '@/lib/sar/printFit';
 import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -150,7 +151,7 @@ export default function AssetAllocationWorksheet({
               </span>
               <button
                 type="button"
-                onClick={() => window.print()}
+                onClick={() => printActiveWorksheetFit()}
                 className="flex items-center gap-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-white font-medium px-2.5 py-1 rounded shadow-2xs transition-colors print:hidden"
               >
                 <Printer className="h-3.5 w-3.5" />

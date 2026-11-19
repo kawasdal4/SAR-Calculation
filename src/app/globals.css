@@ -599,6 +599,9 @@
     width: 100% !important;
     padding: 0 !important;
     margin: 0 !important;
+    /* Fit-to-page: seluruh worksheet tab aktif dikompres agar muat
+       SATU halaman A4 (skala dihitung printActiveWorksheetFit). */
+    zoom: var(--ws-print-zoom, 1) !important;
   }
 
   /* Aturan Halaman Selanjutnya (Page Break) untuk Peta, UPS, MoBo */
@@ -610,18 +613,10 @@
     margin-top: 15mm !important;
   }
 
-  /* Lampiran Peta Operasi di halaman selanjutnya */
+  /* Lampiran peta pendamping worksheet tidak ikut tercetak — cetak peta
+     dilakukan khusus lewat "Cetak Peta A3" (PrintMapA3). */
   .print-companion-map {
-    position: static !important;
-    left: auto !important;
-    top: auto !important;
-    width: 100% !important;
-    height: auto !important;
-    visibility: visible !important;
-    page-break-before: always !important;
-    break-before: page !important;
-    display: block !important;
-    margin-top: 15mm !important;
+    display: none !important;
   }
 
   .print-page-break {
@@ -647,8 +642,9 @@
   }
 
   @page {
-    size: auto;
-    margin: 12mm 15mm 15mm 15mm;
+    /* Margin se-minimalis mungkin agar worksheet muat satu halaman. */
+    size: A4 portrait;
+    margin: 6mm;
   }
 }
 

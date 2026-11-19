@@ -1030,62 +1030,39 @@ interface MoboPrintPortalProps {
 
 function MoboPrintPortalBlock({
   paper,
-  title,
-  scale,
   unitLabel,
-  chained,
   plottedVectors,
   zeroPoint,
 }: MoboPrintPortalProps) {
   const [wmm, hmm] = paperContentMm(paper);
-  const PAD_TB = 8, PAD_LR = 10, GAP = 5, HEADER_H = 16;
-  const innerW = wmm - PAD_LR;
-  const cellH = hmm - PAD_TB - HEADER_H;
+  // Cetak HANYA lembar MOBO penuh beserta vektornya (permintaan pengguna):
+  // tanpa header, tabel vektor, atau keterangan lain. Lembar mengisi seluruh
+  // area kertas landscape dengan proporsi asli (fit sisi terbatas).
+  const PAD_MM = 4;
+  const innerW = wmm - PAD_MM * 2;
+  const innerH = hmm - PAD_MM * 2;
   const aspect = VB_WIDTH / VB_HEIGHT;
-  let sheetH = cellH;
+  let sheetH = innerH;
   let sheetW = sheetH * aspect;
-  const maxSheetW = innerW * 0.55; // sisakan ruang tabel vektor
-  if (sheetW > maxSheetW) {
-    sheetW = maxSheetW;
+  if (sheetW > innerW) {
+    sheetW = innerW;
     sheetH = sheetW / aspect;
   }
 
   return (
     <div
-      className="portal-print-sheet print-avoid-break bg-white text-slate-900"
-      style={{ width: `${wmm}mm`, height: `${hmm}mm`, padding: '4mm 5mm', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+      className="portal-print-sheet print-avoid-break bg-white text-slate-900 flex items-center justify-center"
+      style={{ width: `${wmm}mm`, height: `${hmm}mm`, padding: `${PAD_MM}mm`, overflow: 'hidden' }}
     >
-      <div style={{ height: `${HEADER_H}mm`, overflow: 'hidden' }}>
-        <MoboPrintHeader title={title} scale={scale} unitLabel={unitLabel} chained={chained} />
-      </div>
-      <div className="flex items-stretch" style={{ gap: `${GAP}mm`, height: `${cellH}mm`, minHeight: 0 }}>
-        {/* Lembar Mobo portrait — tinggi penuh, sisanya untuk tabel */}
-        <div className="flex items-center justify-center" style={{ width: `${sheetW}mm`, height: `${cellH}mm` }}>
-          <MoboBoardView
-            plottedVectors={plottedVectors}
-            zeroPoint={zeroPoint}
-            activeStep={Number.MAX_SAFE_INTEGER}
-            variant="print"
-            fit="explicit"
-            explicitSizeMm={{ width: sheetW, height: sheetH }}
-            unitLabel={unitLabel}
-          />
-        </div>
-        <div className="flex-1 border-l border-slate-300 pl-[3mm] overflow-hidden" style={{ minWidth: 0 }}>
-          <p className="font-bold text-[8.5pt] uppercase tracking-wide border-b border-slate-300 pb-1 mb-1.5">
-            Daftar Vektor (Head-to-Tail)
-          </p>
-          {plottedVectors.length === 0 && (
-            <p className="text-[8pt] italic text-slate-500">Belum ada vektor yang diinput.</p>
-          )}
-          <MoboVectorTable plottedVectors={plottedVectors} unitLabel={unitLabel} />
-          <p className="mt-2 text-[6.5pt] text-slate-500 leading-snug">
-            Scan asli DMAHTC 5090 (10 inch diameter). Lingkaran jarak 1–9, radial tiap 10°,
-            skala kecepatan 2:1–5:1 di tepi, skala logaritmik waktu-kecepatan-jarak di bawah.
-            Vektor digambar bersambung dari O; vektor resultan menutup rantai.
-          </p>
-        </div>
-      </div>
+      <MoboBoardView
+        plottedVectors={plottedVectors}
+        zeroPoint={zeroPoint}
+        activeStep={Number.MAX_SAFE_INTEGER}
+        variant="print"
+        fit="explicit"
+        explicitSizeMm={{ width: sheetW, height: sheetH }}
+        unitLabel={unitLabel}
+      />
     </div>
   );
 }

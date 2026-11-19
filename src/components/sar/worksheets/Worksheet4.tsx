@@ -1,5 +1,6 @@
 'use client';
 
+import { printActiveWorksheetFit } from '@/lib/sar/printFit';
 import React, { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { Card, CardContent } from '@/components/ui/card';
@@ -249,7 +250,7 @@ export default function Worksheet4({
   })();
 
   const handlePrint = () => {
-    if (typeof window !== 'undefined') window.print();
+    if (typeof window !== 'undefined') printActiveWorksheetFit();
   };
 
   return (

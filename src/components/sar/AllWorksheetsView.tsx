@@ -19,6 +19,9 @@ import { type SruAssetInput } from '@/lib/sar/assetAllocation';
 import { type LatLng } from '@/lib/sar/sarCalculations';
 import type { DatumData, DatumResults } from '@/components/sar/DatumWorksheet';
 import type { SearchPlanResults } from '@/components/sar/SearchPlanWorksheet';
+import type { AWAInitialState } from './AWAWorksheet';
+import type { ASWInitialState } from './ASWWorksheet';
+import type { AeroDriftInitialState } from './AeronauticalDriftWorksheet';
 
 interface AllWorksheetsViewProps {
   lkp: LatLng;
@@ -39,6 +42,13 @@ interface AllWorksheetsViewProps {
   exitPoint?: LatLng;
   assets?: SruAssetInput[];
   onAssetsChange?: (assets: SruAssetInput[]) => void;
+  /** Data live AWA/ASW/ADW agar lembar summary menampilkan isi yang sama
+   *  dengan tab aslinya sekaligus mendeteksi worksheet yang terpakai. */
+  awaState?: AWAInitialState | null;
+  aswState?: ASWInitialState | null;
+  aeroState?: AeroDriftInitialState | null;
+  /** true bila ADW sudah menghasilkan LKP (worksheet terpakai). */
+  aeroHasResults?: boolean;
   className?: string;
 }
 
@@ -60,12 +70,19 @@ export default function AllWorksheetsView({
   exitPoint = { lat: 0, lng: 0 },
   assets = [],
   onAssetsChange = () => {},
+  awaState = null,
+  aswState = null,
+  aeroState = null,
+  aeroHasResults = false,
   className = '',
 }: AllWorksheetsViewProps) {
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Intercept dianggap terpakai bila perhitungannya sudah dijalankan.
+  const [interceptHasData, setInterceptHasData] = React.useState(false);
 
   const handlePrintAll = () => {
     window.print();
@@ -100,6 +117,26 @@ export default function AllWorksheetsView({
       el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
+
+  // Worksheet dianggap "terpakai" bila sudah berisi nilai hasil penghitungan.
+  // Lembar yang kosong (belum dipakai penghitungan) TIDAK ikut tercetak
+  // (print:hidden) saat "Cetak Seluruh Worksheet".
+  const hasData: Record<string, boolean> = {
+    'sec-awa': (awaState?.observations?.length ?? 0) > 0,
+    'sec-aero': aeroHasResults,
+    'sec-asw': (aswState?.observations?.length ?? 0) > 0,
+    'sec-ws1': datumData != null,
+    'sec-ws2': datumData != null && ws1Ao > 0,
+    'sec-ws8': ws1Ao > 0,
+    'sec-assets': assets.length > 0,
+    'sec-ws3': searchResults != null,
+    'sec-ws4': searchResults != null,
+    'sec-intercept': interceptHasData,
+    'sec-briefing': datumResults != null || searchResults != null,
+    'sec-renops': datumResults != null || searchResults != null,
+  };
+  const sectionCls = (id: string) =>
+    `scroll-mt-6 print:break-after-page${hasData[id] ? '' : ' print:hidden'}`;
 
   return (
     <div className={`space-y-6 ${className}`}>
@@ -161,7 +198,7 @@ export default function AllWorksheetsView({
       {/* Render worksheets sequentially */}
       <div className="space-y-8">
         {/* 1. AVERAGE WIND ALOFT (AWA) WORKSHEET */}
-        <section id="sec-awa" className="scroll-mt-6 print:break-after-page">
+        <section id="sec-awa" className={sectionCls('sec-awa')}>
           <div className="mb-2">
             <span className="text-xs font-bold uppercase tracking-wider text-sky-800 bg-sky-100 px-2 py-1 rounded">
               Langkah 1: Average Wind Aloft (AWA) Worksheet — Appendix K-10
@@ -173,11 +210,12 @@ export default function AllWorksheetsView({
           <AWAWorksheet
             onDataChange={() => {}}
             readOnly
+            initialState={awaState}
           />
         </section>
 
         {/* 2. AERONAUTICAL DRIFT WORKSHEET (ADW -> LKP) */}
-        <section id="sec-aero" className="scroll-mt-6 print:break-after-page">
+        <section id="sec-aero" className={sectionCls('sec-aero')}>
           <div className="mb-2">
             <span className="text-xs font-bold uppercase tracking-wider text-sky-800 bg-sky-100 px-2 py-1 rounded">
               Langkah 2: Aeronautical Drift Worksheet (ADW) — Appendix K-6
@@ -190,11 +228,12 @@ export default function AllWorksheetsView({
             initialLkp={lkp}
             awaDirFrom={awaDirFrom}
             awaSpeedKts={awaSpeed}
+            initialState={aeroState}
           />
         </section>
 
         {/* 3. AVERAGE SURFACE WIND (ASW) WORKSHEET */}
-        <section id="sec-asw" className="scroll-mt-6 print:break-after-page">
+        <section id="sec-asw" className={sectionCls('sec-asw')}>
           <div className="mb-2">
             <span className="text-xs font-bold uppercase tracking-wider text-blue-800 bg-blue-100 px-2 py-1 rounded">
               Langkah 3: Average Surface Wind (ASW) Worksheet — Appendix K-19
@@ -206,11 +245,12 @@ export default function AllWorksheetsView({
           <ASWWorksheet
             onDataChange={() => {}}
             readOnly
+            initialState={aswState}
           />
         </section>
 
         {/* 4. WORKSHEET 1 (MARINE DATUM & SEARCH AREA AO) */}
-        <section id="sec-ws1" className="scroll-mt-6 print:break-after-page">
+        <section id="sec-ws1" className={sectionCls('sec-ws1')}>
           <div className="mb-2">
             <span className="text-xs font-bold uppercase tracking-wider text-blue-800 bg-blue-100 px-2 py-1 rounded">
               Langkah 4: Worksheet 1 (Marine Datum Planning) — Appendix K-2
@@ -234,7 +274,7 @@ export default function AllWorksheetsView({
         </section>
 
         {/* 5. WORKSHEET 2 (MARITIME EVALUATION & SUB-AREA DECISION USING AO) */}
-        <section id="sec-ws2" className="scroll-mt-6 print:break-after-page">
+        <section id="sec-ws2" className={sectionCls('sec-ws2')}>
           <div className="mb-2">
             <span className="text-xs font-bold uppercase tracking-wider text-indigo-800 bg-indigo-100 px-2 py-1 rounded">
               Langkah 5: Worksheet No. 2 (Maritime) — Appendix K-3
@@ -254,7 +294,7 @@ export default function AllWorksheetsView({
         </section>
 
         {/* 6. WORKSHEET 8 (VESSEL SWEEP WIDTH EVALUATION USING AO) */}
-        <section id="sec-ws8" className="scroll-mt-6 print:break-after-page">
+        <section id="sec-ws8" className={sectionCls('sec-ws8')}>
           <div className="mb-2">
             <span className="text-xs font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2 py-1 rounded">
               Langkah 6: Worksheet No. 8 — Appendix K-9
@@ -273,7 +313,7 @@ export default function AllWorksheetsView({
         </section>
 
         {/* 7. ALOKASI ASET SRU & KAPABILITAS UPAYA CARI */}
-        <section id="sec-assets" className="scroll-mt-6 print:break-after-page">
+        <section id="sec-assets" className={sectionCls('sec-assets')}>
           <div className="mb-2">
             <span className="text-xs font-bold uppercase tracking-wider text-purple-800 bg-purple-100 px-2 py-1 rounded">
               Langkah 7: Penghitungan Alokasi Aset SRU & Rute Transit
@@ -292,7 +332,7 @@ export default function AllWorksheetsView({
         </section>
 
         {/* 6. WORKSHEET 3 (LAND SEARCH - STANDALONE) */}
-        <section id="sec-ws3" className="scroll-mt-6 print:break-after-page">
+        <section id="sec-ws3" className={sectionCls('sec-ws3')}>
           <div className="mb-2">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-800 bg-slate-200 px-2 py-1 rounded">
               Worksheet No. 3 (Land) — Appendix K-4 (Mandiri)
@@ -306,7 +346,7 @@ export default function AllWorksheetsView({
         </section>
 
         {/* 7. WORKSHEET 4 (SEARCH RADIUS - STANDALONE) */}
-        <section id="sec-ws4" className="scroll-mt-6 print:break-after-page">
+        <section id="sec-ws4" className={sectionCls('sec-ws4')}>
           <div className="mb-2">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-800 bg-slate-200 px-2 py-1 rounded">
               Worksheet No. 4 (Search Radius) — Appendix K-5 (Mandiri)
@@ -321,12 +361,12 @@ export default function AllWorksheetsView({
         </section>
 
         {/* 7. INTERCEPT CALCULATOR */}
-        <section id="sec-intercept" className="scroll-mt-6 print:break-after-page">
-          <InterceptWorksheet />
+        <section id="sec-intercept" className={sectionCls('sec-intercept')}>
+          <InterceptWorksheet onResults={() => setInterceptHasData(true)} />
         </section>
 
         {/* 8. BRIEFING FORM (PERBAN 3/2020) */}
-        <section id="sec-briefing" className="scroll-mt-6 print:break-after-page">
+        <section id="sec-briefing" className={sectionCls('sec-briefing')}>
           <BriefingForm
             lkp={lkp}
             datumResults={datumResults}
@@ -337,7 +377,7 @@ export default function AllWorksheetsView({
         </section>
 
         {/* 9. RENOPS FORM (RENCANA OPERASI SAR) */}
-        <section id="sec-renops" className="scroll-mt-6 print:break-after-page">
+        <section id="sec-renops" className={sectionCls('sec-renops')}>
           <RenopsForm
             lkp={lkp}
             datumResults={datumResults}

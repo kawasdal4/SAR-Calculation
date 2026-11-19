@@ -105,6 +105,7 @@ import DocumentWorkbench from '@/components/sar/DocumentWorkbench';
 import AllWorksheetsView from '@/components/sar/AllWorksheetsView';
 import PrintMapA3 from '@/components/sar/PrintMapA3';
 import PrintCompanionMap from '@/components/sar/PrintCompanionMap';
+import { printActiveWorksheetFit } from '@/lib/sar/printFit';
 import AIChatPanel from '@/components/sar/AIChatPanel';
 import {
   generateSearchPattern,
@@ -1301,13 +1302,14 @@ export default function Home() {
     handleMapClick(latlng);
   }, [mainMapToolMode, handleMapClick]);
 
-  // Map markers: LKP (A), Titik L/R, Datum B, CSP, Exit Point, dan SRU Home Bases
-  // (Panduan Datum Worksheet 1 bagian 5: LKP = A, datum berikutnya B, C, D, …)
+  // Map markers: LKP, Titik L/R, Datum B, CSP, Exit Point, dan SRU Home Bases.
+  // Label permanen dibuat singkat (permintaan pengguna); rincian koordinat
+  // tetap tersedia pada tooltip hover & kotak koordinat cetak peta A3.
   const markers: MapMarker[] = useMemo(() => {
     const list: MapMarker[] = [
       {
         position: lkp,
-        label: `A – LKP: ${formatDMS(lkp.lat, false)}, ${formatDMS(lkp.lng, true)}`,
+        label: 'LKP',
         color: '#0ea5e9',
         isStart: true,
       },
@@ -1316,13 +1318,13 @@ export default function Home() {
     if (datumResults) {
       list.push({
         position: datumResults.datumLeft,
-        label: `L (datum kiri): ${formatDMS(datumResults.datumLeft.lat, false)}, ${formatDMS(datumResults.datumLeft.lng, true)}`,
+        label: 'L',
         color: '#f97316',
         isDatum: true,
       });
       list.push({
         position: datumResults.datumRight,
-        label: `R (datum kanan): ${formatDMS(datumResults.datumRight.lat, false)}, ${formatDMS(datumResults.datumRight.lng, true)}`,
+        label: 'R',
         color: '#f97316',
         isDatum: true,
       });
@@ -1348,7 +1350,7 @@ export default function Home() {
       if (asset.homeBasePos.lat === 0 && asset.homeBasePos.lng === 0) return;
       list.push({
         position: asset.homeBasePos,
-        label: `Pangkalan ${asset.name}: ${formatDMS(asset.homeBasePos.lat, false)}, ${formatDMS(asset.homeBasePos.lng, true)}`,
+        label: asset.name,
         color: assetDomain(asset.type) === 'udara' ? '#7c3aed' : '#0284c7',
       });
     });
@@ -1356,20 +1358,20 @@ export default function Home() {
     if (searchPatternResult.segments.length > 0) {
       list.push({
         position: csp,
-        label: `CSP: ${formatDMS(csp.lat, false)}, ${formatDMS(csp.lng, true)}`,
+        label: 'CSP',
         color: '#10b981',
         showLabel: true,
       });
       list.push({
         position: exitPoint,
-        label: `Exit Point: ${formatDMS(exitPoint.lat, false)}, ${formatDMS(exitPoint.lng, true)}`,
+        label: 'EXIT',
         color: '#f97316',
         showLabel: true,
       });
       searchPatternResult.waypoints.forEach((position, index) => {
         list.push({
           position,
-          label: `Waypoint ${index + 1}: ${formatDMS(position.lat, false)}, ${formatDMS(position.lng, true)}`,
+          label: `WP ${index + 1}`,
           color: SEARCH_PATTERN_COLORS[patternType],
           sequence: index + 1,
         });
@@ -1383,7 +1385,7 @@ export default function Home() {
     ...markers,
     ...mainMapDroppedPoints.map((point, index): MapMarker => ({
       position: point.position,
-      label: `Titik tambahan ${index + 1}: ${formatDMS(point.position.lat, false)}, ${formatDMS(point.position.lng, true)}`,
+      label: `T${index + 1}`,
       color: point.id === selectedMainMapPointId ? '#e11d48' : '#7c3aed',
       sequence: index + 1,
       onClick: () => setSelectedMainMapPointId(point.id),
@@ -1407,7 +1409,7 @@ export default function Home() {
           from: calc.asset.homeBasePos,
           to: csp,
           color: col,
-          label: `${calc.asset.name} Go: ${calc.transitGoDistanceNm.toFixed(1)} NM (${(calc.transitGoHours * 60).toFixed(0)}m)`,
+          label: `${calc.asset.name} Go - ${calc.transitGoDistanceNm.toFixed(1)} nm`,
         });
       }
       // Transit Back: Exit Point -> Base
@@ -1417,7 +1419,7 @@ export default function Home() {
           to: calc.asset.homeBasePos,
           color: col,
           dashed: true,
-          label: `${calc.asset.name} Back: ${calc.transitBackDistanceNm.toFixed(1)} NM (${(calc.transitBackHours * 60).toFixed(0)}m)`,
+          label: `${calc.asset.name} Back - ${calc.transitBackDistanceNm.toFixed(1)} nm`,
         });
       }
     });
@@ -1425,6 +1427,12 @@ export default function Home() {
   }, [assetSummary.perAsset, csp, exitPoint]);
 
   // Map lines: Drift, TWC, Search Pattern Tracks, Transit Go & Transit Back
+  // Label vektor dibuat singkat (permintaan pengguna), contoh: "SC - 27°/25 nm".
+  // Jarak dibulatkan: 25.0 → 25, 12.34 → 12.3.
+  const fmtMapNm = (v: number) => {
+    const rounded = Math.round(v * 10) / 10;
+    return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+  };
   const lines: MapLine[] = useMemo(() => {
     const list: MapLine[] = [];
 
@@ -1446,7 +1454,7 @@ export default function Home() {
         weight: isConnector ? 1.5 : 2,
         opacity: 0.58,
         labelClassName: 'sar-pattern-label',
-        label: `${isConnector ? 'Cross' : `Leg ${seg.legIndex}`} - ${bearing.toFixed(0)}°/${seg.distanceNm.toFixed(1)} NM`,
+        label: `${isConnector ? 'Cross' : `Leg ${seg.legIndex}`} - ${bearing.toFixed(0)}°/${fmtMapNm(seg.distanceNm)} nm`,
       });
     });
 
@@ -1477,7 +1485,7 @@ export default function Home() {
         color: '#2563eb',
         weight: 3,
         arrow: true,
-        label: `Arus laut (SC) - ${(datumData.seaCurrent.mag * driftHours).toFixed(1)} NM / ${datumData.seaCurrent.dir.toFixed(0)}°`,
+        label: `SC - ${datumData.seaCurrent.dir.toFixed(0)}°/${fmtMapNm(datumData.seaCurrent.mag * driftHours)} nm`,
       });
       list.push({
         from: p1,
@@ -1485,7 +1493,7 @@ export default function Home() {
         color: '#16a34a',
         weight: 3,
         arrow: true,
-        label: `Arus angin (WC) - ${(ws1Map ? distanceNm(ws1Map.P1, ws1Map.P2) : datumResults.wc.wcDrift * driftHours).toFixed(1)} NM / ${(datumData.useWindCurrent === false ? downwindDir : datumResults.wc.wcSet).toFixed(0)}°`,
+        label: `WC - ${(datumData.useWindCurrent === false ? downwindDir : datumResults.wc.wcSet).toFixed(0)}°/${fmtMapNm(ws1Map ? distanceNm(ws1Map.P1, ws1Map.P2) : datumResults.wc.wcDrift * driftHours)} nm`,
       });
       list.push({
         from: p2,
@@ -1493,7 +1501,7 @@ export default function Home() {
         color: '#f97316',
         weight: 3,
         arrow: true,
-        label: `Leeway kiri (LW-L) - ${(datumData.lwSpeed * driftHours).toFixed(1)} NM / ${datumData.lwLeftDir.toFixed(0)}°`,
+        label: `LWL - ${datumData.lwLeftDir.toFixed(0)}°/${fmtMapNm(datumData.lwSpeed * driftHours)} nm`,
       });
       list.push({
         from: p2,
@@ -1501,7 +1509,7 @@ export default function Home() {
         color: '#ea580c',
         weight: 3,
         arrow: true,
-        label: `Leeway kanan (LW-R) - ${(datumData.lwSpeed * driftHours).toFixed(1)} NM / ${datumData.lwRightDir.toFixed(0)}°`,
+        label: `LWR - ${datumData.lwRightDir.toFixed(0)}°/${fmtMapNm(datumData.lwSpeed * driftHours)} nm`,
       });
       list.push({
         from: pointL,
@@ -1509,21 +1517,21 @@ export default function Home() {
         color: '#64748b',
         dashed: true,
         weight: 2,
-        label: `Garis L–R - ${distanceNm(pointL, pointR).toFixed(2)} NM`,
+        label: `L-R - ${fmtMapNm(distanceNm(pointL, pointR))} nm`,
       });
       list.push({
         from: lkpPoint,
         to: pointL,
         color: '#111827',
         dashed: true,
-        label: `d(L) - ${bearingDeg(lkpPoint, pointL).toFixed(0)}°/${distanceNm(lkpPoint, pointL).toFixed(1)} NM`,
+        label: `d(L) - ${bearingDeg(lkpPoint, pointL).toFixed(0)}°/${fmtMapNm(distanceNm(lkpPoint, pointL))} nm`,
       });
       list.push({
         from: lkpPoint,
         to: pointR,
         color: '#64748b',
         dashed: true,
-        label: `d(R) - ${bearingDeg(lkpPoint, pointR).toFixed(0)}°/${distanceNm(lkpPoint, pointR).toFixed(1)} NM`,
+        label: `d(R) - ${bearingDeg(lkpPoint, pointR).toFixed(0)}°/${fmtMapNm(distanceNm(lkpPoint, pointR))} nm`,
       });
     }
 
@@ -1548,13 +1556,13 @@ export default function Home() {
   //     putus-putus, tipis (tooltip)
   //   • lingkaran De di datum B, radius De — abu titik-titik (tooltip)
   //   • lingkaran radius pencarian di datum B, radius R bulat — merah solid,
-  //     isi transparan ±10%, label "R = n NM (fs = x,x)"
+  //     isi transparan ±10%, label singkat "R - n nm"
   const circles: MapCircle[] = useMemo(() => {
     if (!datumResults) return [];
     const list: MapCircle[] = [];
 
     if (ws1Map) {
-      const { L, R, datumB, deL, deR, De, RUp, fs } = ws1Map;
+      const { L, R, datumB, deL, deR, De, RUp } = ws1Map;
       if (deL > 0) {
         list.push({
           center: L,
@@ -1564,7 +1572,7 @@ export default function Home() {
           fillOpacity: 0.02,
           weight: 1,
           dashArray: '6 5',
-          label: `de(L) = ${deL.toFixed(2)} NM`,
+          label: `de(L) - ${fmtMapNm(deL)} nm`,
         });
       }
       if (deR > 0) {
@@ -1576,7 +1584,7 @@ export default function Home() {
           fillOpacity: 0.02,
           weight: 1,
           dashArray: '6 5',
-          label: `de(R) = ${deR.toFixed(2)} NM`,
+          label: `de(R) - ${fmtMapNm(deR)} nm`,
         });
       }
       if (De > 0) {
@@ -1588,7 +1596,7 @@ export default function Home() {
           fillOpacity: 0.015,
           weight: 1.5,
           dashArray: '1.5 5',
-          label: `De = ${De.toFixed(2)} NM`,
+          label: `De - ${fmtMapNm(De)} nm`,
         });
       }
       if (RUp > 0) {
@@ -1600,7 +1608,7 @@ export default function Home() {
           fillOpacity: 0.1,
           weight: 2.5,
           dashArray: null,
-          label: `R = ${RUp} NM (fs = ${fs})`,
+          label: `R - ${fmtMapNm(RUp)} nm`,
         });
       }
     }
@@ -1977,6 +1985,17 @@ export default function Home() {
                 exitPoint={exitPoint}
                 assets={assets}
                 onAssetsChange={setAssets}
+                /* Data live untuk lembar AWA/ASW/ADW di summary view + deteksi
+                   "worksheet terpakai" agar cetak keseluruhan melewatkan lembar kosong. */
+                awaState={{
+                  observations: awaObservations,
+                  distressAltFt: awaContext.distressAltFt,
+                  forecastSource: awaContext.forecastSource,
+                  forecastValidTime: awaContext.forecastValidTime,
+                }}
+                aswState={{ observations: aswState.observations, aswErr: aswState.aswErr }}
+                aeroState={aeroDraft ?? loadedInitialState?.aero ?? null}
+                aeroHasResults={aeroResults != null}
               />
             </TabsContent>
 
@@ -2304,7 +2323,7 @@ export default function Home() {
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={() => window.print()}
+                        onClick={printActiveWorksheetFit}
                         className="flex items-center gap-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-white font-medium px-2.5 py-1 rounded shadow-2xs transition-colors print:hidden"
                       >
                         <Printer className="h-3.5 w-3.5" /> Cetak Lembar Ini
@@ -2582,8 +2601,9 @@ export default function Home() {
               />
             </TabsContent>
 
-            {/* TAB: BRIEFING & RENOPS (PERBAN 3/2020) */}
-            <TabsContent value="briefing-renops" key={`briefing-tab-${caseVersion}-${tabClearVersions['briefing-renops'] ?? 0}`} className="mt-0 space-y-6">
+            {/* TAB: BRIEFING & RENOPS (PERBAN 3/2020) — cetak alami multi-halaman
+                (data-print-flow): jumlah halaman mengikuti banyak keterangan */}
+            <TabsContent value="briefing-renops" key={`briefing-tab-${caseVersion}-${tabClearVersions['briefing-renops'] ?? 0}`} className="mt-0 space-y-6" data-print-flow>
               {/* BANK DATA & GENERATOR DOKUMEN — Panduan Agent RENOPS/Briefing/De-Briefing */}
               <DocumentWorkbench
                 lkp={lkp}

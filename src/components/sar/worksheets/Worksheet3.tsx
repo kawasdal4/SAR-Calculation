@@ -1,5 +1,6 @@
 'use client';
 
+import { printActiveWorksheetFit } from '@/lib/sar/printFit';
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import type { SearchPlanResults } from '@/components/sar/SearchPlanWorksheet';
@@ -96,7 +97,7 @@ export default function Worksheet3({ searchResults, readOnly = false, initialSta
   const hasBaseInputs = searchObject !== null && visibilityKm > 0 && vegetationType !== null && isFatigue !== null;
   const isCalculationReady = hasBaseInputs && searchPlatform !== null;
   const hasLowCoverage = coverages.some((coverage) => coverage !== null && coverage < 0.5);
-  const print = () => { if (typeof window !== 'undefined') window.print(); };
+  const print = () => { if (typeof window !== 'undefined') printActiveWorksheetFit(); };
 
   const renderValue = (value: number | null, digits = 2, unit?: string) => (
     <>

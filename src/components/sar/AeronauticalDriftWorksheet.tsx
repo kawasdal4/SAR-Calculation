@@ -1,5 +1,6 @@
 'use client';
 
+import { printActiveWorksheetFit } from '@/lib/sar/printFit';
 import React, { useState, useMemo, useEffect } from 'react';
 import { Printer, Plane, CheckCircle2, ArrowRight } from 'lucide-react';
 import {
@@ -368,7 +369,7 @@ export default function AeronauticalDriftWorksheet({
       }`;
 
   const handlePrint = () => {
-    if (typeof window !== 'undefined') window.print();
+    if (typeof window !== 'undefined') printActiveWorksheetFit();
   };
 
   const downwindDir = (formData.awaGlideDirFrom + 180) % 360;

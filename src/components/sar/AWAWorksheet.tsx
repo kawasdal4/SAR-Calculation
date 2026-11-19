@@ -1,5 +1,6 @@
 'use client';
 
+import { printActiveWorksheetFit } from '@/lib/sar/printFit';
 import React, { useState, useMemo, useEffect } from 'react';
 import { Plus, Trash2, Printer, CheckCircle2, Plane } from 'lucide-react';
 import { computeAWA, parseAltitudeFt, type AWAObservation, type AWAResult } from '@/lib/sar/sarCalculations';
@@ -190,7 +191,7 @@ export default function AWAWorksheet({
   };
 
   const handlePrint = () => {
-    if (typeof window !== 'undefined') window.print();
+    if (typeof window !== 'undefined') printActiveWorksheetFit();
   };
 
   return (

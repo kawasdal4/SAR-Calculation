@@ -1,5 +1,6 @@
 'use client';
 
+import { printActiveWorksheetFit } from '@/lib/sar/printFit';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ClipboardCopy, FileSpreadsheet, Printer } from 'lucide-react';
@@ -213,7 +214,7 @@ export default function Worksheet1({
   );
 
   const handlePrint = () => {
-    window.print();
+    printActiveWorksheetFit();
   };
 
   // Teks ringkas hasil untuk tombol salin (Panduan bagian 5: tombol salin).

@@ -1,5 +1,6 @@
 'use client';
 
+import { printActiveWorksheetFit } from '@/lib/sar/printFit';
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Plus, Trash2, Printer, CheckCircle2, ChevronDown, ChevronRight, Clock, Compass } from 'lucide-react';
 import { type ASWObservation } from '@/lib/sar/sarCalculations';
@@ -251,7 +252,7 @@ export default function ASWWorksheet({
   };
 
   const handlePrint = () => {
-    if (typeof window !== 'undefined') window.print();
+    if (typeof window !== 'undefined') printActiveWorksheetFit();
   };
 
   return (

@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Printer, CheckSquare, Square, Layers, X } from 'lucide-react';
-import { type LatLng, project, rectangleCorners, bearingDeg } from '@/lib/sar/sarCalculations';
+import { type LatLng, project, rectangleCorners, bearingDeg, distanceNm } from '@/lib/sar/sarCalculations';
 import { formatDMS } from '@/lib/sar/coordFormat';
 import SeaMapMount from './SeaMapMount';
 import type { MapMarker, MapLine, MapPolygon, MapCircle } from './SeaMap';
@@ -82,11 +82,12 @@ export default function PrintMapA3({
   const circles: MapCircle[] = [];
   const polygons: MapPolygon[] = [];
 
-  // LKP
+  // LKP — label singkat (permintaan pengguna); koordinat lengkap ada di
+  // kotak koordinat di area kosong peta.
   if (overlays.lkp) {
     markers.push({
       position: lkp,
-      label: `LKP: ${formatDMS(lkp.lat, false)}, ${formatDMS(lkp.lng, true)}`,
+      label: 'LKP',
       color: '#0ea5e9',
       isStart: true,
     });
@@ -141,17 +142,17 @@ export default function PrintMapA3({
     });
   }
 
-  // Datum Left & Right
+  // Datum Left & Right — label cukup "Datum" (permintaan pengguna).
   if (datumResults && overlays.datum) {
     markers.push({
       position: datumResults.datumLeft,
-      label: `Datum Kiri: ${formatDMS(datumResults.datumLeft.lat, false)}, ${formatDMS(datumResults.datumLeft.lng, true)}`,
+      label: 'Datum',
       color: '#dc2626',
       isDatum: true,
     });
     markers.push({
       position: datumResults.datumRight,
-      label: `Datum Kanan: ${formatDMS(datumResults.datumRight.lat, false)}, ${formatDMS(datumResults.datumRight.lng, true)}`,
+      label: 'Datum',
       color: '#dc2626',
       isDatum: true,
     });
@@ -211,14 +212,14 @@ export default function PrintMapA3({
     if (csp) {
       markers.push({
         position: csp,
-        label: `CSP: ${formatDMS(csp.lat, false)}, ${formatDMS(csp.lng, true)}`,
+        label: 'CSP',
         color: '#10b981',
       });
     }
     if (exitPoint) {
       markers.push({
         position: exitPoint,
-        label: `Exit Point: ${formatDMS(exitPoint.lat, false)}, ${formatDMS(exitPoint.lng, true)}`,
+        label: 'EXIT',
         color: '#f97316',
       });
     }
@@ -229,13 +230,64 @@ export default function PrintMapA3({
     if (sruBase) {
       markers.push({
         position: sruBase,
-        label: `Pangkalan ${sruName}`,
+        label: sruName,
         color: '#8b5cf6',
       });
     }
     if (transitGoLine) lines.push(transitGoLine);
     if (transitBackLine) lines.push(transitBackLine);
     if (transitLines) lines.push(...transitLines);
+  }
+
+  // Sudut kotak area pencarian diberi label A, B, C, D (searah jarum jam
+  // mulai sudut barat laut) — dipakai marker peta & kotak koordinat cetakan.
+  const searchAreaCorners: { label: string; pos: LatLng }[] = [];
+  polygons.forEach((area) => {
+    if (area.points.length !== 4) return;
+    const center = {
+      lat: area.points.reduce((s, p) => s + p.lat, 0) / 4,
+      lng: area.points.reduce((s, p) => s + p.lng, 0) / 4,
+    };
+    const clockwise = area.points.map((position) => {
+      const distance = distanceNm(center, position);
+      const bearing = (bearingDeg(center, position) * Math.PI) / 180;
+      const x = distance * Math.sin(bearing);
+      const y = distance * Math.cos(bearing);
+      return { position, x, y, angle: (Math.atan2(x, y) * 180 / Math.PI + 360) % 360 };
+    }).sort((a, b) => a.angle - b.angle);
+    const startIndex = clockwise.reduce((best, point, index, points) => {
+      const score = point.y - point.x;
+      const bestScore = points[best].y - points[best].x;
+      return score > bestScore ? index : best;
+    }, 0);
+    [...clockwise.slice(startIndex), ...clockwise.slice(0, startIndex)].forEach(({ position }) => {
+      searchAreaCorners.push({
+        label: String.fromCharCode(65 + searchAreaCorners.length),
+        pos: position,
+      });
+    });
+  });
+  searchAreaCorners.forEach(({ label, pos }) => {
+    markers.push({ position: pos, label, color: '#0f172a', showLabel: true });
+  });
+
+  // Kotak koordinat titik-titik utama — dirender di area kosong peta dan
+  // ikut tercetak (permintaan pengguna): A/B/C/D, LKP, Datum, CSP, EXIT.
+  const coordRows: { label: string; value: string }[] = [
+    { label: 'LKP', value: `${formatDMS(lkp.lat, false)} ${formatDMS(lkp.lng, true)}` },
+  ];
+  if (datumResults) {
+    coordRows.push({ label: 'Datum L', value: `${formatDMS(datumResults.datumLeft.lat, false)} ${formatDMS(datumResults.datumLeft.lng, true)}` });
+    coordRows.push({ label: 'Datum R', value: `${formatDMS(datumResults.datumRight.lat, false)} ${formatDMS(datumResults.datumRight.lng, true)}` });
+  }
+  searchAreaCorners.forEach(({ label, pos }) => {
+    coordRows.push({ label, value: `${formatDMS(pos.lat, false)} ${formatDMS(pos.lng, true)}` });
+  });
+  if (overlays.searchPattern && csp && (csp.lat !== 0 || csp.lng !== 0)) {
+    coordRows.push({ label: 'CSP', value: `${formatDMS(csp.lat, false)} ${formatDMS(csp.lng, true)}` });
+  }
+  if (overlays.searchPattern && exitPoint && (exitPoint.lat !== 0 || exitPoint.lng !== 0)) {
+    coordRows.push({ label: 'EXIT', value: `${formatDMS(exitPoint.lat, false)} ${formatDMS(exitPoint.lng, true)}` });
   }
 
   const mapCenter: LatLng = datumResults
@@ -248,6 +300,27 @@ export default function PrintMapA3({
   const handlePrint = () => {
     window.print();
   };
+
+  // Skala auto-fit (permintaan pengguna): bounds mencakup SEMUA marker,
+  // vektor, kotak area pencarian, dan lingkaran galat sehingga gambar
+  // mengisi lembar cetak — tidak ada konten terpotong atau terlalu kecil.
+  const fitPoints: LatLng[] = [
+    ...markers.map((m) => m.position),
+    ...lines.flatMap((l) => [l.from, l.to]),
+    ...polygons.flatMap((p) => p.points),
+    ...circles.map((c) => c.center),
+  ];
+  const fitRadiusNm = circles.reduce((max, c) => Math.max(max, c.radiusNm ?? 0), 0);
+  const fitKey = [
+    markers.length,
+    lines.length,
+    polygons.length,
+    circles.length,
+    lkp.lat.toFixed(4),
+    lkp.lng.toFixed(4),
+    datumResults?.driftDistance.toFixed(2) ?? '-',
+    ...searchAreaCorners.map((c) => `${c.pos.lat.toFixed(3)},${c.pos.lng.toFixed(3)}`),
+  ].join(':');
 
   if (!isOpen) return null;
 
@@ -270,7 +343,7 @@ export default function PrintMapA3({
             width: 100vw;
             height: 100vh;
             margin: 0;
-            padding: 10mm;
+            padding: 6mm;
             background: white !important;
             z-index: 99999;
           }
@@ -401,8 +474,8 @@ export default function PrintMapA3({
 
         {/* Print Layout Container */}
         <div className="p-4 flex-1 overflow-y-auto space-y-3">
-          {/* Header Title Block for Map */}
-          <div className="border border-slate-400 p-3 bg-white flex flex-wrap items-center justify-between text-xs">
+          {/* Header Title Block for Map — hanya tampil di layar */}
+          <div className="no-print border border-slate-400 p-3 bg-white flex flex-wrap items-center justify-between text-xs">
             <div>
               <h1 className="text-sm sm:text-base font-extrabold uppercase text-slate-900">
                 {caseTitle}
@@ -421,8 +494,9 @@ export default function PrintMapA3({
             </div>
           </div>
 
-          {/* Interactive Map Area for Tile Capture */}
-          <div className="border-2 border-slate-800 rounded overflow-hidden">
+          {/* Interactive Map Area for Tile Capture — cetak HANYA peta ini
+              (header & legenda disembunyikan via no-print) */}
+          <div className="relative border-2 border-slate-800 rounded overflow-hidden">
             <SeaMapMount
               center={mapCenter}
               zoom={8}
@@ -430,12 +504,38 @@ export default function PrintMapA3({
               lines={lines}
               polygons={polygons}
               circles={circles}
-              height="580px"
+              height="620px"
+              autoFitTo={{
+                points: fitPoints,
+                radiusNm: fitRadiusNm > 0 ? fitRadiusNm : undefined,
+                key: fitKey,
+              }}
             />
+            {/* Kotak koordinat di area kosong peta — ikut tercetak */}
+            {coordRows.length > 0 && (
+              <div
+                className="absolute bottom-2 right-2 z-[900] bg-white/95 border border-slate-700 rounded shadow-md px-2.5 py-2 max-w-[250px]"
+                style={{ fontSize: '10px', lineHeight: 1.35 }}
+              >
+                <p className="font-bold uppercase tracking-wide text-slate-600 border-b border-slate-300 pb-1 mb-1">
+                  Koordinat Titik
+                </p>
+                <table className="w-full border-collapse font-mono text-slate-800">
+                  <tbody>
+                    {coordRows.map((row) => (
+                      <tr key={row.label}>
+                        <td className="pr-2.5 font-bold text-slate-900 align-top whitespace-nowrap">{row.label}</td>
+                        <td className="whitespace-nowrap">{row.value}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
 
-          {/* Map Footer: Legend & Coordinates Summary */}
-          <div className="border border-slate-400 p-2.5 bg-slate-50 text-[11px] grid grid-cols-1 sm:grid-cols-4 gap-2 text-slate-700">
+          {/* Map Footer: Legend & Coordinates Summary — hanya tampil di layar */}
+          <div className="no-print border border-slate-400 p-2.5 bg-slate-50 text-[11px] grid grid-cols-1 sm:grid-cols-4 gap-2 text-slate-700">
             <div>
               <span className="font-bold text-slate-900 block mb-0.5">Legenda Simbol:</span>
               <div className="flex flex-wrap items-center gap-2">

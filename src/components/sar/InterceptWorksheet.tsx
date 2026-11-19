@@ -1,5 +1,6 @@
 'use client';
 
+import { printActiveWorksheetFit } from '@/lib/sar/printFit';
 import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -224,7 +225,7 @@ export default function InterceptWorksheet({ onResults, initialInput, className 
             <button type="button" onClick={reset} className="inline-flex items-center gap-1.5 text-xs rounded border border-slate-300 px-2.5 py-1.5 text-slate-700 hover:bg-white">
               <RotateCcw className="h-3.5 w-3.5" /> Reset
             </button>
-            <button type="button" onClick={() => window.print()} className="inline-flex items-center gap-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-white font-medium px-2.5 py-1.5 rounded print:hidden">
+            <button type="button" onClick={() => printActiveWorksheetFit()} className="inline-flex items-center gap-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-white font-medium px-2.5 py-1.5 rounded print:hidden">
               <Printer className="h-3.5 w-3.5" /> Cetak
             </button>
           </div>

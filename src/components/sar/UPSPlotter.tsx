@@ -1370,109 +1370,44 @@ interface UpsPrintPortalProps {
 
 function UpsPrintPortalBlock({
   paper,
-  title,
   centerLat,
   centerLon,
   displayPoints,
   vectorSegs,
   searchArea,
-  maxDistanceNm,
 }: UpsPrintPortalProps) {
   const [wmm, hmm] = paperContentMm(paper);
-  const outside = displayPoints.filter((p) => {
-    const { xNm, yNm } = latLonToUPS(p.pos, centerLat, centerLon);
-    return Math.abs(yNm) > 125 || Math.abs(xNm) > 138;
-  });
-
-  // Ukuran lembar dihitung eksplisit (mm) agar svg tidak pernah melewati kertas
-  // (svg tanpa atribut ukuran memiliki perilaku sizing block, bukan aspect-fit).
-  const PAD_TB = 8, PAD_LR = 10, GAP = 5, ASIDE_W = 63, HEADER_H = 16;
-  const cellW = wmm - PAD_LR - GAP - ASIDE_W;
-  const cellH = hmm - PAD_TB - HEADER_H;
+  // Cetak HANYA satu lembar UPS penuh (permintaan pengguna): tanpa header,
+  // tabel posisi terplot, atau keterangan lain. Lembar mengisi seluruh area
+  // kertas landscape dengan proporsi asli (fit sisi terbatas).
+  const PAD_MM = 4;
+  const innerW = wmm - PAD_MM * 2;
+  const innerH = hmm - PAD_MM * 2;
   const aspect = VB_WIDTH / VB_HEIGHT;
-  let sheetH = cellH;
+  let sheetH = innerH;
   let sheetW = sheetH * aspect;
-  if (sheetW > cellW) {
-    sheetW = cellW;
+  if (sheetW > innerW) {
+    sheetW = innerW;
     sheetH = sheetW / aspect;
   }
 
   return (
     <div
-      className="portal-print-sheet print-avoid-break bg-white text-slate-900"
-      style={{ width: `${wmm}mm`, height: `${hmm}mm`, padding: '4mm 5mm', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+      className="portal-print-sheet print-avoid-break bg-white text-slate-900 flex items-center justify-center"
+      style={{ width: `${wmm}mm`, height: `${hmm}mm`, padding: `${PAD_MM}mm`, overflow: 'hidden' }}
     >
-      <div style={{ height: `${HEADER_H}mm`, overflow: 'hidden' }}>
-        <UpsPrintHeader title={title} spanNm={UPS_ROSE_SPAN_MIN} centerLat={centerLat} centerLon={centerLon} />
-      </div>
-      <div className="flex items-stretch" style={{ gap: `${GAP}mm`, height: `${cellH}mm`, minHeight: 0 }}>
-        <div className="flex items-center justify-center" style={{ width: `${sheetW}mm`, height: `${cellH}mm` }}>
-          <UpsSheetView
-            centerLat={centerLat}
-            centerLon={centerLon}
-            displayPoints={displayPoints}
-            vectorSegs={vectorSegs}
-            searchArea={searchArea}
-            spanNm={UPS_ROSE_SPAN_MIN}
-            variant="print"
-            showLabels
-            fit="explicit"
-            explicitSizeMm={{ width: sheetW, height: sheetH }}
-          />
-        </div>
-        <div className="shrink-0 border-l border-slate-300 pl-[3mm]" style={{ width: '60mm', fontSize: '7.5pt', lineHeight: 1.35 }}>
-          <p className="font-bold text-[8.5pt] uppercase tracking-wide border-b border-slate-300 pb-1 mb-1.5">Posisi Terplot</p>
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="border-b border-slate-400 text-left">
-                <th className="py-0.5 pr-1 font-semibold">Titik</th>
-                <th className="py-0.5 font-semibold">Koordinat</th>
-              </tr>
-            </thead>
-            <tbody className="font-mono text-[7pt]">
-              {displayPoints.map((p) => (
-                <tr key={p.id} className="border-b border-slate-200 align-top">
-                  <td className="py-1 pr-1 font-sans">
-                    <span className="inline-block w-[7px] h-[7px] rounded-full mr-1 align-middle" style={{ backgroundColor: p.color }} />
-                    {p.label}
-                  </td>
-                  <td className="py-1">
-                    {formatDMS(p.pos.lat, false)}<br />{formatDMS(p.pos.lng, true)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {vectorSegs.length > 0 && (
-            <>
-              <p className="font-bold text-[8.5pt] uppercase tracking-wide border-b border-slate-300 pb-1 mb-1.5 mt-2">Vektor</p>
-              <ul className="font-mono text-[7pt] space-y-0.5">
-                {vectorSegs.map((seg) => {
-                  const inv = upsInverse(seg.from, seg.to);
-                  return (
-                    <li key={seg.key} className="flex items-start gap-1">
-                      <span className="inline-block w-[9px] h-[3px] mt-[4px] shrink-0" style={{ backgroundColor: seg.color }} />
-                      <span>
-                        {seg.name ? `${seg.name} - ` : ''}{Math.round(inv.bearingDeg) % 360}°/{inv.distanceNm.toFixed(1)} NM
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            </>
-          )}
-          <p className="mt-2 text-[6.5pt] text-slate-500 leading-snug">
-            Lembar asli VP-OS — cetak selalu skala asli 1 tick = 1′ = 1 NM (radius rose 60 NM). Tick skala magenta
-            (lintang di tepi kiri/kanan, bujur sepanjang paralel) mengikuti skala aktif; fan Longitude Scale asli tetap
-            tersedia. Jarak maksimum dari pusat: {maxDistanceNm.toFixed(1)} NM.
-            {outside.length > 0 && (
-              <span className="block mt-1 font-semibold text-red-700">
-                Perhatian: {outside.length} titik di luar cakupan lembar pada skala asli — perluas ke lembar tambahan.
-              </span>
-            )}
-          </p>
-        </div>
-      </div>
+      <UpsSheetView
+        centerLat={centerLat}
+        centerLon={centerLon}
+        displayPoints={displayPoints}
+        vectorSegs={vectorSegs}
+        searchArea={searchArea}
+        spanNm={UPS_ROSE_SPAN_MIN}
+        variant="print"
+        showLabels
+        fit="explicit"
+        explicitSizeMm={{ width: sheetW, height: sheetH }}
+      />
     </div>
   );
 }
