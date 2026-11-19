@@ -14,6 +14,10 @@ interface BriefingFormProps {
   searchResults?: SearchPlanResults | null;
   aswDirFrom?: number;
   aswSpeed?: number;
+  /** Data form tersimpan (load kasus) — diprioritaskan di atas default terhitung. */
+  initialState?: Record<string, string> | null;
+  /** Mirror seluruh isian form ke induk — ikut tersimpan pada save case. */
+  onStateChange?: (data: Record<string, string>) => void;
   className?: string;
 }
 
@@ -23,32 +27,43 @@ export default function BriefingForm({
   searchResults,
   aswDirFrom = 0,
   aswSpeed = 0,
+  initialState,
+  onStateChange,
   className = '',
 }: BriefingFormProps) {
   // Auto-filled state
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState(() => ({
     opTitle: '-', date: '-', sruName: '-', captainPilot: '-', accidentDetails: '-',
     targetDetails: '-', pobCount: '0', targetFrequencies: '-',
-    searchAreaDesc: searchResults
-      ? `Luas Area: ${searchResults.Ao.toFixed(0)} NM², Dimensi: ${searchResults.searchAreaLength.toFixed(1)} × ${searchResults.searchAreaWidth.toFixed(1)} NM`
-      : '0',
-    searchAreaCoords: datumResults
-      ? `A: ${formatDMS(datumResults.datumLeft.lat + 0.1, false)} - ${formatDMS(datumResults.datumLeft.lng - 0.1, true)}\nB: ${formatDMS(datumResults.datumRight.lat + 0.1, false)} - ${formatDMS(datumResults.datumRight.lng + 0.1, true)}\nC: ${formatDMS(datumResults.datumRight.lat - 0.1, false)} - ${formatDMS(datumResults.datumRight.lng + 0.1, true)}\nD: ${formatDMS(datumResults.datumLeft.lat - 0.1, false)} - ${formatDMS(datumResults.datumLeft.lng - 0.1, true)}`
-      : '-',
+    searchAreaDesc: initialState?.searchAreaDesc
+      ?? (searchResults
+        ? `Luas Area: ${searchResults.Ao.toFixed(0)} NM², Dimensi: ${searchResults.searchAreaLength.toFixed(1)} × ${searchResults.searchAreaWidth.toFixed(1)} NM`
+        : '0'),
+    searchAreaCoords: initialState?.searchAreaCoords
+      ?? (datumResults
+        ? `A: ${formatDMS(datumResults.datumLeft.lat + 0.1, false)} - ${formatDMS(datumResults.datumLeft.lng - 0.1, true)}\nB: ${formatDMS(datumResults.datumRight.lat + 0.1, false)} - ${formatDMS(datumResults.datumRight.lng + 0.1, true)}\nC: ${formatDMS(datumResults.datumRight.lat - 0.1, false)} - ${formatDMS(datumResults.datumRight.lng + 0.1, true)}\nD: ${formatDMS(datumResults.datumLeft.lat - 0.1, false)} - ${formatDMS(datumResults.datumLeft.lng - 0.1, true)}`
+        : '-'),
     searchPattern: '-', aircraftAltitude: '-', weatherData: '-',
-    cspCoords: searchResults
-      ? `CSP: ${formatDMS(searchResults.searchAreaCenter.lat, false)}, ${formatDMS(searchResults.searchAreaCenter.lng, true)}`
-      : '-',
+    cspCoords: initialState?.cspCoords
+      ?? (searchResults
+        ? `CSP: ${formatDMS(searchResults.searchAreaCenter.lat, false)}, ${formatDMS(searchResults.searchAreaCenter.lng, true)}`
+        : '-'),
     commsFreqs: '-',
 
     // Debriefing Section
     pointOfDeparture: '-', pointOfLanding: '-', depTime: '-', arrTime: '-',
     fieldObstacles: '-', observerCount: '0', victimFoundStatus: '-', otherNotes: '-',
-  });
+    ...(initialState ?? {}),
+  }));
 
   const updateField = (key: string, val: string) => {
     setFormData((prev) => ({ ...prev, [key]: val }));
   };
+
+  // Mirror isian form ke induk tiap perubahan (formData object tunggal).
+  React.useEffect(() => {
+    onStateChange?.(formData);
+  }, [onStateChange, formData]);
 
   const handlePrint = () => {
     window.print();

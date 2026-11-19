@@ -14,6 +14,9 @@ import { calculateIntercept, type InterceptInput, type InterceptResult, type Int
 interface InterceptWorksheetProps {
   onResults?: (results: InterceptResult) => void;
   initialInput?: InterceptInput | null;
+  /** Mirror input perhitungan terakhir ke induk — dasar save case lengkap
+   *  (input intercept ikut tersimpan & dipulihkan saat load kasus). */
+  onStateChange?: (input: InterceptInput) => void;
   className?: string;
 }
 
@@ -38,7 +41,7 @@ const METHOD_DETAILS: Record<InterceptType, { label: string; guidance: string }>
 
 const METHODS: InterceptType[] = ['head-on', 'overtaking', 'beam-on'];
 
-export default function InterceptWorksheet({ onResults, initialInput, className = '' }: InterceptWorksheetProps) {
+export default function InterceptWorksheet({ onResults, initialInput, onStateChange, className = '' }: InterceptWorksheetProps) {
   const [method, setMethod] = useState<InterceptType>(initialInput?.type ?? 'head-on');
   const [coords, setCoords] = useState<CoordinateFields>(() => initialInput ? {
     targetLat: String(initialInput.target.pos.lat),
@@ -103,6 +106,12 @@ export default function InterceptWorksheet({ onResults, initialInput, className 
     () => inputReady ? calculateIntercept(calculationInput) : null,
     [inputReady, calculationInput],
   );
+
+  // Mirror input perhitungan (termasuk method, koordinat terurai, heading) ke
+  // induk tiap perubahan — dipulihkan kembali sebagai initialInput saat remount.
+  useEffect(() => {
+    onStateChange?.(calculationInput);
+  }, [onStateChange, calculationInput]);
 
   const geometryCheck = useMemo(() => {
     if (!results?.feasible) return null;

@@ -22,6 +22,7 @@ import type { SearchPlanResults } from '@/components/sar/SearchPlanWorksheet';
 import type { AWAInitialState } from './AWAWorksheet';
 import type { ASWInitialState } from './ASWWorksheet';
 import type { AeroDriftInitialState } from './AeronauticalDriftWorksheet';
+import type { Ws1Measured } from './worksheets/Worksheet1';
 
 interface AllWorksheetsViewProps {
   lkp: LatLng;
@@ -51,6 +52,10 @@ interface AllWorksheetsViewProps {
   aeroState?: AeroDriftInitialState | null;
   /** true bila ADW sudah menghasilkan LKP (worksheet terpakai). */
   aeroHasResults?: boolean;
+  /** Mirror pengukuran peta WS1 (drift error %, jarak terukur) — dipakai
+   *  salinan read-only Worksheet 1 agar Ao yang dilaporkan ke peta sama
+   *  persis dengan hitungan tab interaktif (konsistensi recalculate). */
+  ws1Measured?: Ws1Measured | null;
   className?: string;
 }
 
@@ -77,6 +82,7 @@ export default function AllWorksheetsView({
   aswState = null,
   aeroState = null,
   aeroHasResults = false,
+  ws1Measured = null,
   className = '',
 }: AllWorksheetsViewProps) {
   const [mounted, setMounted] = React.useState(false);
@@ -272,6 +278,7 @@ export default function AllWorksheetsView({
             aswTotalHours={aswTotalHours}
             readOnly
             selectedFs={selectedFs}
+            initialMeasured={ws1Measured}
             onAoChange={onWorksheet1AoChange}
             onOpenManualAppendix={onOpenManualAppendix}
           />

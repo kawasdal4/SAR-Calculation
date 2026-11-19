@@ -12,6 +12,10 @@ interface RenopsFormProps {
   lkp?: LatLng;
   datumResults?: DatumResults | null;
   searchResults?: SearchPlanResults | null;
+  /** Data form tersimpan (load kasus) — diprioritaskan di atas default terhitung. */
+  initialState?: Record<string, string> | null;
+  /** Mirror seluruh isian form ke induk — ikut tersimpan pada save case. */
+  onStateChange?: (data: Record<string, string>) => void;
   className?: string;
 }
 
@@ -19,9 +23,11 @@ export default function RenopsForm({
   lkp = { lat: 0, lng: 0 },
   datumResults,
   searchResults,
+  initialState,
+  onStateChange,
   className = '',
 }: RenopsFormProps) {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState(() => ({
     opDay: '-', accidentType: '-', targetName: '-', kansarName: '-', twInfo: '-',
     infoSource: '-', accidentTime: '-', callSign: '-', route: '-', pobCrew: '0',
     pobPassengers: '0', cause: '-', effortsDone: '-',
@@ -30,13 +36,16 @@ export default function RenopsForm({
     taskMission: '-',
 
     // Section C: Planning Stage
-    searchAreaSize: searchResults ? `${searchResults.Ao.toFixed(0)} NM²` : '0',
-    datumPos: datumResults
-      ? `Datum Left: ${formatDMS(datumResults.datumLeft.lat, false)}, ${formatDMS(datumResults.datumLeft.lng, true)} | Datum Right: ${formatDMS(datumResults.datumRight.lat, false)}, ${formatDMS(datumResults.datumRight.lng, true)}`
-      : '-',
-    areaCoords: datumResults
-      ? `A: ${formatDMS(datumResults.datumLeft.lat + 0.1, false)} - ${formatDMS(datumResults.datumLeft.lng - 0.1, true)}\nB: ${formatDMS(datumResults.datumRight.lat + 0.1, false)} - ${formatDMS(datumResults.datumRight.lng + 0.1, true)}\nC: ${formatDMS(datumResults.datumRight.lat - 0.1, false)} - ${formatDMS(datumResults.datumRight.lng + 0.1, true)}\nD: ${formatDMS(datumResults.datumLeft.lat - 0.1, false)} - ${formatDMS(datumResults.datumLeft.lng - 0.1, true)}`
-      : '-',
+    searchAreaSize: initialState?.searchAreaSize
+      ?? (searchResults ? `${searchResults.Ao.toFixed(0)} NM²` : '0'),
+    datumPos: initialState?.datumPos
+      ?? (datumResults
+        ? `Datum Left: ${formatDMS(datumResults.datumLeft.lat, false)}, ${formatDMS(datumResults.datumLeft.lng, true)} | Datum Right: ${formatDMS(datumResults.datumRight.lat, false)}, ${formatDMS(datumResults.datumRight.lng, true)}`
+        : '-'),
+    areaCoords: initialState?.areaCoords
+      ?? (datumResults
+        ? `A: ${formatDMS(datumResults.datumLeft.lat + 0.1, false)} - ${formatDMS(datumResults.datumLeft.lng - 0.1, true)}\nB: ${formatDMS(datumResults.datumRight.lat + 0.1, false)} - ${formatDMS(datumResults.datumRight.lng + 0.1, true)}\nC: ${formatDMS(datumResults.datumRight.lat - 0.1, false)} - ${formatDMS(datumResults.datumRight.lng + 0.1, true)}\nD: ${formatDMS(datumResults.datumLeft.lat - 0.1, false)} - ${formatDMS(datumResults.datumLeft.lng - 0.1, true)}`
+        : '-'),
 
     // SRU Resources
     sruAir: '-', sruSea: '-', sruLand: '-', equipment: '-',
@@ -46,11 +55,17 @@ export default function RenopsForm({
 
     // Section E: Komando
     smcName: '-', oscName: '-', commsFreqs: '-',
-  });
+    ...(initialState ?? {}),
+  }));
 
   const updateField = (key: string, val: string) => {
     setFormData((prev) => ({ ...prev, [key]: val }));
   };
+
+  // Mirror isian form ke induk tiap perubahan (formData object tunggal).
+  React.useEffect(() => {
+    onStateChange?.(formData);
+  }, [onStateChange, formData]);
 
   const handlePrint = () => {
     window.print();

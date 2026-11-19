@@ -17,6 +17,8 @@ export interface Worksheet8InitialState {
   isFatigue?: 'Yes' | 'No';
   searchNumber?: SearchNumber;
   vesselSpeedKts?: number;
+  /** Jam pencarian tersedia (input manual) — ikut disimpan agar editan tidak hilang saat remount/load kasus. */
+  hoursAvailable?: number;
   /** Cuaca SESUAI SOAL KASUS (analisa AI Asisten).
    *  Header menampilkan angin kasus bila ada (label "Kasus"); penentu Fw
    *  (Table I-7) memakai angin ASW, fallback ke angin/gelombang kasus ini
@@ -35,6 +37,9 @@ interface Worksheet8Props {
   windKts?: number;
   initialState?: Worksheet8InitialState;
   onTrackSpacingChange?: (result: { spacingNm: number; selection: string }) => void;
+  /** Mirror seluruh input lembar ke induk (sheet.data) — dasar save case
+   *  lengkap & recalculate otomatis antar worksheet. */
+  onStateChange?: (data: Worksheet8InitialState) => void;
 }
 
 export default function Worksheet8({
@@ -45,6 +50,7 @@ export default function Worksheet8({
   windKts = 0,
   initialState,
   onTrackSpacingChange,
+  onStateChange,
 }: Worksheet8Props) {
   // Case & Metadata state
   const [caseTitle, setCaseTitle] = useState(initialState?.caseTitle ?? '-');
@@ -94,7 +100,7 @@ export default function Worksheet8({
   const hoursRequired = w8Rows.map((r) => r.T);
 
   // Available search hours from Worksheet No. 7
-  const [hoursAvailable, setHoursAvailable] = useState(0);
+  const [hoursAvailable, setHoursAvailable] = useState(initialState?.hoursAvailable ?? 0);
 
   // Selected eye-height column for Area A
   const selIdx = heights.indexOf(eyeHeight as typeof heights[number]);
@@ -109,6 +115,31 @@ export default function Worksheet8({
       selection: eyeHeight || 'belum dipilih',
     });
   }, [onTrackSpacingChange, eyeHeight, selS]);
+
+  // Mirror input lembar (nilai case Wind/Wave dipertahankan dari initialState —
+  // sumbernya analisa AI kasus) ke induk tiap perubahan. Deps primitif → tanpa loop.
+  useEffect(() => {
+    onStateChange?.({
+      caseTitle,
+      sruName: initialState?.sruName,
+      sruType: initialState?.sruType,
+      eyeHeight: eyeHeight || undefined,
+      searchObject: searchObject || undefined,
+      visibilityKm,
+      isFatigue: isFatigue || undefined,
+      searchNumber: searchNumber || undefined,
+      vesselSpeedKts,
+      hoursAvailable,
+      caseWindDirFrom: initialState?.caseWindDirFrom,
+      caseWindSpeed: initialState?.caseWindSpeed,
+      caseWaveHeightM: initialState?.caseWaveHeightM,
+    });
+  }, [
+    onStateChange, caseTitle, eyeHeight, searchObject, visibilityKm,
+    isFatigue, searchNumber, vesselSpeedKts, hoursAvailable,
+    initialState?.sruName, initialState?.sruType, initialState?.caseWindDirFrom,
+    initialState?.caseWindSpeed, initialState?.caseWaveHeightM,
+  ]);
 
   // Option A
   const optA_Area = searchAreaA;

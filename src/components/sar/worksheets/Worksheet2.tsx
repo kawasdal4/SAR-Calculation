@@ -21,6 +21,8 @@ export interface Worksheet2InitialState {
   piwFlotationKnown?: boolean;
   searchNumber?: SearchNumber;
   selectedHeight?: 500 | 1000 | 1500 | 2000;
+  /** Jam pencarian tersedia (input manual) — ikut disimpan agar editan tidak hilang saat remount/load kasus. */
+  hoursAvailable?: number;
   /** Cuaca SESUAI SOAL KASUS (analisa AI Asisten).
    *  Header menampilkan angin kasus bila ada (label "Kasus"); penentu Fw
    *  (Table I-7) memakai angin ASW, fallback ke angin/gelombang kasus ini
@@ -40,6 +42,10 @@ interface Worksheet2Props {
   readOnly?: boolean;
   initialState?: Worksheet2InitialState;
   onTrackSpacingChange?: (result: { platform: 'fixed-wing' | 'helicopter' | null; spacingNm: number; selection: string }) => void;
+  /** Mirror seluruh input lembar ke induk (sheet.data) — dasar save case
+   *  lengkap & recalculate otomatis: editan manual tidak hilang saat pindah
+   *  tab/remount, dan induk bisa memicu hitungan ulang worksheet terkait. */
+  onStateChange?: (data: Worksheet2InitialState) => void;
 }
 
 export default function Worksheet2({
@@ -51,6 +57,7 @@ export default function Worksheet2({
   readOnly = false,
   initialState,
   onTrackSpacingChange,
+  onStateChange,
 }: Worksheet2Props) {
   // Case & Metadata state
   const [caseTitle, setCaseTitle] = useState(initialState?.caseTitle ?? '-');
@@ -109,7 +116,7 @@ export default function Worksheet2({
   const hoursRequired = w2Rows.map((r) => r.T);
 
   // Available search hours (e.g. from 2 sorties of 2.5 hrs = 5.0 hrs)
-  const [hoursAvailable, setHoursAvailable] = useState(0);
+  const [hoursAvailable, setHoursAvailable] = useState(initialState?.hoursAvailable ?? 0);
 
   // Sections A, B, C, D calculations based on chosen height (1000 ft -> idx 1)
   const selIdx = heights.indexOf(selectedHeight);
@@ -125,6 +132,33 @@ export default function Worksheet2({
       selection: selectedHeight ? `${selectedHeight} ft` : 'belum dipilih',
     });
   }, [onTrackSpacingChange, searchPlatform, selectedHeight, selS]);
+
+  // Mirror input lembar (nilai case Wind/Wave dipertahankan dari initialState —
+  // sumbernya analisa AI kasus, bukan input lokal) ke induk tiap perubahan.
+  // Deps primitif + callback stabil dari induk → tanpa loop re-render.
+  useEffect(() => {
+    onStateChange?.({
+      caseTitle,
+      sruName: initialState?.sruName,
+      searchPlatform: searchPlatform || undefined,
+      searchTas,
+      searchObject: searchObject || undefined,
+      visibilityIndex,
+      isFatigue: isFatigue || undefined,
+      piwFlotationKnown,
+      searchNumber: searchNumber || undefined,
+      selectedHeight: selectedHeight || undefined,
+      hoursAvailable,
+      caseWindDirFrom: initialState?.caseWindDirFrom,
+      caseWindSpeed: initialState?.caseWindSpeed,
+      caseWaveHeightM: initialState?.caseWaveHeightM,
+    });
+  }, [
+    onStateChange, caseTitle, searchPlatform, searchTas, searchObject, visibilityIndex,
+    isFatigue, piwFlotationKnown, searchNumber, selectedHeight, hoursAvailable,
+    initialState?.sruName, initialState?.caseWindDirFrom, initialState?.caseWindSpeed,
+    initialState?.caseWaveHeightM,
+  ]);
 
   // Option A: Whole Area at chosen height
   const optA_Area = searchAreaAo;

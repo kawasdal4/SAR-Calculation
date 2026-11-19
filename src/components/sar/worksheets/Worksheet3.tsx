@@ -41,6 +41,9 @@ interface Worksheet3Props {
   readOnly?: boolean;
   initialState?: Worksheet3InitialState;
   onTrackSpacingChange?: (result: { platform: LandSearchPlatform | null; heights: readonly number[]; spacingByHeight: Array<number | null> }) => void;
+  /** Mirror seluruh input lembar ke induk (sheet.data) — dasar save case
+   *  lengkap & recalculate otomatis antar worksheet. */
+  onStateChange?: (data: Worksheet3InitialState) => void;
 }
 
 function asLandTarget(value?: string): LandSearchTarget | null {
@@ -57,7 +60,7 @@ function asVegetation(value?: Worksheet3InitialState['vegetationType']): LandVeg
   return null;
 }
 
-export default function Worksheet3({ searchResults, readOnly = false, initialState, onTrackSpacingChange }: Worksheet3Props) {
+export default function Worksheet3({ searchResults, readOnly = false, initialState, onTrackSpacingChange, onStateChange }: Worksheet3Props) {
   const [caseTitle, setCaseTitle] = useState(initialState?.caseTitle ?? '-');
   const [plannerName, setPlannerName] = useState('-');
   const [searchDate, setSearchDate] = useState('-');
@@ -85,6 +88,27 @@ export default function Worksheet3({ searchResults, readOnly = false, initialSta
       spacingByHeight: trackSpacingSignature ? trackSpacingSignature.split(',').map((spacing) => spacing === '' ? null : Number(spacing)) : [],
     });
   }, [onTrackSpacingChange, searchPlatform, trackSpacingSignature]);
+
+  // Mirror input lembar ke induk tiap perubahan (deps primitif → tanpa loop).
+  useEffect(() => {
+    onStateChange?.({
+      caseTitle,
+      sruName: initialState?.sruName,
+      searchObject: searchObject ?? undefined,
+      visibilityKm,
+      vegetationType: vegetationType ?? undefined,
+      isFatigue,
+      searchPlatform: searchPlatform ?? undefined,
+      searchNumber: searchNumber ?? undefined,
+      searchSpeedKts: searchSpeed,
+      hoursAvailable,
+      searchAreaNm2: initialState?.searchAreaNm2,
+    });
+  }, [
+    onStateChange, caseTitle, searchObject, visibilityKm, vegetationType,
+    isFatigue, searchPlatform, searchNumber, searchSpeed, hoursAvailable,
+    initialState?.sruName, initialState?.searchAreaNm2,
+  ]);
   const coverages = wFactors.map((width, index) => width !== null && trackSpacings[index] ? width / trackSpacings[index]! : null);
   const pods = coverages.map((coverage) => coverage !== null && searchNumber !== null ? readFigureI12(coverage, searchNumber) : null);
   const hasSearchArea = (searchResults?.Ao ?? initialState?.searchAreaNm2 ?? 0) > 0;

@@ -1,7 +1,7 @@
 'use client';
 
 import { printActiveWorksheetFit } from '@/lib/sar/printFit';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { Card, CardContent } from '@/components/ui/card';
 import type { SearchPlanResults } from '@/components/sar/SearchPlanWorksheet';
@@ -84,6 +84,9 @@ interface Worksheet4Props {
   divergenceDistance?: number;
   readOnly?: boolean;
   initialState?: Worksheet4InitialState;
+  /** Mirror seluruh input worksheet ke induk — dasar save case lengkap &
+   *  recalculate otomatis antar worksheet. */
+  onStateChange?: (data: Worksheet4InitialState) => void;
 }
 
 export default function Worksheet4({
@@ -92,6 +95,7 @@ export default function Worksheet4({
   divergenceDistance = 0,
   readOnly = false,
   initialState,
+  onStateChange,
 }: Worksheet4Props) {
   // Case & Metadata state
   const [caseTitle, setCaseTitle] = useState(initialState?.caseTitle ?? '-');
@@ -168,6 +172,38 @@ export default function Worksheet4({
     ? { point: { lat: point.lat, lng: point.lng }, index, name: point.name }
     : null);
   const activeMappedPoints = mappedPoints.filter((item) => item !== null) as Array<{ point: LatLng; index: number; name: string }>;
+
+  // Mirror seluruh input ke induk tiap perubahan (deps primitif → tanpa loop).
+  // trList hasil hitungan ikut dilaporkan demi kompatibilitas skema lama;
+  // remount memakai initialTrNm + routeLegDistancesNm sebagai sumber kebenaran.
+  useEffect(() => {
+    onStateChange?.({
+      caseTitle,
+      searchDate,
+      callsign,
+      searchNo,
+      commenceUtc,
+      latitude,
+      longitude,
+      distressTimeUtc,
+      trStartMode,
+      initialTrNm,
+      elapsedMinutesSinceLastFix,
+      targetTasKts,
+      routeLegDistancesNm,
+      routePoints,
+      trList,
+      fixErrors,
+      targetNavigationType: targetNavigationType ?? undefined,
+      yNavError,
+      safetyFactor,
+    });
+  }, [
+    onStateChange, caseTitle, searchDate, callsign, searchNo, commenceUtc,
+    latitude, longitude, distressTimeUtc, trStartMode, initialTrNm,
+    elapsedMinutesSinceLastFix, targetTasKts, routeLegDistancesNm, routePoints,
+    trList, fixErrors, targetNavigationType, yNavError, safetyFactor,
+  ]);
   const mapSpanNm = activeMappedPoints.reduce((maxDistance, item, index) => Math.max(
     maxDistance,
     ...activeMappedPoints.slice(index + 1).map((next) => distanceNm(item.point, next.point)),

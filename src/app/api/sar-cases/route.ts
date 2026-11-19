@@ -12,6 +12,7 @@ export async function GET() {
         caseNumber: true,
         searchObject: true,
         phase: true,
+        notes: true,
         createdAt: true,
         updatedAt: true,
       },

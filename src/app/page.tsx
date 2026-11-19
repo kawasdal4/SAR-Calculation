@@ -35,6 +35,7 @@ import {
   Undo2,
   Maximize2,
   Minimize2,
+  RefreshCw,
 } from 'lucide-react';
 import AWAWorksheet, {
   type AWAData,
@@ -127,6 +128,7 @@ import {
   assetDomain,
   calculateAssetAllocationSummary,
 } from '@/lib/sar/assetAllocation';
+import { deepEqualValue } from '@/lib/sar/stateSync';
 
 const DEFAULT_CENTER: LatLng = { lat: 0, lng: 0 };
 
@@ -398,10 +400,19 @@ export default function Home() {
     ws2?: Worksheet2InitialState;
     ws8?: Worksheet8InitialState;
     ws3?: Worksheet3InitialState;
-    ws4?: Worksheet4InitialState;
     lkp?: LatLng;
   } | null>(null);
   const [caseVersion, setCaseVersion] = useState<number>(0);
+
+  // === Persistence input manual worksheet (save case lengkap + recalculate) ===
+  // Setiap worksheet melaporkan input-nya ke halaman via onStateChange; nilai
+  // TERAKHIR dipulihkan sebagai initialState saat remount (pindah tab, bump
+  // caseVersion, load kasus) sehingga editan manual tidak pernah hilang dan
+  // worksheet terkait selalu menghitung ulang dari nilai terbaru.
+  const [ws4State, setWs4State] = useState<Worksheet4InitialState | null>(null);
+  const [interceptState, setInterceptState] = useState<InterceptInput | null>(null);
+  const [briefingState, setBriefingState] = useState<Record<string, string> | null>(null);
+  const [renopsState, setRenopsState] = useState<Record<string, string> | null>(null);
 
   // === SAR Workflow Memory & Context Manager ===
   // Workspace aktif = SarCase yang dimuat/di-save (CaseManager) — bukan entitas baru.
@@ -439,7 +450,9 @@ export default function Home() {
     }
   }, [focusUpsOnAeroValid, aeroResults]);
 
-  /** Build state for saving */
+  /** Build state for saving — snapshot LENGKAP seluruh worksheet bernilai:
+   *  input manual tiap worksheet (AWA/ADW/ASW/WS1/Datum/Search/WS2/WS3/WS8/WS4/
+   *  Intercept/Briefing/Renops), aset, pola pencarian, overrides cuaca. */
   const buildState = useCallback(() => {
     return {
       title: '',
@@ -453,10 +466,14 @@ export default function Home() {
         aero: aeroDraft ?? undefined,
         datum: datumState ?? {},
         search: searchState ?? {},
+        // Worksheet 1: Fs, drift error %, jarak terukur peta (input manual).
+        ws1: { fs: worksheet1Fs, measured: ws1Measured ?? undefined },
         lkp,
         assets,
         patternType,
         patternAssetId,
+        patternTurn,
+        tsReturn,
         patternOrientationText,
         patternEnvironment,
         patternWorksheetSource,
@@ -466,16 +483,32 @@ export default function Home() {
         sectorLegCountText,
         trackLineLengthText,
         tsReturnOffsetText,
-        // Lembar worksheet per-SRU (1 alut = 1 lembar) + hasil track spacing per lembar
+        // Overrides cuaca (WeatherPanel) + interval drift — memengaruhi hitungan
+        // Datum/Search, wajib ikut tersimpan agar kasus termuat identik.
+        weather: {
+          windOverride,
+          seaCurrentOverride,
+          visibilityOverride,
+          driftIntervalHours: driftIntervalForWeather,
+        },
+        adwSyncLkp,
+        // Lembar worksheet per-SRU (1 alut = 1 lembar): sheet.data kini selalu
+        // segar dari mirror onStateChange (input manual ikut tersimpan) +
+        // hasil track spacing per lembar.
         ws2Sheets,
         ws3Sheets,
         ws8Sheets,
         ws2TrackSpacings,
         ws3TrackSpacings,
         ws8TrackSpacings,
+        // Worksheet mandiri & dokumen: input lengkap ikut disimpan.
+        ws4: ws4State ?? undefined,
+        intercept: interceptState ?? (aiInterceptInput ?? undefined),
+        briefing: briefingState ?? undefined,
+        renops: renopsState ?? undefined,
       },
     };
-  }, [awaObservations, awaContext, aswState, aeroDraft, datumState, searchState, lkp, assets, patternType, patternAssetId, patternOrientationText, patternEnvironment, patternWorksheetSource, patternLandHeight, sectorAngleText, sectorLegLengthText, sectorLegCountText, trackLineLengthText, tsReturnOffsetText, ws2Sheets, ws3Sheets, ws8Sheets, ws2TrackSpacings, ws3TrackSpacings, ws8TrackSpacings]);
+  }, [awaObservations, awaContext, aswState, aeroDraft, datumState, searchState, worksheet1Fs, ws1Measured, lkp, assets, patternType, patternAssetId, patternTurn, tsReturn, patternOrientationText, patternEnvironment, patternWorksheetSource, patternLandHeight, sectorAngleText, sectorLegLengthText, sectorLegCountText, trackLineLengthText, tsReturnOffsetText, windOverride, seaCurrentOverride, visibilityOverride, driftIntervalForWeather, adwSyncLkp, ws2Sheets, ws3Sheets, ws8Sheets, ws2TrackSpacings, ws3TrackSpacings, ws8TrackSpacings, ws4State, interceptState, aiInterceptInput, briefingState, renopsState]);
 
   /** Apply loaded state */
   const applyState = useCallback((state: Record<string, unknown>) => {
@@ -498,10 +531,36 @@ export default function Home() {
     if (typeof state.sectorLegCountText === 'string') setSectorLegCountText(state.sectorLegCountText);
     if (typeof state.trackLineLengthText === 'string') setTrackLineLengthText(state.trackLineLengthText);
     if (typeof state.tsReturnOffsetText === 'string') setTsReturnOffsetText(state.tsReturnOffsetText);
+    if (state.patternTurn === 'right' || state.patternTurn === 'left') setPatternTurn(state.patternTurn);
+    if (typeof state.tsReturn === 'boolean') setTsReturn(state.tsReturn);
+
+    // Worksheet 1: pulihkan Fs + drift error % + jarak terukur (input manual);
+    // tanpa nilai tersimpan kembali ke default (1.1 / null).
+    const ws1Saved = (state.ws1 ?? {}) as { fs?: unknown; measured?: Ws1Measured | null };
     setWorksheet1Ao(0);
-    setWorksheet1Fs(1.1);
-    setWs1Measured(null);
+    setWorksheet1Fs(typeof ws1Saved.fs === 'number' && Number.isFinite(ws1Saved.fs) && ws1Saved.fs > 0 ? ws1Saved.fs : 1.1);
+    const measuredSaved = ws1Saved.measured;
+    setWs1Measured(
+      measuredSaved && typeof measuredSaved === 'object'
+      && typeof measuredSaved.left === 'string' && typeof measuredSaved.right === 'string'
+      && typeof measuredSaved.leftRight === 'string' && typeof measuredSaved.driftErrorPercent === 'number'
+        ? { left: measuredSaved.left, right: measuredSaved.right, leftRight: measuredSaved.leftRight, driftErrorPercent: measuredSaved.driftErrorPercent }
+        : null,
+    );
     if (assetsLoaded && Array.isArray(assetsLoaded)) setAssets(assetsLoaded);
+
+    // Overrides cuaca + interval drift + sinkronisasi ADW→LKP (ikut kasus).
+    const weatherSaved = (state.weather ?? {}) as {
+      windOverride?: { dirFrom: number; speed: number; hours: number; ts: number } | null;
+      seaCurrentOverride?: { dir: number; speed: number; ts: number } | null;
+      visibilityOverride?: { nm: number; ts: number } | null;
+      driftIntervalHours?: number;
+    };
+    setWindOverride(weatherSaved.windOverride ?? null);
+    setSeaCurrentOverride(weatherSaved.seaCurrentOverride ?? null);
+    setVisibilityOverride(weatherSaved.visibilityOverride ?? null);
+    setDriftIntervalForWeather(typeof weatherSaved.driftIntervalHours === 'number' && Number.isFinite(weatherSaved.driftIntervalHours) ? weatherSaved.driftIntervalHours : 6);
+    if (typeof state.adwSyncLkp === 'boolean') setAdwSyncLkp(state.adwSyncLkp);
 
     // Lembar worksheet per-SRU: muat array lembar tersimpan; kasus lama (satu
     // objek ws2/ws3/ws8) dimigrasi menjadi satu lembar default.
@@ -532,6 +591,23 @@ export default function Home() {
     setLoadedInitialState({ awa, asw, aero: aeroLoaded, datum, search, lkp: lkpLoaded });
     setAwaContext({ distressAltFt: awa.distressAltFt, forecastSource: awa.forecastSource, forecastValidTime: awa.forecastValidTime });
     if (lkpLoaded) setLkp(lkpLoaded);
+
+    // Worksheet mandiri & dokumen: pulihkan input tersimpan (null bila kasus
+    // tidak memilikinya — hindari kebocoran data antarkasus).
+    const ws4Saved = state.ws4 as Worksheet4InitialState | undefined;
+    setWs4State(ws4Saved && typeof ws4Saved === 'object' ? ws4Saved : null);
+    const interceptSaved = state.intercept as InterceptInput | undefined;
+    setInterceptState(
+      interceptSaved && typeof interceptSaved === 'object' && interceptSaved.target && interceptSaved.sru
+        ? interceptSaved
+        : null,
+    );
+    setAiInterceptInput(null);
+    const briefingSaved = state.briefing as Record<string, string> | undefined;
+    setBriefingState(briefingSaved && typeof briefingSaved === 'object' ? briefingSaved : null);
+    const renopsSaved = state.renops as Record<string, string> | undefined;
+    setRenopsState(renopsSaved && typeof renopsSaved === 'object' ? renopsSaved : null);
+
     setCaseVersion((v) => v + 1);
   }, []);
 
@@ -624,7 +700,11 @@ export default function Home() {
     setDatumState(null);
     setSearchState(null);
 
-    // Reset Coordinates to default
+    // Reset persistence worksheet mandiri & dokumen (save case lengkap)
+    setWs4State(null);
+    setInterceptState(null);
+    setBriefingState(null);
+    setRenopsState(null);
     setLkp(DEFAULT_CENTER);
     setIsLkpSet(false);
     setAeroResults(null);
@@ -755,16 +835,17 @@ export default function Home() {
         setActiveWs3Key('default');
         break;
       case 'ws4':
-        setLoadedInitialState((prev) => ({
-          ...(prev ?? {}),
-          ws4: { caseTitle: '-', searchDate: '-', callsign: '-', searchNo: '0', commenceUtc: '-', latitude: 0, longitude: 0, distressTimeUtc: '-', trList: [0, 0, 0, 0], fixErrors: [0, 0, 0, 0], yNavError: 0 },
-        }));
+        setWs4State({ caseTitle: '-', searchDate: '-', callsign: '-', searchNo: '0', commenceUtc: '-', latitude: 0, longitude: 0, distressTimeUtc: '-', trList: [0, 0, 0, 0], fixErrors: [0, 0, 0, 0], yNavError: 0 });
         break;
       case 'intercept':
         setAiInterceptInput(null);
+        setInterceptState(null);
         setInterceptCaseVersion((version) => version + 1);
         break;
       case 'briefing-renops':
+        setBriefingState(null);
+        setRenopsState(null);
+        break;
       case 'basic-calc':
         break;
       default:
@@ -971,7 +1052,7 @@ export default function Home() {
   }, [assets, ws3Sheets]);
 
   const handleApplyWS4 = useCallback((data: Worksheet4InitialState) => {
-    setLoadedInitialState((prev) => ({ ...prev, ws4: data }));
+    setWs4State(data);
     setCaseVersion((version) => version + 1);
     setActiveTab('ws4');
   }, []);
@@ -1121,6 +1202,48 @@ export default function Home() {
       }
       return { ...prev, [sheetKey]: result };
     });
+  }, []);
+
+  // === Mirror input manual lembar WS 2/3/8 → sheet.data ===
+  // Worksheet melaporkan seluruh input-nya tiap perubahan (onStateChange);
+  // tulis hanya bila isinya berubah (deepEqual) agar tidak loop re-render
+  // (pola guard sama dengan handler Track Spacing di atas). sheet.data yang
+  // selalu segar inilah yang disimpan buildState & dipulihkan saat load kasus.
+  const handleWS2SheetData = useCallback((sheetKey: string, data: Worksheet2InitialState) => {
+    setWs2Sheets((prev) => {
+      const current = prev.find((sheet) => sheet.key === sheetKey);
+      if (current && deepEqualValue(current.data as Record<string, unknown>, data as Record<string, unknown>)) {
+        return prev;
+      }
+      return prev.map((sheet) => (sheet.key === sheetKey ? { ...sheet, data } : sheet));
+    });
+  }, []);
+  const handleWS3SheetData = useCallback((sheetKey: string, data: Worksheet3InitialState) => {
+    setWs3Sheets((prev) => {
+      const current = prev.find((sheet) => sheet.key === sheetKey);
+      if (current && deepEqualValue(current.data as Record<string, unknown>, data as Record<string, unknown>)) {
+        return prev;
+      }
+      return prev.map((sheet) => (sheet.key === sheetKey ? { ...sheet, data } : sheet));
+    });
+  }, []);
+  const handleWS8SheetData = useCallback((sheetKey: string, data: Worksheet8InitialState) => {
+    setWs8Sheets((prev) => {
+      const current = prev.find((sheet) => sheet.key === sheetKey);
+      if (current && deepEqualValue(current.data as Record<string, unknown>, data as Record<string, unknown>)) {
+        return prev;
+      }
+      return prev.map((sheet) => (sheet.key === sheetKey ? { ...sheet, data } : sheet));
+    });
+  }, []);
+
+  // Recalculate manual: remount seluruh worksheet (bump caseVersion) sehingga
+  // semua lembar menghitung ulang dari nilai input terbaru (manual maupun dari
+  // worksheet lain). Nilai antar worksheet yang saling terhubung (angin ASW,
+  // arus laut, Ao, Fs, track spacing, aset) sudah mengalir otomatis via props.
+  const handleRecalculateAll = useCallback(() => {
+    setCaseVersion((version) => version + 1);
+    toast.success('Semua worksheet dihitung ulang dari nilai input terbaru.');
   }, []);
 
   const handleApplyIntercept = useCallback((data: InterceptInput) => {
@@ -1990,6 +2113,18 @@ export default function Home() {
               >
                 <Printer className="h-3.5 w-3.5" /> Cetak Peta A3
               </button>
+              {/* Tombol Recalculate: hitung ulang seluruh worksheet dari nilai
+                  input terbaru — nilai antar worksheet yang saling bersambung
+                  (angin ASW, arus laut, Ao, Fs, track spacing, aset) sudah
+                  diperbarui otomatis; tombol ini memaksa remount penuh. */}
+              <button
+                type="button"
+                onClick={handleRecalculateAll}
+                title="Hitung ulang seluruh worksheet dari nilai input terbaru (perubahan manual di satu worksheet otomatis diteruskan ke worksheet terkait)"
+                className="flex items-center gap-1.5 text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3 py-1.5 rounded-lg shadow transition-colors border border-indigo-400/40"
+              >
+                <RefreshCw className="h-3.5 w-3.5" /> Recalculate
+              </button>
               {/* Tombol Bersihkan Semua / Clear All */}
               <button
                 type="button"
@@ -2122,6 +2257,7 @@ export default function Home() {
                 aswState={{ observations: aswState.observations, aswErr: aswState.aswErr }}
                 aeroState={aeroDraft ?? loadedInitialState?.aero ?? null}
                 aeroHasResults={aeroResults != null}
+                ws1Measured={ws1Measured}
               />
             </TabsContent>
 
@@ -2279,6 +2415,7 @@ export default function Home() {
                 aswTotalHours={asw.totalHours}
                 onAoChange={setWorksheet1Ao}
                 onMeasuredChange={setWs1Measured}
+                initialMeasured={ws1Measured}
                 selectedFs={worksheet1Fs}
                 onFsChange={setWorksheet1Fs}
                 onOpenManualAppendix={() => {
@@ -2357,6 +2494,7 @@ export default function Home() {
                     ws1Ao={ws1Ao}
                     initialState={sheet.data}
                     onTrackSpacingChange={(result) => handleWS2TrackSpacingChange(sheet.key, result)}
+                    onStateChange={(data) => handleWS2SheetData(sheet.key, data)}
                   />
                 </div>
               ))}
@@ -2401,6 +2539,7 @@ export default function Home() {
                     initialPod={searchResults?.POD ?? 0}
                     initialState={sheet.data}
                     onTrackSpacingChange={(result) => handleWS8TrackSpacingChange(sheet.key, result)}
+                    onStateChange={(data) => handleWS8SheetData(sheet.key, data)}
                   />
                 </div>
               ))}
@@ -2693,6 +2832,7 @@ export default function Home() {
                     E={datumResults?.E ?? 5.0}
                     initialState={sheet.data}
                     onTrackSpacingChange={(result) => handleWS3TrackSpacingChange(sheet.key, result)}
+                    onStateChange={(data) => handleWS3SheetData(sheet.key, data)}
                   />
                 </div>
               ))}
@@ -2720,7 +2860,8 @@ export default function Home() {
                 searchResults={searchResults}
                 E={datumResults?.E ?? 5.0}
                 divergenceDistance={datumResults?.divergenceDistance ?? 7.8}
-                initialState={loadedInitialState?.ws4}
+                initialState={ws4State ?? undefined}
+                onStateChange={setWs4State}
               />
             </TabsContent>
 
@@ -2728,7 +2869,8 @@ export default function Home() {
             <TabsContent value="intercept" key={`intercept-tab-${caseVersion}-${tabClearVersions.intercept ?? 0}`} className="mt-0">
               <InterceptWorksheet
                 key={`intercept-${caseVersion}-${interceptCaseVersion}`}
-                initialInput={aiInterceptInput}
+                initialInput={aiInterceptInput ?? interceptState}
+                onStateChange={setInterceptState}
               />
             </TabsContent>
 
@@ -2769,6 +2911,8 @@ export default function Home() {
                 searchResults={searchResults}
                 aswDirFrom={asw.aswDirFrom}
                 aswSpeed={asw.aswSpeed}
+                initialState={briefingState}
+                onStateChange={setBriefingState}
               />
               <div className="print-page-break">
                 <RenopsForm
@@ -2776,6 +2920,8 @@ export default function Home() {
                   lkp={lkp}
                   datumResults={datumResults}
                   searchResults={searchResults}
+                  initialState={renopsState}
+                  onStateChange={setRenopsState}
                 />
               </div>
               <PrintCompanionMap

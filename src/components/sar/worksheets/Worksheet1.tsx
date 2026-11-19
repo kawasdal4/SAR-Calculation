@@ -80,8 +80,14 @@ interface Worksheet1Props {
   onFsChange?: (fs: number) => void;
   /** Mirror pengukuran peta (jarak L/R terukur + persen de) ke halaman agar
    *  hitungan gambar peta di sisi halaman memakai nilai yang sama selagi
-   *  tab ini terpasang; null saat unmount. */
+   *  tab ini terpasang; nilai TERAKHIR dipertahankan saat unmount agar editan
+   *  manual tidak hilang (persistence + recalculate antar worksheet).
+   *  Penanganan null hanya dari clear all / load kasus di sisi halaman. */
   onMeasuredChange?: (measured: Ws1Measured | null) => void;
+  /** Nilai awal (persisten) drift error % + jarak terukur — dipulihkan saat
+   *  remount (pindah tab, load kasus, bump caseVersion) agar editan manual
+   *  tidak kembali ke default. */
+  initialMeasured?: Ws1Measured | null;
   /** Buka Appendix I (Table I-1/I-2 leeway) di dialog Manual SAR AUS pada
    *  halaman — rujukan nilai Multiplier/Modifier/Divergence. */
   onOpenManualAppendix?: () => void;
@@ -107,14 +113,21 @@ export default function Worksheet1({
   readOnly = false,
   onAoChange,
   onMeasuredChange,
+  initialMeasured,
   selectedFs,
   onFsChange,
   onOpenManualAppendix,
 }: Worksheet1Props) {
   const [localFs, setLocalFs] = useState(1.1);
   const fsSelected = selectedFs ?? localFs;
-  const [driftErrorPercent, setDriftErrorPercent] = useState<number>(WS1_DEFAULT_DRIFT_ERROR_PERCENT);
-  const [measuredDistances, setMeasuredDistances] = useState({ left: '', right: '', leftRight: '' });
+  const [driftErrorPercent, setDriftErrorPercent] = useState<number>(
+    initialMeasured?.driftErrorPercent ?? WS1_DEFAULT_DRIFT_ERROR_PERCENT,
+  );
+  const [measuredDistances, setMeasuredDistances] = useState({
+    left: initialMeasured?.left ?? '',
+    right: initialMeasured?.right ?? '',
+    leftRight: initialMeasured?.leftRight ?? '',
+  });
   const [copied, setCopied] = useState(false);
 
   // Calculations & parameters with safe defaults.
@@ -288,6 +301,9 @@ export default function Worksheet1({
   // halaman: hitungan gambar peta di sisi halaman (ws1Computed) memakai nilai
   // yang sama selagi tab terpasang, dan kembali analitik saat unmount.
   useEffect(() => { onAoChange?.(Ao); }, [Ao, onAoChange]);
+  // Mirror nilai TERAKHIR ke halaman (tanpa null saat unmount): editan manual
+  // bertahan lintas pindah tab & bump caseVersion — dasar persistence save case
+  // dan recalculate otomatis worksheet terkait (peta, pola, alokasi).
   useEffect(() => {
     onMeasuredChange?.({
       left: measuredDistances.left,
@@ -295,7 +311,6 @@ export default function Worksheet1({
       leftRight: measuredDistances.leftRight,
       driftErrorPercent,
     });
-    return () => onMeasuredChange?.(null);
   }, [measuredDistances, driftErrorPercent, onMeasuredChange]);
 
   return (

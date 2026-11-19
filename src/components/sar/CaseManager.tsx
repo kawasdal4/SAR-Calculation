@@ -30,8 +30,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Save, FolderOpen, Trash2, Download, Loader2 } from 'lucide-react';
+import { Save, FolderOpen, Trash2, Download, Loader2, Search } from 'lucide-react';
 import { toast } from 'sonner';
+import { filterSarCases } from '@/lib/sar/stateSync';
 
 export interface SarCaseSummary {
   id: string;
@@ -39,6 +40,7 @@ export interface SarCaseSummary {
   caseNumber: string | null;
   searchObject: string | null;
   phase: string;
+  notes?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -76,6 +78,10 @@ export default function CaseManager({ buildState, applyState, onActiveCaseChange
   const [loadingList, setLoadingList] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<SarCaseSummary | null>(null);
   const [loadTarget, setLoadTarget] = useState<SarCaseSummary | null>(null);
+  // Pencarian kasus tersimpan pada dialog Open Case (title, nomor kasus,
+  // objek pencarian, notes, fase) — filter klien atas daftar lengkap.
+  const [caseSearch, setCaseSearch] = useState('');
+  const filteredCases = filterSarCases(cases, caseSearch);
 
   const fetchCases = useCallback(async () => {
     setLoadingList(true);
@@ -290,6 +296,22 @@ export default function CaseManager({ buildState, applyState, onActiveCaseChange
               Pick a previously saved case. Loading will overwrite the current worksheet inputs.
             </DialogDescription>
           </DialogHeader>
+          {/* Pencarian kasus: cocokkan judul / nomor kasus / objek pencarian / notes / fase */}
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+            <Input
+              value={caseSearch}
+              suppressHydrationWarning
+              onChange={(e) => setCaseSearch(e.target.value)}
+              placeholder="Cari kasus… (judul, nomor kasus, objek pencarian, notes)"
+              className="pl-8 h-9"
+            />
+          </div>
+          {!loadingList && cases.length > 0 && (
+            <div className="text-[11px] text-slate-500 -mt-1">
+              {filteredCases.length} dari {cases.length} kasus
+            </div>
+          )}
           <div className="max-h-[60vh] overflow-y-auto -mx-1 px-1">
             {loadingList ? (
               <div className="flex items-center justify-center py-8 text-slate-500 text-sm">
@@ -299,9 +321,13 @@ export default function CaseManager({ buildState, applyState, onActiveCaseChange
               <div className="text-center py-8 text-slate-500 text-sm">
                 No saved cases yet. Click <span className="font-semibold">Save Case</span> to create one.
               </div>
+            ) : filteredCases.length === 0 ? (
+              <div className="text-center py-8 text-slate-500 text-sm">
+                Tidak ada kasus yang cocok dengan <span className="font-semibold">"{caseSearch.trim()}"</span>.
+              </div>
             ) : (
               <ul className="space-y-1.5">
-                {cases.map((c) => (
+                {filteredCases.map((c) => (
                   <li
                     key={c.id}
                     className="flex items-center justify-between gap-2 p-2 rounded-md border border-slate-200 bg-white hover:bg-slate-50"
