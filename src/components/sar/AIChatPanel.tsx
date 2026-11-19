@@ -25,6 +25,7 @@ import { formatDMS } from '@/lib/sar/coordFormat';
 import { toBasarnasTimeFormat } from '@/lib/sar/aswTime';
 import { buildChatPreviewContract, buildChatPreviewContracts, CHAT_NON_MUTATING_TOOLS, TARGET_LABELS } from '@/lib/sar/chatPreview';
 import { parseSetFieldsArgs, type SetFieldsApplied } from '@/lib/ai/tools/setFields';
+import { type AiBatchInfo } from '@/lib/ai/changeLog';
 import { nextWorkflowSteps, selectiveWorkspaceContext, workflowPlanText, type ContextEntry } from '@/lib/sar/workspaceContext';
 import type { InterceptInput } from '@/lib/sar/interceptCalculations';
 import { normalizeTafCondition, type AssetAllocationCaseInput } from '@/lib/sar/assetAllocation';
@@ -106,6 +107,15 @@ interface AIChatPanelProps {
   /** Fase 2: snapshot state worksheet (buildState().state) untuk tool server-side
    *  get_state/run_pipeline/validate_plan — hanya-dibaca di server. */
   stateSnapshot?: Record<string, unknown> | null;
+  /** === Fase 2: change-log + undo per-batch (keputusan no.9 & 10) === */
+  /** Dipanggil SEBELUM handler apply dijalankan (capture state sebelum). */
+  onAiBatchStart?: () => void;
+  /** Dipanggil SETELAH seluruh handler apply satu batch selesai. */
+  onAiBatchEnd?: (appliedWorksheets: string[], applied: boolean) => void;
+  /** Batch AI terakhir (untuk panel Undo). */
+  aiBatches?: AiBatchInfo[];
+  /** Undo satu batch (restore hanya field yang masih cocok — guard manual-change). */
+  onUndoAiBatch?: (batchId: string) => void;
   onFocusWorksheet?: (worksheet: string) => void;
   isOpen?: boolean;
   onToggle?: (open: boolean) => void;
@@ -306,6 +316,11 @@ export default function AIChatPanel({
   onApplySearchPattern,
   onApplyIntercept,
   onApplySetFields,
+  stateSnapshot,
+  onAiBatchStart,
+  onAiBatchEnd,
+  aiBatches,
+  onUndoAiBatch,
   onFocusWorksheet,
   isOpen: controlledIsOpen,
   onToggle,
@@ -969,7 +984,11 @@ export default function AIChatPanel({
   const handleApply = useCallback(
     (msg: ChatMessage, idx: number) => {
       if (!msg.functionCalls) return;
+      // Fase 2 (keputusan no.10): satu klik Konfirmasi & Terapkan = SATU batch
+      // — capture state sebelum → apply → diff field → change-log + Undo.
+      onAiBatchStart?.();
       const result = applyFunctionCalls(msg.functionCalls);
+      onAiBatchEnd?.(result.appliedWorksheetNames ?? [], result.applied);
       const incomplete = result.incompleteWorksheetNames ?? [];
       const partialNote = incomplete.length > 0
         ? `\n\n✍️ Diterapkan dengan data parsial — lengkapi pilihan planner berikut langsung di worksheet: ${incomplete.join('; ')}.`
@@ -996,7 +1015,7 @@ export default function AIChatPanel({
       }
       setMessages((prev) => prev.map((m, i) => (i === idx && !m.content.includes('⚠️') ? { ...m, content: m.content + note } : m)));
     },
-    [applyFunctionCalls, onLogConversation]
+    [applyFunctionCalls, onLogConversation, onAiBatchStart, onAiBatchEnd]
   );
 
   /** PHASE 5: batalkan pratinjau — tandai pesan dismissed tanpa menerapkan apa pun. */
@@ -1518,6 +1537,40 @@ export default function AIChatPanel({
                   </button>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Fase 2 (keputusan no.10): Undo per-batch AI — restore hanya field
+              yang masih cocok dengan nilai sesudah batch (perubahan manual
+              setelah batch tidak pernah ditimpa). */}
+          {aiBatches && aiBatches.length > 0 && onUndoAiBatch && (
+            <div className="border-t border-slate-200 px-3 py-2 shrink-0 bg-amber-50/60">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-700 mb-1">
+                Perubahan AI (bisa di-Undo per batch)
+              </p>
+              <div className="space-y-1 max-h-28 overflow-y-auto">
+                {aiBatches.slice(0, 5).map((batch) => (
+                  <div key={batch.batchId} className="flex items-center gap-2 text-[11px] text-slate-700">
+                    <span className="flex-1 truncate">
+                      {new Date(batch.at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                      {' — '}
+                      {batch.changedCount} field ({batch.worksheets.join(', ')})
+                      {batch.undone
+                        ? ` — ${batch.undone.undoneCount > 0 ? `DI-UNDO (${batch.undone.undoneCount} field)` : 'tidak ada yang bisa di-undo'}${batch.undone.skippedManual > 0 ? `, ${batch.undone.skippedManual} field dilewati (sudah diubah manual)` : ''}`
+                        : ''}
+                    </span>
+                    {!batch.undone && (
+                      <button
+                        type="button"
+                        onClick={() => onUndoAiBatch(batch.batchId)}
+                        className="px-2 py-0.5 rounded border border-amber-300 bg-white hover:bg-amber-100 text-[10px] font-semibold text-amber-700"
+                      >
+                        Undo
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 

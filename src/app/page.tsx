@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -86,6 +86,7 @@ import type { MapMarker, MapLine, MapPolygon, MapCircle } from '@/components/sar
 import BasicCalculation from '@/components/sar/BasicCalculation';
 import ChartDistanceGuide from '@/components/sar/chart-distance/ChartDistanceGuide';
 import { selectiveWorkspaceContext, workflowPlanText, type ContextEntry } from '@/lib/sar/workspaceContext';
+import { buildChangeRows, planUndo, undoRowsToSetFieldsValues, invertRows, postChangeLogBatch, type AiBatchInfo } from '@/lib/ai/changeLog';
 import SeaMapMount from '@/components/sar/SeaMapMount';
 import { FullscreenToggleButton } from '@/components/sar/FullscreenToggleButton';
 import { useFullscreen } from '@/hooks/use-fullscreen';
@@ -98,7 +99,7 @@ import AdwUpsSheet from '@/components/sar/AdwUpsSheet';
 import { PrintScopeController } from '@/components/sar/SheetPrintMenu';
 import AeronauticalDriftWorksheet from '@/components/sar/AeronauticalDriftWorksheet';
 import type { AeroDriftResult } from '@/lib/sar/aeroDriftCalculations';
-import type { SetFieldsApplied } from '@/lib/ai/tools/setFields';
+import type { SetFieldsApplied, SetFieldsWorksheet } from '@/lib/ai/tools/setFields';
 import InterceptWorksheet from '@/components/sar/InterceptWorksheet';
 import type { InterceptInput } from '@/lib/sar/interceptCalculations';
 import Worksheet1 from '@/components/sar/worksheets/Worksheet1';
@@ -565,6 +566,152 @@ export default function Home() {
   // run_pipeline / validate_plan). Stabil per perubahan state — identitas
   // objek hanya berubah bila salah satu dependensi buildState berubah.
   const aiStateSnapshot = useMemo(() => buildState().state, [buildState]);
+
+  // === Fase 2: change-log + undo per-batch AI (keputusan no.9 & 10) ===
+  // Setiap "Konfirmasi & Terapkan" = satu batch: capture state sebelum →
+  // handler apply (satu mekanisme setter) → diff field terdaftar → POST
+  // /api/ai/change-log (transaksi atomic di server) → tersedia untuk Undo.
+  const buildStateRef = useRef(buildState);
+  const activeCaseIdRef = useRef<string | null>(null);
+  const pendingAiBatchRef = useRef<{ batchId: string; before: Record<string, unknown>; worksheets: string[]; at: number } | null>(null);
+  const [aiBatches, setAiBatches] = useState<AiBatchInfo[]>([]);
+  const aiBatchesRef = useRef<AiBatchInfo[]>([]);
+  const [aiFilledWorksheets, setAiFilledWorksheets] = useState<Record<string, number>>({});
+  const [aiBatchUiTick, setAiBatchUiTick] = useState(0);
+  // Didefinisikan di bawah (setelah handleApplySetFields) — assignment latest-ref
+  // dilakukan di sana agar tidak menyentuh konstanta sebelum dideklarasikan.
+  const handleApplySetFieldsRef = useRef<(applied: SetFieldsApplied) => boolean>(() => false);
+  // Latest-ref ditulis di effect (aturan react-hooks: ref tidak boleh diakses
+  // saat render) — selalu segar sebelum effect/timer lain berjalan.
+  useEffect(() => {
+    buildStateRef.current = buildState;
+    activeCaseIdRef.current = activeSarCase?.id ?? null;
+    aiBatchesRef.current = aiBatches;
+  });
+
+  const handleAiBatchStart = useCallback(() => {
+    pendingAiBatchRef.current = {
+      batchId: `ai-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+      before: buildStateRef.current().state,
+      worksheets: [],
+      at: Date.now(),
+    };
+  }, []);
+
+  const handleAiBatchEnd = useCallback((appliedWorksheets: string[], applied: boolean) => {
+    const pending = pendingAiBatchRef.current;
+    if (!pending) return;
+    if (!applied || appliedWorksheets.length === 0) {
+      pendingAiBatchRef.current = null;
+      return;
+    }
+    pending.worksheets = appliedWorksheets;
+    // Memicu effect flush SETELAH React commit update state dari handler apply
+    // (diff butuh state pasca-apply; handler memakai setState asinkron).
+    setAiBatchUiTick((tick) => tick + 1);
+  }, []);
+
+  // Flush batch AI: diff before/after per field terdaftar → simpan + badge.
+  useEffect(() => {
+    const pending = pendingAiBatchRef.current;
+    if (!pending) return;
+    const timer = setTimeout(() => {
+      const captured = pendingAiBatchRef.current;
+      pendingAiBatchRef.current = null;
+      if (!captured) return;
+      const after = buildStateRef.current().state;
+      const rows = buildChangeRows(captured.before, after, captured.worksheets);
+      if (rows.length === 0) return;
+      const batchInfo: AiBatchInfo = {
+        batchId: captured.batchId,
+        at: captured.at,
+        worksheets: [...new Set(rows.map((row) => row.worksheet))],
+        changedCount: rows.length,
+        rows,
+      };
+      setAiBatches((prev) => [batchInfo, ...prev].slice(0, 10));
+      setAiFilledWorksheets((prev) => {
+        const next = { ...prev };
+        for (const worksheet of batchInfo.worksheets) next[worksheet] = (next[worksheet] ?? 0) + 1;
+        return next;
+      });
+      // Audit di DB (keputusan no.9) — best-effort; undo sesi berjalan tetap
+      // jalan dari memori bila DB tidak tersedia.
+      void postChangeLogBatch({
+        batchId: captured.batchId,
+        caseId: activeCaseIdRef.current,
+        source: 'ai-apply',
+        rows,
+      });
+    }, 120);
+    return () => clearTimeout(timer);
+  }, [aiBatchUiTick]);
+
+  /** Undo satu batch AI (keputusan no.10): hanya field yang nilai saat ini
+   *  MASIH sama dengan valueAfter batch — perubahan manual setelah batch
+   *  tidak pernah ditimpa. Restore lewat handleApplySetFields (satu mekanisme). */
+  const handleUndoAiBatch = useCallback((batchId: string) => {
+    const batch = aiBatchesRef.current.find((entry) => entry.batchId === batchId);
+    if (!batch || batch.undone) return;
+    const current = buildStateRef.current().state;
+    const plan = planUndo(batch.rows, current);
+    const skipped = plan.skippedManual.length + plan.skippedUnsupported.length;
+    const restoredBatches = plan.ok ? undoRowsToSetFieldsValues(plan.undoable) : [];
+    let restoredFields = 0;
+    for (const entry of restoredBatches) {
+      // planUndo menyingkirkan worksheet di luar registry set_fields (mis. ws1),
+      // jadi cast di sini aman — hanya SetFieldsWorksheet yang tersisa.
+      const ok = handleApplySetFieldsRef.current({
+        worksheet: entry.worksheet as SetFieldsWorksheet,
+        sruName: entry.sruName,
+        values: entry.values,
+      });
+      if (ok) restoredFields += Object.keys(entry.values).length;
+    }
+    const undoBatchId = `undo-${batchId}`;
+    setAiBatches((prev) => prev.map((entry) => (entry.batchId === batchId
+      ? { ...entry, undone: { batchId: undoBatchId, undoneCount: restoredFields, skippedManual: skipped, at: Date.now() } }
+      : entry)));
+    if (restoredFields > 0) {
+      setAiFilledWorksheets((prev) => {
+        const next = { ...prev };
+        for (const worksheet of batch.worksheets) {
+          const remaining = (next[worksheet] ?? 1) - 1;
+          if (remaining > 0) next[worksheet] = remaining;
+          else delete next[worksheet];
+        }
+        return next;
+      });
+      void postChangeLogBatch({
+        batchId: undoBatchId,
+        caseId: activeCaseIdRef.current,
+        source: 'undo',
+        rows: invertRows(plan.undoable),
+      });
+      setCaseVersion((version) => version + 1);
+    }
+  }, []);
+
+  // Fase 2 (keputusan no.9/10): badge "diisi AI" — chip kecil pada tab worksheet
+  // yang baru diisi batch AI (bersih saat batch di-undo).
+  const AI_BADGE_TAB_KEYS: Record<string, string[]> = {
+    asw: ['asw'], awa: ['awa'], aero: ['aero'], ups: ['aero'],
+    ws1: ['datum'], ws2: ['ws2'], ws8: ['ws8'], 'search-pattern': ['pattern'],
+    ws3: ['ws3'], ws4: ['ws4'], intercept: ['intercept'],
+    'asset-allocation': ['assets'], 'briefing-renops': ['briefing', 'renops'],
+  };
+  const aiBadgeDot = (tabValue: string) => {
+    const keys = AI_BADGE_TAB_KEYS[tabValue] ?? [];
+    if (keys.length === 0 || !keys.some((key) => aiFilledWorksheets[key])) return null;
+    return (
+      <span
+        className="inline-flex ml-1 px-1 py-0.5 rounded text-[9px] font-bold bg-sky-100 text-sky-700 border border-sky-300 print:hidden"
+        title="Worksheet baru saja diisi oleh AI — buka panel AI Assistant untuk Undo per batch"
+      >
+        AI
+      </span>
+    );
+  };
 
   /** Apply loaded state */
   const applyState = useCallback((state: Record<string, unknown>) => {
@@ -1501,6 +1648,10 @@ export default function Home() {
     toast.success(`AI mengisi ${count} field pada ${worksheet.toUpperCase()}${sruName ? ` (${sruName})` : ''}.`);
     return true;
   }, []);
+  // Latest-ref untuk undo batch AI (effect — ref tidak boleh ditulis saat render).
+  useEffect(() => {
+    handleApplySetFieldsRef.current = handleApplySetFields;
+  });
 
 
   useEffect(() => {
@@ -2428,46 +2579,46 @@ export default function Home() {
                   <FileCheck className="h-3.5 w-3.5 mr-1 text-emerald-300" /> Semua Worksheet
                 </TabsTrigger>
                 <TabsTrigger value="awa" className="text-xs px-2 py-1.5">
-                  <Wind className="h-3.5 w-3.5 mr-1" /> 1. AWA + MoBo
+                  <Wind className="h-3.5 w-3.5 mr-1" /> 1. AWA + MoBo{aiBadgeDot('awa')}
                 </TabsTrigger>
                 <TabsTrigger value="aero" className="text-xs px-2 py-1.5 data-[state=active]:bg-sky-600 data-[state=active]:text-white font-semibold">
-                  <Plane className="h-3.5 w-3.5 mr-1" /> 2. Aero Drift (ADW)
+                  <Plane className="h-3.5 w-3.5 mr-1" /> 2. Aero Drift (ADW){aiBadgeDot('aero')}
                 </TabsTrigger>
                 <TabsTrigger value="ups" className="text-xs px-2 py-1.5">
-                  <MapIcon className="h-3.5 w-3.5 mr-1" /> UPS Plotter
+                  <MapIcon className="h-3.5 w-3.5 mr-1" /> UPS Plotter{aiBadgeDot('ups')}
                 </TabsTrigger>
                 <TabsTrigger value="asw" className="text-xs px-2 py-1.5">
-                  <Wind className="h-3.5 w-3.5 mr-1" /> 3. ASW + MoBo
+                  <Wind className="h-3.5 w-3.5 mr-1" /> 3. ASW + MoBo{aiBadgeDot('asw')}
                 </TabsTrigger>
                 <TabsTrigger value="ws1" className="text-xs px-2 py-1.5 font-semibold">
-                  <Ship className="h-3.5 w-3.5 mr-1" /> 4. WS 1 (Datum)
+                  <Ship className="h-3.5 w-3.5 mr-1" /> 4. WS 1 (Datum){aiBadgeDot('ws1')}
                 </TabsTrigger>
                 <TabsTrigger value="ws2" className="text-xs px-2 py-1.5">
-                  <Split className="h-3.5 w-3.5 mr-1" /> 5. WS 2 (Maritime)
+                  <Split className="h-3.5 w-3.5 mr-1" /> 5. WS 2 (Maritime){aiBadgeDot('ws2')}
                 </TabsTrigger>
                 <TabsTrigger value="ws8" className="text-xs px-2 py-1.5">
-                  <Layers className="h-3.5 w-3.5 mr-1" /> 6. WS 8 (Kapal)
+                  <Layers className="h-3.5 w-3.5 mr-1" /> 6. WS 8 (Kapal){aiBadgeDot('ws8')}
                 </TabsTrigger>
                 <TabsTrigger
                   value="asset-allocation"
                   className="text-xs px-2.5 py-1.5 font-bold data-[state=active]:bg-purple-700 data-[state=active]:text-white"
                 >
-                  <Anchor className="h-3.5 w-3.5 mr-1 text-purple-200" /> 7. Alokasi Aset SRU
+                  <Anchor className="h-3.5 w-3.5 mr-1 text-purple-200" /> 7. Alokasi Aset SRU{aiBadgeDot('asset-allocation')}
                 </TabsTrigger>
                 <TabsTrigger value="search-pattern" className="text-xs px-2.5 py-1.5 font-bold data-[state=active]:bg-emerald-700 data-[state=active]:text-white">
-                  <Navigation className="h-3.5 w-3.5 mr-1 text-emerald-200" /> 8. Pola & Rute
+                  <Navigation className="h-3.5 w-3.5 mr-1 text-emerald-200" /> 8. Pola & Rute{aiBadgeDot('search-pattern')}
                 </TabsTrigger>
                 <TabsTrigger value="ws3" className="text-xs px-2 py-1.5">
-                  <Calculator className="h-3.5 w-3.5 mr-1" /> WS 3 (Land)
+                  <Calculator className="h-3.5 w-3.5 mr-1" /> WS 3 (Land){aiBadgeDot('ws3')}
                 </TabsTrigger>
                 <TabsTrigger value="ws4" className="text-xs px-2 py-1.5">
-                  <Calculator className="h-3.5 w-3.5 mr-1" /> WS 4 (Radius)
+                  <Calculator className="h-3.5 w-3.5 mr-1" /> WS 4 (Radius){aiBadgeDot('ws4')}
                 </TabsTrigger>
                 <TabsTrigger value="intercept" className="text-xs px-2.5 py-1.5 data-[state=active]:bg-rose-600 data-[state=active]:text-white font-bold">
-                  <Target className="h-3.5 w-3.5 mr-1 text-rose-300" /> Intercept
+                  <Target className="h-3.5 w-3.5 mr-1 text-rose-300" /> Intercept{aiBadgeDot('intercept')}
                 </TabsTrigger>
                 <TabsTrigger value="briefing-renops" className="text-xs px-2 py-1.5">
-                  <ClipboardList className="h-3.5 w-3.5 mr-1" /> Briefing/Renops
+                  <ClipboardList className="h-3.5 w-3.5 mr-1" /> Briefing/Renops{aiBadgeDot('briefing-renops')}
                 </TabsTrigger>
                 <TabsTrigger value="basic-calc" className="text-xs px-2 py-1.5">
                   <Calculator className="h-3.5 w-3.5 mr-1" /> Hitung Dasar
@@ -3537,6 +3688,10 @@ export default function Home() {
         onApplyIntercept={handleApplyIntercept}
         onApplySetFields={handleApplySetFields}
         stateSnapshot={aiStateSnapshot}
+        onAiBatchStart={handleAiBatchStart}
+        onAiBatchEnd={handleAiBatchEnd}
+        aiBatches={aiBatches}
+        onUndoAiBatch={handleUndoAiBatch}
         onFocusWorksheet={(worksheet) => setActiveTab(worksheet === 'datum' ? 'ws1' : worksheet)}
         activeWorkspace={activeSarCase}
         workspaceEntries={wsContextEntries}
