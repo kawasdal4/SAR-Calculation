@@ -4,7 +4,7 @@ import { printActiveWorksheetFit } from '@/lib/sar/printFit';
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Printer } from 'lucide-react';
-import { computeW8Row, readFigureI12, W8_TARGET_OPTIONS, type W8Target, type SearchNumber } from '@/lib/sar/wscPodTables';
+import { computeW8Row, formatFwBasis, readFigureI12, W8_TARGET_OPTIONS, type W8Target, type SearchNumber } from '@/lib/sar/wscPodTables';
 
 export interface Worksheet8InitialState {
   caseTitle?: string;
@@ -17,11 +17,14 @@ export interface Worksheet8InitialState {
   isFatigue?: 'Yes' | 'No';
   searchNumber?: SearchNumber;
   vesselSpeedKts?: number;
-  /** Angin permukaan SESUAI SOAL KASUS (analisa AI Asisten) untuk header.
-   *  Bila ada, header menampilkan nilai ini (label "Kasus"); bila tidak,
-   *  header fallback ke angin ASW. Kalkulasi WSC/POD tetap memakai ASW. */
+  /** Cuaca SESUAI SOAL KASUS (analisa AI Asisten).
+   *  Header menampilkan angin kasus bila ada (label "Kasus"); penentu Fw
+   *  (Table I-7) memakai angin ASW, fallback ke angin/gelombang kasus ini
+   *  bila ASW kosong — baris terburuk bila angin dan gelombang keduanya ada. */
   caseWindDirFrom?: number;
   caseWindSpeed?: number;
+  /** Tinggi gelombang laut (seas) sesuai soal kasus, meter — penentu baris Fw Table I-7. */
+  caseWaveHeightM?: number;
 }
 
 interface Worksheet8Props {
@@ -60,12 +63,15 @@ export default function Worksheet8({
 
   // Math diekstraksi ke lib (PHASE 3): computeW8Row — rumus identik dengan versi inline sebelumnya
   // (termasuk pembulatan W/C 2 desimal dan T 1 desimal).
+  // Penentu Fw (Table I-7): angin ASW, fallback angin/gelombang kasus (AI asisten) — terburuk bila keduanya ada.
   const heights = ['8','14','MERSHIP'] as const;
   const w8Rows = heights.map((eye) => computeW8Row({
     target: searchObject,
     eyeHeight: eye,
     visibilityKm,
     windKts,
+    caseWindKts: initialState?.caseWindSpeed,
+    caseWaveHeightM: initialState?.caseWaveHeightM,
     fatigue: isFatigue,
     searchNumber,
     vesselSpeedKts,
@@ -74,6 +80,7 @@ export default function Worksheet8({
   const wuList = w8Rows.map((r) => r.Wu);
   const fw = w8Rows[0].fw;
   const ff = w8Rows[0].ff;
+  const fwBasisLabel = formatFwBasis(w8Rows[0]);
   const ready = w8Rows[0].ready;
   const wFactors = w8Rows.map((r) => r.W);
   const trackSpacings = w8Rows.map((r) => r.S);
@@ -292,6 +299,7 @@ export default function Worksheet8({
               <tr>
                 <td className="py-1.5 px-3 font-medium text-slate-800 border-r border-slate-300">
                   <div>Maritime: Weather Correction Factor (Fw) - <span className="font-bold text-blue-700">Table I-7</span></div>
+                  <div className="text-[10px] text-slate-500" suppressHydrationWarning>{fwBasisLabel}</div>
                 </td>
                 {columns.map((_, i) => (
                   <td key={i} className="py-1.5 px-2 text-center border-r border-slate-300 last:border-r-0 font-mono font-bold text-blue-900">

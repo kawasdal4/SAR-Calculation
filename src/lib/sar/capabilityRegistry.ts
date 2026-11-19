@@ -485,6 +485,8 @@ export const SAR_CAPABILITY_REGISTRY: SARCapability[] = [
       heightFt: f('number', '500/1000/1500/2000 ft', { unit: 'ft' }),
       visibilityIndex: f('number', 'Indeks kolom visibilitas (0–5 → 2/5/10/20/30/>40 km)'),
       windKts: f('number', 'Kecepatan ASW', { unit: 'kts' }),
+      caseWindKts: f('number', 'Opsional: angin permukaan sesuai soal kasus (AI asisten) — fallback penentu Fw Table I-7 bila ASW kosong', { unit: 'kts' }),
+      caseWaveHeightM: f('number', 'Opsional: tinggi gelombang laut (seas) sesuai soal kasus (AI asisten) — penentu baris Fw Table I-7 bersama angin, terburuk bila keduanya ada', { unit: 'm' }),
       tasKts: f('number', 'TAS SRU', { unit: 'kts' }),
       fatigue: f('string', "'Yes' | 'No' (boolean juga diterima)"),
       searchNumber: f('number', 'Pencarian ke-1..5'),
@@ -501,12 +503,16 @@ export const SAR_CAPABILITY_REGISTRY: SARCapability[] = [
       T: f('number', 'Waktu pencarian', { unit: 'h' }),
     }),
     validateInput: (input) => {
-      const i = input as { platform?: string; target?: string; heightFt?: number; visibilityIndex?: number; windKts?: number; tasKts?: number; fatigue?: unknown; searchNumber?: number };
+      const i = input as { platform?: string; target?: string; heightFt?: number; visibilityIndex?: number; windKts?: number; caseWindKts?: number; caseWaveHeightM?: number; tasKts?: number; fatigue?: unknown; searchNumber?: number };
       if (i.platform !== 'fixed-wing' && i.platform !== 'helicopter') return err('Platform harus fixed-wing atau helicopter.');
       if (!str(i.target)) return err('Target objek wajib diisi.');
       if (![500, 1000, 1500, 2000].includes(i.heightFt as number)) return err('Tinggi harus 500/1000/1500/2000 ft.');
       if (!num(i.visibilityIndex) || (i.visibilityIndex as number) < 0 || (i.visibilityIndex as number) > 5) return err('Indeks visibilitas harus 0–5.');
-      if (!num(i.windKts) || i.windKts <= 0) return err('ASW speed harus > 0 kts.');
+      // Penentu Fw Table I-7: angin ASW ATAU angin/gelombang kasus (AI asisten) — minimal satu harus tersedia.
+      const aswOk = num(i.windKts) && (i.windKts as number) > 0;
+      const caseOk = num(i.caseWindKts) && (i.caseWindKts as number) > 0;
+      const waveOk = num(i.caseWaveHeightM) && (i.caseWaveHeightM as number) > 0;
+      if (!aswOk && !caseOk && !waveOk) return err('ASW speed harus > 0 kts, atau sertakan caseWindKts (angin kasus) dan/atau caseWaveHeightM (gelombang kasus) bila ASW belum dihitung.');
       if (!num(i.tasKts) || i.tasKts <= 0) return err('TAS harus > 0 kts.');
       const fat = i.fatigue === true || i.fatigue === 'Yes' || i.fatigue === 'No' || i.fatigue === false;
       if (!fat) return err("fatigue harus 'Yes' | 'No' (atau boolean).");
@@ -516,7 +522,7 @@ export const SAR_CAPABILITY_REGISTRY: SARCapability[] = [
     execute: (input) => {
       const i = input as {
         platform: 'fixed-wing' | 'helicopter'; target: W2Target; heightFt: 500 | 1000 | 1500 | 2000;
-        visibilityIndex: number; windKts: number; tasKts: number;
+        visibilityIndex: number; windKts: number; caseWindKts?: number; caseWaveHeightM?: number; tasKts: number;
         fatigue: boolean | 'Yes' | 'No'; searchNumber: 1 | 2 | 3 | 4 | 5;
         piwFlotationKnown?: boolean; areaAoNm2?: number;
       };
@@ -526,6 +532,8 @@ export const SAR_CAPABILITY_REGISTRY: SARCapability[] = [
         heightFt: i.heightFt,
         visibilityIndex: i.visibilityIndex,
         windKts: i.windKts,
+        caseWindKts: i.caseWindKts,
+        caseWaveHeightM: i.caseWaveHeightM,
         tasKts: i.tasKts,
         fatigue: i.fatigue === true ? 'Yes' : i.fatigue === false ? 'No' : i.fatigue,
         searchNumber: i.searchNumber,
@@ -535,7 +543,7 @@ export const SAR_CAPABILITY_REGISTRY: SARCapability[] = [
     },
     requiresConfirmation: false,
     dependencies: ['ws1-search-area', 'env-asw'],
-    notes: 'PHASE 3: math komponen diekstraksi ke computeW2Row (satu sumber untuk UI dan AI). PIW 500 ft ×4 bila flotation known; fs null bila TAS di luar kolom Table I-8 → ready=false.',
+    notes: 'PHASE 3: math komponen diekstraksi ke computeW2Row (satu sumber untuk UI dan AI). PIW 500 ft ×4 bila flotation known; fs null bila TAS di luar kolom Table I-8 → ready=false. Fw Table I-7: baris dari angin ASW ATAU angin/gelombang kasus (caseWindKts/caseWaveHeightM) bila ASW kosong — terburuk bila keduanya ada; kolom dari search object (PIW/raft/boat <10 m → small).',
   },
   {
     id: 'ws3-land-wsc-pod',
@@ -642,6 +650,8 @@ export const SAR_CAPABILITY_REGISTRY: SARCapability[] = [
       eyeHeight: f('string', "'8' | '14' | 'MERSHIP'"),
       visibility: f('string', 'Label kolom visibilitas (2/5/10/15/20/>25 km)'),
       windKts: f('number', 'Kecepatan ASW', { unit: 'kts' }),
+      caseWindKts: f('number', 'Opsional: angin permukaan sesuai soal kasus (AI asisten) — fallback penentu Fw Table I-7 bila ASW kosong', { unit: 'kts' }),
+      caseWaveHeightM: f('number', 'Opsional: tinggi gelombang laut (seas) sesuai soal kasus (AI asisten) — penentu baris Fw Table I-7 bersama angin, terburuk bila keduanya ada', { unit: 'm' }),
       fatigue: f('string', "'Yes' | 'No' (boolean juga diterima)"),
       searchNumber: f('number', 'Pencarian ke-1..5'),
       vesselSpeedKts: f('number', 'Kecepatan kapal', { unit: 'kts' }),
@@ -657,11 +667,15 @@ export const SAR_CAPABILITY_REGISTRY: SARCapability[] = [
       T: f('number', 'Waktu pencarian (pembulatan 1 desimal)', { unit: 'h' }),
     }),
     validateInput: (input) => {
-      const i = input as { target?: string; eyeHeight?: string; visibility?: string; windKts?: number; fatigue?: unknown; searchNumber?: number; vesselSpeedKts?: number };
+      const i = input as { target?: string; eyeHeight?: string; visibility?: string; windKts?: number; caseWindKts?: number; caseWaveHeightM?: number; fatigue?: unknown; searchNumber?: number; vesselSpeedKts?: number };
       if (!str(i.target)) return err('Target objek wajib diisi.');
       if (!['8', '14', 'MERSHIP'].includes(i.eyeHeight as string)) return err("Eye height harus '8', '14', atau 'MERSHIP'.");
       if (!str(i.visibility)) return err('Kolom visibilitas wajib diisi.');
-      if (!num(i.windKts) || i.windKts <= 0) return err('ASW speed harus > 0 kts.');
+      // Penentu Fw Table I-7: angin ASW ATAU angin/gelombang kasus (AI asisten) — minimal satu harus tersedia.
+      const aswOk = num(i.windKts) && (i.windKts as number) > 0;
+      const caseOk = num(i.caseWindKts) && (i.caseWindKts as number) > 0;
+      const waveOk = num(i.caseWaveHeightM) && (i.caseWaveHeightM as number) > 0;
+      if (!aswOk && !caseOk && !waveOk) return err('ASW speed harus > 0 kts, atau sertakan caseWindKts (angin kasus) dan/atau caseWaveHeightM (gelombang kasus) bila ASW belum dihitung.');
       if (!(i.fatigue === true || i.fatigue === 'Yes' || i.fatigue === 'No' || i.fatigue === false)) return err("fatigue harus 'Yes' | 'No' (atau boolean).");
       if (![1, 2, 3, 4, 5].includes(i.searchNumber as number)) return err('Search number harus 1–5.');
       if (!num(i.vesselSpeedKts) || i.vesselSpeedKts <= 0) return err('Kecepatan kapal harus > 0 kts.');
@@ -669,7 +683,7 @@ export const SAR_CAPABILITY_REGISTRY: SARCapability[] = [
     },
     execute: (input) => {
       const i = input as {
-        target: W8Target; eyeHeight: '8' | '14' | 'MERSHIP'; visibility: string; windKts: number;
+        target: W8Target; eyeHeight: '8' | '14' | 'MERSHIP'; visibility: string; windKts: number; caseWindKts?: number; caseWaveHeightM?: number;
         fatigue: boolean | 'Yes' | 'No'; searchNumber: 1 | 2 | 3 | 4 | 5;
         vesselSpeedKts: number; areaAoNm2?: number;
       };
@@ -678,6 +692,8 @@ export const SAR_CAPABILITY_REGISTRY: SARCapability[] = [
         eyeHeight: i.eyeHeight,
         visibilityKm: i.visibility,
         windKts: i.windKts,
+        caseWindKts: i.caseWindKts,
+        caseWaveHeightM: i.caseWaveHeightM,
         fatigue: i.fatigue === true ? 'Yes' : i.fatigue === false ? 'No' : i.fatigue,
         searchNumber: i.searchNumber,
         vesselSpeedKts: i.vesselSpeedKts,
@@ -686,7 +702,7 @@ export const SAR_CAPABILITY_REGISTRY: SARCapability[] = [
     },
     requiresConfirmation: false,
     dependencies: ['ws1-search-area', 'env-asw'],
-    notes: 'PHASE 3: math komponen diekstraksi ke computeW8Row (pembulatan W/C 2 desimal, T 1 desimal — identik Worksheet8). Gap audit: koreksi kecepatan kapal (fv) belum diterapkan di sistem.',
+    notes: 'PHASE 3: math komponen diekstraksi ke computeW8Row (pembulatan W/C 2 desimal, T 1 desimal — identik Worksheet8). Gap audit: koreksi kecepatan kapal (fv) belum diterapkan di sistem. Fw Table I-7: baris dari angin ASW ATAU angin/gelombang kasus (caseWindKts/caseWaveHeightM) bila ASW kosong — terburuk bila keduanya ada; kolom dari search object (PIW/raft/boat <10 m → small).',
   },
   {
     id: 'ws-search-plan',

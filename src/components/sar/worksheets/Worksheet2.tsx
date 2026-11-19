@@ -7,7 +7,7 @@ import { type LatLng } from '@/lib/sar/sarCalculations';
 import { formatDMS } from '@/lib/sar/coordFormat';
 import type { DatumData, DatumResults } from '@/components/sar/DatumWorksheet';
 import { Printer } from 'lucide-react';
-import { computeW2Row, readFigureI12, W2_TARGET_OPTIONS, W2_VISIBILITY_LABELS, type W2Target, type SearchNumber } from '@/lib/sar/wscPodTables';
+import { computeW2Row, formatFwBasis, readFigureI12, W2_TARGET_OPTIONS, W2_VISIBILITY_LABELS, type W2Target, type SearchNumber } from '@/lib/sar/wscPodTables';
 
 export interface Worksheet2InitialState {
   caseTitle?: string;
@@ -21,11 +21,14 @@ export interface Worksheet2InitialState {
   piwFlotationKnown?: boolean;
   searchNumber?: SearchNumber;
   selectedHeight?: 500 | 1000 | 1500 | 2000;
-  /** Angin permukaan SESUAI SOAL KASUS (analisa AI Asisten) untuk header.
-   *  Bila ada, header menampilkan nilai ini (label "Kasus"); bila tidak,
-   *  header fallback ke angin ASW. Kalkulasi WSC/POD tetap memakai ASW. */
+  /** Cuaca SESUAI SOAL KASUS (analisa AI Asisten).
+   *  Header menampilkan angin kasus bila ada (label "Kasus"); penentu Fw
+   *  (Table I-7) memakai angin ASW, fallback ke angin/gelombang kasus ini
+   *  bila ASW kosong — baris terburuk bila angin dan gelombang keduanya ada. */
   caseWindDirFrom?: number;
   caseWindSpeed?: number;
+  /** Tinggi gelombang laut (seas) sesuai soal kasus, meter — penentu baris Fw Table I-7. */
+  caseWaveHeightM?: number;
 }
 
 interface Worksheet2Props {
@@ -66,18 +69,22 @@ export default function Worksheet2({
   // fallback ke angin ASW bila kasus tidak menyebut angin permukaan.
   const caseWindDirFrom = initialState?.caseWindDirFrom;
   const caseWindSpeed = initialState?.caseWindSpeed;
+  const caseWaveHeightM = initialState?.caseWaveHeightM;
   const hasCaseWind = caseWindDirFrom !== undefined || caseWindSpeed !== undefined;
   const headerWindDir = hasCaseWind ? (caseWindDirFrom ?? aswDirFrom) : aswDirFrom;
   const headerWindKts = hasCaseWind ? (caseWindSpeed ?? windKts) : windKts;
   const heights = [500, 1000, 1500, 2000];
   const targetMeta = W2_TARGET_OPTIONS.find((target) => target.id === searchObject); // UI: ceklis PIW
   // Math diekstraksi ke lib (PHASE 3): computeW2Row — rumus identik dengan versi inline sebelumnya.
+  // Penentu Fw (Table I-7): angin ASW, fallback angin/gelombang kasus (AI asisten) — terburuk bila keduanya ada.
   const w2Rows = heights.map((height) => computeW2Row({
     platform: searchPlatform,
     target: searchObject,
     heightFt: height as 500 | 1000 | 1500 | 2000,
     visibilityIndex,
     windKts,
+    caseWindKts: caseWindSpeed,
+    caseWaveHeightM,
     tasKts: searchTas,
     fatigue: isFatigue,
     searchNumber,
@@ -87,6 +94,7 @@ export default function Worksheet2({
   const fw = w2Rows[0].fw;
   const fs = w2Rows[0].fs;
   const ff = w2Rows[0].ff;
+  const fwBasisLabel = formatFwBasis(w2Rows[0]);
   const wuList = w2Rows.map((r) => r.Wu);
   const factorsReady = w2Rows[0].ready;
   const wFactors = w2Rows.map((r) => r.W);
@@ -329,6 +337,7 @@ export default function Worksheet2({
               <tr>
                 <td className="py-1.5 px-3 font-medium text-slate-800 border-r border-slate-300">
                   <div>Maritime: Weather Correction Factor (Fw) - <span className="font-bold text-blue-700">Table I-7</span></div>
+                  <div className="text-[10px] text-slate-500" suppressHydrationWarning>{fwBasisLabel}</div>
                 </td>
                 {heights.map((_, i) => (
                   <td key={i} className="py-1.5 px-2 text-center border-r border-slate-300 last:border-r-0 font-mono font-bold text-blue-900">

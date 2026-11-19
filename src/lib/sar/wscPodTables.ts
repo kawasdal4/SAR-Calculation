@@ -114,11 +114,44 @@ export function lookupW8Wu(target: W8Target, eye: '8'|'14'|'MERSHIP', visibility
   return index < 0 ? null : W8_I3[target][col][index] ?? null;
 }
 
+// ============================================================================
+// TABLE I-7 — Weather correction factors
+// Baris (kondisi cuaca) ditentukan dari ANGIN ATAU TINGGI GELOMBANG (seas):
+//   row 1: winds <28 km/h (<15 kt)  atau seas 0–1 m   → small 1.0, other 1.0
+//   row 2: winds 28–46 km/h (15–25 kt) atau seas 1–1.5 m → small 0.5, other 0.8
+//   row 3: winds >46 km/h (>25 kt)  atau seas >1.5 m  → small 0.25, other 0.5
+// Kolom (small/other) ditentukan search object: PIW, raft, atau boat <10 m (33 ft)
+// → 'small'; objek lain → 'other'. Data angin/gelombang diekstrak AI asisten
+// dari soal kasus (caseWindKts / caseWaveHeightM); bila angin dan gelombang
+// keduanya tersedia, dipakai baris TERBURUK (paling konservatif).
+// ============================================================================
+
+export type FwRow = 1 | 2 | 3;
+
+/** Baris Table I-7 dari kecepatan angin (knot). Asumsi angin > 0. */
+export function fwRowFromWind(windKts: number): FwRow {
+  if (windKts < 15) return 1;
+  if (windKts <= 25) return 2;
+  return 3;
+}
+
+/** Baris Table I-7 dari tinggi gelombang (meter). Asumsi gelombang >= 0. */
+export function fwRowFromWave(waveM: number): FwRow {
+  if (waveM <= 1) return 1;
+  if (waveM <= 1.5) return 2;
+  return 3;
+}
+
+/** Faktor cuaca dari nomor baris Table I-7 dan kelompok search object. */
+export function lookupFwByRow(row: FwRow, group: 'small' | 'other'): number {
+  if (row === 1) return 1;
+  if (row === 2) return group === 'small' ? 0.5 : 0.8;
+  return group === 'small' ? 0.25 : 0.5;
+}
+
 export function lookupFw(wind: number, group: 'small'|'other'): number {
   if (!(wind > 0)) return 0;
-  if (wind < 15) return 1;
-  if (wind <= 25) return group === 'small' ? .5 : .8;
-  return group === 'small' ? .25 : .5;
+  return lookupFwByRow(fwRowFromWind(wind), group);
 }
 
 export const FIXED_WING_TAS_COLUMNS = [150,180,210] as const;
@@ -189,6 +222,61 @@ export interface WscPodRowResult {
   C: number;    // Coverage factor
   POD: number;  // Probability of detection dari Figure I-12 (persen 0-100)
   T: number;    // Search hours required (h), 0 bila area/speed belum ada
+  /** Angin efektif penentu Fw (Table I-7): ASW bila >0, bila tidak angin kasus (AI asisten); 0 bila tak ada. */
+  windUsed: number;
+  /** Sumber angin efektif: 'ASW' | 'Kasus' (analisa AI asisten) | '-' (belum ada). */
+  windSource: 'ASW' | 'Kasus' | '-';
+  /** Tinggi gelombang kasus (m) yang ikut dipertimbangkan penentu Fw; 0 bila tidak disebut. */
+  waveUsedM: number;
+  /** Baris Table I-7 terpilih (kondisi terburuk dari angin/gelombang yang tersedia); null bila tak ada data. */
+  fwRow: FwRow | null;
+  /** Basis penentu Fw: kombinasi sumber angin/gelombang yang dipakai. */
+  fwBasis: 'wind-asw' | 'wind-case' | 'wave-case' | 'wind-asw+wave-case' | 'wind-case+wave-case' | 'none';
+}
+
+/**
+ * Penentu baris Fw (Table I-7) dari data cuaca yang tersedia:
+ * angin ASW → angin kasus (AI asisten) → gelombang kasus (AI asisten).
+ * Bila angin dan gelombang keduanya tersedia, dipakai baris TERBURUK
+ * (paling konservatif) sesuai bentuk tabel "winds ... OR seas ...".
+ */
+function resolveFwCondition(windKts: number, caseWindKts?: number, caseWaveM?: number): {
+  row: FwRow | null;
+  windUsed: number;
+  windSource: 'ASW' | 'Kasus' | '-';
+  waveUsedM: number;
+  fwBasis: WscPodRowResult['fwBasis'];
+} {
+  const effWind = windKts > 0 ? windKts : caseWindKts !== undefined && caseWindKts > 0 ? caseWindKts : 0;
+  const windSource: 'ASW' | 'Kasus' | '-' = windKts > 0 ? 'ASW' : effWind > 0 ? 'Kasus' : '-';
+  const wave = caseWaveM !== undefined && caseWaveM > 0 ? caseWaveM : 0;
+  const windRow = effWind > 0 ? fwRowFromWind(effWind) : null;
+  const waveRow = wave > 0 ? fwRowFromWave(wave) : null;
+  const row = windRow !== null && waveRow !== null
+    ? Math.max(windRow, waveRow) as FwRow
+    : windRow ?? waveRow;
+  const fwBasis: WscPodRowResult['fwBasis'] = row === null
+    ? 'none'
+    : windRow !== null && waveRow !== null
+      ? `${windSource === 'ASW' ? 'wind-asw' : 'wind-case'}+wave-case`
+      : windRow !== null
+        ? windSource === 'ASW' ? 'wind-asw' : 'wind-case'
+        : 'wave-case';
+  return { row, windUsed: effWind, windSource, waveUsedM: wave, fwBasis };
+}
+
+/** Label penentu Fw (Table I-7) siap tampil di worksheet. */
+export function formatFwBasis(r: Pick<WscPodRowResult, 'fwBasis' | 'windUsed' | 'waveUsedM'>): string {
+  const wind = `${r.windUsed.toFixed(1)} kt`;
+  const wave = `${r.waveUsedM.toFixed(1)} m`;
+  switch (r.fwBasis) {
+    case 'wind-asw': return `penentu: angin ASW ${wind}`;
+    case 'wind-case': return `penentu: angin kasus (AI asisten) ${wind}`;
+    case 'wave-case': return `penentu: gelombang kasus (AI asisten) ${wave}`;
+    case 'wind-asw+wave-case': return `penentu: angin ASW ${wind} + gelombang kasus ${wave} (terburuk)`;
+    case 'wind-case+wave-case': return `penentu: angin kasus ${wind} + gelombang kasus ${wave} (terburuk)`;
+    default: return 'penentu: angin/gelombang belum tersedia (ASW / kasus AI)';
+  }
 }
 
 export interface W2RowInput {
@@ -197,6 +285,12 @@ export interface W2RowInput {
   heightFt: 500 | 1000 | 1500 | 2000;
   visibilityIndex: number;          // indeks W2_VISIBILITY_LABELS (0-5), -1 = belum dipilih
   windKts: number;                  // ASW speed
+  /** Angin permukaan SESUAI SOAL KASUS (analisa AI Asisten). Fallback penentu Fw
+   *  (Table I-7) bila angin ASW = 0 — penentuan Fw dari data kasus yang tersedia. */
+  caseWindKts?: number;
+  /** Tinggi gelombang laut (seas) SESUAI SOAL KASUS (analisa AI Asisten) dalam meter.
+   *  Penentu baris Fw Table I-7 bersama angin — baris terburuk bila keduanya ada. */
+  caseWaveHeightM?: number;
   tasKts: number;
   fatigue: '' | 'Yes' | 'No';
   searchNumber: SearchNumber | 0;
@@ -207,13 +301,14 @@ export interface W2RowInput {
 /** Baris Worksheet 2 — math persis komponen (termasuk kasus PIW ×4 @500 ft). */
 export function computeW2Row(input: W2RowInput): WscPodRowResult {
   const targetMeta = input.target ? W2_TARGET_OPTIONS.find((t) => t.id === input.target) : undefined;
-  const fw = targetMeta && input.windKts > 0 ? lookupFw(input.windKts, targetMeta.fwGroup) : 0;
+  const { row: fwRow, windUsed, windSource, waveUsedM, fwBasis } = resolveFwCondition(input.windKts, input.caseWindKts, input.caseWaveHeightM);
+  const fw = targetMeta && fwRow !== null ? lookupFwByRow(fwRow, targetMeta.fwGroup) : 0;
   const fs = input.platform && input.target
     ? lookupFs(input.target as W2Target, input.platform as 'fixed-wing' | 'helicopter', input.tasKts) ?? 0
     : 0;
   const ff = input.fatigue === 'Yes' ? 0.9 : input.fatigue === 'No' ? 1 : 0;
   const factorsReady = Boolean(
-    input.platform && input.target && input.visibilityIndex >= 0 && input.windKts > 0 && fs > 0 && input.fatigue && input.searchNumber > 0,
+    input.platform && input.target && input.visibilityIndex >= 0 && fwRow !== null && fs > 0 && input.fatigue && input.searchNumber > 0,
   );
   const wuRaw = input.platform && input.target && input.visibilityIndex >= 0
     ? lookupW2Wu(input.platform as 'fixed-wing' | 'helicopter', input.target as W2Target, input.heightFt, input.visibilityIndex)
@@ -225,7 +320,7 @@ export function computeW2Row(input: W2RowInput): WscPodRowResult {
   const C = S > 0 ? W / S : 0;
   const POD = factorsReady ? readFigureI12(C, (input.searchNumber || 1) as SearchNumber) : 0;
   const T = input.areaAoNm2 && input.tasKts > 0 && S > 0 ? input.areaAoNm2 / (input.tasKts * S) : 0;
-  return { ready: factorsReady, Wu, fw, fs, ff, W, S, C, POD, T };
+  return { ready: factorsReady, Wu, fw, fs, ff, W, S, C, POD, T, windUsed, windSource, waveUsedM, fwRow, fwBasis };
 }
 
 export interface W8RowInput {
@@ -233,6 +328,12 @@ export interface W8RowInput {
   eyeHeight: '' | '8' | '14' | 'MERSHIP';
   visibilityKm: string;             // label kolom W8_VISIBILITY_LABELS
   windKts: number;
+  /** Angin permukaan SESUAI SOAL KASUS (analisa AI Asisten). Fallback penentu Fw
+   *  (Table I-7) bila angin ASW = 0 — penentuan Fw dari data kasus yang tersedia. */
+  caseWindKts?: number;
+  /** Tinggi gelombang laut (seas) SESUAI SOAL KASUS (analisa AI Asisten) dalam meter.
+   *  Penentu baris Fw Table I-7 bersama angin — baris terburuk bila keduanya ada. */
+  caseWaveHeightM?: number;
   fatigue: '' | 'Yes' | 'No';
   searchNumber: SearchNumber | 0;
   vesselSpeedKts: number;
@@ -245,9 +346,10 @@ export function w8TargetGroup(target: W8Target | ''): 'small' | 'other' {
 
 /** Baris Worksheet 8 — math persis komponen, termasuk pembulatan W/C 2 desimal dan T 1 desimal. */
 export function computeW8Row(input: W8RowInput): WscPodRowResult {
-  const fw = lookupFw(input.windKts, w8TargetGroup(input.target));
+  const { row: fwRow, windUsed, windSource, waveUsedM, fwBasis } = resolveFwCondition(input.windKts, input.caseWindKts, input.caseWaveHeightM);
+  const fw = fwRow !== null ? lookupFwByRow(fwRow, w8TargetGroup(input.target)) : 0;
   const ff = input.fatigue === 'Yes' ? 0.9 : input.fatigue === 'No' ? 1 : 0;
-  const ready = Boolean(input.target && input.visibilityKm && input.windKts > 0 && input.fatigue && input.searchNumber > 0);
+  const ready = Boolean(input.target && input.visibilityKm && fwRow !== null && input.fatigue && input.searchNumber > 0);
   const wuRaw = input.target && input.visibilityKm && input.eyeHeight
     ? lookupW8Wu(input.target as W8Target, input.eyeHeight as '8' | '14' | 'MERSHIP', input.visibilityKm)
     : null;
@@ -258,5 +360,5 @@ export function computeW8Row(input: W8RowInput): WscPodRowResult {
   const C = S > 0 ? Number((W / S).toFixed(2)) : 0;
   const POD = ready ? readFigureI12(C, (input.searchNumber || 1) as SearchNumber) : 0;
   const T = input.vesselSpeedKts > 0 && S > 0 ? Number(((input.areaAoNm2 ?? 0) / (input.vesselSpeedKts * S)).toFixed(1)) : 0;
-  return { ready, Wu, fw, fs: 0, ff, W, S, C, POD, T };
+  return { ready, Wu, fw, fs: 0, ff, W, S, C, POD, T, windUsed, windSource, waveUsedM, fwRow, fwBasis };
 }
