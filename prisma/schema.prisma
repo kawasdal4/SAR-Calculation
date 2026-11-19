@@ -139,3 +139,99 @@ model Account {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
+
+/// Change-log perubahan state worksheet — dasar UNDO per-batch AI (keputusan
+/// implementasi no. 10). Satu "Konfirmasi & Terapkan" AI = satu batch atomic:
+/// semua baris batch berbagi batchId, menyimpan nilai sebelum/sesudah, sehingga
+/// rollback aman dan tidak menimpa perubahan manual setelahnya.
+model CaseChangeLog {
+  id          String   @id @default(cuid())
+  /// Link ke SarCase.id bila workspace kasus aktif (opsional).
+  caseId      String?
+  /// Batch ID: semua perubahan satu aksi apply AI berbagi id yang sama.
+  batchId     String
+  /// Pemicu perubahan: "ai" | identifier akun pengguna.
+  actor       String   @default("ai")
+  /// Sumber: "ai-apply" | "manual" | "undo" | "load-case" | "generator".
+  source      String   @default("ai-apply")
+  /// Worksheet/section target: "asw" | "awa" | "aero" | "datum" | "ws2" | "ws3" | "ws8" | "ws4" | "assets" | "pattern" | "intercept" | "lkp" | "briefing" | "renops".
+  worksheet   String
+  /// Nama field TERDAFTAR di schema worksheet (bukan arbitrary path).
+  field       String
+  /// Nilai sebelum (JSON) — sumber rollback & audit.
+  valueBefore String?
+  /// Nilai sesudah (JSON) — audit.
+  valueAfter  String?
+  createdAt   DateTime @default(now())
+
+  @@index([batchId])
+  @@index([caseId, createdAt])
+}
+
+/// Log sesi AI (Fase 2): satu baris per turn percakapan. Menyimpan session,
+/// model, interaction ID Interactions API (untuk previous_interaction_id),
+/// status, pemakaian token (bila tersedia), dan ringkasan aktivitas tool.
+/// TIDAK menyimpan API key ataupun dokumen mentah (base64) — hanya teks turn
+/// yang dipangkas untuk fallback rebuild konteks (keputusan implementasi no. 4).
+model AiSessionLog {
+  id                String   @id @default(cuid())
+  /// ID sesi percakapan dari client (UUID per panel chat).
+  sessionId         String
+  /// Bila kasus aktif: link ke SarCase.id.
+  caseId            String?
+  /// Interaction ID turn sebelumnya yang dipakai (previous_interaction_id).
+  prevInteractionId String?
+  /// Interaction ID hasil turn ini (dipakai turn berikutnya).
+  interactionId     String?
+  /// Nama model yang menjawab turn ini.
+  model             String?
+  /// ok | error | interaction-expired-fallback | no-api-key | timeout
+  status            String   @default("ok")
+  /// Pesan error ringkas (tanpa isi prompt, tanpa secret) bila status error.
+  errorMessage      String?
+  /// Pemakaian token bila tersedia: {inputTokens, outputTokens, totalTokens}.
+  usageJson         String?
+  /// Ringkasan tool: [{name, argKeys}] — bukan isi argumen mentah.
+  toolCallsJson     String?
+  /// Cuplikan teks user/assistant turn ini (maks 4000 char per sisi) —
+  /// sumber fallback rebuild konteks bila interaction ID kedaluwarsa.
+  turnJson          String?
+  /// Durasi panggilan (ms).
+  durationMs        Int?
+  createdAt         DateTime @default(now())
+
+  @@index([sessionId, createdAt])
+  @@index([interactionId])
+}
+
+/// Bank master data lokasi & aset SAR (keputusan implementasi no. 7): draft
+/// sampai disetujui pemilik. Setiap entri WAJIB membawa sumber + tanggal
+/// pembaruan + satuan + status verifikasi; dilarang menebak koordinat/spesifikasi.
+model CaseBankItem {
+  id          String   @id @default(cuid())
+  /// "location" (kantor SAR/bandara/pelabuhan/helipad) | "asset" (spesifikasi SRU).
+  kind        String
+  /// Nama entri: "Kantor SAR Banten", "Eurocopter AS-365 N3+", dst.
+  name        String
+  /// Kategori: kantor-sar | bandara | pelabuhan | helipad | helicopter | fixed-wing | vessel | ...
+  category    String?
+  /// Detail spesifikasi (JSON): koordinat DMS/desimal, endurance, TAS, visibility, radio, dll.
+  specs       String
+  /// Koordinat utama (desimal bertanda) bila relevan — untuk query peta.
+  lat         Float?
+  lng         Float?
+  /// Sumber data wajib (dokumen/URL/soal PDF) — provenance.
+  source      String?
+  /// Tanggal pembaruan data (ISO string).
+  updatedRef  String?
+  /// Satuan yang dipakai di specs (mis. "kts, NM, ft, km").
+  units       String?
+  /// VERIFIED | UNVERIFIED | MISSING | SIMULATION (keputusan no. 6).
+  verification String  @default("UNVERIFIED")
+  /// DRAFT | APPROVED — data baru menunggu persetujuan (keputusan no. 7 & 12).
+  approval    String   @default("DRAFT")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([kind, approval])
+}
