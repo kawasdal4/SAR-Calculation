@@ -132,7 +132,12 @@ export function getGeminiClient(): GoogleGenAI {
   // env tanpa pernah memaparkan key di log.
   const fingerprint = `${apiKey.length}:${apiKey.slice(-4)}`;
   if (!cachedClient || cachedKeyFingerprint !== fingerprint) {
-    cachedClient = new GoogleGenAI({ apiKey });
+    // apiVersion 'v1beta' — wajib untuk Interactions API aplikasi ini:
+    // tipe input 'document' (PDF inline) dan structured output top-level
+    // hanya valid di v1beta; default SDK (v1) menolaknya dengan 400
+    // ("The value 'document' is not supported ... in v1, it is available
+    // in v1beta"). Raw fetch sebelumnya juga memakai /v1beta/interactions.
+    cachedClient = new GoogleGenAI({ apiKey, httpOptions: { apiVersion: 'v1beta' } });
     cachedKeyFingerprint = fingerprint;
   }
   return cachedClient;
