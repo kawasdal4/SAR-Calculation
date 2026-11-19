@@ -1,8 +1,9 @@
 /**
- * Fallback angin kasus (AI asisten) untuk penentu Fw Table I-7.
- * Bug yang diperbaiki: Worksheet 2 (W = Wu.Fw.Fs.Ff tidak dihitung) dan
- * Worksheet 8 (Fw Table I-7 kosong) ketika angin ASW = 0 padahal soal kasus
- * menyebut angin permukaan (dikirim AI asisten sebagai caseWindSpeed).
+ * Penentu Fw Table I-7 dari angin/gelombang kasus (AI asisten).
+ * Aturan (rujukan Table I-7 di dialog Manual SAR AUS web app — Appendix_I_al1.pdf
+ * hal. I-16): ANGIN penentu = angin HEADER worksheet — angin kasus bila ada,
+ * fallback angin ASW. GELOMBANG (seas) kasus juga penentu baris; bila angin dan
+ * gelombang keduanya ada, dipakai baris TERBURUK (paling konservatif).
  * Jalankan: bun test tests/wscPodCaseWind.test.ts
  */
 import { test, expect } from 'bun:test';
@@ -36,11 +37,11 @@ test('W2: ASW=0 + angin kasus 20 kt (small) → Fw=0.5 dan W = Wu.Fw.Fs.Ff terhi
   expect(r.POD).toBeGreaterThan(0);
 });
 
-test('W2: angin ASW tetap prioritas — ASW 13.3 kt dipakai meski angin kasus ada', () => {
+test('W2: angin header = angin kasus — kasus 30 kt menang atas ASW 13.3 kt (small → Fw=0.25)', () => {
   const r = computeW2Row({ ...w2Base, windKts: 13.3, caseWindKts: 30 });
-  expect(r.windSource).toBe('ASW');
-  expect(r.windUsed).toBe(13.3);
-  expect(r.fw).toBe(1); // < 15 kt → Fw 1.0
+  expect(r.windSource).toBe('Kasus');
+  expect(r.windUsed).toBe(30);
+  expect(r.fw).toBe(0.25); // angin kasus 30 kt > 25 kt → baris 3, small
 });
 
 test('W2: angin kasus > 25 kt (small) → Fw=0.25 sesuai Table I-7', () => {
@@ -48,6 +49,13 @@ test('W2: angin kasus > 25 kt (small) → Fw=0.25 sesuai Table I-7', () => {
   expect(r.windSource).toBe('Kasus');
   expect(r.fw).toBe(0.25);
   expect(r.W).toBeCloseTo(1.6 * 0.25 * 1.0 * 1.0, 10);
+});
+
+test('W2: tanpa angin kasus → angin header fallback ke ASW (ASW 13.3 kt → Fw=1.0)', () => {
+  const r = computeW2Row({ ...w2Base, windKts: 13.3 });
+  expect(r.windSource).toBe('ASW');
+  expect(r.windUsed).toBe(13.3);
+  expect(r.fw).toBe(1); // < 15 kt → Fw 1.0
 });
 
 test('W2: tanpa angin ASW maupun kasus → Fw=0, W=0, ready=false (perilaku lama)', () => {
@@ -107,17 +115,17 @@ test('W8: tanpa angin ASW maupun kasus → Fw=0, W=0 (Fw Table I-7 tidak ada nil
   expect(r.W).toBe(0);
 });
 
-test('W8: ASW tetap prioritas — ASW 28 kt dipakai meski angin kasus ada', () => {
+test('W8: angin header = angin kasus — kasus 5 kt menang atas ASW 28 kt (other → Fw=1.0)', () => {
   const r = computeW8Row({ ...w8Base, windKts: 28, caseWindKts: 5 });
-  expect(r.windSource).toBe('ASW');
-  expect(r.windUsed).toBe(28);
-  expect(r.fw).toBe(0.5); // other group, > 25 kt → 0.5 sesuai Table I-7
+  expect(r.windSource).toBe('Kasus');
+  expect(r.windUsed).toBe(5);
+  expect(r.fw).toBe(1); // angin kasus 5 kt < 15 kt → baris 1
 });
 
 // ---------------------------------------------------------------------------
 // Table I-7: baris cuaca dari ANGIN ATAU GELOMBANG (seas) — data kasus AI asisten
 // ---------------------------------------------------------------------------
-import { fwRowFromWind, fwRowFromWave, lookupFwByRow, formatFwBasis } from '../src/lib/sar/wscPodTables';
+import { fwRowFromWind, fwRowFromWave, lookupFwByRow } from '../src/lib/sar/wscPodTables';
 
 test('I-7 baris: angin (<15 / 15-25 / >25 kt) dan gelombang (<=1 / <=1.5 / >1.5 m)', () => {
   expect(fwRowFromWind(14.9)).toBe(1);
@@ -185,10 +193,52 @@ test('W8: tanpa angin, gelombang kasus 1.3 m (other) → Fw=0.8 dan W terhitung'
   expect(r.S).toBeGreaterThan(0);
 });
 
-test('formatFwBasis: label penentu Fw sesuai basis', () => {
-  expect(formatFwBasis({ fwBasis: 'wind-asw', windUsed: 15, waveUsedM: 0 })).toBe('penentu: angin ASW 15.0 kt');
-  expect(formatFwBasis({ fwBasis: 'wind-case', windUsed: 20, waveUsedM: 0 })).toBe('penentu: angin kasus (AI asisten) 20.0 kt');
-  expect(formatFwBasis({ fwBasis: 'wave-case', windUsed: 0, waveUsedM: 1.2 })).toBe('penentu: gelombang kasus (AI asisten) 1.2 m');
-  expect(formatFwBasis({ fwBasis: 'wind-case+wave-case', windUsed: 10, waveUsedM: 1.8 })).toBe('penentu: angin kasus 10.0 kt + gelombang kasus 1.8 m (terburuk)');
-  expect(formatFwBasis({ fwBasis: 'none', windUsed: 0, waveUsedM: 0 })).toBe('penentu: angin/gelombang belum tersedia (ASW / kasus AI)');
+test('W8: gelombang kasus 1.3 m (other) + angin kasus 5 kt (baris 1) → TERBURUK baris 2 → Fw=0.8', () => {
+  const r = computeW8Row({ ...w8Base, caseWindKts: 5, caseWaveHeightM: 1.3 });
+  expect(r.fwBasis).toBe('wind-case+wave-case');
+  expect(r.fwRow).toBe(2);
+  expect(r.fw).toBe(0.8);
+  expect(r.ready).toBe(true);
+  expect(r.W).toBeCloseTo(4 * 0.8 * 1.0, 10);
+  expect(r.S).toBeGreaterThan(0);
+});
+
+// ---------------------------------------------------------------------------
+// Override nilai tabel appendix (klik nilai worksheet → panel verifikasi → Terapkan)
+// ---------------------------------------------------------------------------
+test('W2: override fw/fs/Wu dipakai langsung & mengalir ke W/S/C/POD/T', () => {
+  // Wu tabel (1000 ft, raft6, 10 km) = 1.6 → override 2.4; fw tabel 0.5 → override 0.4; fs 1.0 → override 0.9
+  const r = computeW2Row({ ...w2Base, caseWindKts: 20, overrides: { Wu: 2.4, fw: 0.4, fs: 0.9 } });
+  expect(r.Wu).toBe(2.4);
+  expect(r.fw).toBe(0.4);
+  expect(r.fs).toBe(0.9);
+  expect(r.W).toBeCloseTo(2.4 * 0.4 * 0.9 * 1.0, 10);
+  expect(r.S).toBeGreaterThan(0);
+  expect(r.C).toBeGreaterThan(0);
+  expect(r.POD).toBeGreaterThan(0);
+});
+
+test('W2: override fw tetap ready walau angin tidak tersedia (fwRow null)', () => {
+  const r = computeW2Row({ ...w2Base, overrides: { fw: 0.8 } });
+  expect(r.fw).toBe(0.8);
+  expect(r.ready).toBe(true);
+  expect(r.W).toBeCloseTo(1.6 * 0.8 * 1.0 * 1.0, 10);
+});
+
+test('W2: override 0/undefined → kembali ke nilai tabel', () => {
+  const withOverride = computeW2Row({ ...w2Base, caseWindKts: 20, overrides: { fw: 0.4, Wu: 2.4 } });
+  const reset = computeW2Row({ ...w2Base, caseWindKts: 20, overrides: { fw: 0, Wu: 0 } });
+  const plain = computeW2Row({ ...w2Base, caseWindKts: 20 });
+  expect(reset.fw).toBe(plain.fw);
+  expect(reset.Wu).toBe(plain.Wu);
+  expect(reset.W).toBeCloseTo(plain.W, 10);
+  expect(withOverride.fw).toBe(0.4);
+});
+
+test('W8: override fw/Wu dipakai langsung (W = Wu.fw.ff)', () => {
+  const r = computeW8Row({ ...w8Base, caseWindKts: 20, overrides: { Wu: 5, fw: 0.5 } });
+  expect(r.Wu).toBe(5);
+  expect(r.fw).toBe(0.5);
+  expect(r.W).toBeCloseTo(Number((5 * 0.5 * 1.0).toFixed(2)), 10);
+  expect(r.ready).toBe(true);
 });

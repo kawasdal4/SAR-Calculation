@@ -16,6 +16,7 @@ import {
   ws1DatumDtgUtc,
 } from '@/lib/sar/datumWs1';
 import { formatDMS } from '@/lib/sar/coordFormat';
+import TableValue from '@/components/sar/TableValue';
 import type { DatumData, DatumResults } from '@/components/sar/DatumWorksheet';
 
 /** Mirror pengukuran peta Worksheet 1 untuk hitungan gambar di sisi halaman. */
@@ -726,9 +727,23 @@ export default function Worksheet1({
                   Distress craft error (x): Worksheet Datum / Table J
                 </td>
                 <td colSpan={3} className="py-2 px-3 font-mono">
-                  <span className="font-bold text-blue-900 bg-blue-50/80 px-2 py-0.5 rounded border border-blue-200">
-                    {distressCraftX.toFixed(1)}
-                  </span>{' '}
+                  <TableValue
+                    disabled={readOnly}
+                    request={{
+                      docId: 'appendix-j',
+                      page: 1,
+                      tableId: 'J-1',
+                      sourceLabel: 'Worksheet 1 — Distress craft error (x) (Table J-1/J-2)',
+                      currentValue: distressCraftX,
+                      currentValueLabel: `${distressCraftX.toFixed(1)} NM`,
+                      allowOverride: false,
+                    }}
+                    title="Klik untuk lihat Table J-1/J-2 (fix error) di Appendix J"
+                  >
+                    <span className="font-bold text-blue-900 bg-blue-50/80 px-2 py-0.5 rounded border border-blue-200">
+                      {distressCraftX.toFixed(1)}
+                    </span>
+                  </TableValue>{' '}
                   <span className="text-slate-600 font-sans">nm</span>
                 </td>
               </tr>
@@ -737,9 +752,23 @@ export default function Worksheet1({
                   Search craft error (y): Worksheet Datum / Table J
                 </td>
                 <td colSpan={3} className="py-2 px-3 font-mono">
-                  <span className="font-bold text-blue-900 bg-blue-50/80 px-2 py-0.5 rounded border border-blue-200">
-                    {searchCraftY.toFixed(1)}
-                  </span>{' '}
+                  <TableValue
+                    disabled={readOnly}
+                    request={{
+                      docId: 'appendix-j',
+                      page: 1,
+                      tableId: 'J-1',
+                      sourceLabel: 'Worksheet 1 — Search craft error (y) (Table J-1/J-2)',
+                      currentValue: searchCraftY,
+                      currentValueLabel: `${searchCraftY.toFixed(1)} NM`,
+                      allowOverride: false,
+                    }}
+                    title="Klik untuk lihat Table J-1/J-2 (fix error) di Appendix J"
+                  >
+                    <span className="font-bold text-blue-900 bg-blue-50/80 px-2 py-0.5 rounded border border-blue-200">
+                      {searchCraftY.toFixed(1)}
+                    </span>
+                  </TableValue>{' '}
                   <span className="text-slate-600 font-sans">nm</span>
                 </td>
               </tr>

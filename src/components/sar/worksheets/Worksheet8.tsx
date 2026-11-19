@@ -4,7 +4,8 @@ import { printActiveWorksheetFit } from '@/lib/sar/printFit';
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Printer } from 'lucide-react';
-import { computeW8Row, formatFwBasis, readFigureI12, W8_TARGET_OPTIONS, type W8Target, type SearchNumber } from '@/lib/sar/wscPodTables';
+import { computeW8Row, readFigureI12, W8_TARGET_OPTIONS, w8TargetGroup, type W8Target, type SearchNumber } from '@/lib/sar/wscPodTables';
+import TableValue from '@/components/sar/TableValue';
 
 export interface Worksheet8InitialState {
   caseTitle?: string;
@@ -20,13 +21,18 @@ export interface Worksheet8InitialState {
   /** Jam pencarian tersedia (input manual) — ikut disimpan agar editan tidak hilang saat remount/load kasus. */
   hoursAvailable?: number;
   /** Cuaca SESUAI SOAL KASUS (analisa AI Asisten).
-   *  Header menampilkan angin kasus bila ada (label "Kasus"); penentu Fw
-   *  (Table I-7) memakai angin ASW, fallback ke angin/gelombang kasus ini
-   *  bila ASW kosong — baris terburuk bila angin dan gelombang keduanya ada. */
+   *  Header menampilkan angin kasus bila ada (label "Kasus"); ANGIN PENENTU
+   *  Fw (Table I-7) adalah angin yang tampil di header ini (angin kasus bila
+   *  ada, fallback angin ASW). caseWaveHeightM (seas) juga penentu baris Fw
+   *  — baris terburuk bila angin dan gelombang keduanya ada. */
   caseWindDirFrom?: number;
   caseWindSpeed?: number;
   /** Tinggi gelombang laut (seas) sesuai soal kasus, meter — penentu baris Fw Table I-7. */
   caseWaveHeightM?: number;
+  /** Override nilai tabel appendix oleh planner (klik nilai → panel verifikasi).
+   *  fw per lembar; wuOverrides per tinggi mata (kunci '8'/'14'/'MERSHIP'). 0 = kembali ke tabel. */
+  fwOverride?: number;
+  wuOverrides?: Record<string, number>;
 }
 
 interface Worksheet8Props {
@@ -63,13 +69,17 @@ export default function Worksheet8({
   const [isFatigue, setIsFatigue] = useState<''|'Yes'|'No'>(initialState?.isFatigue ?? '');
   const [searchNumber, setSearchNumber] = useState<SearchNumber | 0>(initialState?.searchNumber ?? 0);
   const [vesselSpeedKts, setVesselSpeedKts] = useState(initialState?.vesselSpeedKts ?? 0); // Vessel search speed (kts)
+  // Override nilai tabel appendix (klik nilai → panel verifikasi → Terapkan).
+  const [fwOverride, setFwOverride] = useState<number | undefined>(initialState?.fwOverride);
+  const [wuOverrides, setWuOverrides] = useState<Record<string, number>>(initialState?.wuOverrides ?? {});
 
   // Vessel eye heights: Eye height 8 ft (Small craft), Eye height 14 ft (Patrol boat), MERSHIP (Large ship bridge)
   const columns = ['Eye height 8 ft', 'Eye height 14 ft', 'MERSHIP'];
 
   // Math diekstraksi ke lib (PHASE 3): computeW8Row — rumus identik dengan versi inline sebelumnya
   // (termasuk pembulatan W/C 2 desimal dan T 1 desimal).
-  // Penentu Fw (Table I-7): angin ASW, fallback angin/gelombang kasus (AI asisten) — terburuk bila keduanya ada.
+  // Penentu Fw (Table I-7): ANGIN HEADER worksheet (angin kasus bila ada, fallback angin ASW);
+  // gelombang (seas) kasus ikut menentukan baris — terburuk bila keduanya ada.
   const heights = ['8','14','MERSHIP'] as const;
   const w8Rows = heights.map((eye) => computeW8Row({
     target: searchObject,
@@ -82,11 +92,14 @@ export default function Worksheet8({
     searchNumber,
     vesselSpeedKts,
     areaAoNm2: ws1Ao,
+    overrides: { fw: fwOverride, Wu: wuOverrides[eye] },
   }));
   const wuList = w8Rows.map((r) => r.Wu);
   const fw = w8Rows[0].fw;
   const ff = w8Rows[0].ff;
-  const fwBasisLabel = formatFwBasis(w8Rows[0]);
+  // Rujukan sel Table I-7 untuk nilai Fw (baris dari angin/seas, kolom dari search object)
+  const fwRowKey = w8Rows[0].fwRow ? `r${w8Rows[0].fwRow}` : undefined;
+  const fwColKey = searchObject ? w8TargetGroup(searchObject) : undefined;
   const ready = w8Rows[0].ready;
   const wFactors = w8Rows.map((r) => r.W);
   const trackSpacings = w8Rows.map((r) => r.S);
@@ -133,12 +146,14 @@ export default function Worksheet8({
       caseWindDirFrom: initialState?.caseWindDirFrom,
       caseWindSpeed: initialState?.caseWindSpeed,
       caseWaveHeightM: initialState?.caseWaveHeightM,
+      fwOverride,
+      wuOverrides,
     });
   }, [
     onStateChange, caseTitle, eyeHeight, searchObject, visibilityKm,
     isFatigue, searchNumber, vesselSpeedKts, hoursAvailable,
     initialState?.sruName, initialState?.sruType, initialState?.caseWindDirFrom,
-    initialState?.caseWindSpeed, initialState?.caseWaveHeightM,
+    initialState?.caseWindSpeed, initialState?.caseWaveHeightM, fwOverride, wuOverrides,
   ]);
 
   // Option A
@@ -278,6 +293,12 @@ export default function Worksheet8({
               <span className="text-slate-600">Wind: </span>
               <span className="font-bold text-blue-900">{(initialState?.caseWindSpeed ?? windKts).toFixed(1)} Kts{initialState?.caseWindDirFrom !== undefined ? ` · ${initialState.caseWindDirFrom.toString().padStart(3, '0')}°` : ''} ({initialState?.caseWindSpeed !== undefined ? 'Kasus' : 'ASW'})</span>
             </div>
+            {(initialState?.caseWaveHeightM ?? 0) > 0 && (
+              <div>
+                <span className="text-slate-600">Seas: </span>
+                <span className="font-bold text-blue-900">{initialState?.caseWaveHeightM?.toFixed(1)} m (Kasus) — penentu baris Fw Table I-7 bersama winds</span>
+              </div>
+            )}
             <div>
               <span className="text-slate-600">Fatigue Factor: </span>
               <select
@@ -320,7 +341,24 @@ export default function Worksheet8({
                 </td>
                 {wuList.map((wu, i) => (
                   <td key={i} className="py-1.5 px-2 text-center border-r border-slate-300 last:border-r-0">
-                    <span className="font-bold text-blue-900 font-mono">{wu.toFixed(1)}</span>{' '}
+                    <TableValue
+                      disabled={readOnly || !searchObject || !visibilityKm}
+                      request={{
+                        docId: 'appendix-i',
+                        page: 12,
+                        tableId: heights[i] === 'MERSHIP' ? 'I-4' : 'I-3',
+                        rowKey: searchObject || undefined,
+                        colKey: heights[i] === 'MERSHIP' ? visibilityKm : `${heights[i]}:${visibilityKm}`,
+                        sourceLabel: `Worksheet 8 — Wu (Table ${heights[i] === 'MERSHIP' ? 'I-4 MERSHIP' : `I-3 · eye ${heights[i]} ft`})`,
+                        currentValue: wu,
+                        currentValueLabel: `${wu.toFixed(1)} NM`,
+                        allowOverride: true,
+                        applyOverride: (v) => setWuOverrides((prev) => ({ ...prev, [heights[i]]: v > 0 ? v : 0 })),
+                      }}
+                      className="font-bold text-blue-900 font-mono"
+                    >
+                      {wu.toFixed(1)}
+                    </TableValue>{' '}
                     <span className="text-slate-500 text-[10px]">NM</span>
                   </td>
                 ))}
@@ -330,11 +368,27 @@ export default function Worksheet8({
               <tr>
                 <td className="py-1.5 px-3 font-medium text-slate-800 border-r border-slate-300">
                   <div>Maritime: Weather Correction Factor (Fw) - <span className="font-bold text-blue-700">Table I-7</span></div>
-                  <div className="text-[10px] text-slate-500" suppressHydrationWarning>{fwBasisLabel}</div>
+                  <div className="text-[10px] text-slate-500">baris: winds (header) / seas &middot; kolom: search object</div>
                 </td>
                 {columns.map((_, i) => (
                   <td key={i} className="py-1.5 px-2 text-center border-r border-slate-300 last:border-r-0 font-mono font-bold text-blue-900">
-                    {fw.toFixed(2)}
+                    <TableValue
+                      disabled={readOnly}
+                      request={{
+                        docId: 'appendix-i',
+                        page: 16,
+                        tableId: 'I-7',
+                        rowKey: fwRowKey,
+                        colKey: fwColKey,
+                        sourceLabel: 'Worksheet 8 — Fw (Table I-7)',
+                        currentValue: fw,
+                        currentValueLabel: fw.toFixed(2),
+                        allowOverride: true,
+                        applyOverride: (v) => setFwOverride(v > 0 ? v : 0),
+                      }}
+                    >
+                      {fw.toFixed(2)}
+                    </TableValue>
                   </td>
                 ))}
               </tr>
@@ -397,7 +451,22 @@ export default function Worksheet8({
                 </td>
                 {pods.map((p, i) => (
                   <td key={i} className="py-1.5 px-2 text-center border-r border-slate-300 last:border-r-0 font-mono font-black text-emerald-900">
-                    {p.toFixed(2)}%
+                    <TableValue
+                      disabled={readOnly}
+                      request={{
+                        docId: 'appendix-i',
+                        page: 11,
+                        tableId: 'FIG-I-12',
+                        sourceLabel: 'Worksheet 8 — POD (Figure I-12)',
+                        currentValue: p,
+                        currentValueLabel: `${p.toFixed(2)}%`,
+                        allowOverride: false,
+                      }}
+                      title="Klik untuk lihat Figure I-12 (POD) di Appendix"
+                    >
+                      {p.toFixed(2)}
+                    </TableValue>
+                    %
                   </td>
                 ))}
               </tr>

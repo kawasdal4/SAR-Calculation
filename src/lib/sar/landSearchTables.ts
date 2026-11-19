@@ -17,7 +17,7 @@ type WuByHeight = Record<LandSearchHeight, readonly [number | null, number | nul
 type WuTable = Record<LandSearchTarget, WuByHeight>;
 
 // Appendix I, Table I-9. Columns are visibility 5, 10, 20, 30, and 40 km.
-const TABLE_I9: WuTable = {
+export const TABLE_I9: WuTable = {
   person: {
     500: [0.4, 0.4, 0.5, 0.5, 0.5], 1000: [0.4, 0.4, 0.5, 0.5, 0.5],
     1500: [null, null, null, null, null], 2000: [null, null, null, null, null],
@@ -37,7 +37,7 @@ const TABLE_I9: WuTable = {
 };
 
 // Appendix I, Table I-10. A null value means the required lookup is incomplete.
-const TABLE_I10: Record<LandSearchTarget, Record<LandVegetation, number>> = {
+export const TABLE_I10: Record<LandSearchTarget, Record<LandVegetation, number>> = {
   person: { 'under-15': 0.8, '15-60': 0.5, '60-85': 0.3, 'over-85': 0.1 },
   vehicle: { 'under-15': 1.0, '15-60': 0.7, '60-85': 0.4, 'over-85': 0.1 },
   'aircraft-under-5700': { 'under-15': 1.0, '15-60': 0.7, '60-85': 0.4, 'over-85': 0.1 },

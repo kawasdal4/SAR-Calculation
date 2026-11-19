@@ -299,6 +299,7 @@ export default function AllWorksheetsView({
             datumData={datumData}
             datumResults={datumResults}
             aswDirFrom={aswDirFrom}
+            aswSpeedKts={aswSpeed}
             ws1Ao={ws1Ao}
             readOnly
           />
@@ -316,7 +317,7 @@ export default function AllWorksheetsView({
           </div>
           <Worksheet8
             ws1Ao={ws1Ao}
-            windKts={datumData?.aswSpeed ?? 0}
+            windKts={aswSpeed || (datumData?.aswSpeed ?? 0)}
             initialC={searchResults?.C ?? 0}
             initialPod={searchResults?.POD ?? 0}
             readOnly

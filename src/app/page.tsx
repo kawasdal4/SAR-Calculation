@@ -62,6 +62,7 @@ import SearchPlanWorksheet, {
 import type { Ws1Derived, Ws1Measured } from '@/components/sar/worksheets/Worksheet1';
 import CaseManager from '@/components/sar/CaseManager';
 import AusSarManualDialog from '@/components/sar/AusSarManualDialog';
+import { TableRefContext, type TableRefRequest } from '@/components/sar/TableRefContext';
 import ExportButtons from '@/components/sar/ExportButtons';
 import CopyrightFooter from '@/components/sar/CopyrightFooter';
 import WeatherPanel from '@/components/sar/WeatherPanel';
@@ -365,6 +366,18 @@ export default function Home() {
   /** Dokumen yang ditampilkan saat dialog Manual SAR AUS dibuka dari rujukan
    *  worksheet (mis. Table I-1/I-2 leeway di Worksheet 1 → 'appendix-i'). */
   const [ausSarManualInitialDoc, setAusSarManualInitialDoc] = useState<string | undefined>(undefined);
+  /** Verifikasi nilai: klik nilai worksheet yang bersumber dari tabel appendix
+   *  → dialog Manual terbuka pada tabel dirujuk (sel blinking) + override nilai. */
+  const [tableRefRequest, setTableRefRequest] = useState<TableRefRequest | null>(null);
+  const openTableRef = useCallback((req: TableRefRequest) => {
+    setTableRefRequest(req);
+    setAusSarManualInitialDoc(req.docId);
+    setIsAusSarManualOpen(true);
+  }, []);
+  const handleAusSarManualOpenChange = useCallback((open: boolean) => {
+    setIsAusSarManualOpen(open);
+    if (!open) setTableRefRequest(null);
+  }, []);
   const [isAiChatOpen, setIsAiChatOpen] = useState<boolean>(false);
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState<boolean>(false);
 
@@ -2146,6 +2159,7 @@ export default function Home() {
   }, [datumResults, searchResults, datumData, lkp, asw, awa, assets, assetSummary]);
 
   return (
+    <TableRefContext.Provider value={openTableRef}>
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
       {/* Top Header */}
       <header className="bg-slate-900 text-white shadow-md border-b border-slate-800">
@@ -2601,6 +2615,7 @@ export default function Home() {
                     datumData={datumData}
                     datumResults={datumResults}
                     aswDirFrom={asw.aswDirFrom}
+                    aswSpeedKts={asw.aswSpeed}
                     ws1Ao={ws1Ao}
                     initialState={sheet.data}
                     onTrackSpacingChange={(result) => handleWS2TrackSpacingChange(sheet.key, result)}
@@ -2644,7 +2659,7 @@ export default function Home() {
                   <Worksheet8
                     key={`ws8-${caseVersion}-${sheet.key}`}
                     ws1Ao={ws1Ao}
-                    windKts={datumData?.aswSpeed ?? 0}
+                    windKts={asw.aswSpeed || (datumData?.aswSpeed ?? 0)}
                     initialC={searchResults?.C ?? 0}
                     initialPod={searchResults?.POD ?? 0}
                     initialState={sheet.data}
@@ -3329,7 +3344,7 @@ export default function Home() {
       />
 
       {/* Manual SAR Australia (Combined + Appendix I/J/K) — referensi tabel worksheet */}
-      <AusSarManualDialog open={isAusSarManualOpen} onOpenChange={setIsAusSarManualOpen} initialDocId={ausSarManualInitialDoc} />
+      <AusSarManualDialog open={isAusSarManualOpen} onOpenChange={handleAusSarManualOpenChange} initialDocId={ausSarManualInitialDoc} initialRef={tableRefRequest} />
 
       {/* Dialog Konfirmasi Bersihkan Semua Lembar Kerja */}
       {isClearConfirmOpen && (
@@ -3406,6 +3421,7 @@ export default function Home() {
         </div>
       </footer>
     </div>
+    </TableRefContext.Provider>
   );
 }
 

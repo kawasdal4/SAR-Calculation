@@ -17,6 +17,7 @@ import {
   type LandSearchTarget,
   type LandVegetation,
 } from '@/lib/sar/landSearchTables';
+import TableValue from '@/components/sar/TableValue';
 
 export interface Worksheet3InitialState {
   caseTitle?: string;
@@ -33,6 +34,10 @@ export interface Worksheet3InitialState {
   searchTas?: number;
   hoursAvailable?: number;
   searchAreaNm2?: number;
+  /** Override nilai tabel appendix oleh planner (klik nilai → panel verifikasi).
+   *  fv per lembar; wuOverrides per ketinggian (kunci '500'..'2000'). 0 = kembali ke tabel. */
+  fvOverride?: number;
+  wuOverrides?: Record<string, number>;
 }
 
 interface Worksheet3Props {
@@ -72,11 +77,19 @@ export default function Worksheet3({ searchResults, readOnly = false, initialSta
   const [searchNumber, setSearchNumber] = useState<SearchNumber | null>(initialState?.searchNumber ?? null);
   const [searchSpeed, setSearchSpeed] = useState(initialState?.searchSpeedKts ?? initialState?.searchTas ?? 0);
   const [hoursAvailable, setHoursAvailable] = useState(initialState?.hoursAvailable ?? 0);
+  // Override nilai tabel appendix (klik nilai → panel verifikasi → Terapkan).
+  const [fvOverride, setFvOverride] = useState<number | undefined>(initialState?.fvOverride);
+  const [wuOverrides, setWuOverrides] = useState<Record<string, number>>(initialState?.wuOverrides ?? {});
 
   const heights = LAND_SEARCH_HEIGHTS;
-  const fv = lookupLandFv(searchObject, vegetationType);
+  const fvTable = lookupLandFv(searchObject, vegetationType);
+  const fv = fvOverride !== undefined && fvOverride > 0 ? fvOverride : fvTable;
   const ff = isFatigue === null ? null : isFatigue ? 0.9 : 1.0;
-  const wuList = heights.map((height) => lookupLandWu(searchObject, height, visibilityKm));
+  const wuList = heights.map((height) => {
+    const ov = wuOverrides[String(height)];
+    if (ov !== undefined && ov > 0) return ov;
+    return lookupLandWu(searchObject, height, visibilityKm);
+  });
   const wFactors = wuList.map((wu) => wu !== null && fv !== null && ff !== null ? Number((wu * fv * ff).toFixed(2)) : null);
   // Worksheet 3 has its own practical-spacing rule. It is intentionally independent of Worksheet 2.
   const trackSpacings = wFactors.map((width) => width !== null && searchPlatform ? nearestLandTrackSpacing(width, searchPlatform) : null);
@@ -103,11 +116,13 @@ export default function Worksheet3({ searchResults, readOnly = false, initialSta
       searchSpeedKts: searchSpeed,
       hoursAvailable,
       searchAreaNm2: initialState?.searchAreaNm2,
+      fvOverride,
+      wuOverrides,
     });
   }, [
     onStateChange, caseTitle, searchObject, visibilityKm, vegetationType,
     isFatigue, searchPlatform, searchNumber, searchSpeed, hoursAvailable,
-    initialState?.sruName, initialState?.searchAreaNm2,
+    initialState?.sruName, initialState?.searchAreaNm2, fvOverride, wuOverrides,
   ]);
   const coverages = wFactors.map((width, index) => width !== null && trackSpacings[index] ? width / trackSpacings[index]! : null);
   const pods = coverages.map((coverage) => coverage !== null && searchNumber !== null ? readFigureI12(coverage, searchNumber) : null);
@@ -196,13 +211,54 @@ export default function Worksheet3({ searchResults, readOnly = false, initialSta
               {heights.map((height) => <th key={height} className="py-2 px-2 text-center w-[15%] border-r border-slate-300 last:border-r-0">{height} ft</th>)}
             </tr></thead>
             <tbody className="divide-y divide-slate-300 text-[11px]">
-              <tr><td className="py-1.5 px-3 font-medium border-r border-slate-300">Uncorrected Sweep Width Wu — Table I-9</td>{wuList.map((wu, i) => <td key={heights[i]} className="py-1.5 px-2 text-center border-r border-slate-300 last:border-r-0 font-bold text-blue-900 font-mono">{wu === null ? (searchObject === 'person' && heights[i] >= 1500 ? 'N/A' : '0') : wu.toFixed(1)}{wu !== null && <span className="ml-1 text-[10px] font-normal text-slate-500">NM</span>}</td>)}</tr>
-              <tr><td className="py-1.5 px-3 border-r border-slate-300">Vegetation/Terrain Factor Fv — Table I-10</td>{heights.map((height) => <td key={height} className="py-1.5 px-2 text-center border-r border-slate-300 last:border-r-0 font-mono font-bold text-blue-900">{fv === null ? '0' : fv.toFixed(2)}</td>)}</tr>
+              <tr><td className="py-1.5 px-3 font-medium border-r border-slate-300">Uncorrected Sweep Width Wu — Table I-9</td>{wuList.map((wu, i) => <td key={heights[i]} className="py-1.5 px-2 text-center border-r border-slate-300 last:border-r-0 font-bold text-blue-900 font-mono"><TableValue
+                disabled={readOnly || !searchObject || !visibilityKm}
+                request={{
+                  docId: 'appendix-i',
+                  page: 17,
+                  tableId: 'I-9',
+                  groupKey: String(heights[i]),
+                  rowKey: searchObject ?? undefined,
+                  colKey: visibilityKm ? String(visibilityKm) : undefined,
+                  sourceLabel: `Worksheet 3 — Wu (Table I-9 · ${heights[i]} ft)`,
+                  currentValue: wu,
+                  currentValueLabel: wu === null ? 'N/A' : `${wu.toFixed(1)} NM`,
+                  allowOverride: true,
+                  applyOverride: (v) => setWuOverrides((prev) => ({ ...prev, [String(heights[i])]: v > 0 ? v : 0 })),
+                }}
+              >{wu === null ? (searchObject === 'person' && heights[i] >= 1500 ? 'N/A' : '0') : wu.toFixed(1)}</TableValue>{wu !== null && <span className="ml-1 text-[10px] font-normal text-slate-500">NM</span>}</td>)}</tr>
+              <tr><td className="py-1.5 px-3 border-r border-slate-300">Vegetation/Terrain Factor Fv — Table I-10</td>{heights.map((height) => <td key={height} className="py-1.5 px-2 text-center border-r border-slate-300 last:border-r-0 font-mono font-bold text-blue-900"><TableValue
+                disabled={readOnly || !searchObject || !vegetationType}
+                request={{
+                  docId: 'appendix-i',
+                  page: 17,
+                  tableId: 'I-10',
+                  rowKey: searchObject ?? undefined,
+                  colKey: vegetationType ?? undefined,
+                  sourceLabel: 'Worksheet 3 — Fv (Table I-10)',
+                  currentValue: fv,
+                  currentValueLabel: fv === null ? '—' : fv.toFixed(2),
+                  allowOverride: true,
+                  applyOverride: (v) => setFvOverride(v > 0 ? v : 0),
+                }}
+              >{fv === null ? '0' : fv.toFixed(2)}</TableValue></td>)}</tr>
               <tr><td className="py-1.5 px-3 border-r border-slate-300">Fatigue Factor Ff</td>{heights.map((height) => <td key={height} className="py-1.5 px-2 text-center border-r border-slate-300 last:border-r-0 font-mono font-bold text-blue-900">{ff === null ? '0' : ff.toFixed(2)}</td>)}</tr>
               <tr className="bg-blue-50/40"><td className="py-1.5 px-3 font-bold border-r border-slate-300">Corrected Sweep Width W = Wu × Fv × Ff</td>{wFactors.map((width, i) => <td key={heights[i]} className="py-1.5 px-2 text-center border-r border-slate-300 last:border-r-0 font-mono font-bold text-blue-950">{renderValue(width, 2, width === null ? undefined : 'NM')}</td>)}</tr>
               <tr><td className="py-1.5 px-3 border-r border-slate-300">Practical Track Spacing S (Worksheet 3 rule)</td>{trackSpacings.map((spacing, i) => <td key={heights[i]} className="py-1.5 px-2 text-center border-r border-slate-300 last:border-r-0 font-mono font-bold text-slate-800">{renderValue(spacing, 2, spacing === null ? undefined : 'NM')}</td>)}</tr>
               <tr><td className="py-1.5 px-3 border-r border-slate-300">Coverage Factor C = W/S</td>{coverages.map((coverage, i) => <td key={heights[i]} className="py-1.5 px-2 text-center border-r border-slate-300 last:border-r-0 font-mono font-bold text-indigo-900">{renderValue(coverage)}</td>)}</tr>
-              <tr className="bg-emerald-50/50"><td className="py-1.5 px-3 font-bold text-emerald-950 border-r border-slate-300">Probability of Detection (POD) — Figure I-12</td>{pods.map((pod, i) => <td key={heights[i]} className="py-1.5 px-2 text-center border-r border-slate-300 last:border-r-0 font-mono font-black text-emerald-900">{pod === null ? (hasBaseInputs ? '—' : '0') : `${pod.toFixed(2)}%`}</td>)}</tr>
+              <tr className="bg-emerald-50/50"><td className="py-1.5 px-3 font-bold text-emerald-950 border-r border-slate-300">Probability of Detection (POD) — Figure I-12</td>{pods.map((pod, i) => <td key={heights[i]} className="py-1.5 px-2 text-center border-r border-slate-300 last:border-r-0 font-mono font-black text-emerald-900"><TableValue
+                disabled={readOnly}
+                request={{
+                  docId: 'appendix-i',
+                  page: 11,
+                  tableId: 'FIG-I-12',
+                  sourceLabel: 'Worksheet 3 — POD (Figure I-12)',
+                  currentValue: pod,
+                  currentValueLabel: pod === null ? '—' : `${pod.toFixed(2)}%`,
+                  allowOverride: false,
+                }}
+                title="Klik untuk lihat Figure I-12 (POD) di Appendix"
+              >{pod === null ? (hasBaseInputs ? '—' : '0') : pod.toFixed(2)}</TableValue>{pod === null ? '' : '%'}</td>)}</tr>
               <tr><td className="py-1.5 px-3 border-r border-slate-300">Search Area A (from Worksheet 1) — NM²</td>{heights.map((height) => <td key={height} className="py-1.5 px-2 text-center border-r border-slate-300 last:border-r-0 font-mono font-bold text-slate-900">{hasSearchArea ? searchAreaA.toFixed(2) : hasBaseInputs ? '—' : 0}</td>)}</tr>
               <tr className="bg-slate-100/70 border-b-2 border-slate-900"><td className="py-1.5 px-3 font-bold border-r border-slate-300"><div>Search Hours T Required</div><div className="text-[10px] text-slate-600 font-mono">T = A/(V × S)</div></td>{hoursRequired.map((hours, i) => <td key={heights[i]} className="py-1.5 px-2 text-center border-r border-slate-300 last:border-r-0 font-mono font-bold text-blue-900">{hours === null ? (hasBaseInputs ? '—' : '0') : hours.toFixed(1)}{hours !== null && <span className="ml-1 text-[10px] font-normal text-slate-600">hrs</span>}</td>)}</tr>
             </tbody>

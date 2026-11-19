@@ -770,3 +770,32 @@
 .logo-glow-pulse {
   animation: logo-glow-pulse 1.8s ease-in-out infinite;
 }
+
+/* ===== Panel verifikasi nilai appendix (klik nilai worksheet → Manual SAR AUS)
+   Blinking HANYA pada sel nilai yang dipilih pada TABEL RUJUKAN di dialog —
+   nilai di worksheet tampil polos tanpa efek berkedip. ===== */
+@keyframes ref-cell-blink {
+  0%, 100% {
+    background-color: #fbbf24;
+    color: #78350f;
+    box-shadow: 0 0 0 2px #f59e0b, 0 0 12px rgba(245, 158, 11, 0.65);
+  }
+  50% {
+    background-color: #fffbeb;
+    color: #b45309;
+    box-shadow: 0 0 0 2px #fcd34d, 0 0 4px rgba(245, 158, 11, 0.3);
+  }
+}
+
+.ref-cell-blink {
+  animation: ref-cell-blink 1.1s ease-in-out infinite;
+  font-weight: 800;
+}
+
+/* Baris & kolom yang memuat sel dirujuk — highlight lembut statis. */
+.ref-row-hl {
+  background-color: #fef3c7 !important;
+}
+.ref-col-hl {
+  background-color: #fef3c7 !important;
+}

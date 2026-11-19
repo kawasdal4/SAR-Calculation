@@ -485,7 +485,7 @@ export const SAR_CAPABILITY_REGISTRY: SARCapability[] = [
       heightFt: f('number', '500/1000/1500/2000 ft', { unit: 'ft' }),
       visibilityIndex: f('number', 'Indeks kolom visibilitas (0–5 → 2/5/10/20/30/>40 km)'),
       windKts: f('number', 'Kecepatan ASW', { unit: 'kts' }),
-      caseWindKts: f('number', 'Opsional: angin permukaan sesuai soal kasus (AI asisten) — fallback penentu Fw Table I-7 bila ASW kosong', { unit: 'kts' }),
+      caseWindKts: f('number', 'Opsional: angin permukaan sesuai soal kasus (AI asisten) — ANGIN PENENTU Fw Table I-7 utama (tampil di header worksheet); angin ASW hanya fallback bila kasus tidak menyebut angin', { unit: 'kts' }),
       caseWaveHeightM: f('number', 'Opsional: tinggi gelombang laut (seas) sesuai soal kasus (AI asisten) — penentu baris Fw Table I-7 bersama angin, terburuk bila keduanya ada', { unit: 'm' }),
       tasKts: f('number', 'TAS SRU', { unit: 'kts' }),
       fatigue: f('string', "'Yes' | 'No' (boolean juga diterima)"),
@@ -508,11 +508,11 @@ export const SAR_CAPABILITY_REGISTRY: SARCapability[] = [
       if (!str(i.target)) return err('Target objek wajib diisi.');
       if (![500, 1000, 1500, 2000].includes(i.heightFt as number)) return err('Tinggi harus 500/1000/1500/2000 ft.');
       if (!num(i.visibilityIndex) || (i.visibilityIndex as number) < 0 || (i.visibilityIndex as number) > 5) return err('Indeks visibilitas harus 0–5.');
-      // Penentu Fw Table I-7: angin ASW ATAU angin/gelombang kasus (AI asisten) — minimal satu harus tersedia.
+      // Penentu Fw Table I-7: angin header (angin kasus utama, fallback ASW) ATAU gelombang kasus — minimal satu harus tersedia.
       const aswOk = num(i.windKts) && (i.windKts as number) > 0;
       const caseOk = num(i.caseWindKts) && (i.caseWindKts as number) > 0;
       const waveOk = num(i.caseWaveHeightM) && (i.caseWaveHeightM as number) > 0;
-      if (!aswOk && !caseOk && !waveOk) return err('ASW speed harus > 0 kts, atau sertakan caseWindKts (angin kasus) dan/atau caseWaveHeightM (gelombang kasus) bila ASW belum dihitung.');
+      if (!aswOk && !caseOk && !waveOk) return err('Penentu Fw Table I-7 butuh minimal satu: caseWindKts (angin kasus — utama), windKts (angin ASW — fallback), atau caseWaveHeightM (gelombang kasus).');
       if (!num(i.tasKts) || i.tasKts <= 0) return err('TAS harus > 0 kts.');
       const fat = i.fatigue === true || i.fatigue === 'Yes' || i.fatigue === 'No' || i.fatigue === false;
       if (!fat) return err("fatigue harus 'Yes' | 'No' (atau boolean).");
@@ -543,7 +543,7 @@ export const SAR_CAPABILITY_REGISTRY: SARCapability[] = [
     },
     requiresConfirmation: false,
     dependencies: ['ws1-search-area', 'env-asw'],
-    notes: 'PHASE 3: math komponen diekstraksi ke computeW2Row (satu sumber untuk UI dan AI). PIW 500 ft ×4 bila flotation known; fs null bila TAS di luar kolom Table I-8 → ready=false. Fw Table I-7: baris dari angin ASW ATAU angin/gelombang kasus (caseWindKts/caseWaveHeightM) bila ASW kosong — terburuk bila keduanya ada; kolom dari search object (PIW/raft/boat <10 m → small).',
+    notes: 'PHASE 3: math komponen diekstraksi ke computeW2Row (satu sumber untuk UI dan AI). PIW 500 ft ×4 bila flotation known; fs null bila TAS di luar kolom Table I-8 → ready=false. Fw Table I-7: baris dari angin header — angin kasus (caseWindKts) UTAMA, fallback angin ASW — atau gelombang kasus (caseWaveHeightM); terburuk bila keduanya ada; kolom dari search object (PIW/raft/boat <10 m → small).',
   },
   {
     id: 'ws3-land-wsc-pod',
@@ -650,7 +650,7 @@ export const SAR_CAPABILITY_REGISTRY: SARCapability[] = [
       eyeHeight: f('string', "'8' | '14' | 'MERSHIP'"),
       visibility: f('string', 'Label kolom visibilitas (2/5/10/15/20/>25 km)'),
       windKts: f('number', 'Kecepatan ASW', { unit: 'kts' }),
-      caseWindKts: f('number', 'Opsional: angin permukaan sesuai soal kasus (AI asisten) — fallback penentu Fw Table I-7 bila ASW kosong', { unit: 'kts' }),
+      caseWindKts: f('number', 'Opsional: angin permukaan sesuai soal kasus (AI asisten) — ANGIN PENENTU Fw Table I-7 utama (tampil di header worksheet); angin ASW hanya fallback bila kasus tidak menyebut angin', { unit: 'kts' }),
       caseWaveHeightM: f('number', 'Opsional: tinggi gelombang laut (seas) sesuai soal kasus (AI asisten) — penentu baris Fw Table I-7 bersama angin, terburuk bila keduanya ada', { unit: 'm' }),
       fatigue: f('string', "'Yes' | 'No' (boolean juga diterima)"),
       searchNumber: f('number', 'Pencarian ke-1..5'),
@@ -671,11 +671,11 @@ export const SAR_CAPABILITY_REGISTRY: SARCapability[] = [
       if (!str(i.target)) return err('Target objek wajib diisi.');
       if (!['8', '14', 'MERSHIP'].includes(i.eyeHeight as string)) return err("Eye height harus '8', '14', atau 'MERSHIP'.");
       if (!str(i.visibility)) return err('Kolom visibilitas wajib diisi.');
-      // Penentu Fw Table I-7: angin ASW ATAU angin/gelombang kasus (AI asisten) — minimal satu harus tersedia.
+      // Penentu Fw Table I-7: angin header (angin kasus utama, fallback ASW) ATAU gelombang kasus — minimal satu harus tersedia.
       const aswOk = num(i.windKts) && (i.windKts as number) > 0;
       const caseOk = num(i.caseWindKts) && (i.caseWindKts as number) > 0;
       const waveOk = num(i.caseWaveHeightM) && (i.caseWaveHeightM as number) > 0;
-      if (!aswOk && !caseOk && !waveOk) return err('ASW speed harus > 0 kts, atau sertakan caseWindKts (angin kasus) dan/atau caseWaveHeightM (gelombang kasus) bila ASW belum dihitung.');
+      if (!aswOk && !caseOk && !waveOk) return err('Penentu Fw Table I-7 butuh minimal satu: caseWindKts (angin kasus — utama), windKts (angin ASW — fallback), atau caseWaveHeightM (gelombang kasus).');
       if (!(i.fatigue === true || i.fatigue === 'Yes' || i.fatigue === 'No' || i.fatigue === false)) return err("fatigue harus 'Yes' | 'No' (atau boolean).");
       if (![1, 2, 3, 4, 5].includes(i.searchNumber as number)) return err('Search number harus 1–5.');
       if (!num(i.vesselSpeedKts) || i.vesselSpeedKts <= 0) return err('Kecepatan kapal harus > 0 kts.');
@@ -702,7 +702,7 @@ export const SAR_CAPABILITY_REGISTRY: SARCapability[] = [
     },
     requiresConfirmation: false,
     dependencies: ['ws1-search-area', 'env-asw'],
-    notes: 'PHASE 3: math komponen diekstraksi ke computeW8Row (pembulatan W/C 2 desimal, T 1 desimal — identik Worksheet8). Gap audit: koreksi kecepatan kapal (fv) belum diterapkan di sistem. Fw Table I-7: baris dari angin ASW ATAU angin/gelombang kasus (caseWindKts/caseWaveHeightM) bila ASW kosong — terburuk bila keduanya ada; kolom dari search object (PIW/raft/boat <10 m → small).',
+    notes: 'PHASE 3: math komponen diekstraksi ke computeW8Row (pembulatan W/C 2 desimal, T 1 desimal — identik Worksheet8). Gap audit: koreksi kecepatan kapal (fv) belum diterapkan di sistem. Fw Table I-7: baris dari angin header — angin kasus (caseWindKts) UTAMA, fallback angin ASW — atau gelombang kasus (caseWaveHeightM); terburuk bila keduanya ada; kolom dari search object (PIW/raft/boat <10 m → small).',
   },
   {
     id: 'ws-search-plan',
