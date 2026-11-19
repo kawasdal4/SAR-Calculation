@@ -13,6 +13,7 @@ import {
   Calculator,
   FileText,
   Printer,
+  BookOpen,
   Target,
   Plane,
   Layers,
@@ -59,6 +60,7 @@ import SearchPlanWorksheet, {
 } from '@/components/sar/SearchPlanWorksheet';
 import type { Ws1Derived, Ws1Measured } from '@/components/sar/worksheets/Worksheet1';
 import CaseManager from '@/components/sar/CaseManager';
+import AusSarManualDialog from '@/components/sar/AusSarManualDialog';
 import ExportButtons from '@/components/sar/ExportButtons';
 import CopyrightFooter from '@/components/sar/CopyrightFooter';
 import WeatherPanel from '@/components/sar/WeatherPanel';
@@ -306,6 +308,7 @@ export default function Home() {
   }, []);
   const [tabClearVersions, setTabClearVersions] = useState<Record<string, number>>({});
   const [isPrintA3Open, setIsPrintA3Open] = useState<boolean>(false);
+  const [isAusSarManualOpen, setIsAusSarManualOpen] = useState<boolean>(false);
   const [isAiChatOpen, setIsAiChatOpen] = useState<boolean>(false);
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState<boolean>(false);
 
@@ -1967,6 +1970,15 @@ export default function Home() {
               >
                 <Sparkles className="h-3.5 w-3.5 text-emerald-200" /> AI Assistant
               </button>
+              {/* Tombol Manual SAR Australia (Combined + Appendix I/J/K — referensi tabel worksheet) */}
+              <button
+                type="button"
+                onClick={() => setIsAusSarManualOpen(true)}
+                title="Buka Australian SAR Manual (Combined + Appendix I Tables & Graphs, Appendix J Errors of Position, Appendix K Worksheets) — referensi nilai tabel untuk worksheet"
+                className="flex items-center gap-1.5 text-xs bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 py-1.5 rounded-lg shadow transition-colors border border-blue-400/40"
+              >
+                <BookOpen className="h-3.5 w-3.5" /> Manual SAR AUS
+              </button>
               {/* Tombol Cetak Peta A3 */}
               <button
                 type="button"
@@ -3048,6 +3060,9 @@ export default function Home() {
         sruName={primarySru.name}
         transitLines={assetTransitLines}
       />
+
+      {/* Manual SAR Australia (Combined + Appendix I/J/K) — referensi tabel worksheet */}
+      <AusSarManualDialog open={isAusSarManualOpen} onOpenChange={setIsAusSarManualOpen} />
 
       {/* Dialog Konfirmasi Bersihkan Semua Lembar Kerja */}
       {isClearConfirmOpen && (
