@@ -125,7 +125,6 @@ export default function SearchPlanWorksheet({
   // Apply visibility override from WeatherPanel
   useEffect(() => {
     if (visibilityOverride) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setVisibility(visibilityOverride.nm);
     }
   }, [visibilityOverride]);

@@ -19,6 +19,11 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     // React rules
     "react-hooks/exhaustive-deps": "off",
     "react-hooks/purity": "off",
+    // Aturan era React Compiler (eslint-plugin-react-hooks v6): effect "sinkron
+    // nilai turunan / terapkan override eksternal" di worksheet sengaja memakai
+    // setState dalam effect — pola lama yang valid, refactor berisiko mengubah
+    // perilaku kalkulasi. Konsisten dengan opt-out react-compiler di bawah.
+    "react-hooks/set-state-in-effect": "off",
     "react/no-unescaped-entities": "off",
     "react/display-name": "off",
     "react/prop-types": "off",
@@ -42,6 +47,12 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     "no-undef": "off",
     "no-unreachable": "off",
     "no-useless-escape": "off",
+  },
+}, {
+  // Skrip Node CommonJS (helper cetak/diagnosa) — require() sah di luar bundel TS.
+  files: ["scripts/**/*.js"],
+  rules: {
+    "@typescript-eslint/no-require-imports": "off",
   },
 }, {
   ignores: ["node_modules/**", ".next/**", "out/**", "build/**", "next-env.d.ts", "examples/**", "skills"]

@@ -122,13 +122,13 @@ test('registry measure-chart-distance: validasi menolak input kosong & koordinat
 
 test('map-sea-render: preview menampilkan jumlah fitur + konfirmasi wajib', () => {
   const cap = getCapability('map-sea-render')!;
-  const p = cap.preview?.({
+  const p = cap.preview!({
     features: [
       { kind: 'marker', label: 'LKP', lat: -6.2, lng: 106.8 },
       { kind: 'circle', label: 'Search area', lat: -6.2, lng: 106.8, radiusNm: 6 },
       { kind: 'polygon', label: 'Trapesium' },
     ],
-  })!;
+  });
   expect(p.operation).toBe('map-sea-render');
   expect(p.target).toBe('sea-map');
   expect(p.summary).toContain('3 fitur');
@@ -140,14 +140,14 @@ test('map-sea-render: preview menampilkan jumlah fitur + konfirmasi wajib', () =
   expect(p.features.length).toBe(3);
   expect(p.features[0].label).toBe('LKP');
   // Tanpa fitur → ringkasan netral, tetap kontrak valid
-  const empty = cap.preview?.({ features: [] })!;
+  const empty = cap.preview!({ features: [] });
   expect(empty.summary).toContain('Tidak ada fitur');
   expect(empty.requiresUserConfirmation).toBe(true);
 });
 
 test('map-ws4-plot: preview merangkum marker/lingkaran/trapesium ke peta ONC', () => {
   const cap = getCapability('map-ws4-plot')!;
-  const p = cap.preview?.({ markers: [{}, {}], circles: [{}], polygons: [] })!;
+  const p = cap.preview!({ markers: [{}, {}], circles: [{}], polygons: [] });
   expect(p.operation).toBe('map-ws4-plot');
   expect(p.target).toBe('onc-map');
   expect(p.summary).toContain('2 marker rute');
@@ -158,12 +158,12 @@ test('map-ws4-plot: preview merangkum marker/lingkaran/trapesium ke peta ONC', (
 
 test('map-ups-plot: preview merangkum chain ADW + leg manual, konfirmasi tidak wajib (deterministik)', () => {
   const cap = getCapability('map-ups-plot')!;
-  const p = cap.preview?.({ aeroResults: {}, datumResults: {}, manualLegs: [{}, {}] })!;
+  const p = cap.preview!({ aeroResults: {}, datumResults: {}, manualLegs: [{}, {}] });
   expect(p.operation).toBe('map-ups-plot');
   expect(p.target).toBe('ups-plotter');
   expect(p.summary).toContain('rantai vektor ADW');
   expect(p.summary).toContain('2 leg manual');
   expect(p.requiresUserConfirmation).toBe(false);
-  const empty = cap.preview?.({})!;
+  const empty = cap.preview!({});
   expect(empty.summary).toContain('kosong');
 });

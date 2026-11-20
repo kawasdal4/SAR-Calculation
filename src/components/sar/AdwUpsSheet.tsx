@@ -128,6 +128,10 @@ export default function AdwUpsSheet({
     [datum, dg, dd, pg, pw, pp],
   );
 
+  // Hook WAJIB dipanggil tanpa syarat sebelum early return (rules-of-hooks);
+  // nilai hanya dipakai saat lembar penuh dirender.
+  const printScope = usePrintScope('adw-ups');
+
   if (!datum || !plot?.ready) {
     if (variant !== 'card') return null;
     return (
@@ -178,8 +182,6 @@ export default function AdwUpsSheet({
       </Card>
     );
   }
-
-  const printScope = usePrintScope('adw-ups');
 
   const scale = plot.scale;
   const S = scale.scaleMin; // menit busur

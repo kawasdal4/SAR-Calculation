@@ -274,7 +274,6 @@ export default function DatumWorksheet({
   // tidak terpengaruh status bersih (aswSpeed=0) yang memanggil onResults(null).
   useEffect(() => {
     onDisplayResults?.(buildResults());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [datum, e, wc, lw, twc, onDisplayResults]);
 
   // Emit DatumInitialState snapshot up to parent for state-saving

@@ -423,7 +423,6 @@ export default function UPSPlotter({
   );
   useEffect(() => {
     setSpanNm(autoSpanNm(worksheetRadiusNm));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [worksheetFitSig]);
 
   const applyAutoSpan = () => setSpanNm(autoSpanNm(contentRadiusNm));
@@ -1013,8 +1012,7 @@ function UpsSheetView({
       halfW: (searchArea.widthNm / 2) * pxPerNm,
       angle: searchArea.orientationDeg,
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchArea, pxPerNm, centerLat, centerLon]);
+  }, [searchArea, pxPerNm, centerLat, centerLon, toPx]);
 
   const svgStyle = fit === 'fill'
     ? { width: '100%', height: '100%' }

@@ -9,9 +9,9 @@ const source = readFileSync(new URL('../src/lib/sar/oncGraticule.ts', import.met
 const compiled = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
 }).outputText;
-const module = { exports: {} };
-runInNewContext(compiled, { module, exports: module.exports, require: createRequire(import.meta.url) });
-const { buildOncGraticule, selectOncTickInterval } = module.exports;
+const mod = { exports: {} };
+runInNewContext(compiled, { module: mod, exports: mod.exports, require: createRequire(import.meta.url) });
+const { buildOncGraticule, selectOncTickInterval } = mod.exports;
 
 const testBounds = { west: 118.5, south: -3.5, east: 119.5, north: -2.5 };
 

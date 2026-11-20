@@ -21,9 +21,9 @@ function compileTs(path) {
   const compiled = ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText;
-  const module = { exports: {} };
-  runInNewContext(compiled, { module, exports: module.exports, require: (name) => name === 'proj4' ? proj4shim : requireRef(name) });
-  return module.exports;
+  const mod = { exports: {} };
+  runInNewContext(compiled, { module: mod, exports: mod.exports, require: (name) => name === 'proj4' ? proj4shim : requireRef(name) });
+  return mod.exports;
 }
 
 const proj = compileTs('../src/lib/sar/landMapProj.ts');
