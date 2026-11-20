@@ -15,7 +15,7 @@
 import { describe, test, expect } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { extractCaseFacts, enrichCaseFromSourceText, buildRequiredTimeClarifications } from '../src/lib/ai/caseTextEnrich';
+import { extractCaseFacts, enrichCaseFromSourceText, buildRequiredTimeClarifications, findDatumTimeCandidates, resolveDatumTimeValue } from '../src/lib/ai/caseTextEnrich';
 import { sarCaseSchema, type SarCaseSchema } from '../src/lib/sar/caseSchema';
 import { checkCaseCompleteness } from '../src/lib/sar/caseAdapter';
 
@@ -548,5 +548,81 @@ Kantor SAR menerima informasi pukul 1105 WIT.`;
     expect(values).toContain('12 Maret 2024 10.50 WIT');
     expect(values).toContain('12 Maret 2024 10.53 WIT');
     expect(values.some((value) => value.includes('11.05'))).toBe(false);
+  });
+});
+
+describe('Aturan esok/besok → tanggal kandidat = tanggal soal +1 hari', () => {
+  // Aturan pengguna: kata "besok"/"esok" sebelum waktu berarti waktu itu HARI
+  // BERIKUTNYA — tanggal kandidat kartu = tanggal yang tercantum di soal +1 hari.
+  const SOAL_ESOK = `TANGGAL 18 NOVEMBER 2026 — FINAL EXERCISE SAR.
+Pada pukul 13.50 WIB JATSC menerima panggilan MAYDAY dari pesawat PK-XYZ.
+SRU tiba di lokasi pukul 06.30 WIT pada hari tersebut.
+Pencarian dilanjutkan esok hari pukul 06.00 WIT.`;
+
+  test('"esok hari" sebelum waktu → kandidat 18 → 19 November 2026, label menyebut +1 hari', () => {
+    const candidates = findDatumTimeCandidates(SOAL_ESOK);
+    const esok = candidates.find((c) => /esok/i.test(c.label) && c.value.includes('06.00'));
+    expect(esok).toBeDefined();
+    expect(esok!.value).toBe('19 November 2026 06.00 WIT');
+    expect(esok!.label).toContain('tanggal soal +1 hari');
+    expect(esok!.dayOffset).toBe(1);
+  });
+
+  test('kandidat TANPA frasa esok → tanggal soal apa adanya (tidak digeser)', () => {
+    const candidates = findDatumTimeCandidates(SOAL_ESOK);
+    const sru = candidates.find((c) => /SRU/.test(c.label) && c.value.includes('06.30'));
+    expect(sru).toBeDefined();
+    expect(sru!.value).toBe('18 November 2026 06.30 WIT');
+    expect(sru!.dayOffset).toBeUndefined();
+  });
+
+  test('"besok" juga memicu aturan +1 hari (kandidat tanpa label khusus tetap diberi keterangan)', () => {
+    const soal = `Tanggal 18 November 2026.
+Pencarian dilakukan pukul 10.00 WIT.
+SRU kembali ke lokasi besok pukul 07.00 WIT.`;
+    const candidates = findDatumTimeCandidates(soal);
+    const besok = candidates.find((c) => c.value.includes('07.00'));
+    expect(besok).toBeDefined();
+    expect(besok!.value).toBe('19 November 2026 07.00 WIT');
+    expect(besok!.label).toContain('esok hari: tanggal soal +1 hari');
+    expect(besok!.dayOffset).toBe(1);
+  });
+
+  test('kalimat frasa sudah menyebut tanggal eksplisit → TIDAK digeser dua kali', () => {
+    const soal = `Tanggal 18 November 2026.
+Pencarian dilanjutkan esok hari 19 November 2026 pukul 06.00 WIT.`;
+    const candidates = findDatumTimeCandidates(soal);
+    const esok = candidates.find((c) => /esok/i.test(c.label) && c.value.includes('06.00'));
+    expect(esok).toBeDefined();
+    // 19 November SUDAH tanggal esok-nya — tidak menjadi 20 November.
+    expect(esok!.value).toBe('19 November 2026 06.00 WIT');
+    expect(esok!.dayOffset).toBeUndefined();
+  });
+
+  test('akhir bulan: 30 November +1 hari → 01 Desember (aritmetika kalender aman)', () => {
+    const soal = `Tanggal 30 November 2026.
+Pencarian dilanjutkan esok hari pukul 06.00 WIT.`;
+    const candidates = findDatumTimeCandidates(soal);
+    const esok = candidates.find((c) => /esok/i.test(c.label) && c.value.includes('06.00'));
+    expect(esok).toBeDefined();
+    expect(esok!.value).toBe('01 Desember 2026 06.00 WIT');
+  });
+
+  test('gerbang kartu meneruskan dayOffset kandidat esok ke payload clarify_datum_time', () => {
+    const facts = extractCaseFacts(SOAL_ESOK);
+    const gate = buildRequiredTimeClarifications(facts);
+    expect(gate.datumTime).not.toBeNull();
+    const esok = gate.datumTime!.candidates.find((c) => /esok/i.test(c.label));
+    expect(esok).toBeDefined();
+    expect(esok!.dayOffset).toBe(1);
+    expect(esok!.value).toContain('19 November 2026 06.00 WIT');
+  });
+
+  test('resolveDatumTimeValue: kandidat esok tanpa tanggal → tanggal soal +1 hari', () => {
+    expect(resolveDatumTimeValue({ value: '06.00 WIT', dayOffset: 1 }, '18 November 2026')).toBe('19 November 2026 06.00 WIT');
+    // Kandidat biasa tetap digabung tanggal soal apa adanya.
+    expect(resolveDatumTimeValue({ value: '06.00 WIT' }, '18 November 2026')).toBe('18 November 2026 06.00 WIT');
+    // Kandidat esok yang sudah bertanggal tidak diubah lagi.
+    expect(resolveDatumTimeValue({ value: '19 November 2026 06.00 WIT', dayOffset: 1 }, '18 November 2026')).toBe('19 November 2026 06.00 WIT');
   });
 });

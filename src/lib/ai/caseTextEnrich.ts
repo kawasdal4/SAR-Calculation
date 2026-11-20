@@ -469,6 +469,11 @@ export interface DatumTimeCandidateFact {
   source: string;
   /** Posisi kemunculan di teks (urut kandidat sesuai soal). */
   index: number;
+  /** Aturan pengguna esok/besok: 1 = frasa soal memuat kata "esok"/"besok"/
+   *  "next day" sebelum waktu → tanggal kandidat = tanggal soal +1 hari. Nilai
+   *  kandidat bertanggal SUDAH memuat tanggal hasil geser; kandidat tanpa
+   *  tanggal digabung tanggal soal +1 hari oleh resolveDatumTimeValue. */
+  dayOffset?: number;
 }
 
 interface DatumTimeCandidatePattern {
@@ -648,6 +653,46 @@ function excludedTimeRanges(text: string): Array<[number, number]> {
  *  menang atas catch-all, kandidat bertanggal menang atas varian tanpa tanggal.
  *  Aturan pengguna: bila ≥2 kandidat, AI asisten WAJIB menampilkan kartu
  *  pemilihan waktu, bukan memilih sendiri. */
+// ── Aturan pengguna esok/besok: waktu = HARI BERIKUTNYA (+1 hari) ──────────
+// Apabila frasa soal memuat kata "besok"/"esok" (atau "next day") sebelum
+// waktu, waktu itu adalah HARI BERIKUTNYA — tanggal kandidat = tanggal yang
+// tercantum di soal kasus +1 hari. Tanggal TIDAK digeser bila kalimat frasa
+// sudah menyebut tanggal eksplisit sendiri ("esok hari 19 November" →
+// 19 November SUDAH tanggal esok-nya — jangan digeser dua kali).
+
+const TOMORROW_QUALIFIER_RE = /\b(?:besok|esok)\b|\bnext\s+day\b/i;
+const SENTENCE_EXPLICIT_DATE_RE = new RegExp(`\\d{1,2}\\s+(?:${MONTH_NAME_PATTERN})\\s+\\d{4}`, 'i');
+
+/** Kalimat yang memuat `index` (batas kalimat: ". " atau baris baru — bukan
+ *  titik desimal "06.30"; dibatasi 400 karakter). */
+function sentenceAround(text: string, index: number): string {
+  const before = text.slice(0, index);
+  const start = Math.max(before.lastIndexOf('. '), before.lastIndexOf('\n')) + 1;
+  const after = text.slice(index);
+  const endRel = after.search(/\.\s|\n/);
+  const end = endRel === -1 ? text.length : index + endRel + 1;
+  return text.slice(start, Math.min(end, start + 400));
+}
+
+/** Ada kata "besok"/"esok"/"next day" di kalimat kandidat? (aturan pengguna:
+ *  frasa tersebut menandai waktu HARI BERIKUTNYA — tanggal soal +1 hari). */
+function hasTomorrowQualifier(text: string, index: number): boolean {
+  return TOMORROW_QUALIFIER_RE.test(sentenceAround(text, index));
+}
+
+/** Kalimat kandidat menyebut tanggal eksplisit nama bulan? Bila ya, tanggal
+ *  itu SUDAH tanggal "esok"-nya — jangan digeser +1 hari dua kali. */
+function sentenceHasExplicitDate(text: string, index: number): boolean {
+  return SENTENCE_EXPLICIT_DATE_RE.test(sentenceAround(text, index));
+}
+
+/** +1 hari kalender (aman akhir bulan/tahun kabisat — aritmetika Date UTC). */
+function addOneDay(date: { day: number; month: number; year: number }): { day: number; month: number; year: number } {
+  const d = new Date(Date.UTC(date.year, date.month - 1, date.day));
+  d.setUTCDate(d.getUTCDate() + 1);
+  return { day: d.getUTCDate(), month: d.getUTCMonth() + 1, year: d.getUTCFullYear() };
+}
+
 export function findDatumTimeCandidates(text: string): DatumTimeCandidateFact[] {
   const flat = (text ?? '').replace(/\r/g, '');
   if (!flat.trim()) return [];
@@ -663,23 +708,44 @@ export function findDatumTimeCandidates(text: string): DatumTimeCandidateFact[] 
   const push = (index: number, label: string, time: { hour: number; minute: number; zone?: string; value: string }): void => {
     if (isExcluded(index)) return;
     const date = nearestDateAround(flat, index, isExcluded);
-    const value = `${date ? `${formatIndoDateFull(date)} ` : ''}${time.value}`;
+    // Aturan pengguna esok/besok: kata "besok"/"esok" sebelum waktu → tanggal
+    // kandidat = tanggal soal +1 hari. Tidak digeser bila kalimat frasa sudah
+    // menyebut tanggal eksplisit sendiri (itu SUDAH tanggal esok-nya).
+    const tomorrow = hasTomorrowQualifier(flat, index);
+    const sentenceDate = tomorrow ? sentenceHasExplicitDate(flat, index) : false;
+    const shift = tomorrow && date !== null && !sentenceDate;
+    const effDate = shift && date ? addOneDay(date) : date;
+    const esokApplied = tomorrow && (shift || (!date && !sentenceDate));
+    const value = `${effDate ? `${formatIndoDateFull(effDate)} ` : ''}${time.value}`;
     const timeKey = `${String(time.hour).padStart(2, '0')}.${String(time.minute).padStart(2, '0')}|${time.zone ?? ''}`.toLowerCase();
-    const key = `${date ? `${date.day}-${date.month}-${date.year}|` : ''}${timeKey}`;
+    const key = `${effDate ? `${effDate.day}-${effDate.month}-${effDate.year}|` : ''}${timeKey}`;
     if (seen.has(key)) return;
     // Varian sama (jam/zona sama) tanpa tanggal vs bertanggal: sisakan yang
     // bertanggal — label kartu lebih informatif tanpa kandidat ganda.
-    if (date && seen.has(`undated|${timeKey}`)) {
+    if (effDate && seen.has(`undated|${timeKey}`)) {
       const idx = candidates.findIndex((candidate) => candidate.value.toLowerCase().endsWith(time.value.toLowerCase()));
       if (idx >= 0) {
         candidates.splice(idx, 1);
         seen.delete(`undated|${timeKey}`);
       }
     }
-    if (!date && seen.has(`dated|${timeKey}`)) return;
+    // Kandidat esok TANPA tanggal tetap disisakan (harinya BEDA: tanggal soal
+    // +1) meski kandidat bertanggal sejam sama sudah ada.
+    if (!effDate && !esokApplied && seen.has(`dated|${timeKey}`)) return;
+    // Label kandidat esok diberi keterangan geseran agar pengguna tahu nilai
+    // kartu = tanggal soal +1 hari (bukan typo).
+    const esokSuffix = esokApplied
+      ? (/esok|besok/i.test(label) ? ' — tanggal soal +1 hari' : ' — esok hari: tanggal soal +1 hari')
+      : '';
     seen.add(key);
-    seen.add(date ? `dated|${timeKey}` : `undated|${timeKey}`);
-    candidates.push({ label: `${label} — ${value}`, value, source: snippet(flat, index, 130), index });
+    seen.add(effDate ? `dated|${timeKey}` : `undated|${timeKey}`);
+    candidates.push({
+      label: `${label}${esokSuffix} — ${value}`,
+      value,
+      source: snippet(flat, index, 130),
+      index,
+      ...(esokApplied ? { dayOffset: 1 } : {}),
+    });
   };
 
   for (const pattern of DATUM_TIME_CANDIDATE_PATTERNS) {
@@ -815,7 +881,7 @@ export function formatAswDatumTimeAnchor(facts: CaseTextFacts): string | null {
     lines.push(
       `SOAL MEMUAT ${candidates.length} KANDIDAT TANGGAL/WAKTU (hasil parse teks soal — ATURAN PENGGUNA):`
       + '\n' + candidates.map((candidate, i) => `${i + 1}. ${candidate.label} | value: "${candidate.value}" | kutipan: "${candidate.source}"`).join('\n')
-      + '\n→ WAJIB tampilkan KARTU PEMILIHAN WAKTU: panggil tool clarify_datum_time dengan SEMUA kandidat di atas sebagai candidates (label/value/source persis seperti daftar) SEBELUM memanggil set_asw_case. JANGAN memilih sendiri dan JANGAN mengisi datumTime sebelum pengguna memilih di kartu. Kandidat di atas adalah SELURUH tanggal/waktu yang TERTULIS di soal — tanggal/waktu DATA ANGIN (deret angin ASW) dan FORECAST/PRAKIRAAN CUACA sudah dikecualikan — dan JANGAN MENAMBAHKAN kandidat buatan (mis. tanggal +1 hari untuk frasa "esok hari", tanggal hari ini, atau waktu hasil hitungan). Kandidat datum time yang benar umumnya waktu pencarian/SRU tiba/onscene — bukan waktu MAYDAY/DETRESFA/informasi — tapi KEPUTUSAN AKHIR TETAP MILIK PENGGUNA di kartu. Bila waktu yang benar tidak ada di daftar, tetap tampilkan kartu dan minta pengguna mengisi manual. Bila kandidat tidak memuat tanggal, saat mengisi datumTime gabungkan jam terpilih dengan tanggal awal soal yang SUDAH dikonfirmasi pengguna (tanpa menambah/mengubah tanggal).',
+      + '\n→ WAJIB tampilkan KARTU PEMILIHAN WAKTU: panggil tool clarify_datum_time dengan SEMUA kandidat di atas sebagai candidates (label/value/source persis seperti daftar) SEBELUM memanggil set_asw_case. JANGAN memilih sendiri dan JANGAN mengisi datumTime sebelum pengguna memilih di kartu. Kandidat di atas adalah SELURUH tanggal/waktu yang TERTULIS di soal — tanggal/waktu DATA ANGIN (deret angin ASW) dan FORECAST/PRAKIRAAN CUACA sudah dikecualikan — dan JANGAN MENAMBAHKAN kandidat buatan (tanggal hari ini atau waktu hasil hitungan). ATURAN ESOK/BESOK: kandidat yang label/kutipannya memuat kata "esok"/"besok" adalah HARI BERIKUTNYA — tanggal kandidatnya SUDAH dihitung server = tanggal soal +1 hari (label menyebut "tanggal soal +1 hari"); pakai value PERSIS tanpa menggeser lagi. Kandidat datum time yang benar umumnya waktu pencarian/SRU tiba/onscene — bukan waktu MAYDAY/DETRESFA/informasi — tapi KEPUTUSAN AKHIR TETAP MILIK PENGGUNA di kartu. Bila waktu yang benar tidak ada di daftar, tetap tampilkan kartu dan minta pengguna mengisi manual. Bila kandidat tidak memuat tanggal, saat mengisi datumTime gabungkan jam terpilih dengan tanggal awal soal yang SUDAH dikonfirmasi pengguna — KECUALI kandidat esok/besok (kata "esok"/"besok" di label/kutipan): gabungkan dengan tanggal soal +1 HARI.',
     );
   } else if (candidates.length === 1) {
     lines.push(
@@ -1685,7 +1751,7 @@ export function formatIncidentDateTimeAnchor(input: IncidentDateTimeAnchorInput)
  *  yang sama baik dari panggilan model maupun sintesis server. */
 export interface TimeClarifyPayload {
   question: string;
-  candidates: Array<{ label: string; value: string; source?: string }>;
+  candidates: Array<{ label: string; value: string; source?: string; /** 1 = frasa "esok"/"besok" — kandidat tanpa tanggal digabung tanggal soal +1 hari. */ dayOffset?: number }>;
 }
 
 export interface TimeClarificationGate {
@@ -1733,8 +1799,15 @@ export function buildRequiredTimeClarifications(facts: CaseTextFacts): TimeClari
         + '(waktu awal pencarian pada datum — umumnya waktu pencarian/SRU tiba di lokasi, '
         + 'bukan waktu MAYDAY/kejadian/informasi diterima)? '
         + 'Kandidat di bawah adalah SELURUH tanggal/waktu yang tertulis di soal (tanggal/waktu data angin ASW '
-        + 'dan forecast/prakiraan cuaca dikecualikan); tidak ada kandidat buatan seperti tanggal +1 hari.',
-      candidates: candidates.map((candidate) => ({ label: candidate.label, value: candidate.value, source: candidate.source })),
+        + 'dan forecast/prakiraan cuaca dikecualikan). Aturan esok/besok: kandidat berfrasa "esok"/"besok" adalah '
+        + 'HARI BERIKUTNYA — tanggalnya SUDAH digeser server = tanggal soal +1 hari (label menyebut "+1 hari"); '
+        + 'pakai value apa adanya, jangan menggeser lagi. Selain itu tidak ada kandidat buatan.',
+      candidates: candidates.map((candidate) => ({
+        label: candidate.label,
+        value: candidate.value,
+        source: candidate.source,
+        ...(candidate.dayOffset ? { dayOffset: candidate.dayOffset } : {}),
+      })),
     };
   }
 
@@ -1812,13 +1885,15 @@ export function buildRequiredTimeClarifications(facts: CaseTextFacts): TimeClari
  *  kandidat jam TANPA tanggal bisa digabung dengan tanggal pilihan pengguna.
  *  Alur: server MENGHAPUS nilai waktu bacaan model dari kasus → pengguna
  *  memilih di kartu → nilai diterapkan ke field worksheet. Aturan pengguna:
- *  kandidat HANYA tanggal/waktu yang tertulis di soal — TIDAK ada tanggal
- *  buatan (mis. tanggal +1 hari untuk frasa "esok hari"). */
+ *  kandidat HANYA tanggal/waktu yang tertulis di soal; SATU-SATUNYA pengecualian
+ *  aturan esok/besok — kandidat berfrasa "esok"/"besok" adalah hari berikutnya:
+ *  bertanggal = sudah tanggal soal +1 hari, tanpa tanggal = digabung tanggal
+ *  soal +1 hari (dayOffset=1, resolveDatumTimeValue). */
 export interface TimeClarificationCard {
   /** 'incident' = Waktu Kejadian A.1 worksheet ADW; 'datum' = Datum Time ASW. */
   kind: 'incident' | 'datum';
   question: string;
-  candidates: Array<{ label: string; value: string; source?: string; /** Tanggal bagian depan value (untuk penggabungan datum). */ dateLabel?: string }>;
+  candidates: Array<{ label: string; value: string; source?: string; /** Tanggal bagian depan value (untuk penggabungan datum). */ dateLabel?: string; /** 1 = frasa "esok"/"besok" — penggabungan tanggal soal +1 hari. */ dayOffset?: number }>;
   /** Tanggal dasar soal (bacaan DD/MM bila ambigu) — fallback penggabungan. */
   baseDateLabel?: string;
 }
@@ -1834,16 +1909,20 @@ export function parseLeadingIndoDateLabel(value: string): string | null {
 
 /** Gabungkan kandidat datum time dengan tanggal dasar (HANYA bila kandidat
  *  tanpa tanggal): "10.53 WIT" + "03 Desember 2024" → "03 Desember 2024 10.53
- *  WIT". Aturan pengguna: TIDAK ada tanggal buatan yang ditambahkan — kandidat
- *  "esok hari" tetap digabung tanggal soal yang dipilih pengguna (bukan +1
- *  hari); bila tanggal sebenarnya berbeda, pengguna mengisi manual. Deterministik
- *  — dipakai UI saat pengguna memilih kandidat datum. */
+ *  WIT". Aturan pengguna esok/besok: kandidat dengan dayOffset=1 (frasa
+ *  "esok"/"besok" di soal) adalah HARI BERIKUTNYA — digabung tanggal soal +1
+ *  HARI: "06.00 WIT" + "18 November 2026" → "19 November 2026 06.00 WIT".
+ *  Kandidat biasa tetap digabung tanggal soal apa adanya; bila tanggal
+ *  sebenarnya berbeda, pengguna mengisi manual. Deterministik — dipakai UI
+ *  saat pengguna memilih kandidat datum. */
 export function resolveDatumTimeValue(
-  candidate: { value: string; source?: string; label?: string },
+  candidate: { value: string; source?: string; label?: string; dayOffset?: number },
   baseDateLabel?: string,
 ): string {
   const value = (candidate.value ?? '').trim();
   if (!baseDateLabel || parseLeadingIndoDateLabel(value)) return value;
+  const base = parseIndoDate(baseDateLabel);
+  if (candidate.dayOffset === 1 && base) return `${formatIndoDateFull(addOneDay(base))} ${value}`;
   return `${baseDateLabel} ${value}`;
 }
 
@@ -1870,7 +1949,7 @@ export function buildTimeClarificationCards(facts: CaseTextFacts): TimeClarifica
       kind: 'datum',
       question: gate.datumTime.question
         + (baseDateLabel
-          ? ' Kandidat tanpa tanggal digabung dengan tanggal yang Anda pilih di kartu Waktu Kejadian (atau bacaan DD/MM soal bila belum memilih) — tidak ada tanggal buatan yang ditambahkan.'
+          ? ' Kandidat tanpa tanggal digabung dengan tanggal yang Anda pilih di kartu Waktu Kejadian (atau bacaan DD/MM soal bila belum memilih) — kandidat berfrasa "esok"/"besok" digabung tanggal soal +1 hari (hari berikutnya).'
           : ''),
       candidates: [...gate.datumTime.candidates],
       ...(baseDateLabel ? { baseDateLabel } : {}),

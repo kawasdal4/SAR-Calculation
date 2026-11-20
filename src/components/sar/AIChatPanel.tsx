@@ -296,13 +296,16 @@ interface DatumTimeCandidate {
   source?: string;
   /** Tanggal bagian depan value (kartu ekstraksi — untuk penggabungan datum). */
   dateLabel?: string;
+  /** 1 = frasa soal "esok"/"besok" — kandidat tanpa tanggal digabung tanggal soal +1 hari (resolveDatumTimeValue). */
+  dayOffset?: number;
 }
 
 /** Kartu pilihan tanggal/waktu hasil parse-case (aturan pengguna): bila tanggal
  *  soal ambigu (DD/MM vs MM/DD) atau ≥2 kandidat waktu, pengguna MEMILIH di
  *  kartu — nilai otomatis tidak diisi server (lihat /api/ai/parse-case).
  *  Kandidat hanya tanggal/waktu yang tertulis di soal (data angin & forecast
- *  cuaca dikecualikan; tidak ada tanggal buatan seperti +1 hari). */
+ *  cuaca dikecualikan); kandidat berfrasa "esok"/"besok" = hari berikutnya
+ *  (tanggal soal +1 hari — lihat dayOffset). */
 interface ExtractionTimeClarificationCard {
   kind: 'incident' | 'datum';
   question: string;
@@ -356,7 +359,7 @@ function DatumTimeClarifyCard({
                 <button
                   key={ci}
                   type="button"
-                  onClick={() => onAnswer({ label: c.label, value: c.value as string, source: c.source, dateLabel: c.dateLabel })}
+                  onClick={() => onAnswer({ label: c.label, value: c.value as string, source: c.source, dateLabel: c.dateLabel, dayOffset: c.dayOffset })}
                   className="w-full text-left bg-white border border-slate-300 hover:border-emerald-400 hover:bg-emerald-50 rounded-md px-2 py-1.5 transition-colors"
                 >
                   <span className="block text-[11px] font-bold text-slate-900">{c.label || c.value}</span>
@@ -1367,8 +1370,9 @@ export default function AIChatPanel({
    *  pengguna LANGSUNG diubah ke field kasus (incident.lastContactTime /
    *  search.datumTime) dan apply plan dihitung ulang — tanpa panggilan chat.
    *  Kandidat datum time tanpa tanggal digabung dengan tanggal pilihan kartu
-   *  Waktu Kejadian (fallback: bacaan DD/MM server) — TIDAK ada tanggal buatan
-   *  (+1 hari) yang ditambahkan (resolveDatumTimeValue). Kartu terpilih ditutup. */
+   *  Waktu Kejadian (fallback: bacaan DD/MM server) — KECUALI kandidat esok/
+   *  besok (dayOffset=1): digabung tanggal soal +1 HARI (resolveDatumTimeValue).
+   *  Kartu terpilih ditutup. */
   const handleExtractionTimeChoice = useCallback(
     (msgIdx: number, card: ExtractionTimeClarificationCard, candidate: DatumTimeCandidate) => {
       const chosenValue = (candidate.value ?? '').trim();
@@ -1381,7 +1385,7 @@ export default function AIChatPanel({
         const incidentDateChoice = msg.extractionIncidentDateChoice;
         const baseDate = card.kind === 'datum' ? (incidentDateChoice || card.baseDateLabel) : undefined;
         const value = card.kind === 'datum'
-          ? resolveDatumTimeValue({ value: chosenValue, source: candidate.source, label: candidate.label }, baseDate)
+          ? resolveDatumTimeValue({ value: chosenValue, source: candidate.source, label: candidate.label, dayOffset: candidate.dayOffset }, baseDate)
           : chosenValue;
         const field = card.kind === 'incident' ? 'incident.lastContactTime' : 'search.datumTime';
         const merged = mergeUserFieldValue(workingCase, field, value);
