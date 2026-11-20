@@ -76,6 +76,7 @@ import {
   type Vector,
   computeAWA,
   computeASW,
+  normalizeAwaWindRows,
   rectangleCorners,
   distanceNm,
   bearingDeg,
@@ -1348,7 +1349,9 @@ export default function Home() {
     observations?: { altObs: string; windDirFrom: number; windSpeed: number }[];
     caseTitle?: string;
   }) => {
-    const windData = (data.windData ?? data.observations ?? []) as { altObs: string; windDirFrom: number; windSpeed: number }[];
+    const windData = normalizeAwaWindRows(
+      ((data.windData ?? data.observations ?? []) as unknown),
+    );
     setLoadedInitialState((prev) => ({
       ...prev,
       awa: {

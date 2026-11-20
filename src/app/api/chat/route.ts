@@ -128,6 +128,8 @@ ATURAN WAKTU INSIDEN A.1 (worksheet ADW) — PILIHAN TANGGAL & WAKTU:
 - Analisis narasi soal: pisahkan (1) WAKTU KEJADIAN — "ATC menerima panggilan MAYDAY pukul ...", "kejadian pukul ...", "distress/ditching pukul ...", dan (2) WAKTU INFORMASI DITERIMA — "Kantor SAR menerima informasi pukul ...", "RCC menerima laporan pukul ...", "SAR diinformasikan pukul ...". A.1 diisi waktu kejadian (1), bukan waktu penerimaan informasi (2).
 - Contoh: "Pada 17 Nov 2026 16.05 WIT Kantor SAR Sorong menerima informasi dari ATC bahwa pada pukul 15.56 WIT ATC menerima panggilan MAYDAY" → A.1 = 17 Nov 2026 15.56 WIT: kirim date "17 Nov 2026" dan incidentTime "17 Nov 2026 15.56 WIT" — aplikasi mengonversi otomatis ke format Basarnas MMDD.HHMM dalam UTC (Z) — zona apa pun (WIB/WITA/WIT, huruf G/H/I, "UTC+9") ikut dikonversi otomatis ke UTC, mis. 15.56 WIT → 1117.0656 Z; 16.05 WIT HANYA konteks waktu penerimaan laporan, JANGAN dipakai sebagai A.1.
 - WAJIB bertanya bila ragu: bila narasi memuat ≥2 kandidat waktu dan tidak jelas mana yang merupakan waktu kejadian untuk A.1 (mis. waktu MAYDAY vs waktu ditching berbeda tanpa keterangan, frasa tidak jelas, atau dua waktu kejadian sama-sama masuk akal) → JANGAN menentukan sendiri dan JANGAN menebak; panggil tool clarify_incident_time dengan question + candidates (label, value, frasa sumber soal). Pengguna memilih di kartu chat; gunakan jawaban pengguna PERSIS untuk date/incidentTime set_aero_drift_case. Bila waktu kejadian sudah jelas di soal, isi langsung tanpa bertanya.
+- KALIMAT DETRESFA (ATURAN PENGGUNA): bila soal memuat kalimat seperti "ATC declare DETRESFA pada pukul 1053 WIT dengan LKP pada koordinat 4°59'00\"S -133°53'48\"E." (declare/declared/mendeklarasikan DETRESFA + jam), waktu deklarasi DETRESFA itu adalah WAKTU KEJADIAN untuk point A.1 worksheet ADW, dan TANGGALnya adalah tanggal yang disebut di AWAL soal (kalimat/bullet pembuka). Jam boleh 4 digit tanpa pemisah: "1053" = pukul 10.53; "pukul 10.53" = 10.53. Untuk contoh tersebut (dengan tanggal awal soal "03/12/2024" yang sudah dikonfirmasi pengguna = 12 Maret 2024): kirim set_aero_drift_case date "12 Maret 2024" + incidentTime "12 Maret 2024 10.53 WIT", dan koordinat LKP pada kalimat yang sama → incidentPos 4°59'00\"S / 133°53'48\"E + set_lkp. Waktu Kantor SAR menerima informasi (mis. "pukul 1105 WIT") tetap BUKAN A.1.
+- TANGGAL NUMERIK BERSLASH AMBIGU (ATURAN PENGGUNA): tanggal angka seperti "03/12/2024" di soal kasus ambigu — bisa 3 Desember 2024 (DD/MM/YYYY, konvensi Indonesia) atau 12 Maret 2024 (MM/DD/YYYY, konvensi AS). JANGAN memilih sendiri: WAJIB panggil clarify_incident_time (pertanyaan tanggal + KEDUA tafsiran sebagai candidates: label menyebut bacaannya, mis. "Dibaca DD/MM — 3 Desember 2024"; value tanggal terpilih; source kutipan soal) SEBELUM mengisi date/incidentTime atau tanggal apa pun pada worksheet kasus ini. Setelah pengguna memilih, pakai tanggal terpilih untuk SEMUA tanggal worksheet (A.1, deret angin, dsb.) dan tuliskan pilihannya di jawaban. Tidak perlu bertanya bila tanggal sudah tidak ambigu: memakai nama bulan (mis. "12 Maret 2024"), format TW/DTG, atau salah satu komponen > 12 (mis. "17/11/2026" jelas 17 November 2026).
 
 FORMAT TANGGAL-WAKTU (TW / DTG) — WAJIB dipahami untuk menafsirkan soal kasus:
 - Huruf zona waktu: G = WIB (UTC+7), H = WITA (UTC+8), I = WIT (UTC+9), Z = UTC (Zulu).
@@ -135,6 +137,7 @@ FORMAT TANGGAL-WAKTU (TW / DTG) — WAJIB dipahami untuk menafsirkan soal kasus:
 - FORMAT DTG (militer/NATO): [Tanggal][Jam][Menit][Zona] [Bulan] [Tahun]. Contoh: "171847G NOV 2026" = 17 November 2026 pukul 18.47 WIB (17 = tanggal, 1847 = pukul 18:47, G = WIB, NOV = bulan November, 2026 = tahun); varian "171847Z NOV 26" = 17 November 2026 pukul 18.47 UTC.
 - HATI-HATI: urutan angka kedua format BERBEDA — FORMAT TW diawali BULAN (MMDD), FORMAT DTG diawali TANGGAL (DD). "1117" pada format TW berarti 17 November; pada format DTG "1711…" berarti tanggal 17 bulan 11. Jangan tertukar.
 - DTG tanpa tahun berarti tahun berjalan (mis. NOV 2026 = November 2026); bila tanggalnya 29-31 periksa kecocokan dengan bulannya. Jangan mengarang tanggal/tahun yang tidak tertulis di soal.
+- Tanggal angka berslash (mis. "03/12/2024") AMBIGU DD/MM vs MM/DD — WAJIB konfirmasi pengguna via clarify_incident_time (lihat ATURAN WAKTU INSIDEN A.1); jangan mengisi tanggal worksheet sebelum tanggal dikonfirmasi.
 - Saat mengisi tool worksheet (distressTime, datumTime, incidentTime, date, dll), tuliskan waktu dalam bentuk yang SUDAH ditafsirkan, mis. "17 Nov 2026 18:47 WIB (DTG 171847G NOV 2026)", agar worksheet memakai tanggal-waktu yang benar dan jejak format asal tetap tersimpan. Format apa pun diterima — aplikasi otomatis mengonversinya ke format Basarnas MMDD.HHMM Z di worksheet.
 - Waktu distress worksheet ASW dihitung aplikasi otomatis dari ADW: A.1 (waktu insiden) + B.7 (menit turun seluruh segmen aktif, dibulatkan setengah-ke-atas ke menit utuh). Kirim distressTime dari soal apa adanya; bila kasus dihitung ADW, nilai turunan ADW yang dipakai worksheet.
 
@@ -515,7 +518,7 @@ const tools: FunctionDeclaration[] = [
   },
   {
     name: 'clarify_incident_time',
-    description: 'Menanyakan tanggal & waktu kejadian (point A.1 worksheet ADW) kepada pengguna saat soal ambigu atau ada beberapa kandidat waktu yang sama-sama masuk akal — JANGAN menentukan sendiri dan JANGAN menebak. Kirim pertanyaan + daftar kandidat waktu hasil tafsiran soal (label, value apa adanya, frasa sumber). Pengguna memilih salah satu kandidat atau mengisi manual di kartu chat; jawaban dikirim balik ke percakapan untuk dipakai sebagai date + incidentTime di set_aero_drift_case. Gunakan HANYA bila waktu kejadian ragu/ambigu; bila sudah jelas di soal (mis. jelas waktu MAYDAY vs waktu laporan diterima), isi langsung set_aero_drift_case tanpa bertanya.',
+    description: 'Menanyakan tanggal & waktu kejadian (point A.1 worksheet ADW) kepada pengguna saat soal ambigu atau ada beberapa kandidat waktu yang sama-sama masuk akal — JANGAN menentukan sendiri dan JANGAN menebak. TERMASUK WAJIB untuk AMBIGUITAS FORMAT TANGGAL NUMERIK: tanggal berslash seperti "03/12/2024" bisa dibaca DD/MM (3 Desember 2024, konvensi Indonesia) atau MM/DD (12 Maret 2024, konvensi AS) — kirim pertanyaan tanggal dengan KEDUA bacaan sebagai candidates sebelum mengisi tanggal worksheet mana pun. Juga untuk ≥2 kandidat waktu kejadian (MAYDAY vs ditching vs DETRESFA). Kirim pertanyaan + daftar kandidat hasil tafsiran soal (label, value apa adanya, frasa sumber). Pengguna memilih salah satu kandidat atau mengisi manual di kartu chat; jawaban dikirim balik ke percakapan untuk dipakai sebagai date + incidentTime di set_aero_drift_case. Gunakan HANYA bila ragu/ambigu; bila sudah jelas di soal, isi langsung set_aero_drift_case tanpa bertanya.',
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
@@ -1200,7 +1203,7 @@ ${describeDependencyGraph()}`;
     if (pdfBase64Parts.length > 0) {
       try {
         const { extractPdfTextFromBase64 } = await import('@/lib/ai/pdfText');
-        const { extractCaseFacts, formatWindLayersAnchor } = await import('@/lib/ai/caseTextEnrich');
+        const { extractCaseFacts, formatWindLayersAnchor, formatAwaCaseDataAnchor, formatIncidentDateTimeAnchor } = await import('@/lib/ai/caseTextEnrich');
         const pdfText = (await Promise.all(pdfBase64Parts.map((data) => extractPdfTextFromBase64(data))))
           .join('\n\n').replace(/\r/g, '').slice(0, 30000);
         if (pdfText.trim()) {
@@ -1211,6 +1214,8 @@ ${describeDependencyGraph()}`;
               'TABEL ANGIN PER KETINGGIAN (hasil parse teks soal — WAJIB dipakai PERSIS di set_awa_case; DILARANG mengganti/mengarang nilai):\n'
               + formatWindLayersAnchor(facts.windLayers.value),
             );
+            const distressAltFt = facts.flightLevelFt ? facts.flightLevelFt.value * 100 : facts.altitudeFt?.value;
+            anchorSections.push(formatAwaCaseDataAnchor(facts.windLayers.value, distressAltFt));
           }
           if (facts.altitudeFt || facts.flightLevelFt) {
             const alt = facts.flightLevelFt
@@ -1218,6 +1223,12 @@ ${describeDependencyGraph()}`;
               : `${facts.altitudeFt!.value} ft`;
             anchorSections.push(`KETINGGIAN INSIDEN (hasil parse teks soal — WAJIB dipakai di set_awa_case/set_aero_drift_case): ${alt}. Kutipan: "${facts.flightLevelFt?.source ?? facts.altitudeFt?.source ?? ''}"`);
           }
+          const incidentAnchor = formatIncidentDateTimeAnchor({
+            caseDate: facts.caseDate,
+            detresfaTime: facts.detresfaTime,
+            lkpCoord: facts.lkpCoord,
+          });
+          if (incidentAnchor) anchorSections.push(incidentAnchor);
           if (anchorSections.length > 0) {
             input.push({
               type: 'text',

@@ -128,6 +128,12 @@ export interface CaseTextFacts {
   current?: CaseTextFact<{ dirToDeg: number; speedKts: number }>;
   datumTime?: CaseTextFact<string>;
   sruCandidates?: CaseTextFact<Array<Record<string, unknown>>>;
+  /** Tanggal di awal soal ("03/12/2024, pesawat SRX48 berangkat …") — bacaan
+   *  DD/MM vs MM/DD bisa AMBIGU (lihat CaseDateFact.ambiguous). */
+  caseDate?: CaseDateFact;
+  /** Waktu deklarasi DETRESFA ("ATC declare DETRESFA pada pukul 1053 WIT …")
+   *  — aturan pengguna: waktu kejadian untuk point A.1 worksheet ADW. */
+  detresfaTime?: CaseTextFact<DetresfaTimeFact>;
 }
 
 function snippet(text: string, index: number, span = 110): string {
@@ -137,6 +143,18 @@ function snippet(text: string, index: number, span = 110): string {
 
 function toNumber(raw: string): number {
   return Number(raw.replace(/\./g, '').replace(',', '.'));
+}
+
+/** Kecepatan berlabel satuan (arus/angin, kts): "1.3" → 1.3 (titik desimal —
+ *  kecepatan arus 1300 kts tidak masuk akal; soal FULL EXERCISE SRX48 menulis
+ *  "Arus laut di lokasi : 25⁰ / 1.3kts" yang sebelumnya terbaca 13 kts).
+ *  Titik RIBUAN hanya bila pola grup 3 digit ("1.300" → 1300); koma selalu
+ *  desimal ("0,3" → 0.3). */
+function toUnitSpeed(raw: string): number {
+  const text = raw.trim();
+  if (text.includes(',')) return Number(text.replace(/\./g, '').replace(',', '.'));
+  if (/^\d{1,3}(\.\d{3})+$/.test(text)) return Number(text.replace(/\./g, ''));
+  return Number(text);
 }
 
 // ── Parser per field ────────────────────────────────────────────────────────
@@ -195,7 +213,11 @@ function parseAltitude(text: string): CaseTextFact<number> | undefined {
 }
 
 function parseLkpCoord(text: string): CaseTextFact<{ lat: number; lng: number; dmsLat: string; dmsLng: string }> | undefined {
-  const label = text.match(/(?:koordinat\s+(?:lost\s*contact|kontak\s+terakhir|lkp)|lost\s*contact\s*(?:point|position|coord(?:inate)?)?|position\s+of\s+last\s+known|lkp\s*[:=])/i);
+  // Varian label soal: "Koordinat Lost Contact", "LKP:", dan kalimat DETRESFA
+  // "ATC declare DETRESFA pada pukul 1053 WIT dengan LKP pada koordinat …"
+  // (varian terakhir dulu TIDAK tertangkap sehingga koordinat LKP soal kasus
+  // FULL EXERCISE SRX48 tidak pernah masuk worksheet ADW).
+  const label = text.match(/(?:koordinat\s+(?:lost\s*contact|kontak\s+terakhir|lkp)|lost\s*contact\s*(?:point|position|coord(?:inate)?)?|position\s+of\s+last\s+known|lkp\s*(?:pada|di|at)\s*(?:koordinat|posisi)|lkp\s*[:=])/i);
   if (!label || label.index === undefined) return undefined;
   const slice = text.slice(label.index, label.index + 160);
   const pair = coordPairFromTokens(findCoordTokens(slice));
@@ -380,7 +402,7 @@ function parseCurrent(text: string): CaseTextFact<{ dirToDeg: number; speedKts: 
     ?? text.match(/(?:current|tidal)\s*(?:setting|stream)?[^.\n]{0,50}?(\d{1,3})\s*[°º⁰*]?\s*(?:\/|@|at)\s*(\d{1,3}(?:[.,]\d+)?)\s*(?:knot|kts|knots)/i);
   if (!match) return undefined;
   const dirToDeg = Number(match[1]);
-  const speedKts = toNumber(match[2]);
+  const speedKts = toUnitSpeed(match[2]);
   if (!Number.isFinite(dirToDeg) || dirToDeg > 360 || !Number.isFinite(speedKts) || speedKts > 15) return undefined;
   return { value: { dirToDeg, speedKts }, source: snippet(text, match.index ?? 0) };
 }
@@ -431,6 +453,143 @@ function parseDatumTime(text: string): CaseTextFact<string> | undefined {
 
 function formatIndoDateFull(date: { day: number; month: number; year: number }): string {
   return `${String(date.day).padStart(2, '0')} ${indoMonthName(date.month)} ${date.year}`;
+}
+
+// ── Tanggal angka berslash (DD/MM vs MM/DD) & waktu deklarasi DETRESFA ──────
+
+export interface SlashDateReading {
+  day: number;
+  month: number;
+  year: number;
+}
+
+export interface SlashDateFact {
+  raw: string;
+  index: number;
+  /** Bacaan DD/MM (konvensi Indonesia): komponen pertama = tanggal. */
+  dayFirst: SlashDateReading;
+  /** Bacaan MM/DD (konvensi AS): komponen pertama = bulan. */
+  monthFirst: SlashDateReading;
+  /** true bila KEDUA bacaan berbeda dan sama-sama valid (kedua komponen ≤ 12),
+   *  mis. "03/12/2024" bisa 3 Desember 2024 ATAU 12 Maret 2024. */
+  ambiguous: boolean;
+}
+
+/** Semua tanggal angka berslash "03/12/2024" di teks, urut kemunculan.
+ *  Tahun 2 digit → 20xx. Salah satu komponen wajib ≤ 12 (kandidat bulan). */
+export function findSlashDates(text: string): SlashDateFact[] {
+  const facts: SlashDateFact[] = [];
+  for (const match of text.matchAll(/\b(\d{1,2})\s*\/\s*(\d{1,2})\s*\/\s*(\d{4}|\d{2})\b/g)) {
+    const a = Number(match[1]);
+    const b = Number(match[2]);
+    const rawYear = Number(match[3]);
+    if (!Number.isFinite(a) || !Number.isFinite(b) || a < 1 || b < 1 || a > 31 || b > 31) continue;
+    if (Math.min(a, b) > 12) continue; // tidak ada kandidat bulan valid
+    const year = match[3].length === 2 ? 2000 + rawYear : rawYear;
+    if (!Number.isFinite(year) || year < 1900 || year > 2100) continue;
+    const dayFirst = { day: a, month: b, year };
+    const monthFirst = { day: b, month: a, year };
+    const ambiguous = a <= 12 && b <= 12 && a !== b;
+    facts.push({ raw: match[0], index: match.index ?? 0, dayFirst, monthFirst, ambiguous });
+  }
+  return facts;
+}
+
+export interface CaseDateFact {
+  raw: string;
+  index: number;
+  /** Bacaan terpilih: DD/MM bila ambigu (konvensi Indonesia), bacaan tunggal
+   *  yang valid bila tidak ambigu (mis. "17/11/2026" jelas 17 November). */
+  reading: SlashDateReading;
+  ambiguous: boolean;
+  /** Semua bacaan valid berlabel — bahan kartu konfirmasi ke pengguna. */
+  readings: Array<SlashDateReading & { label: string }>;
+}
+
+/** Tanggal awal soal: tanggal NAMA BULAN (tidak ambigu, mis. "12 Maret 2024")
+ *  atau tanggal berslash paling awal di bagian awal teks. Contoh soal kasus:
+ *  "• 03/12/2024, pesawat SRX48 berangkat dari Ternate menuju Merauke …" →
+ *  ambigu (bisa 3 Desember 2024 atau 12 Maret 2024). */
+export function findCaseOpeningDate(text: string): CaseDateFact | null {
+  const window = text.slice(0, 1200);
+  const indoMatch = window.match(new RegExp(`\\b(\\d{1,2})\\s+(${MONTH_NAME_PATTERN})\\s+(\\d{4})\\b`, 'i'));
+  const slash = findSlashDates(window)[0];
+  if (indoMatch && indoMatch.index !== undefined && (!slash || indoMatch.index < slash.index)) {
+    const reading = parseIndoDate(indoMatch[0]);
+    if (!reading) return null;
+    return {
+      raw: indoMatch[0],
+      index: indoMatch.index,
+      reading,
+      ambiguous: false,
+      readings: [{ ...reading, label: formatIndoDateFull(reading) }],
+    };
+  }
+  if (slash) {
+    const labeled = (reading: SlashDateReading) => ({ ...reading, label: formatIndoDateFull(reading) });
+    if (slash.ambiguous) {
+      return {
+        raw: slash.raw,
+        index: slash.index,
+        reading: slash.dayFirst,
+        ambiguous: true,
+        readings: [labeled(slash.dayFirst), labeled(slash.monthFirst)],
+      };
+    }
+    // Tidak ambigu: komponen > 12 adalah TANGGAL (bukan bulan).
+    const reading = slash.dayFirst.month > 12 ? slash.monthFirst : slash.dayFirst;
+    return {
+      raw: slash.raw,
+      index: slash.index,
+      reading,
+      ambiguous: false,
+      readings: [labeled(reading)],
+    };
+  }
+  return null;
+}
+
+export interface DetresfaTimeFact {
+  hour: number;
+  minute: number;
+  /** Zona tertulis di soal (WIB/WITA/WIT/UTC/Z) bila ada — tanpa zona jangan dikarang. */
+  zone?: string;
+  raw: string;
+  index: number;
+  source: string;
+}
+
+const DETRESFA_TIME_PATTERNS: RegExp[] = [
+  // "ATC declare DETRESFA pada pukul 1053 WIT dengan LKP …" — jam 4 digit
+  // tanpa pemisah, gaya umum soal kasus Basarnas.
+  /detresfa[^.\n]{0,140}?(?:pukul|at|time)\s*(\d{2})(\d{2})\s*(WIB|WITA|WIT|UTC|Z)?\b/i,
+  // "declare DETRESFA pada pukul 10.53 WIT" / "10:53" — jam dengan pemisah.
+  /detresfa[^.\n]{0,140}?(?:pukul|at|time)\s*(\d{1,2})\s*[.:]\s*(\d{2})\s*(WIB|WITA|WIT|UTC|Z)?\b/i,
+  // Jam mendahului frasa: "pukul 10.53 WIT ATC menyatakan DETRESFA …"
+  /pukul\s*(\d{1,2})\s*[.:]\s*(\d{2})\s*(WIB|WITA|WIT|UTC|Z)?\s*[^.\n]{0,60}?detresfa/i,
+  /pukul\s*(\d{2})(\d{2})\s*(WIB|WITA|WIT|UTC|Z)?\s*[^.\n]{0,60}?detresfa/i,
+];
+
+/** Waktu deklarasi DETRESFA dari kalimat soal — waktu kejadian untuk point
+ *  A.1 worksheet ADW (aturan pengguna). Jam "1053" tanpa pemisah = 10.53. */
+export function parseDetresfaTime(text: string): DetresfaTimeFact | null {
+  for (const pattern of DETRESFA_TIME_PATTERNS) {
+    const match = pattern.exec(text);
+    if (!match || match.index === undefined) continue;
+    const hour = Number(match[1]);
+    const minute = Number(match[2]);
+    if (hour > 23 || minute > 59) continue;
+    const zone = match[3]?.toUpperCase();
+    return {
+      hour,
+      minute,
+      ...(zone ? { zone } : {}),
+      raw: match[0],
+      index: match.index,
+      source: snippet(text, match.index, 130),
+    };
+  }
+  return null;
 }
 
 // ── Tabel SRU (row-major, umum di soal Diklat) ──────────────────────────────
@@ -693,6 +852,10 @@ export function extractCaseFacts(text: string): CaseTextFacts {
   if (current) facts.current = current;
   const datumTime = parseDatumTime(flat);
   if (datumTime) facts.datumTime = datumTime;
+  const caseDate = findCaseOpeningDate(flat);
+  if (caseDate) facts.caseDate = caseDate;
+  const detresfa = parseDetresfaTime(flat);
+  if (detresfa) facts.detresfaTime = { value: detresfa, source: detresfa.source };
   const sru = parseSruTable(flat);
   if (sru) facts.sruCandidates = sru;
   return facts;
@@ -896,6 +1059,48 @@ export function enrichCaseFromSourceText(sarCase: SarCaseSchema, sourceText: str
     );
   }
 
+  // ── Tanggal & waktu kejadian A.1 (aturan pengguna: DETRESFA → A.1) ─────────
+  // Kalimat "ATC declare DETRESFA pada pukul 1053 WIT dengan LKP …" → A.1 =
+  // tanggal di AWAL soal + jam deklarasi DETRESFA (bukan waktu Kantor SAR
+  // menerima informasi). Tanggal berslash ambigu ("03/12/2024") diisi bacaan
+  // DD/MM + catatan DIASUMSIKAN: WAJIB konfirmasi tanggal ke pengguna.
+  if (facts.caseDate && facts.detresfaTime) {
+    const incidentTime = working.incident.lastContactTime;
+    const detresfa = facts.detresfaTime.value;
+    const detresfaTimeText = `${String(detresfa.hour).padStart(2, '0')}.${String(detresfa.minute).padStart(2, '0')}${detresfa.zone ? ` ${detresfa.zone}` : ''}`;
+    const alreadyCorrect = typeof incidentTime === 'string' && incidentTime.includes(detresfaTimeText);
+    if (incidentTime && alreadyCorrect) {
+      // Nilai model sudah memakai jam DETRESFA — biarkan.
+    } else {
+      const reading = facts.caseDate.reading;
+      const value = `${formatIndoDateFull(reading)} ${detresfaTimeText}`;
+      const source = `Tanggal awal soal "${facts.caseDate.raw}" + waktu deklarasi DETRESFA: ${facts.detresfaTime.source}`;
+      const previous = incidentTime ?? '(kosong)';
+      working.incident.lastContactTime = value;
+      filled.push({ field: 'incident.lastContactTime', value, source });
+      if (facts.caseDate.ambiguous) {
+        // Tanggal berslash ambigu — DD/MM dipakai SEMENTARA (konvensi
+        // Indonesia); konfirmasi tanggal wajib dilakukan pengguna.
+        sources.push({ field: 'incident.lastContactTime', source: `${source} (status tanggal: AMBIGU — butuh konfirmasi)`, status: 'UNVERIFIED' });
+        assumptions.push({
+          field: 'incident.lastContactTime',
+          value,
+          reason: `Tanggal "${facts.caseDate.raw}" di awal soal AMBIGU (format DD/MM vs MM/DD): bisa ${facts.caseDate.readings.map((entry) => entry.label).join(' atau ')}. Dipakai SEMENTARA bacaan DD/MM (konvensi Indonesia) — WAJIB konfirmasi tanggal ke pengguna sebelum worksheet difinalkan.`,
+        });
+      } else {
+        sources.push({ field: 'incident.lastContactTime', source, status: 'VERIFIED' });
+      }
+      if (incidentTime) {
+        corrections.push({
+          field: 'incident.lastContactTime',
+          from: previous,
+          to: value,
+          source,
+        });
+      }
+    }
+  }
+
   // Laut
   const sea = { ...(working.sea ?? {}) };
   let seaChanged = false;
@@ -962,4 +1167,72 @@ export function formatWindLayersAnchor(rows: Array<{ altitudeFt: number; windDir
   return rows
     .map((row) => `- ${row.altitudeFt === 0 ? 'Surface (0 ft)' : `${row.altitudeFt} ft`}: ${row.windDirFrom}°T / ${row.windSpeedKts} kts`)
     .join('\n');
+}
+
+/** Anchor argumen set_awa_case SIAP PAKAI (JSON persis): model tinggal menyalin
+ *  tanpa mentransformasi label ketinggian ("Surface", "3000 FT" → altObs).
+ *  Bug yang dicegah (FULL EXERCISE SRX48): isian altitude/kolom "Altitude
+ *  interval (A)" worksheet AWA kosong karena baris angin tak sampai/menjadi
+ *  tidak valid saat model menyalin tabel soal. */
+export function formatAwaCaseDataAnchor(
+  rows: Array<{ altitudeFt: number; windDirFrom: number; windSpeedKts: number }>,
+  distressAltFt?: number,
+): string {
+  const windData = rows.map((row) => ({
+    altObs: String(row.altitudeFt),
+    windDirFrom: row.windDirFrom,
+    windSpeed: row.windSpeedKts,
+  }));
+  return [
+    'ARGUMEN set_awa_case SIAP PAKAI (salin PERSIS — DILARANG mengubah nilai, menambah/mengurangi baris, atau mengganti altObs dengan label lain seperti "Surface"/"3000 FT"):',
+    `distressAltFt: ${typeof distressAltFt === 'number' ? distressAltFt : '<ketinggian insiden dari soal, feet>'}`,
+    `windData: ${JSON.stringify(windData)}`,
+    'altObs "0" = Surface. Semua baris di atas wajib masuk windData set_awa_case.',
+  ].join('\n');
+}
+
+export interface IncidentDateTimeAnchorInput {
+  caseDate?: CaseDateFact;
+  /** Fact terbungkus dari CaseTextFacts.detresfaTime (pakai .value di dalam). */
+  detresfaTime?: CaseTextFacts['detresfaTime'];
+  lkpCoord?: CaseTextFacts['lkpCoord'];
+}
+
+/** Anchor tanggal/waktu kejadian A.1 ADW (aturan pengguna):
+ *  - Tanggal awal soal ambigu ("03/12/2024") → WAJIB konfirmasi ke pengguna
+ *    via clarify_incident_time dengan kandidat DD/MM dan MM/DD.
+ *  - Kalimat DETRESFA → waktu kejadian A.1 = tanggal awal soal + jam DETRESFA.
+ *  - Koordinat LKP hasil parse (varian "LKP pada koordinat …").
+ *  Dipakai route /api/chat sebagai bagian "JANGKAR DETERMINISTIK". */
+export function formatIncidentDateTimeAnchor(input: IncidentDateTimeAnchorInput): string | null {
+  const lines: string[] = [];
+  if (input.caseDate) {
+    if (input.caseDate.ambiguous) {
+      const [first, second] = input.caseDate.readings;
+      lines.push(
+        `TANGGAL AWAL SOAL "${input.caseDate.raw}" AMBIGU (format DD/MM vs MM/DD):`
+        + `\n- Kandidat A (dibaca DD/MM, konvensi Indonesia): ${first.label}`
+        + `\n- Kandidat B (dibaca MM/DD, konvensi AS): ${second.label}`
+        + '\n→ WAJIB konfirmasi ke pengguna lewat tool clarify_incident_time (kedua kandidat di atas = daftar candidates) SEBELUM mengisi tanggal pada worksheet mana pun. Setelah pengguna memilih, pakai tanggal terpilih untuk SEMUA tanggal worksheet kasus ini dan tuliskan pilihannya di jawaban.',
+      );
+    } else {
+      lines.push(
+        `TANGGAL AWAL SOAL: ${input.caseDate.readings[0].label} (kutipan "${input.caseDate.raw}") — pakai untuk semua tanggal worksheet kasus ini (A.1 ADW, dsb.).`,
+      );
+    }
+  }
+  if (input.detresfaTime) {
+    const detresfa = input.detresfaTime.value;
+    const time = `${String(detresfa.hour).padStart(2, '0')}.${String(detresfa.minute).padStart(2, '0')}${detresfa.zone ? ` ${detresfa.zone}` : ''}`;
+    lines.push(
+      `WAKTU KEJADIAN A.1 ADW = WAKTU DEKLARASI DETRESFA: pukul ${time} (kutipan soal: "${input.detresfaTime.source}").`
+      + `\n→ incidentTime set_aero_drift_case = "<tanggal awal soal yang sudah dikonfirmasi> ${time}" (mis. "19 November 2026 ${time}"); JANGAN memakai waktu Kantor SAR/RCC menerima informasi sebagai A.1.`,
+    );
+  }
+  if (input.lkpCoord) {
+    lines.push(
+      `KOORDINAT LKP (hasil parse teks soal — pakai untuk incidentPos set_aero_drift_case dan set_lkp): ${input.lkpCoord.value.dmsLat} – ${input.lkpCoord.value.dmsLng} (desimal: ${input.lkpCoord.value.lat}, ${input.lkpCoord.value.lng}).`,
+    );
+  }
+  return lines.length > 0 ? lines.join('\n\n') : null;
 }

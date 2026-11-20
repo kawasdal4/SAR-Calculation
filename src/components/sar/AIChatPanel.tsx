@@ -36,7 +36,7 @@ import type { Worksheet8InitialState } from '@/components/sar/worksheets/Workshe
 import { W2_TARGET_OPTIONS, W8_TARGET_OPTIONS } from '@/lib/sar/wscPodTables';
 import type { SearchPatternPlanInitialState } from '@/lib/sar/searchPatterns';
 import type { AeroDriftInitialState } from '@/components/sar/AeronauticalDriftWorksheet';
-import { LEEWAY_OBJECT_TYPES, mapNavAidToFixError, parseAltitudeFt } from '@/lib/sar/sarCalculations';
+import { LEEWAY_OBJECT_TYPES, mapNavAidToFixError, normalizeAwaWindRows, parseAltitudeFt } from '@/lib/sar/sarCalculations';
 import { normalizeCaseToolArgs } from '@/lib/sar/caseToolNormalize';
 import CaseExtractionCard, { type CaseExtractionData } from '@/components/sar/CaseExtractionCard';
 import {
@@ -493,22 +493,30 @@ export default function AIChatPanel({
           // computeAWA (Number.isFinite menolak string) sehingga SELURUH kolom
           // hasil worksheet AWA kosong walau baris angin terisi.
           const distressAltFt = parseAltitudeFt(raw.distressAltFt);
-          const data = Number.isFinite(distressAltFt)
-            ? { ...raw, distressAltFt }
-            : raw;
+          // Normalisasi baris angin SEBELUM gate & apply: altObs "Surface"/
+          // "3000 FT"/FL → angka, baris tak valid dibuang, duplikat didedup,
+          // urut naik. Tanpa ini SATU baris rusak membuat computeAWA menolak
+          // seluruh perhitungan → kolom "Altitude interval (A)" dan hasil AWA
+          // kosong semua (bug soal kasus FULL EXERCISE SRX48).
+          const windRows = normalizeAwaWindRows(
+            ((raw as { windData?: unknown[] }).windData
+              ?? (raw as { observations?: unknown[] }).observations
+              ?? []) as unknown,
+          );
+          const data = {
+            ...raw,
+            distressAltFt: Number.isFinite(distressAltFt) ? distressAltFt : raw.distressAltFt,
+            windData: windRows,
+          };
           // Gate sejajar worksheet: distressAltFt 0 (soal tak menyebut
           // ketinggian) TETAP boleh diisi — computeAWA menghitung dari surface;
-          // yang wajib hanya ≥2 baris angin. Alias `observations` (bentuk
-          // seeds/ekstraksi) diterima agar langkah AI tidak ditolak diam-diam.
-          const windRows = (data as { windData?: unknown[]; observations?: unknown[] }).windData
-            ?? (data as { observations?: unknown[] }).observations
-            ?? [];
+          // yang wajib hanya ≥2 baris angin (hitung SETELAH normalisasi).
           if (Number.isFinite(distressAltFt) && distressAltFt >= 0 && windRows.length >= 2) {
             onApplyAWA?.(data);
             applied = true;
             appliedWorksheets.push('awa');
           } else {
-            failedWorksheets.push('AWA (butuh ≥2 baris angin + ketinggian valid)');
+            failedWorksheets.push('AWA (butuh ≥2 baris angin valid + ketinggian valid)');
           }
           break;
         }

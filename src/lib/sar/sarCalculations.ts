@@ -197,6 +197,37 @@ export function parseAltitudeFt(value: unknown): number {
   return /^\d+$/.test(cleaned) ? Number(cleaned) : Number.NaN;
 }
 
+/**
+ * Normalisasi baris angin AWA hasil AI/ekstraksi ke bentuk worksheet yang aman:
+ * altObs diparse (parseAltitudeFt — "Surface"/"3000 FT"/FL → angka), baris tak
+ * valid dibuang, duplikat altitude didedup, hasil urut naik. Tanpa ini SATU
+ * baris rusak membuat computeAWA menolak seluruh perhitungan sehingga kolom
+ * "Altitude interval (A)", "Thousands of feet", dan hasil AWA kosong semua
+ * (bug soal kasus FULL EXERCISE SRX48: isian altitude interval tidak masuk
+ * worksheet AWA meski tabel angin ada di soal).
+ */
+export function normalizeAwaWindRows(
+  rows: unknown,
+): Array<{ altObs: string; windDirFrom: number; windSpeed: number }> {
+  if (!Array.isArray(rows)) return [];
+  const seenAltitudes = new Set<number>();
+  const normalized: Array<{ altObs: string; windDirFrom: number; windSpeed: number }> = [];
+  for (const raw of rows) {
+    if (!raw || typeof raw !== 'object') continue;
+    const row = raw as Record<string, unknown>;
+    const altitude = parseAltitudeFt(row['altObs'] ?? row['altitudeFt'] ?? row['altLow']);
+    const dir = Number(row['windDirFrom']);
+    const speed = Number(row['windSpeed'] ?? row['windSpeedKts']);
+    if (!Number.isFinite(altitude) || altitude < 0 || altitude > 80000) continue;
+    if (!Number.isFinite(dir) || dir < 0 || dir > 360) continue;
+    if (!Number.isFinite(speed) || speed < 0 || speed > 250) continue;
+    if (seenAltitudes.has(altitude)) continue;
+    seenAltitudes.add(altitude);
+    normalized.push({ altObs: String(altitude), windDirFrom: dir, windSpeed: speed });
+  }
+  return normalized.sort((a, b) => Number(a.altObs) - Number(b.altObs));
+}
+
 export function computeAWA(observations: AWAObservation[], targetAltitudeFt: number): AWAResult {
   const emptyResult = (errors: string[]): AWAResult => ({
     totalAltLossKft: 0,
