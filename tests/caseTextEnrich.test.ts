@@ -15,7 +15,7 @@
 import { describe, test, expect } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { extractCaseFacts, enrichCaseFromSourceText } from '../src/lib/ai/caseTextEnrich';
+import { extractCaseFacts, enrichCaseFromSourceText, buildRequiredTimeClarifications } from '../src/lib/ai/caseTextEnrich';
 import { sarCaseSchema, type SarCaseSchema } from '../src/lib/sar/caseSchema';
 import { checkCaseCompleteness } from '../src/lib/sar/caseAdapter';
 
@@ -445,5 +445,58 @@ Surface 200⁰ 20
     const { case: enriched, corrections } = enrichCaseFromSourceText(modelFl, soalFl);
     expect(corrections).toHaveLength(0);
     expect(enriched.incident?.flightLevelFt).toBe(200);
+  });
+});
+
+// ── Gerbang klarifikasi waktu DETERMINISTIK (aturan pengguna) ────────────────
+// Kartu konfirmasi waktu (datum time ASW / waktu kejadian A.1 ADW) WAJIB
+// muncul dari keputusan SERVER — tidak boleh bergantung kerelaan model
+// memanggil tool clarify (bug nyata: model langsung mengisi waktu).
+describe('Gerbang klarifikasi waktu deterministik (buildRequiredTimeClarifications)', () => {
+  test('Soal PK-TAL (banyak waktu, tanpa DETRESFA): kartu datum time + kartu waktu kejadian wajib', () => {
+    const facts = extractCaseFacts(SOAL_PK_TAL);
+    const gate = buildRequiredTimeClarifications(facts);
+    // ≥2 kandidat waktu naratif → kartu Datum Time dengan SEMUA kandidat.
+    expect(gate.datumTime).not.toBeNull();
+    expect(gate.datumTime!.candidates.length).toBeGreaterThanOrEqual(2);
+    // Kandidat memuat waktu pencarian 19 November 2026 07.00 WIB (Datum Time soal).
+    expect(gate.datumTime!.candidates.some((c) => c.value.includes('07.00'))).toBe(true);
+    // Tanpa kalimat DETRESFA + ≥2 kandidat → kartu waktu kejadian A.1 juga wajib.
+    expect(gate.incidentTime).not.toBeNull();
+  });
+
+  test('Tanggal berslash ambigu + kalimat DETRESFA: kartu A.1 = dua bacaan tanggal, jam dari DETRESFA', () => {
+    const soal = `• 03/12/2024, pesawat SRX48 berangkat dari Ternate menuju Merauke pada FL150. Pada pukul 1053 WIT ATC menyatakan DETRESFA dengan LKP pada koordinat 4°59'00"S -133°53'48"E. Kantor SAR menerima informasi pukul 1105 WIT. Pencarian kedua akan dilakukan pukul 14.00 WIT.`;
+    const facts = extractCaseFacts(soal);
+    const gate = buildRequiredTimeClarifications(facts);
+    // Datum time: ≥2 kandidat waktu → kartu.
+    expect(gate.datumTime).not.toBeNull();
+    // Waktu kejadian: tanggal ambigu → kartu KEDUA bacaan (bukan jam DETRESFA —
+    // jam deterministik mengikuti pilihan tanggal).
+    expect(gate.incidentTime).not.toBeNull();
+    expect(gate.incidentTime!.candidates).toHaveLength(2);
+    expect(gate.incidentTime!.candidates[0].label).toContain('DD/MM');
+    expect(gate.incidentTime!.candidates[1].label).toContain('MM/DD');
+    expect(gate.incidentTime!.question).toContain('AMBIGU');
+    // Aturan DETRESFA tetap diingatkan di pertanyaan (jam kejadian mengikuti DETRESFA).
+    expect(gate.incidentTime!.question).toContain('10.53');
+  });
+
+  test('Soal dengan TEPAT SATU waktu: tanpa kartu (jangan mengganggu)', () => {
+    const soal = 'Pada 18 November 2026 pukul 13.50 WIB JATSC menerima panggilan MAYDAY dari pesawat PK-XYZ.';
+    const facts = extractCaseFacts(soal);
+    const gate = buildRequiredTimeClarifications(facts);
+    expect(gate.datumTime).toBeNull();
+    expect(gate.incidentTime).toBeNull();
+  });
+
+  test('DETRESFA + tanggal nama bulan (tidak ambigu): tanpa kartu A.1 — aturan deterministik', () => {
+    const soal = `Tanggal 12 Maret 2024, pesawat SRX48 berangkat dari Ternate. Pada pukul 1053 WIT ATC menyatakan DETRESFA dengan LKP pada koordinat 4°59'00"S -133°53'48"E. Pencarian kedua akan dilakukan pukul 14.00 WIT.`;
+    const facts = extractCaseFacts(soal);
+    const gate = buildRequiredTimeClarifications(facts);
+    // Datum time tetap kartu (≥2 waktu naratif), tapi A.1 deterministik:
+    // tanggal nama bulan + jam DETRESFA — tidak perlu konfirmasi.
+    expect(gate.datumTime).not.toBeNull();
+    expect(gate.incidentTime).toBeNull();
   });
 });

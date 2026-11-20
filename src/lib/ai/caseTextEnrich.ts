@@ -1439,3 +1439,81 @@ export function formatIncidentDateTimeAnchor(input: IncidentDateTimeAnchorInput)
   }
   return lines.length > 0 ? lines.join('\n\n') : null;
 }
+
+// ── Gerbang klarifikasi waktu DETERMINISTIK (aturan pengguna) ────────────────
+
+/** Bentuk payload kartu konfirmasi waktu — identik dengan argumen tool
+ *  clarify_datum_time / clarify_incident_time agar bisa dirender kartu chat
+ *  yang sama baik dari panggilan model maupun sintesis server. */
+export interface TimeClarifyPayload {
+  question: string;
+  candidates: Array<{ label: string; value: string; source?: string }>;
+}
+
+export interface TimeClarificationGate {
+  /** Kartu Datum Time worksheet ASW — wajib bila soal memuat ≥2 kandidat
+   *  tanggal/waktu (aturan pengguna: jangan berasumsi sendiri). */
+  datumTime: TimeClarifyPayload | null;
+  /** Kartu tanggal/waktu kejadian A.1 worksheet ADW — wajib bila tanggal awal
+   *  soal ambigu (DD/MM vs MM/DD) ATAU tanpa kalimat DETRESFA dan ≥2 kandidat
+   *  waktu kejadian. DETRESFA + tanggal jelas → deterministik, tanpa kartu. */
+  incidentTime: TimeClarifyPayload | null;
+}
+
+function formatClockText(time: { hour: number; minute: number; zone?: string }): string {
+  return `${String(time.hour).padStart(2, '0')}.${String(time.minute).padStart(2, '0')}${time.zone ? ` ${time.zone}` : ''}`;
+}
+
+/**
+ * KEPUTUSAN SERVER DETERMINISTIK — kemunculan kartu konfirmasi waktu TIDAK
+ * boleh bergantung pada kerelaan model memanggil tool clarify (bug nyata:
+ * model langsung mengisi waktu tanpa kartu, padahal aturan pengguna mewajibkan
+ * kartu). Dari fakta teks soal hasil parse regex server:
+ * - Datum Time (ASW): kandidat ≥2 → kartu dengan SEMUA kandidat.
+ * - Waktu kejadian A.1 (ADW): tanggal berslash ambigu → kartu kedua bacaan
+ *   (DD/MM vs MM/DD); tanpa DETRESFA dan kandidat waktu ≥2 → kartu waktu
+ *   kejadian. Detresfa + tanggal tak ambigu → tanpa kartu (aturan pengguna:
+ *   A.1 = tanggal awal soal + jam deklarasi DETRESFA).
+ * Route /api/chat memakai hasil ini untuk MENYINTESIS kartu bila model tidak
+ * memanggil tool clarify, dan MENGHAPUS nilai waktu yang diisi model sendiri.
+ */
+export function buildRequiredTimeClarifications(facts: CaseTextFacts): TimeClarificationGate {
+  const candidates = facts.datumTimeCandidates?.value ?? [];
+  const gate: TimeClarificationGate = { datumTime: null, incidentTime: null };
+
+  if (candidates.length >= 2) {
+    gate.datumTime = {
+      question:
+        'Soal memuat beberapa tanggal/waktu. Waktu mana yang dipakai sebagai DATUM TIME worksheet ASW '
+        + '(waktu awal pencarian pada datum — umumnya waktu pencarian/SRU tiba di lokasi, '
+        + 'bukan waktu MAYDAY/kejadian/informasi diterima)?',
+      candidates: candidates.map((candidate) => ({ label: candidate.label, value: candidate.value, source: candidate.source })),
+    };
+  }
+
+  if (facts.caseDate?.ambiguous) {
+    const readings = facts.caseDate.readings;
+    const detresfaNote = facts.detresfaTime
+      ? ` Setelah tanggal dipilih, jam kejadian A.1 mengikuti waktu deklarasi DETRESFA di soal (pukul ${formatClockText(facts.detresfaTime.value)}).`
+      : '';
+    gate.incidentTime = {
+      question:
+        `Tanggal di awal soal "${facts.caseDate.raw}" AMBIGU — bisa dibaca DD/MM (konvensi Indonesia) atau MM/DD (konvensi AS). `
+        + 'Pilih tanggal yang benar; pilihan dipakai untuk SEMUA tanggal worksheet kasus ini (A.1 ADW, deret angin, dsb.).'
+        + detresfaNote,
+      candidates: readings.map((reading, index) => ({
+        label: `${index === 0 ? 'Dibaca DD/MM (konvensi Indonesia)' : 'Dibaca MM/DD (konvensi AS)'} — ${reading.label}`,
+        value: reading.label,
+      })),
+    };
+  } else if (!facts.detresfaTime && candidates.length >= 2) {
+    gate.incidentTime = {
+      question:
+        'Soal memuat beberapa tanggal/waktu. Waktu mana yang dipakai sebagai WAKTU KEJADIAN '
+        + '(point A.1 worksheet ADW — waktu distress/MAYDAY/kejadian, bukan waktu laporan diterima)?',
+      candidates: candidates.map((candidate) => ({ label: candidate.label, value: candidate.value, source: candidate.source })),
+    };
+  }
+
+  return gate;
+}

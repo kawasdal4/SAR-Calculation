@@ -253,3 +253,37 @@ describe('checkCaseCompleteness (fixture PK-TAL)', () => {
     expect(report.missingCount).toBeGreaterThan(5);
   });
 });
+
+describe('Klaim missing spek ukuran target (bug target.lengthM pada kasus pesawat)', () => {
+  const aircraftCase: SarCaseSchema = {
+    schemaVersion: 1,
+    incident: { type: 'aircraft-ditching', callsign: 'PK-XYZ' },
+    target: { category: 'aircraft', name: 'PK-XYZ' },
+    meta: { source: 'pdf', missingFields: [
+      { field: 'target.lengthM', reason: 'Tidak dicantumkan pada naskah soal' },
+      { field: 'target.wingspanM', reason: 'Tidak dicantumkan pada naskah soal' },
+      { field: 'incident.lastContactTime', reason: 'Waktu MAYDAY tidak ada di soal.' },
+    ] },
+  } as unknown as SarCaseSchema;
+
+  it('kasus PESAWAT: klaim target.lengthM/wingspanM DIABAIKAN — bukan kekurangan data', () => {
+    const result = checkCaseCompleteness(aircraftCase);
+    const fields = result.issues.map((issue) => issue.field);
+    expect(fields).not.toContain('target.lengthM');
+    expect(fields).not.toContain('target.wingspanM');
+    // Klaim sah tetap dilaporkan.
+    expect(fields).toContain('incident.lastContactTime');
+  });
+
+  it('kasus KAPAL (vessel-sinking): klaim target.lengthM tetap dilaporkan (kategori leeway)', () => {
+    const vesselCase: SarCaseSchema = {
+      ...aircraftCase,
+      incident: { type: 'vessel-sinking' },
+      target: { category: 'vessel' },
+    } as unknown as SarCaseSchema;
+    const result = checkCaseCompleteness(vesselCase);
+    expect(result.issues.map((issue) => issue.field)).toContain('target.lengthM');
+    // wingspan bukan data kapal yang dipakai → tetap diabaikan.
+    expect(result.issues.map((issue) => issue.field)).not.toContain('target.wingspanM');
+  });
+});

@@ -94,15 +94,22 @@ function groupByWorksheet(rows: ExtractionFieldRow[]): Array<{ worksheet: string
   return [...groups.entries()].map(([worksheet, groupRows]) => ({ worksheet, rows: groupRows }));
 }
 
-/** Fase F: pemetaan label blok pratinjau → kunci worksheet apply plan. */
+/** Fase F: pemetaan label blok pratinjau → kunci worksheet apply plan.
+ *  SEMUA pola DIJANGKAR ke awal label (^): tanpa jangkar, kata "Pesawat" pada
+ *  label "Target/Data Pesawat" mengandung substring "awa" sehingga /AWA/i
+ *  mencocokkannya — klaim missing field target (mis. target.lengthM pada kasus
+ *  pesawat) ikut MEMBLOKIR worksheet AWA tanpa alasan (bug nyata). */
 const WORKSHEET_KEY_PATTERNS: Array<[RegExp, CaseApplyStep['worksheet']]> = [
-  [/ASW/i, 'asw'],
-  [/AWA/i, 'awa'],
-  [/Aero|ADW/i, 'aero'],
-  [/Datum/i, 'datum'],
-  [/WS 2/i, 'ws2'],
-  [/WS 8/i, 'ws8'],
-  [/Alokasi|Aset/i, 'assets'],
+  [/^ASW/, 'asw'],
+  [/^AWA/, 'awa'],
+  [/^Aero|^ADW|^LKP/, 'aero'],
+  [/^Datum/, 'datum'],
+  [/^WS 2/, 'ws2'],
+  [/^WS 8/, 'ws8'],
+  [/^WS 3/, 'ws3'],
+  [/^Lembar WS 2\/WS 8/, 'ws2'],
+  [/^Lembar WS 2\/WS 8/, 'ws8'],
+  [/^Alokasi|^Aset/, 'assets'],
 ];
 
 function worksheetKeysOfLabel(label: string): Set<CaseApplyStep['worksheet']> {

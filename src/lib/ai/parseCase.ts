@@ -23,7 +23,7 @@ import {
   sarCaseSchema,
   type SarCaseSchema,
 } from '../sar/caseSchema';
-import { buildCaseWorksheetSeeds, checkCaseCompleteness, isDownstreamFieldClaim, type CaseCompleteness, type CasePlannerInputs } from '../sar/caseAdapter';
+import { buildCaseWorksheetSeeds, checkCaseCompleteness, isIrrelevantMissingClaim, type CaseCompleteness, type CasePlannerInputs } from '../sar/caseAdapter';
 import { classifyFieldStatus } from '../sar/fieldStatus';
 import { buildAswObservationsFromCase, toBasarnasTimeFormat } from '../sar/aswTime';
 import { computeASW } from '../sar/sarCalculations';
@@ -311,7 +311,8 @@ ATURAN MUTLAK (pelanggaran = jawaban ditolak):
 9. meta.source: "pdf" bila sumber lampiran PDF/gambar, "text" bila teks ditempel pengguna.
 10. Jangan mengisi field hasil perhitungan (ASW/AWA/datum/luas area/POD) — skema tidak memilikinya; hanya INPUT worksheet.
 11. BACA SELURUH HALAMAN & TABEL LAMPIRAN — data perhitungan Aeronautical Drift (koordinat lost contact, glide speed/ratio, variation, tabel angin per ketinggian), arus laut, deret angin, dan tabel SRU sering berada di halaman 2/3 setelah narasi. Field yang tertulis DI HALAMAN MANA PUN bukan missing. search.datumTime: kalimat "Pencarian selanjutnya akan dimulai pada … pukul … (Datum Time)", "SRU tiba di lokasi pukul …", "Pencarian akan dilakukan pukul …", "Pencarian pertama dilakukan pukul …" adalah kandidat Datum Time — pilih yang menyatakan awal pencarian pada datum.
-12. KALIMAT DETRESFA (ATURAN PENGGUNA): bila soal memuat kalimat seperti "ATC declare DETRESFA pada pukul 1053 WIT dengan LKP pada koordinat 4°59'00\"S -133°53'48\"E." → waktu deklarasi DETRESFA adalah WAKTU KEJADIAN: incident.lastContactTime = "<tanggal yang disebut di AWAL soal> 10.53 WIT" (jam 4 digit tanpa pemisah "1053" = pukul 10.53; tanggal awal soal bisa berformat ambigu — lihat aturan tanggal berslash di atas) dan lkp.coord = koordinat pada kalimat yang sama (simpan DMS asli di dmsLat/dmsLng; bujur barat negatif). "Kantor SAR menerima informasi pukul 1105 WIT" tetap incident.reportTime, BUKAN lastContactTime.`;
+12. KALIMAT DETRESFA (ATURAN PENGGUNA): bila soal memuat kalimat seperti "ATC declare DETRESFA pada pukul 1053 WIT dengan LKP pada koordinat 4°59'00\"S -133°53'48\"E." → waktu deklarasi DETRESFA adalah WAKTU KEJADIAN: incident.lastContactTime = "<tanggal yang disebut di AWAL soal> 10.53 WIT" (jam 4 digit tanpa pemisah "1053" = pukul 10.53; tanggal awal soal bisa berformat ambigu — lihat aturan tanggal berslash di atas) dan lkp.coord = koordinat pada kalimat yang sama (simpan DMS asli di dmsLat/dmsLng; bujur barat negatif). "Kantor SAR menerima informasi pukul 1105 WIT" tetap incident.reportTime, BUKAN lastContactTime.
+13. SPEK UKURAN TARGET HANYA UNTUK KAPAL: target.lengthM (panjang) dipakai HANYA untuk kategori leeway KAPAL (Datum WS 1 laut, kasus vessel-sinking). Untuk target PESAWAT (aircraft), person, atau life raft, ukuran fisik TIDAK dipakai perhitungan mana pun — DILARANG mencatat target.lengthM/wingspanM/heightM/wingAreaM2 sebagai meta.missingFields bila tidak tertulis di soal; biarkan kosong TANPA catatan missing (bukan kekurangan data).`;
 
 // ── Normalisasi pra-parse (FASE C) ──────────────────────────────────────────
 
@@ -634,7 +635,10 @@ export function deriveExtractionFieldRows(
   // — nilainya dihasilkan/dipilih di worksheet, bukan data soal; mengklaimnya
   // "hilang" mengunci penerapan tanpa alasan (regresi PK-TAL).
   for (const missing of sarCase.meta?.missingFields ?? []) {
-    if (isDownstreamFieldClaim(missing.field)) continue;
+    // isIrrelevantMissingClaim = klaim hilir (worksheet/planner) + klaim spek
+    // ukuran target yang tidak dipakai perhitungan (mis. target.lengthM pada
+    // kasus PESAWAT — bug: kartu "Data hilang (wajib)" tanpa alasan).
+    if (isIrrelevantMissingClaim(missing.field, sarCase)) continue;
     const existing = rows.get(missing.field);
     // Entri missingFields yang field-nya SUDAH bernilai konkret dianggap basi
     // (model menyebut hilang tapi tetap mengisi nilai) — nilai yang ada menang.

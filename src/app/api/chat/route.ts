@@ -1201,12 +1201,17 @@ ${describeDependencyGraph()}`;
     // worksheet AWA terisi nilai angin yang tidak ada di soal). Teks PDF
     // diekstrak dan tabel angin/ketinggian hasil parse regex ditempel sebagai
     // sumber kebenaran; model WAJIB memakai nilai ini di set_awa_case dll.
+    // Teksnya juga disimpan (caseTextForFacts) untuk GERBANG KLARIFIKASI
+    // WAKTU deterministik di bawah — kartu konfirmasi tidak boleh bergantung
+    // pada kerelaan model memanggil tool clarify.
+    let caseTextForFacts = '';
     if (pdfBase64Parts.length > 0) {
       try {
         const { extractPdfTextFromBase64 } = await import('@/lib/ai/pdfText');
         const { extractCaseFacts, formatWindLayersAnchor, formatAwaCaseDataAnchor, formatIncidentDateTimeAnchor, formatAswDatumTimeAnchor } = await import('@/lib/ai/caseTextEnrich');
         const pdfText = (await Promise.all(pdfBase64Parts.map((data) => extractPdfTextFromBase64(data))))
           .join('\n\n').replace(/\r/g, '').slice(0, 30000);
+        caseTextForFacts = pdfText;
         if (pdfText.trim()) {
           const facts = extractCaseFacts(pdfText);
           const anchorSections: string[] = [];
@@ -1800,6 +1805,70 @@ ${describeDependencyGraph()}`;
       }
     }
 
+    // ── GERBANG KLARIFIKASI WAKTU DETERMINISTIK (aturan pengguna) ────────────
+    // Kartu pemilihan waktu (datum time ASW / waktu kejadian A.1 ADW) TIDAK
+    // boleh bergantung pada kerelaan model memanggil tool clarify (bug nyata:
+    // model langsung mengisi waktu tanpa kartu — "jangan berasumsi sendiri").
+    // Dari fakta teks soal hasil parse regex server: bila kartu WAJIB (≥2
+    // kandidat waktu, atau tanggal berslash ambigu) dan pengguna belum
+    // menjawab, kartu DISINTESIS ke respons dan nilai waktu yang diisi model
+    // sendiri DIHAPUS dari argumen worksheet (penerapan pakai nilai yang
+    // dikonfirmasi pengguna saja).
+    let clarifyGateNote = '';
+    if (caseLikeRequest && !interceptCaseDetected) {
+      try {
+        const gateText = caseTextForFacts.trim() ? caseTextForFacts : userPrompt;
+        if (gateText.trim()) {
+          const { extractCaseFacts, buildRequiredTimeClarifications } = await import('@/lib/ai/caseTextEnrich');
+          const gateFacts = extractCaseFacts(gateText);
+          const gate = buildRequiredTimeClarifications(gateFacts);
+          // Penanda jawaban pengguna di kartu (format persis dari
+          // AIChatPanel.handleClarifyAnswer) — jawaban ada = tidak injeksi ulang.
+          const priorText = `${conversation}\n${userPrompt}`;
+          const datumAnswered = /Datum time yang benar:/i.test(priorText);
+          const incidentAnswered = /Waktu kejadian \(A\.1\) yang benar:/i.test(priorText);
+
+          if (gate.datumTime && !datumAnswered) {
+            if (!functionCalls.some((fc) => fc.name === 'clarify_datum_time')) {
+              functionCalls.push({
+                type: 'function_call',
+                name: 'clarify_datum_time',
+                arguments: gate.datumTime as unknown as Record<string, unknown>,
+              } as GeminiFunctionCallStep);
+            }
+            for (const fc of functionCalls) {
+              if (fc.name === 'set_asw_case' && fc.arguments && typeof fc.arguments === 'object') {
+                delete (fc.arguments as Record<string, unknown>).datumTime;
+              }
+            }
+            clarifyGateNote += '\n\n⏸️ Datum time: kartu pemilihan waktu ditampilkan di atas — pilih dulu jawabannya. Nilai datum time yang diisi otomatis dibersihkan dari pratinjau; worksheet ASW diisi setelah Anda memilih (aturan: waktu datum tidak boleh diasumsikan AI).';
+          }
+          if (gate.incidentTime && !incidentAnswered) {
+            if (!functionCalls.some((fc) => fc.name === 'clarify_incident_time')) {
+              functionCalls.push({
+                type: 'function_call',
+                name: 'clarify_incident_time',
+                arguments: gate.incidentTime as unknown as Record<string, unknown>,
+              } as GeminiFunctionCallStep);
+            }
+            for (const fc of functionCalls) {
+              if (fc.name === 'set_aero_drift_case' && fc.arguments && typeof fc.arguments === 'object') {
+                const aeroArgs = fc.arguments as Record<string, unknown>;
+                delete aeroArgs['date'];
+                delete aeroArgs['incidentTime'];
+              }
+            }
+            clarifyGateNote += '\n\n⏸️ Waktu kejadian (A.1 worksheet ADW): kartu konfirmasi ditampilkan di atas — pilih tanggal/waktu kejadian. Nilai yang diisi otomatis dibersihkan dari pratinjau; worksheet ADW diisi setelah Anda memilih.';
+          }
+          if (clarifyGateNote) {
+            console.info('[AI chat] Gerbang klarifikasi waktu: kartu disintesis server (model tidak memanggil clarify).');
+          }
+        }
+      } catch (gateErr) {
+        console.warn('[AI chat] Gerbang klarifikasi waktu gagal (dilanjutkan tanpa injeksi):', gateErr);
+      }
+    }
+
     // BANK DATA: teks konfirmasi penyimpanan (diisi bila ada panggilan save_case_data_bank).
     let bankSavedText = '';
     // Bank lokal (fallback bila server tak bisa menulis DB, mis. Vercel serverless).
@@ -1890,7 +1959,7 @@ ${describeDependencyGraph()}`;
         durationMs: Date.now() - hoistedStartedAt,
       });
       return NextResponse.json({
-        text: `${usedModel !== modelChain[0] ? 'Model utama sedang sibuk; jawaban diproses dengan model cadangan.\n\n' : ''}${responseText}${bankSavedText}${clarificationText}`,
+        text: `${usedModel !== modelChain[0] ? 'Model utama sedang sibuk; jawaban diproses dengan model cadangan.\n\n' : ''}${responseText}${bankSavedText}${clarificationText}${clarifyGateNote}`,
         functionCalls: worksheetCalls.length ? worksheetCalls : null,
         ...(serverToolLog.length > 0 ? { serverToolCalls: serverToolLog } : {}),
         ...(fillFormPreview ? { fillFormPreview } : {}),

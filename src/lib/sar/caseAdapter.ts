@@ -579,6 +579,28 @@ export function isDownstreamFieldClaim(field: string): boolean {
   return DOWNSTREAM_FIELDS.has(field) || /^datum\.x\/y/i.test(field);
 }
 
+/** Field spek UKURAN TARGET (target.*): dipakai perhitungan HANYA pada kasus
+ *  kapal (lengthM → kategori leeway Tabel I-1/I-2 Datum WS 1 laut). Untuk
+ *  target pesawat/person/raft ukuran fisik tidak masuk perhitungan mana pun —
+ *  klaim "missing" model untuk field ini pada kasus non-kapal DIABAIKAN
+ *  (bug nyata: soal pesawat dikunci kartu "Data hilang (wajib) —
+ *  target.lengthM, Tidak dicantumkan pada naskah soal" padahal memang
+ *  tidak dibutuhkan, dan label "Target/Data Pesawat" sempat ikut memblokir
+ *  AWA via pencocokan substring "awa" pada kata "Pesawat"). */
+const TARGET_SIZE_FIELD_RE = /^target\.(?:lengthM|beamM|draftM|wingspanM|heightM|wingAreaM2|cabinHeightM|cabinWidthM|length)$/i;
+
+export function isIrrelevantMissingClaim(field: string, sarCase: SarCaseSchema): boolean {
+  if (isDownstreamFieldClaim(field)) return true;
+  if (!TARGET_SIZE_FIELD_RE.test(field)) return false;
+  const category = String(sarCase.target?.category ?? '').toLowerCase();
+  const type = String(sarCase.incident?.type ?? '').toLowerCase();
+  const isVesselCase = category === 'vessel' || type === 'vessel-sinking';
+  if (!isVesselCase) return true;
+  // Kasus kapal: hanya lengthM yang benar-benar dipakai (kategori leeway);
+  // spek pesawat lain (wingspan/wing area/cabin) tetap diabaikan.
+  return !/^target\.lengthM$/i.test(field);
+}
+
 /** Periksa kelengkapan data kasus terhadap kebutuhan worksheet laut (ditching).
  *  Jenis insiden lain (kapal/darat) menambahkan aturan sendiri di fase berikut. */
 export function checkCaseCompleteness(
@@ -650,9 +672,11 @@ export function checkCaseCompleteness(
   // gelombang tidak disebut (lihat DOWNSTREAM_FIELDS).
 
   // Gabungkan missingFields dari meta ekstraksi — field hilir diabaikan agar
-  // laporan ke agent/AI tidak mengklaim "data hilang" untuk nilai worksheet.
+  // laporan ke agent/AI tidak mengklaim "data hilang" untuk nilai worksheet,
+  // dan spek ukuran target non-kapal (mis. lengthM pada soal PESAWAT) juga
+  // diabaikan — memang tidak dipakai perhitungan (bug target.lengthM).
   for (const missing of sarCase.meta?.missingFields ?? []) {
-    if (isDownstreamFieldClaim(missing.field)) continue;
+    if (isIrrelevantMissingClaim(missing.field, sarCase)) continue;
     push('MISSING', missing.field, 'Soal', missing.reason);
   }
 

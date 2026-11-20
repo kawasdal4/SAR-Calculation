@@ -37,7 +37,7 @@ test('contoh kasus PK-XYZ pada prompt: A.1 = waktu MAYDAY 15.56, bukan 16.05', (
 
 test('aturan WAJIB bertanya bila ragu: clarify_incident_time, jangan menebak', () => {
   assert.match(routeSource, /WAJIB bertanya bila ragu[^\n]*clarify_incident_time/);
-  assert.match(routeSource, /JANGAN menentukan sendiri dan JANGAN menebak; panggil tool clarify_incident_time/);
+  assert.match(routeSource, /JANGAN menentukan sendiri, JANGAN menebak[^;]*; panggil tool clarify_incident_time/);
 });
 
 test('tool clarify_incident_time dideklarasikan dengan schema kandidat', () => {
