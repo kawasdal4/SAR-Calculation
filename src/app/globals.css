@@ -811,63 +811,121 @@
   background-color: #fef3c7 !important;
 }
 
-/* ===== WORKSHEET WIRING (premium) — jalur sirkuit + pulsa data antar tab
-   yang saling berkaitan. pathLength=1 dinormalisasi di SVG, sehingga animasi
-   stroke-dashoffset bergerak dalam satuan proporsional (0 → -0.16 = satu
-   periode pola dash "0.052 0.108") dan kecepatan pulsa seragam untuk semua
-   panjang kabel. Arah aliran: produsen → konsumen (dashoffset negatif
-   menggeser pola ke ujung path). ===== */
-@keyframes wiring-flow {
+/* ===== WORKSHEET TAB STRIP — chip ukuran alami.
+   TabsTrigger shadcn membawa flex-1 + h-[calc(100%-1px)]; di dalam susunan
+   flex bersarang (host flex → TabsList flex-col → baris flex-wrap) ini
+   membuat tab melar tinggi 63px, tab tunggal hasil wrap melebar ratusan
+   px, dan baris saling menimpa (tampilan berantakan). Kembalikan ke ukuran
+   konten: tinggi alami + lebar sesuai isi chip. */
+#worksheet-tabs-host [data-tab-value] {
+  height: auto;
+  flex: 0 0 auto;
+}
+
+/* ===== WORKSHEET MIND MAP — peta pikiran alur data antar worksheet.
+   Kometa data (dash) bergerak dari tab produsen → node grup → pusat (hub) →
+   node grup tujuan → tab konsumen memakai pathLength=1, sehingga animasi
+   stroke-dashoffset bergerak dalam satuan proporsional (0 → -1 = satu putaran
+   jalur) dan kecepatan kometa seragam untuk semua panjang jalur. Dashoffset
+   negatif menggeser pola dash ke ujung path (arah aliran produsen → konsumen).
+   ===== */
+@keyframes mm-comet {
   from {
     stroke-dashoffset: 0;
   }
   to {
-    stroke-dashoffset: -0.16;
+    stroke-dashoffset: -1;
   }
 }
 
-.wiring-pulse {
-  animation: wiring-flow 3s linear infinite;
-  opacity: 0.8;
+.mm-comet,
+.mm-comet-glow {
+  animation: mm-comet 3.4s linear infinite;
 }
 
-/* Kabel yang tersambung ke tab aktif: pulsa lebih cepat + terang. */
-.wiring-pulse--active {
-  animation-duration: 1.5s;
-  opacity: 1;
+/* Jalur yang tersambung ke tab aktif: kometa lebih cepat (menyalah). */
+.mm-comet--active,
+.mm-comet-glow.mm-comet--active {
+  animation-duration: 1.8s;
 }
 
-/* Halo node ujung kabel berdenyut lembut. transform-box: fill-box agar
+/* Denyut cahaya pada cabang utama mengalir keluar dari pusat (hub → badge). */
+@keyframes mm-branch-flow {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -0.15;
+  }
+}
+
+.mm-branch-flow {
+  animation: mm-branch-flow 2.8s linear infinite;
+}
+
+/* Halo port ujung alur data berdenyut lembut. transform-box: fill-box agar
    transform-origin center mengacu pada tiap lingkaran (bukan viewBox SVG). */
-@keyframes wiring-node-halo {
+@keyframes mm-port-halo {
   0%,
   100% {
     transform: scale(1);
-    opacity: 0.16;
+    opacity: 0.14;
   }
   50% {
-    transform: scale(1.9);
-    opacity: 0.34;
+    transform: scale(1.8);
+    opacity: 0.32;
   }
 }
 
-.wiring-node-halo {
-  animation: wiring-node-halo 2.4s ease-in-out infinite;
+.mm-port-halo {
+  animation: mm-port-halo 3.2s ease-in-out infinite;
   transform-box: fill-box;
   transform-origin: center;
 }
 
-.wiring-trace {
-  /* Jejak tembaga: rounded caps + sedikit texture via dash halus. */
-  stroke-linejoin: round;
+/* Node pusat (hub) bernapas: glow mengembang-menyempit pelan. */
+@keyframes mm-hub-breathe {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 0 rgb(99 102 241 / 0.35),
+      0 4px 14px rgb(79 70 229 / 0.35);
+  }
+  50% {
+    box-shadow:
+      0 0 0 7px rgb(99 102 241 / 0.12),
+      0 4px 22px rgb(79 70 229 / 0.55);
+  }
 }
 
-/* Hormati preferensi pengguna: tanpa gerak → pulsa & halo statis redup. */
+.mm-hub {
+  animation: mm-hub-breathe 3.6s ease-in-out infinite;
+}
+
+/* Cincin radar berputar pelan mengelilingi hub. */
+@keyframes mm-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.mm-hub-ring {
+  animation: mm-spin 10s linear infinite;
+}
+
+/* Hormati preferensi pengguna: tanpa gerak → semua animasi peta statis. */
 @media (prefers-reduced-motion: reduce) {
-  .wiring-pulse,
-  .wiring-pulse--active,
-  .wiring-node-halo {
+  .mm-comet,
+  .mm-comet-glow,
+  .mm-comet--active,
+  .mm-branch-flow,
+  .mm-port-halo,
+  .mm-hub,
+  .mm-hub-ring {
     animation: none !important;
+  }
+  .mm-comet,
+  .mm-comet-glow {
     opacity: 0.35;
   }
 }

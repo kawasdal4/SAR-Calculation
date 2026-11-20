@@ -37,6 +37,8 @@ import {
   Maximize2,
   Minimize2,
   RefreshCw,
+  Radar,
+  Flag,
 } from 'lucide-react';
 import AWAWorksheet, {
   type AWAData,
@@ -147,16 +149,18 @@ import {
   emptyDomainRecord,
   isSarDomain,
 } from '@/lib/sar/sarDomains';
-import WorksheetWiring, { type WorksheetWiringEdge } from '@/components/sar/WorksheetWiring';
+import WorksheetMindMap, { type WorksheetDataFlow } from '@/components/sar/WorksheetMindMap';
 
 const DEFAULT_CENTER: LatLng = { lat: 0, lng: 0 };
 
 /**
- * PETA KABEL WORKSHEET (wiring) — dirangkum dari WORKSHEET_DATA_EDGES
+ * PETA ALUR DATA WORKSHEET (mind map) — dirangkum dari WORKSHEET_DATA_EDGES
  * (worksheetDependency.ts) ke nilai tab baru: tab sumber (produsen data)
- * → tab penerima (konsumen data). Dipakai animasi WorksheetWiring.
+ * → tab penerima (konsumen data). Dipakai animasi WorksheetMindMap:
+ * kometa data bergerak dari tab sumber melalui node grup & pusat menuju
+ * tab penerima.
  */
-const WORKSHEET_WIRING_EDGES: WorksheetWiringEdge[] = [
+const WORKSHEET_DATA_FLOWS: WorksheetDataFlow[] = [
   // Rantai udara: AWA → ADW (angin glide)
   { from: 'awa', to: 'aero', tone: 'sky', note: 'Angin glide AWA → ADW (drift angin)' },
   // Rantai laut: ASW → WS 1 (interval drift = total hours ASW)
@@ -2870,17 +2874,40 @@ export default function Home() {
         {/* Left Column: Worksheets & Tools */}
         <section className="lg:col-span-3 space-y-4">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            {/* Navigation Tabs List — TIGA KELOMPOK DOMAIN (UDARA / LAUT / DARAT).
-                Worksheet Intercept, Alokasi Aset, Hitung Dasar, dan Renops punya
-                instansi per domain dengan state mandiri; Briefing & De-briefing,
-                Pola & Rute, Generator Soal, dan ringkasan tetap tanpa kelompok.
-                SEMUA tab tampil (wrap per baris), tanpa scroll samping.
-                Kabel animasi (WorksheetWiring) menggambar aliran data antar tab
-                yang saling berkaitan sesuai WORKSHEET_DATA_EDGES. */}
-            <div className="mb-3 relative" id="worksheet-tabs-host">
-              <TabsList className="flex flex-col h-auto items-stretch p-1.5 gap-1.5 bg-slate-200/80 rounded-xl border border-slate-300/80 shadow-inner w-full">
-                {/* Baris tanpa kelompok: ringkasan + alat lintas domain */}
-                <div className="flex flex-wrap items-center gap-1 px-0.5 pt-0.5">
+            {/* Navigation Tabs List — PETA PIKIRAN (MIND MAP) dengan TIGA
+                KELOMPOK DOMAIN (UDARA / LAUT / DARAT) + satu kelompok komando
+                lintas domain. Worksheet Intercept, Alokasi Aset, Hitung Dasar,
+                dan Renops punya instansi per domain dengan state mandiri;
+                Briefing & De-briefing, Pola & Rute, Generator Soal, dan
+                ringkasan tetap tanpa kelompok domain. SEMUA tab tampil (wrap
+                per baris), tanpa scroll samping. Node pusat (hub) di kiri
+                menyalakan cabang ke tiap grup; animasi WorksheetMindMap
+                menggambar pulsa data dari tab sumber melalui pusat menuju tab
+                penerima sesuai WORKSHEET_DATA_EDGES. */}
+            <div className="mb-3 relative flex items-stretch gap-2" id="worksheet-tabs-host">
+              {/* NODE PUSAT mind map — inti komando tempat semua cabang dan
+                  pulsa data bertemu. Tersembunyi di layar kecil. */}
+              <div className="hidden md:flex w-12 lg:w-14 shrink-0 flex-col items-center justify-center">
+                <div
+                  data-mm-hub
+                  title="Pusat alur data worksheet — pulsa melaju dari lembar sumber melalui pusat ke lembar penerima"
+                  className="mm-hub relative flex h-12 w-12 lg:h-14 lg:w-14 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 via-indigo-600 to-violet-600 text-white ring-2 ring-white/80"
+                >
+                  <Radar className="h-5 w-5 lg:h-6 lg:w-6 drop-shadow" />
+                  <span aria-hidden className="mm-hub-ring absolute -inset-1.5 rounded-full border-2 border-dashed border-indigo-400/70" />
+                  <span aria-hidden className="absolute -inset-3 rounded-full bg-indigo-400/20 blur-md" />
+                </div>
+              </div>
+              <TabsList className="flex-1 min-w-0 flex flex-col h-auto items-stretch p-1.5 gap-1.5 bg-slate-200/80 rounded-xl border border-slate-300/80 shadow-inner">
+                {/* Baris komando lintas domain: ringkasan + alat lintas domain */}
+                <div data-mm-group="umum" className="flex flex-wrap items-center gap-1 rounded-lg border border-slate-300/70 bg-slate-50/80 px-1.5 py-1">
+                  <span
+                    data-mm-badge="umum"
+                    className="relative z-30 mr-1 inline-flex select-none items-center gap-1 rounded-md bg-slate-600 px-2 py-1 text-[10px] font-extrabold uppercase tracking-[0.14em] text-white shadow-sm print:hidden"
+                    title="Tab komando lintas domain: ringkasan, pola & rute, briefing & de-briefing, generator soal"
+                  >
+                    <Flag className="h-3 w-3" /> Komando
+                  </span>
                   <TabsTrigger
                     value="all-worksheets"
                     className="text-xs px-2.5 py-1.5 font-bold data-[state=active]:bg-emerald-600 data-[state=active]:text-white"
@@ -2912,9 +2939,10 @@ export default function Home() {
                 </div>
 
                 {/* KELOMPOK 1 — DOMAIN UDARA */}
-                <div className="flex flex-wrap items-center gap-1 rounded-lg border border-sky-300/70 bg-sky-50/60 px-1.5 py-1">
+                <div data-mm-group="udara" className="flex flex-wrap items-center gap-1 rounded-lg border border-sky-300/70 bg-sky-50/60 px-1.5 py-1">
                   <span
-                    className="mr-1 inline-flex select-none items-center gap-1 rounded-md bg-sky-700 px-2 py-1 text-[10px] font-extrabold uppercase tracking-[0.14em] text-white shadow-sm print:hidden"
+                    data-mm-badge="udara"
+                    className="relative z-30 mr-1 inline-flex select-none items-center gap-1 rounded-md bg-sky-700 px-2 py-1 text-[10px] font-extrabold uppercase tracking-[0.14em] text-white shadow-sm print:hidden"
                     title="Domain udara: AWA, Aero Drift, UPS, Intercept, Alokasi Aset, Hitung Dasar, Renops"
                   >
                     <Plane className="h-3 w-3" /> Udara
@@ -2947,9 +2975,10 @@ export default function Home() {
                 </div>
 
                 {/* KELOMPOK 2 — DOMAIN LAUT */}
-                <div className="flex flex-wrap items-center gap-1 rounded-lg border border-blue-300/70 bg-blue-50/60 px-1.5 py-1">
+                <div data-mm-group="laut" className="flex flex-wrap items-center gap-1 rounded-lg border border-blue-300/70 bg-blue-50/60 px-1.5 py-1">
                   <span
-                    className="mr-1 inline-flex select-none items-center gap-1 rounded-md bg-blue-800 px-2 py-1 text-[10px] font-extrabold uppercase tracking-[0.14em] text-white shadow-sm print:hidden"
+                    data-mm-badge="laut"
+                    className="relative z-30 mr-1 inline-flex select-none items-center gap-1 rounded-md bg-blue-800 px-2 py-1 text-[10px] font-extrabold uppercase tracking-[0.14em] text-white shadow-sm print:hidden"
                     title="Domain laut: ASW, Datum WS 1, WS 2 Maritime, WS 8 Kapal, Intercept, Alokasi Aset, Hitung Dasar, Renops"
                   >
                     <Ship className="h-3 w-3" /> Laut
@@ -2985,9 +3014,10 @@ export default function Home() {
                 </div>
 
                 {/* KELOMPOK 3 — DOMAIN DARAT */}
-                <div className="flex flex-wrap items-center gap-1 rounded-lg border border-amber-300/70 bg-amber-50/60 px-1.5 py-1">
+                <div data-mm-group="darat" className="flex flex-wrap items-center gap-1 rounded-lg border border-amber-300/70 bg-amber-50/60 px-1.5 py-1">
                   <span
-                    className="mr-1 inline-flex select-none items-center gap-1 rounded-md bg-amber-600 px-2 py-1 text-[10px] font-extrabold uppercase tracking-[0.14em] text-white shadow-sm print:hidden"
+                    data-mm-badge="darat"
+                    className="relative z-30 mr-1 inline-flex select-none items-center gap-1 rounded-md bg-amber-600 px-2 py-1 text-[10px] font-extrabold uppercase tracking-[0.14em] text-white shadow-sm print:hidden"
                     title="Domain darat: WS 3 (Land), WS 4 (Radius), Intercept, Alokasi Aset, Hitung Dasar, Renops"
                   >
                     <Mountain className="h-3 w-3" /> Darat
@@ -3017,8 +3047,9 @@ export default function Home() {
                 </div>
               </TabsList>
 
-              {/* Animasi wiring premium: kabel data antar worksheet yang berkaitan */}
-              <WorksheetWiring hostId="worksheet-tabs-host" edges={WORKSHEET_WIRING_EDGES} activeTab={activeTab} />
+              {/* Animasi peta pikiran: pulsa data bergerak dari tab sumber
+                  melalui node grup & pusat menuju tab penerima yang berkaitan */}
+              <WorksheetMindMap hostId="worksheet-tabs-host" flows={WORKSHEET_DATA_FLOWS} activeTab={activeTab} />
             </div>
 
             {/* TAB: SEMUA WORKSHEET (SUMMARY VIEW) */}
