@@ -3768,6 +3768,19 @@ export default function Home() {
                 key={`ws4-${caseVersion}`}
                 initialState={ws4State ?? undefined}
                 onStateChange={setWs4State}
+                /* Peta darat (hanya WS 4): pola darat digambar memakai nilai
+                   track spacing S hasil Worksheet 3 (jalur existing — nilai
+                   di bawah ini adalah nilai yang sama yang sudah dipakai
+                   penggambar pola di peta ONC/Peta Laut). */
+                landPattern={selectedPatternSource === 'ws3' && searchPatternResult.segments.length > 0
+                  ? {
+                    segments: searchPatternResult.segments,
+                    patternType: searchPatternResult.type,
+                    spacingNm: trackSpacing,
+                    spacingLabel: patternSpacingSource,
+                    sruName: patternSruName,
+                  }
+                  : null}
               />
             </TabsContent>
 

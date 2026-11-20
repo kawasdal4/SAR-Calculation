@@ -20,6 +20,9 @@ import {
 } from '@/lib/sar/landSearchRadius.mjs';
 
 const Worksheet4Map = dynamic(() => import('@/components/sar/worksheets/Worksheet4MapLibre'), { ssr: false });
+// Peta darat OpenTopoMap — HANYA Worksheet 4, dirender di bawah peta ONC embed.
+const Worksheet4LandMap = dynamic(() => import('@/components/sar/worksheets/Worksheet4LandMap'), { ssr: false });
+import type { LandPatternForMap } from '@/components/sar/worksheets/Worksheet4LandMap';
 import TableRefText from '@/components/sar/TableRefText';
 
 export type Worksheet4TrStartMode = 'manual' | 'elapsed-time';
@@ -88,6 +91,10 @@ interface Worksheet4Props {
   /** Mirror seluruh input worksheet ke induk — dasar save case lengkap &
    *  recalculate otomatis antar worksheet. */
   onStateChange?: (data: Worksheet4InitialState) => void;
+  /** Pola darat hasil hitung Worksheet 3 (segment + nilai track spacing S)
+   *  dari page.tsx — digambar di peta darat (amber). Opsional; undefined =
+   *  pola belum dikonfigurasi. Komponen worksheet lain tidak terpengaruh. */
+  landPattern?: LandPatternForMap | null;
 }
 
 /** Worksheet 4 (Search Radius — darat) berdiri sendiri: TIDAK menerima props
@@ -98,6 +105,7 @@ export default function Worksheet4({
   readOnly = false,
   initialState,
   onStateChange,
+  landPattern = null,
 }: Worksheet4Props) {
   // Case & Metadata state
   const [caseTitle, setCaseTitle] = useState(initialState?.caseTitle ?? '-');
@@ -828,6 +836,32 @@ export default function Worksheet4({
             {activeMappedPoints.length === 0 && <p className="mt-2 text-[10px] text-amber-800">Masukkan koordinat waypoint A–D agar radius dan area koridor dapat ditampilkan.</p>}
             <p className="mt-2 text-[10px] text-slate-500">Garis dan jarak segmen dapat ditelusuri dari waypoint. Trapesium search area (hijau) dibentuk dari dua garis singgung luar lingkaran possibility area dan dua garis penutup tegak lurus garis rute.</p>
             <p className="mt-1 text-[10px] text-amber-800">OpenAIP dikelola komunitas. Verifikasi data dengan AIP Indonesia; peta ini alat bantu dan tidak menggantikan penilaian SAR Mission Coordinator maupun prosedur resmi.</p>
+          </section>
+
+          {/* PETA DARAT — hanya Worksheet 4 (instansi Leaflet sendiri, basemap
+              OpenTopoMap). Berdiri DI BAWAH peta ONC di atas; tidak berbagi
+              instance/layer dengan peta ONC, Peta Laut, maupun worksheet lain.
+              Hasil WS 4 (teal) + pola darat nilai S dari WS 3 (amber)
+              digambar di sini lewat adapter, bukan rewrite logika worksheet. */}
+          <section className="border-b-2 border-slate-900 p-3">
+            <div className="mb-2">
+              <h3 className="text-sm font-bold text-slate-900">Peta darat Worksheet 4 · OpenTopoMap (skala 1:25.000)</h3>
+              <p className="text-[10px] text-slate-600">Instansi peta sendiri — hanya ada di Worksheet 4, di bawah peta ONC. Memuat grid UTM + graticule + label tepi, skala cetak 1:25.000 (1.000 m = 40 mm), legenda, panah utara, Kantor SAR, dan Batas KANSAR. Hasil WS 4 (teal) dan pola darat dari nilai S Worksheet 3 (amber) digambar pada peta ini selain pada peta ONC di atas.</p>
+            </div>
+            <Worksheet4LandMap
+              center={mapCenter}
+              zoom={activeMappedPoints.length ? mapZoom : 4}
+              markers={ws4Markers}
+              lines={ws4Lines}
+              polygons={ws4Polygons}
+              circles={ws4Circles}
+              pattern={landPattern}
+              height="560px"
+            />
+            {activeMappedPoints.length === 0 && <p className="mt-2 text-[10px] text-amber-800">Masukkan koordinat waypoint A–D agar hasil WS 4 tampil di peta darat.</p>}
+            {landPattern && landPattern.segments.length > 0 && <p className="mt-2 text-[10px] text-slate-500">Pola darat (amber) digambar dari nilai track spacing S Worksheet 3 — {landPattern.sruName}{landPattern.spacingNm > 0 ? ` · S ${landPattern.spacingNm} NM (${landPattern.spacingLabel})` : ''}. Konfigurasi pola di tab Pola &amp; Rute.</p>}
+            {!landPattern && <p className="mt-2 text-[10px] text-slate-500">Pola darat nilai S dari Worksheet 3 belum dikonfigurasi — pola muncul di sini dan di peta ONC setelah diatur di tab Pola &amp; Rute (sumber Worksheet 3).</p>}
+            <p className="mt-1 text-[10px] text-slate-500">© OpenTopoMap (CC-BY-SA), data © OpenStreetMap contributors — peta darat ini tidak menggantikan penilaian SMC maupun prosedur resmi.</p>
           </section>
 
           {/* Form Footer */}

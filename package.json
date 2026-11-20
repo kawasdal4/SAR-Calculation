@@ -10,6 +10,7 @@
     "test:graticule": "node --test tests/oncGraticule.test.mjs",
     "test:mef": "node --test tests/oncMef.test.mjs",
     "test:ws4": "node --test tests/landSearchRadius.test.mjs",
+    "test:landmap": "node --test tests/landMapProj.test.mjs tests/landMapScale.test.mjs",
     "db:push": "prisma db push --schema prisma/schema.sqlite.prisma --accept-data-loss",
     "db:generate": "prisma generate --schema prisma/schema.sqlite.prisma",
     "db:migrate": "prisma migrate dev --schema prisma/schema.sqlite.prisma",
@@ -83,6 +84,7 @@
     "next-intl": "^4.3.4",
     "next-themes": "^0.4.6",
     "prisma": "^6.11.1",
+    "proj4": "^2.23.0",
     "react": "^19.0.0",
     "react-day-picker": "^9.8.0",
     "react-dom": "^19.0.0",
@@ -106,6 +108,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/proj4": "^2.19.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "bun-types": "^1.3.4",

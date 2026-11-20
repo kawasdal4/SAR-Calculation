@@ -1,0 +1,799 @@
+{
+ "type": "FeatureCollection",
+ "name": "kantor_sar",
+ "sumber": "Ekspor src/data/sarOffices.json — 44 lokasi kantor SAR hasil audit pemilik (bank data repo)",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor Pusat Basarnas",
+    "kode": "KP-basarnas-kantor-pusat",
+    "kategori": "kantor-pusat",
+    "alamat": "Jl. Angkasa Blok B.15 Kav. 2-3, Kemayoran, Jakarta Pusat, DKI Jakarta 10610",
+    "koordinat": "-6.157234, 106.841864",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Laman resmi JDIH Basarnas mencantumkan Latitude -6.157234 dan Longitude 106.841864 untuk alamat Biro Hukum dan Kerja Sama di Kantor Pusat Basarnas, Jl. Angkasa Blok B.15 Kav. 2-3, Kemayoran. Alamat kantor pusat juga tercantum pada situs resmi Basarnas. Bukan hasil survei GNSS lapangan; cocokkan posisi gedung/gerbang sebelum digunakan sebagai titik operasional."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     106.841864,
+     -6.157234
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Ambon",
+    "kode": "SAR-kansar-ambon",
+    "kategori": "kantor-sar",
+    "alamat": "Jl. Dr. J. Leimena, Hative Besar, Ambon",
+    "koordinat": "-3.645000, 128.189000",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Mask resolusi tinggi menunjukkan daratan pesisir, bukan laut. Cocokkan lagi dengan gerbang/bangunan di Jl. Dr. J. Leimena, Hative Besar."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.189,
+     -3.645
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Balikpapan",
+    "kode": "SAR-kansar-balikpapan",
+    "kategori": "kantor-sar",
+    "alamat": "Jl. Marsma R. Iswahyudi RT. 10 No. 03, Sepinggan Raya, Balikpapan Selatan",
+    "koordinat": "-1.259700, 116.898100",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. EST adalah estimasi area, bukan titik GNSS bangunan/gerbang; cocokkan dengan alamat dan pin kantor."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     116.8981,
+     -1.2597
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Banda Aceh",
+    "kode": "SAR-kansar-banda-aceh",
+    "kategori": "kantor-sar",
+    "alamat": "Jl. Sultan Malikul Saleh No. 108, Lhong Raya, Banda Aceh - 23238",
+    "koordinat": "5.520011, 95.322769",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     95.322769,
+     5.520011
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Bandung",
+    "kode": "SAR-kansar-bandung",
+    "kategori": "kantor-sar",
+    "alamat": "Jl. Raya Bandung - Garut Km. 27, Sindangpakuon, Cimanggung, Kabupaten Sumedang, Jawa Barat",
+    "koordinat": "-6.966111, 107.675000",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     107.675,
+     -6.966111
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Banjarmasin",
+    "kode": "SAR-kansar-banjarmasin",
+    "kategori": "kantor-sar",
+    "alamat": "Jl. A. Yani No. 29, Landasan Ulin Timur, Landasan Ulin, Kota Banjarbaru, Kalimantan Selatan",
+    "koordinat": "-3.450000, 114.766667",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     114.766667,
+     -3.45
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Banten",
+    "kode": "SAR-kansar-banten",
+    "kategori": "kantor-sar",
+    "alamat": "Jl. Raya Serang - Cilegon Km. 70, Wanayasa, Kramatwatu, Kabupaten Serang, Banten",
+    "koordinat": "-6.040000, 106.120000",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. EST adalah estimasi area, bukan titik GNSS bangunan/gerbang; cocokkan dengan alamat dan pin kantor."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     106.12,
+     -6.04
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Bengkulu",
+    "kode": "SAR-kansar-bengkulu",
+    "kategori": "kantor-sar",
+    "alamat": "Jl. Soeprapto Dalam No. 10 RT. 17, Betungan, Bengkulu",
+    "koordinat": "-3.878417, 102.347917",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     102.347917,
+     -3.878417
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Biak",
+    "kode": "SAR-kansar-biak",
+    "kategori": "kantor-sar",
+    "alamat": "Jl. Bosnik Raya No. 111, Biak, Papua",
+    "koordinat": "-1.188056, 136.118611",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     136.118611,
+     -1.188056
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Cilacap",
+    "kode": "SAR-kansar-cilacap",
+    "kategori": "kantor-sar",
+    "alamat": "Jl. Penyu No. 115, Pandanarang, Cilacap Selatan, Kabupaten Cilacap, Jawa Tengah",
+    "koordinat": "-7.740000, 109.010000",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. EST adalah estimasi area, bukan titik GNSS bangunan/gerbang; cocokkan dengan alamat dan pin kantor."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     109.01,
+     -7.74
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Denpasar",
+    "kode": "SAR-kansar-denpasar",
+    "kategori": "kantor-sar",
+    "alamat": "Jl. Raya Uluwatu No. 201, Jimbaran, Kuta Selatan, Badung, Bali",
+    "koordinat": "-8.790278, 115.163333",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     115.163333,
+     -8.790278
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Gorontalo",
+    "kode": "SAR-kansar-gorontalo",
+    "kategori": "kantor-sar",
+    "alamat": "Jl. Pangeran Hidayat II, Kelurahan Pulubala, Kota Tengah, Kota Gorontalo",
+    "koordinat": "0.556072, 123.066564",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     123.066564,
+     0.556072
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Jakarta",
+    "kode": "SAR-kansar-jakarta",
+    "kategori": "kantor-sar",
+    "alamat": "Jl. Marsekal Suryadarma No. 115, Selapajang Jaya, Neglasari, Kota Tangerang, Banten",
+    "koordinat": "-6.126389, 106.655556",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     106.655556,
+     -6.126389
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Jambi",
+    "kode": "SAR-kansar-jambi",
+    "kategori": "kantor-sar",
+    "alamat": "Jl. Jawa RT 07, Kelurahan Talang Bakung, Kecamatan Jambi Selatan",
+    "koordinat": "-1.633067, 103.647617",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     103.647617,
+     -1.633067
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Jayapura",
+    "kode": "SAR-kansar-jayapura",
+    "kategori": "kantor-sar",
+    "alamat": "Jl. Raya Hawai No. 115, Sentani, Kabupaten Jayapura, Papua",
+    "koordinat": "-2.580000, 140.520000",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. EST adalah estimasi area, bukan titik GNSS bangunan/gerbang; cocokkan dengan alamat dan pin kantor."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     140.52,
+     -2.58
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Kendari",
+    "kode": "SAR-kansar-kendari",
+    "kategori": "kantor-sar",
+    "alamat": "Jl. Kapten Pierre Tendean, Baruga, Kota Kendari, Sulawesi Tenggara",
+    "koordinat": "-4.040639, 122.488625",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     122.488625,
+     -4.040639
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Kupang",
+    "kode": "SAR-kansar-kupang",
+    "kategori": "kantor-sar",
+    "alamat": "Jl. Adisucipto, Penfui, Kupang, Nusa Tenggara Timur",
+    "koordinat": "-10.172000, 123.655183",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     123.655183,
+     -10.172
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Lampung",
+    "kode": "SAR-kansar-lampung",
+    "kategori": "kantor-sar",
+    "alamat": "Jl. Branti Raya, Bumisari, Natar, Kabupaten Lampung Selatan, Lampung",
+    "koordinat": "-5.242000, 105.188000",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. EST adalah estimasi area, bukan titik GNSS bangunan/gerbang; cocokkan dengan alamat dan pin kantor."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     105.188,
+     -5.242
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Makassar",
+    "kode": "SAR-kansar-makassar",
+    "kategori": "kantor-sar",
+    "alamat": "Jl. Bandar Udara Internasional Sultan Hasanuddin, Makassar",
+    "koordinat": "-5.072017, 119.544283",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     119.544283,
+     -5.072017
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Mamuju",
+    "kode": "SAR-kansar-mamuju",
+    "kategori": "kantor-sar",
+    "alamat": "Jl. Poros Trans Sulawesi Barat Lingkar Dua Bandara Tampa Padang, Kalukku, Kabupaten Mamuju, Sulawesi Barat",
+    "koordinat": "-2.591473, 119.030316",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Titik lama (-2.580000, 118.850000) jatuh di laut. Kandidat baru -2.5914725, 119.0303164 didekode dari Plus Code peta C25J+C48. Berada di darat, tetapi belum GNSS/cek gerbang."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     119.0303164,
+     -2.5914725
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Manado",
+    "kode": "SAR-kansar-manado",
+    "kategori": "kantor-sar",
+    "alamat": "Jl. Worang Bypass, Desa Kaasar, Kauditan, Kabupaten Minahasa Utara, Sulawesi Utara",
+    "koordinat": "1.401433, 125.014444",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     125.014444,
+     1.401433
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Manokwari",
+    "kode": "SAR-kansar-manokwari",
+    "kategori": "kantor-sar",
+    "alamat": "Jl. Drs. Essau Sesa, Sowi Gunung, Manokwari Selatan, Papua Barat",
+    "koordinat": "-0.891467, 134.043283",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     134.043283,
+     -0.891467
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Mataram",
+    "kode": "SAR-kansar-mataram",
+    "kategori": "kantor-sar",
+    "alamat": "Jl. TGH. Lopan, Labu Api, Lombok Barat, Nusa Tenggara Barat",
+    "koordinat": "-8.631389, 116.126111",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     116.126111,
+     -8.631389
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Maumere",
+    "kode": "SAR-kansar-maumere",
+    "kategori": "kantor-sar",
+    "alamat": "Jl. Diponegoro, Wolomarang, Alok Barat, Kabupaten Sikka, Nusa Tenggara Timur",
+    "koordinat": "-8.620000, 122.210000",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. EST adalah estimasi area, bukan titik GNSS bangunan/gerbang; cocokkan dengan alamat dan pin kantor."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     122.21,
+     -8.62
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Medan",
+    "kode": "SAR-kansar-medan",
+    "kategori": "kantor-sar",
+    "alamat": "Jl. Jamin Ginting No. 99, Sidomulyo, Medan Tuntungan, Medan - 20136",
+    "koordinat": "3.503300, 98.612400",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. EST adalah estimasi area, bukan titik GNSS bangunan/gerbang; cocokkan dengan alamat dan pin kantor."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     98.6124,
+     3.5033
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Mentawai",
+    "kode": "SAR-kansar-mentawai",
+    "kategori": "kantor-sar",
+    "alamat": "Jl. Raya Tuapejat Km. 9, Dusun Karya Bakti, Desa Siporajaya, Sipora Utara, Kabupaten Kepulauan Mentawai",
+    "koordinat": "-2.072522, 99.605072",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Koordinat lama (-2.021000, 99.642000) jatuh di laut dan dibatalkan. Pengguna memberikan tautan Google Maps Kantor SAR Mentawai; pin tempat pada tautan tersebut terbaca -2.0725216, 99.6050720. Titik ini menggantikan titik lama dan perlu validasi akhir terhadap gerbang/bangunan."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     99.605072,
+     -2.0725216
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Merauke",
+    "kode": "SAR-kansar-merauke",
+    "kategori": "kantor-sar",
+    "alamat": "Jl. R. E. Marthadinata, depan Bandara Mopah, Rimba Jaya, Merauke, Papua Selatan",
+    "koordinat": "-8.518633, 140.412150",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     140.41215,
+     -8.518633
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Natuna",
+    "kode": "SAR-kansar-natuna",
+    "kategori": "kantor-sar",
+    "alamat": "Jl. Adam Malik, Ranai Kota, Bunguran Timur, Kabupaten Natuna, Kepulauan Riau",
+    "koordinat": "3.950000, 108.380000",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. EST adalah estimasi area, bukan titik GNSS bangunan/gerbang; cocokkan dengan alamat dan pin kantor."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     108.38,
+     3.95
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Nias",
+    "kode": "SAR-kansar-nias",
+    "kategori": "kantor-sar",
+    "alamat": "Jl. Pelabuhan Udara Binaka Km. 9, Desa Ononamolo I Lot, Gunungsitoli Selatan, Kota Gunungsitoli",
+    "koordinat": "1.257000, 97.602000",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. EST adalah estimasi area, bukan titik GNSS bangunan/gerbang; cocokkan dengan alamat dan pin kantor."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     97.602,
+     1.257
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Padang",
+    "kode": "SAR-kansar-padang",
+    "kategori": "kantor-sar",
+    "alamat": "Jl. By Pass Km. 25, Anak Air, Batipuh Panjang, Koto Tangah, Padang, Sumatera Barat",
+    "koordinat": "-0.830000, 100.341000",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. EST adalah estimasi area, bukan titik GNSS bangunan/gerbang; cocokkan dengan alamat dan pin kantor."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     100.341,
+     -0.83
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Palangkaraya",
+    "kode": "SAR-kansar-palangkaraya",
+    "kategori": "kantor-sar",
+    "alamat": "Jl. Adonis Samad, Panarung, Pahandut, Kota Palangka Raya, Kalimantan Tengah",
+    "koordinat": "-2.223000, 113.944000",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. EST adalah estimasi area, bukan titik GNSS bangunan/gerbang; cocokkan dengan alamat dan pin kantor."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     113.944,
+     -2.223
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Palembang",
+    "kode": "SAR-kansar-palembang",
+    "kategori": "kantor-sar",
+    "alamat": "Jl. Gubernur H. Asnawi Mangku Alam, Kebun Bunga, Sukarami, Palembang, Sumatera Selatan",
+    "koordinat": "-2.898333, 104.715556",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     104.715556,
+     -2.898333
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Palu",
+    "kode": "SAR-kansar-palu",
+    "kategori": "kantor-sar",
+    "alamat": "Jl. Elang No. 12, Birobuli Utara, Palu Selatan, Kota Palu, Sulawesi Tengah",
+    "koordinat": "-0.918000, 119.895000",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. EST adalah estimasi area, bukan titik GNSS bangunan/gerbang; cocokkan dengan alamat dan pin kantor."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     119.895,
+     -0.918
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Pangkalpinang",
+    "kode": "SAR-kansar-pangkalpinang",
+    "kategori": "kantor-sar",
+    "alamat": "Jl. Pulau Pelepas, Desa Beluluk, Pangkalanbaru, Kabupaten Bangka Tengah, Kepulauan Bangka Belitung",
+    "koordinat": "-2.116667, 106.104722",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     106.104722,
+     -2.116667
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Pekanbaru",
+    "kode": "SAR-kansar-pekanbaru",
+    "kategori": "kantor-sar",
+    "alamat": "Jl. Jenderal Sudirman - Jl. Reformasi, Simpang Tiga, Perhentian Marpoyan, Marpoyan Damai, Pekanbaru, Riau 28288",
+    "koordinat": "0.469444, 101.451389",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     101.451389,
+     0.469444
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Pontianak",
+    "kode": "SAR-kansar-pontianak",
+    "kategori": "kantor-sar",
+    "alamat": "Jl. Adisucipto Km. 15.6, Desa Limbung, Sungai Raya, Kabupaten Kubu Raya",
+    "koordinat": "-0.136217, 109.407417",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     109.407417,
+     -0.136217
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Semarang",
+    "kode": "SAR-kansar-semarang",
+    "kategori": "kantor-sar",
+    "alamat": "Perumahan Permata Puri, Jl. Bukit Barisan Blok A IV No. 9, Bringin, Ngaliyan, Semarang, Jawa Tengah",
+    "koordinat": "-7.000833, 110.339956",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     110.339956,
+     -7.000833
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Sorong",
+    "kode": "SAR-kansar-sorong",
+    "kategori": "kantor-sar",
+    "alamat": "Jl. Avignam No. 115, Klawuyuk, Sorong",
+    "koordinat": "-0.889806, 131.323111",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     131.323111,
+     -0.889806
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Surabaya",
+    "kode": "SAR-kansar-surabaya",
+    "kategori": "kantor-sar",
+    "alamat": "Jl. Ir. Haji Juanda, Bandara Juanda Baru, Sedati, Kabupaten Sidoarjo, Jawa Timur",
+    "koordinat": "-7.371053, 112.778283",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     112.778283,
+     -7.371053
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Tanjung Pinang",
+    "kode": "SAR-kansar-tanjung-pinang",
+    "kategori": "kantor-sar",
+    "alamat": "Jl. Raja H. Fisabililah, Batu IX, Tanjungpinang Timur, Kota Tanjung Pinang, Kepulauan Riau",
+    "koordinat": "0.902600, 104.486667",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     104.486667,
+     0.9026
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Tarakan",
+    "kode": "SAR-kansar-tarakan",
+    "kategori": "kantor-sar",
+    "alamat": "Jl. Lestari No. 102 RT. 002, Karang Harapan, Tarakan Barat, Kota Tarakan, Kalimantan Utara",
+    "koordinat": "3.385000, 117.565000",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. EST adalah estimasi area, bukan titik GNSS bangunan/gerbang; cocokkan dengan alamat dan pin kantor."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     117.565,
+     3.385
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Ternate",
+    "kode": "SAR-kansar-ternate",
+    "kategori": "kantor-sar",
+    "alamat": "Jl. Depot Pertamina, Jambula, Ternate",
+    "koordinat": "0.762100, 127.316900",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. EST adalah estimasi area, bukan titik GNSS bangunan/gerbang; cocokkan dengan alamat dan pin kantor."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     127.3169,
+     0.7621
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Timika",
+    "kode": "SAR-kansar-timika",
+    "kategori": "kantor-sar",
+    "alamat": "Jl. Yos Sudarso Km. 5, Wania, Kabupaten Mimika, Papua Tengah",
+    "koordinat": "-4.525000, 136.868611",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     136.868611,
+     -4.525
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "nama": "Kantor SAR Yogyakarta",
+    "kode": "SAR-kansar-yogyakarta",
+    "kategori": "kantor-sar",
+    "alamat": "Jl. Raya Yogyakarta - Wates Km. 11,5, Argorejo, Sedayu, Kabupaten Bantul, DI Yogyakarta",
+    "koordinat": "-7.813600, 110.262300",
+    "sumber": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. EST adalah estimasi area, bukan titik GNSS bangunan/gerbang; cocokkan dengan alamat dan pin kantor."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     110.2623,
+     -7.8136
+    ]
+   }
+  }
+ ]
+}
