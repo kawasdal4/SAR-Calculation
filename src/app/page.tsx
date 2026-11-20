@@ -120,6 +120,21 @@ import DocumentWorkbench from '@/components/sar/DocumentWorkbench';
 import AllWorksheetsView from '@/components/sar/AllWorksheetsView';
 import PrintMapA3 from '@/components/sar/PrintMapA3';
 import PrintCompanionMap from '@/components/sar/PrintCompanionMap';
+import dynamic from 'next/dynamic';
+import type { ScanPrintBoxData } from '@/lib/sar/scanPrint';
+
+/** Studio peta hasil scan (unggahan) — client-only, dipakai di kartu Peta Laut. */
+const ScannedChartStudioMount = dynamic(
+  () => import('@/components/sar/ScannedChartStudio'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-64 items-center justify-center text-xs text-slate-500">
+        Memuat studio peta hasil scan&hellip;
+      </div>
+    ),
+  },
+);
 import { printActiveWorksheetFit } from '@/lib/sar/printFit';
 import AIChatPanel from '@/components/sar/AIChatPanel';
 import {
@@ -405,6 +420,8 @@ export default function Home() {
   const ws1Map: Ws1Derived = ws1Computed;
   const [pickMode, setPickMode] = useState<boolean>(false);
   const [pickSruMode, setPickSruMode] = useState<boolean>(false);
+  /** Sumber peta laut kartu kanan: digital (Leaflet) atau hasil scan unggahan. */
+  const [seaMapMode, setSeaMapMode] = useState<'digital' | 'scan'>('digital');
   const [mainMapToolMode, setMainMapToolMode] = useState<'pan' | 'drop' | 'measure'>('pan');
   const [mainMapDroppedPoints, setMainMapDroppedPoints] = useState<Array<{ id: string; position: LatLng }>>([]);
   const [selectedMainMapPointId, setSelectedMainMapPointId] = useState<string | null>(null);
@@ -2615,6 +2632,30 @@ export default function Home() {
     [interactiveMapMarkers, searchAreaCornerMarkers],
   );
 
+  // Text box pojok cetak/PDF untuk Peta Laut hasil scan: LKP, titik A–D,
+  // Datum, CSP & Exit Point tiap SRU (permintaan tampilan cetak minimal).
+  const seaScanPrintData: ScanPrintBoxData = useMemo(() => ({
+    lkp: isLkpSet ? lkp : null,
+    datum: datumResults ? ws1Map.datumB : null,
+    corners: searchAreaCornerMarkers.map((marker) => ({ label: marker.label, pos: marker.position })),
+    sruCsp: (csp.lat !== 0 || csp.lng !== 0)
+      ? assetSummary.perAsset.map((calc) => ({ sru: calc.asset.name, pos: csp }))
+      : [],
+    sruExit: (exitPoint.lat !== 0 || exitPoint.lng !== 0)
+      ? assetSummary.perAsset.map((calc) => ({ sru: calc.asset.name, pos: exitPoint }))
+      : [],
+  }), [isLkpSet, lkp, datumResults, ws1Map, searchAreaCornerMarkers, assetSummary, csp, exitPoint]);
+
+  const seaScanLegendItems = [
+    { color: '#0ea5e9', label: 'LKP', shape: 'dot' as const },
+    { color: '#dc2626', label: 'Datum', shape: 'dot' as const },
+    { color: '#f59e0b', label: 'Drift (SC/TWC/LW)', shape: 'dot' as const },
+    { color: '#16a34a', label: 'Search Area', shape: 'dot' as const },
+    { color: SEARCH_PATTERN_COLORS[patternType], label: `Search Pattern (${patternSruName})`, shape: 'line' as const },
+    { color: '#9333ea', label: 'Transit Go', shape: 'line' as const },
+    { color: '#f97316', label: 'Transit Back', dashed: true, shape: 'line' as const },
+  ];
+
   // Vectors for Maneuvering Board in AWA tab (sesuai materi slide I Kadek Dedi K.)
   const awaBoardVectors: BoardVector[] = useMemo(() => {
     const rows = awa.rows ?? [];
@@ -4020,6 +4061,34 @@ export default function Home() {
                 </div>
               )}
 
+              {/* Sumber peta: digital (Leaflet) atau peta cetak hasil scan (unggahan).
+                  Keduanya menggambar hasil yang sama: worksheet, pola pencarian,
+                  Transit Go/Back — hanya basemap-nya yang berbeda. */}
+              <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-white px-2.5 py-1.5" role="group" aria-label="Sumber peta laut">
+                <span className="text-[11px] font-bold text-slate-700">Sumber Peta:</span>
+                <button
+                  type="button"
+                  onClick={() => setSeaMapMode('digital')}
+                  aria-pressed={seaMapMode === 'digital'}
+                  className={`inline-flex items-center gap-1 rounded border px-2.5 py-1 text-xs font-medium ${seaMapMode === 'digital' ? 'border-slate-700 bg-slate-700 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'}`}
+                >
+                  Peta Digital
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSeaMapMode('scan')}
+                  aria-pressed={seaMapMode === 'scan'}
+                  className={`inline-flex items-center gap-1 rounded border px-2.5 py-1 text-xs font-medium ${seaMapMode === 'scan' ? 'border-slate-700 bg-slate-700 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'}`}
+                >
+                  Peta Hasil Scan (Upload)
+                </button>
+                {seaMapMode === 'scan' && (
+                  <span className="text-[10px] text-slate-500">
+                    Upload peta laut cetak hasil scan → kalibrasi 2+ titik → hasil hitungan, pola, dan transit tergambar otomatis.
+                  </span>
+                )}
+              </div>
+
               <div className={`relative ${pickMode ? 'ring-2 ring-emerald-500 ring-inset' : pickSruMode ? 'ring-2 ring-purple-500 ring-inset' : ''} ${petaLautFullscreen ? 'flex-1 min-h-0' : ''}`}>
                 {/* Tombol layar penuh melayang di atas peta (tengah atas) —
                     selalu terlihat, tidak bertabrakan dengan kontrol Leaflet
@@ -4035,24 +4104,38 @@ export default function Home() {
                   {petaLautFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
                   {petaLautFullscreen ? 'Keluar layar penuh' : 'Layar Penuh'}
                 </button>
-                <SeaMapMount
-                  center={mapCenter}
-                  zoom={8}
-                  markers={mainMapMarkers}
-                  lines={lines}
-                  polygons={polygons}
-                  circles={circles}
-                  height={petaLautFullscreen ? '100%' : '460px'}
-                  pickMode={pickMode || pickSruMode || mainMapToolMode === 'drop'}
-                  measureMode={mainMapToolMode === 'measure'}
-                  preferenceKey="worksheet-main"
-                  onMapClick={handleInteractiveMapClick}
-                  autoFitTo={{
-                    points: [lkp, ws1Map.datumB],
-                    radiusNm: ws1Map.RUp,
-                    key: `${ws1Map.datumB.lat.toFixed(5)},${ws1Map.datumB.lng.toFixed(5)},${ws1Map.RUp}`,
-                  }}
-                />
+                {seaMapMode === 'digital' ? (
+                  <SeaMapMount
+                    center={mapCenter}
+                    zoom={8}
+                    markers={mainMapMarkers}
+                    lines={lines}
+                    polygons={polygons}
+                    circles={circles}
+                    height={petaLautFullscreen ? '100%' : '460px'}
+                    pickMode={pickMode || pickSruMode || mainMapToolMode === 'drop'}
+                    measureMode={mainMapToolMode === 'measure'}
+                    preferenceKey="worksheet-main"
+                    onMapClick={handleInteractiveMapClick}
+                    autoFitTo={{
+                      points: [lkp, ws1Map.datumB],
+                      radiusNm: ws1Map.RUp,
+                      key: `${ws1Map.datumB.lat.toFixed(5)},${ws1Map.datumB.lng.toFixed(5)},${ws1Map.RUp}`,
+                    }}
+                  />
+                ) : (
+                  <ScannedChartStudioMount
+                    title="Peta Laut Hasil Scan · hasil worksheet, pola pencarian & Transit Go/Back"
+                    instanceKey="sea"
+                    markers={mainMapMarkers}
+                    lines={lines}
+                    polygons={polygons}
+                    circles={circles}
+                    legendItems={seaScanLegendItems}
+                    printData={seaScanPrintData}
+                    height={petaLautFullscreen ? '100%' : '460px'}
+                  />
+                )}
               </div>
 
               {/* Map Legend — disembunyikan saat layar penuh (hanya peta) */}

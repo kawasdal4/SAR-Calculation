@@ -100,3 +100,6 @@ server.log
 
 # local sqlite db
 /db/
+
+# Peta scan sementara (fallback lokal bila R2 belum dikonfigurasi)
+/.uploads/

@@ -22,7 +22,13 @@ import {
 const Worksheet4Map = dynamic(() => import('@/components/sar/worksheets/Worksheet4MapLibre'), { ssr: false });
 // Peta darat OpenTopoMap — HANYA Worksheet 4, dirender di bawah peta ONC embed.
 const Worksheet4LandMap = dynamic(() => import('@/components/sar/worksheets/Worksheet4LandMap'), { ssr: false });
+// Studio peta hasil scan (unggahan) — versi scan untuk peta ONC & peta darat.
+const ScannedChartStudioMount = dynamic(() => import('@/components/sar/ScannedChartStudio'), {
+  ssr: false,
+  loading: () => <div className="flex h-64 items-center justify-center text-xs text-slate-500">Memuat studio peta hasil scan&hellip;</div>,
+});
 import type { LandPatternForMap } from '@/components/sar/worksheets/Worksheet4LandMap';
+import type { ScanPrintBoxData } from '@/lib/sar/scanPrint';
 import TableRefText from '@/components/sar/TableRefText';
 
 export type Worksheet4TrStartMode = 'manual' | 'elapsed-time';
@@ -119,6 +125,10 @@ export default function Worksheet4({
 
   // Layar penuh Peta ONC (Worksheet 4 · OpenAIP): pembungkus peta memenuhi viewport.
   const { ref: oncFsRef, isFullscreen: oncFullscreen, toggle: toggleOncFullscreen } = useFullscreen<HTMLDivElement>();
+
+  // Sumber peta per kartu: digital (OpenAIP/OpenTopo) atau hasil scan unggahan.
+  const [ws4OncMode, setWs4OncMode] = useState<'digital' | 'scan'>('digital');
+  const [ws4LandMode, setWs4LandMode] = useState<'digital' | 'scan'>('digital');
 
   // Position fixes / reports
   const [latitude, setLatitude] = useState(initialState?.latitude ?? 0);
@@ -307,6 +317,72 @@ export default function Worksheet4({
     }
     return polygons;
   })();
+
+  // Pola darat (WS 3) sebagai garis + marker CSP/Exit — dipakai studio scan
+  // (peta darat & ONC) yang tidak menerima props Leaflet langsung.
+  const ws4PatternLines: MapLine[] = landPattern
+    ? landPattern.segments.map((seg, index) => {
+        const isConnector = (landPattern.patternType === 'PS' || landPattern.patternType === 'CS') && index % 2 === 1;
+        return {
+          from: seg.from,
+          to: seg.to,
+          color: '#d97706',
+          arrow: !isConnector,
+          dashed: isConnector,
+          weight: isConnector ? 1.5 : 2,
+          label: isConnector ? undefined : `Leg ${seg.legIndex} · ${seg.distanceNm.toFixed(1)} nm`,
+        };
+      })
+    : [];
+  const ws4PatternMarkers: MapMarker[] = landPattern && landPattern.segments.length > 0
+    ? [
+        {
+          position: landPattern.segments[0].from,
+          label: `CSP ${landPattern.sruName}`,
+          color: '#d97706',
+          showLabel: true,
+          isStart: true,
+        },
+        {
+          position: landPattern.segments[landPattern.segments.length - 1].to,
+          label: `EXIT ${landPattern.sruName}`,
+          color: '#b45309',
+          showLabel: true,
+        },
+      ]
+    : [];
+
+  // Text box pojok cetak/PDF untuk studio scan WS 4: LKP = posisi distress,
+  // titik A–D = waypoint rute, CSP/Exit dari pola darat WS 3 (bila ada).
+  const ws4ScanPrintData: ScanPrintBoxData = {
+    lkp: (latitude !== 0 || longitude !== 0) && Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180
+      ? { lat: latitude, lng: longitude }
+      : null,
+    datum: null,
+    corners: activeMappedPoints.map(({ point, index, name }) => ({
+      label: `${String.fromCharCode(65 + index)} · ${name}`,
+      pos: point,
+    })),
+    sruCsp: landPattern && landPattern.segments.length > 0
+      ? [{ sru: landPattern.sruName, pos: landPattern.segments[0].from }]
+      : [],
+    sruExit: landPattern && landPattern.segments.length > 0
+      ? [{ sru: landPattern.sruName, pos: landPattern.segments[landPattern.segments.length - 1].to }]
+      : [],
+  };
+
+  const ws4RouteLegendItems = [
+    { color: '#334155', label: 'Rute A–D', shape: 'line' as const },
+    { color: '#0f766e', label: 'Area trapesium', shape: 'line' as const },
+    { color: '#dc2626', label: 'Fix A', shape: 'dot' as const },
+    { color: '#ea580c', label: 'Fix B', shape: 'dot' as const },
+    { color: '#7c3aed', label: 'Fix C', shape: 'dot' as const },
+    { color: '#2563eb', label: 'Fix D', shape: 'dot' as const },
+  ];
+  const ws4LandLegendItems = [
+    ...ws4RouteLegendItems,
+    { color: '#d97706', label: 'Pola darat WS 3 (CSP/Exit)', shape: 'line' as const },
+  ];
 
   const handlePrint = () => {
     if (typeof window !== 'undefined') printActiveWorksheetFit();
@@ -799,6 +875,24 @@ export default function Worksheet4({
                 <p className="text-[10px] text-slate-600">Peta ini berdiri sendiri dan tidak berbagi layer dengan peta Worksheet 1. Lingkaran memakai Rounded up Radius; trapesium search area digambar dari garis singgung luar kedua lingkaran.</p>
               </div>
               <div className="flex items-center gap-2 print:hidden">
+                <div className="inline-flex overflow-hidden rounded border border-slate-300 text-xs" role="group" aria-label="Sumber peta ONC">
+                  <button
+                    type="button"
+                    onClick={() => setWs4OncMode('digital')}
+                    aria-pressed={ws4OncMode === 'digital'}
+                    className={`px-2.5 py-1 font-medium ${ws4OncMode === 'digital' ? 'bg-slate-700 text-white' : 'bg-white text-slate-700 hover:bg-slate-50'}`}
+                  >
+                    Digital (OpenAIP)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setWs4OncMode('scan')}
+                    aria-pressed={ws4OncMode === 'scan'}
+                    className={`px-2.5 py-1 font-medium ${ws4OncMode === 'scan' ? 'bg-slate-700 text-white' : 'bg-white text-slate-700 hover:bg-slate-50'}`}
+                  >
+                    Hasil Scan (Upload)
+                  </button>
+                </div>
                 <FullscreenToggleButton
                   isFullscreen={oncFullscreen}
                   onToggle={toggleOncFullscreen}
@@ -820,18 +914,32 @@ export default function Worksheet4({
                   <Minimize2 className="h-3.5 w-3.5" /> Keluar layar penuh
                 </button>
               )}
-              <Worksheet4Map
-                center={mapCenter}
-                zoom={activeMappedPoints.length ? mapZoom : 4}
-                markers={ws4Markers}
-                lines={ws4Lines}
-                polygons={ws4Polygons}
-                circles={ws4Circles}
-                // Saat fullscreen: tinggi persentase (100%) tidak dihitung ulang
-                // pada elemen :fullscreen di Chromium — pakai tinggi eksplisit
-                // 100vh (padding .fs-target sudah 0).
-                height={oncFullscreen ? '100vh' : '520px'}
-              />
+              {ws4OncMode === 'digital' ? (
+                <Worksheet4Map
+                  center={mapCenter}
+                  zoom={activeMappedPoints.length ? mapZoom : 4}
+                  markers={ws4Markers}
+                  lines={ws4Lines}
+                  polygons={ws4Polygons}
+                  circles={ws4Circles}
+                  // Saat fullscreen: tinggi persentase (100%) tidak dihitung ulang
+                  // pada elemen :fullscreen di Chromium — pakai tinggi eksplisit
+                  // 100vh (padding .fs-target sudah 0).
+                  height={oncFullscreen ? '100vh' : '520px'}
+                />
+              ) : (
+                <ScannedChartStudioMount
+                  title="Peta ONC Hasil Scan · hasil Worksheet 4 di atas peta ONC cetak"
+                  instanceKey="ws4-onc"
+                  markers={ws4Markers}
+                  lines={ws4Lines}
+                  polygons={ws4Polygons}
+                  circles={ws4Circles}
+                  legendItems={ws4RouteLegendItems}
+                  printData={ws4ScanPrintData}
+                  height={oncFullscreen ? '100vh' : '520px'}
+                />
+              )}
             </div>
             {activeMappedPoints.length === 0 && <p className="mt-2 text-[10px] text-amber-800">Masukkan koordinat waypoint A–D agar radius dan area koridor dapat ditampilkan.</p>}
             <p className="mt-2 text-[10px] text-slate-500">Garis dan jarak segmen dapat ditelusuri dari waypoint. Trapesium search area (hijau) dibentuk dari dua garis singgung luar lingkaran possibility area dan dua garis penutup tegak lurus garis rute.</p>
@@ -844,20 +952,54 @@ export default function Worksheet4({
               Hasil WS 4 (teal) + pola darat nilai S dari WS 3 (amber)
               digambar di sini lewat adapter, bukan rewrite logika worksheet. */}
           <section className="border-b-2 border-slate-900 p-3">
-            <div className="mb-2">
-              <h3 className="text-sm font-bold text-slate-900">Peta darat Worksheet 4 · OpenTopoMap (skala 1:25.000)</h3>
-              <p className="text-[10px] text-slate-600">Instansi peta sendiri — hanya ada di Worksheet 4, di bawah peta ONC. Memuat grid UTM + graticule + label tepi, skala cetak 1:25.000 (1.000 m = 40 mm), legenda, panah utara, Kantor SAR, dan Batas KANSAR. Hasil WS 4 (teal) dan pola darat dari nilai S Worksheet 3 (amber) digambar pada peta ini selain pada peta ONC di atas.</p>
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Peta darat Worksheet 4 · OpenTopoMap (skala 1:25.000)</h3>
+                <p className="text-[10px] text-slate-600">Instansi peta sendiri — hanya ada di Worksheet 4, di bawah peta ONC. Memuat grid UTM + graticule + label tepi, skala cetak 1:25.000 (1.000 m = 40 mm), legenda, panah utara, Kantor SAR, dan Batas KANSAR. Hasil WS 4 (teal) dan pola darat dari nilai S Worksheet 3 (amber) digambar pada peta ini selain pada peta ONC di atas.</p>
+              </div>
+              <div className="inline-flex overflow-hidden rounded border border-slate-300 text-xs print:hidden" role="group" aria-label="Sumber peta darat">
+                <button
+                  type="button"
+                  onClick={() => setWs4LandMode('digital')}
+                  aria-pressed={ws4LandMode === 'digital'}
+                  className={`px-2.5 py-1 font-medium ${ws4LandMode === 'digital' ? 'bg-slate-700 text-white' : 'bg-white text-slate-700 hover:bg-slate-50'}`}
+                >
+                  Digital (OpenTopo)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setWs4LandMode('scan')}
+                  aria-pressed={ws4LandMode === 'scan'}
+                  className={`px-2.5 py-1 font-medium ${ws4LandMode === 'scan' ? 'bg-slate-700 text-white' : 'bg-white text-slate-700 hover:bg-slate-50'}`}
+                >
+                  Hasil Scan (Upload)
+                </button>
+              </div>
             </div>
-            <Worksheet4LandMap
-              center={mapCenter}
-              zoom={activeMappedPoints.length ? mapZoom : 4}
-              markers={ws4Markers}
-              lines={ws4Lines}
-              polygons={ws4Polygons}
-              circles={ws4Circles}
-              pattern={landPattern}
-              height="560px"
-            />
+            {ws4LandMode === 'digital' ? (
+              <Worksheet4LandMap
+                center={mapCenter}
+                zoom={activeMappedPoints.length ? mapZoom : 4}
+                markers={ws4Markers}
+                lines={ws4Lines}
+                polygons={ws4Polygons}
+                circles={ws4Circles}
+                pattern={landPattern}
+                height="560px"
+              />
+            ) : (
+              <ScannedChartStudioMount
+                title="Peta Darat Hasil Scan · hasil Worksheet 4 & pola WS 3 di atas peta topografi cetak"
+                instanceKey="ws4-land"
+                markers={[...ws4Markers, ...ws4PatternMarkers]}
+                lines={[...ws4Lines, ...ws4PatternLines]}
+                polygons={ws4Polygons}
+                circles={ws4Circles}
+                legendItems={ws4LandLegendItems}
+                printData={ws4ScanPrintData}
+                height="560px"
+              />
+            )}
             {activeMappedPoints.length === 0 && <p className="mt-2 text-[10px] text-amber-800">Masukkan koordinat waypoint A–D agar hasil WS 4 tampil di peta darat.</p>}
             {landPattern && landPattern.segments.length > 0 && <p className="mt-2 text-[10px] text-slate-500">Pola darat (amber) digambar dari nilai track spacing S Worksheet 3 — {landPattern.sruName}{landPattern.spacingNm > 0 ? ` · S ${landPattern.spacingNm} NM (${landPattern.spacingLabel})` : ''}. Konfigurasi pola di tab Pola &amp; Rute.</p>}
             {!landPattern && <p className="mt-2 text-[10px] text-slate-500">Pola darat nilai S dari Worksheet 3 belum dikonfigurasi — pola muncul di sini dan di peta ONC setelah diatur di tab Pola &amp; Rute (sumber Worksheet 3).</p>}

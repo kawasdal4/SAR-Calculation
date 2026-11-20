@@ -194,6 +194,30 @@ model AiSessionLog {
   @@index([interactionId])
 }
 
+/// Peta hasil scan yang diunggah sementara (fitur "gambar hasil worksheet di
+/// peta hasil scan"). Penyimpanan sementara: Cloudflare R2 (bila env R2_*
+/// diisi) atau disk lokal `.uploads` (fallback dev). BERKAS DIHAPUS OTOMATIS:
+/// saat browser di-refresh/tutup (beacon release) atau maksimum 6 jam (sweep
+/// di tiap upload/GET). Hasil gambar vektor TIDAK disimpan — hanya sementara
+/// di memori browser. Untuk upload PDF, `rasterKey` menyimpan PNG raster
+/// halaman pertama (pdftoppm) untuk tampilan & cetak; file asli tidak diubah.
+model TempMapFile {
+  id         String   @id @default(uuid())
+  fileName   String
+  mimeType   String
+  sizeBytes  Int
+  /// 'r2' | 'local'
+  storage    String
+  /// Kunci objek di R2 / nama file di disk lokal (versi ASLI yang diunggah)
+  storageKey String
+  /// Kunci objek raster PNG (khusus upload PDF; null bila langsung image)
+  rasterKey  String?
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime
+
+  @@index([expiresAt])
+}
+
 /// Bank master data lokasi & aset SAR (keputusan implementasi no. 7): draft
 /// sampai disetujui pemilik. Setiap entri WAJIB membawa sumber + tanggal
 /// pembaruan + satuan + status verifikasi; dilarang menebak koordinat/spesifikasi.
