@@ -44,7 +44,7 @@ import {
   mergeUserFieldValue,
   type CaseApplyStep,
 } from '@/lib/ai/parseCase';
-import { addDaysToIndoDateLabel, resolveDatumTimeValue } from '@/lib/ai/caseTextEnrich';
+import { resolveDatumTimeValue } from '@/lib/ai/caseTextEnrich';
 import type { SarCaseSchema } from '@/lib/sar/caseSchema';
 import type { DocumentSnapshot } from '@/lib/sar/dataBank';
 import type { SetFieldsWorksheet } from '@/lib/ai/tools/setFields';
@@ -300,13 +300,14 @@ interface DatumTimeCandidate {
 
 /** Kartu pilihan tanggal/waktu hasil parse-case (aturan pengguna): bila tanggal
  *  soal ambigu (DD/MM vs MM/DD) atau ≥2 kandidat waktu, pengguna MEMILIH di
- *  kartu — nilai otomatis tidak diisi server (lihat /api/ai/parse-case). */
+ *  kartu — nilai otomatis tidak diisi server (lihat /api/ai/parse-case).
+ *  Kandidat hanya tanggal/waktu yang tertulis di soal (data angin & forecast
+ *  cuaca dikecualikan; tidak ada tanggal buatan seperti +1 hari). */
 interface ExtractionTimeClarificationCard {
   kind: 'incident' | 'datum';
   question: string;
   candidates: DatumTimeCandidate[];
   baseDateLabel?: string;
-  baseDateNextDayLabel?: string;
 }
 
 /**
@@ -1366,8 +1367,8 @@ export default function AIChatPanel({
    *  pengguna LANGSUNG diubah ke field kasus (incident.lastContactTime /
    *  search.datumTime) dan apply plan dihitung ulang — tanpa panggilan chat.
    *  Kandidat datum time tanpa tanggal digabung dengan tanggal pilihan kartu
-   *  Waktu Kejadian (fallback: bacaan DD/MM server); frasa "esok hari" =
-   *  tanggal +1 hari (resolveDatumTimeValue). Kartu terpilih ditutup. */
+   *  Waktu Kejadian (fallback: bacaan DD/MM server) — TIDAK ada tanggal buatan
+   *  (+1 hari) yang ditambahkan (resolveDatumTimeValue). Kartu terpilih ditutup. */
   const handleExtractionTimeChoice = useCallback(
     (msgIdx: number, card: ExtractionTimeClarificationCard, candidate: DatumTimeCandidate) => {
       const chosenValue = (candidate.value ?? '').trim();
@@ -1379,13 +1380,8 @@ export default function AIChatPanel({
         // Waktu Kejadian > fallback bacaan DD/MM dari server.
         const incidentDateChoice = msg.extractionIncidentDateChoice;
         const baseDate = card.kind === 'datum' ? (incidentDateChoice || card.baseDateLabel) : undefined;
-        const baseNextDay = card.kind === 'datum'
-          ? (incidentDateChoice
-            ? addDaysToIndoDateLabel(incidentDateChoice, 1) ?? card.baseDateNextDayLabel
-            : card.baseDateNextDayLabel)
-          : undefined;
         const value = card.kind === 'datum'
-          ? resolveDatumTimeValue({ value: chosenValue, source: candidate.source, label: candidate.label }, baseDate, baseNextDay)
+          ? resolveDatumTimeValue({ value: chosenValue, source: candidate.source, label: candidate.label }, baseDate)
           : chosenValue;
         const field = card.kind === 'incident' ? 'incident.lastContactTime' : 'search.datumTime';
         const merged = mergeUserFieldValue(workingCase, field, value);

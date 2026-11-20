@@ -23,7 +23,6 @@ import {
   enrichCaseFromSourceText,
   buildTimeClarificationCards,
   parseLeadingIndoDateLabel,
-  addDaysToIndoDateLabel,
   resolveDatumTimeValue,
   formatAwaCaseDataAnchor,
   formatIncidentDateTimeAnchor,
@@ -42,6 +41,7 @@ melaporkan kepada ATC di ketinggian 18000 feet dengan heading 134⁰(M).
 • ATC declare DETRESFA pada pukul 1053 WIT dengan LKP pada koordinat
 4°59'00"S -133°53'48"E.
 • Kantor SAR Ambon menerima informasi dari ATC pukul 1105 WIT via telephone.
+• Direncanakan pencarian akan dilanjutkan esok hari pukul 0600 WIT.
 
 Appendix 3. Meteorological Information
 KETINGGIAN ALTITUDE ARAH DIRECTON KECEPATAN SPEED
@@ -177,12 +177,14 @@ describe('enrichCaseFromSourceText — gerbang kartu waktu (tanggal ambigu / ban
     // Catatan penjelas (bukan koreksi ⚠ "diambil dari TEKS soal").
     expect(result.timeClarificationNotes.some((note) => note.includes('incident.lastContactTime') && note.includes('tidak diisi otomatis'))).toBe(true);
     expect(result.corrections.filter((correction) => correction.field === 'incident.lastContactTime')).toHaveLength(0);
-    // Kartu datum: kandidat tanpa tanggal + tanggal dasar bacaan DD/MM (+1 hari utk "esok").
+    // Kartu datum: kandidat tanpa tanggal + tanggal dasar bacaan DD/MM —
+    // TANPA tanggal buatan +1 hari (aturan pengguna).
     const datumCard = result.timeClarifications[1];
     expect(datumCard.candidates.length).toBeGreaterThanOrEqual(3);
     expect(datumCard.candidates.some((candidate) => candidate.value.includes('10.53 WIT'))).toBe(true);
+    expect(datumCard.candidates.some((candidate) => candidate.label.includes('esok hari'))).toBe(true);
     expect(datumCard.baseDateLabel).toBe('03 Desember 2024');
-    expect(datumCard.baseDateNextDayLabel).toBe('04 Desember 2024');
+    expect(datumCard.baseDateNextDayLabel).toBeUndefined();
   });
 
   test('bacaan model TIDAK didukung kandidat ("12 Maret 2024 10.50 WIT") → DIHAPUS + kartu (bukan koreksi ⚠)', () => {
@@ -233,45 +235,39 @@ ATC declare DETRESFA pada pukul 1053 WIT dengan LKP pada koordinat 4°59'00"S -1
     expect(result.case.meta?.assumptions?.some((a) => a.field === 'incident.lastContactTime')).toBe(false);
   });
 
-  test('buildTimeClarificationCards: kartu datum punya tanggal dasar untuk penggabungan kandidat tanpa tanggal', () => {
+  test('buildTimeClarificationCards: kartu datum punya tanggal dasar untuk penggabungan kandidat tanpa tanggal (tanpa tanggal buatan)', () => {
     const facts = extractCaseFacts(SOAL_FULL_EXERCISE);
     const cards = buildTimeClarificationCards(facts);
     expect(cards.map((card) => card.kind)).toEqual(['incident', 'datum']);
     const datumCard = cards[1];
     expect(datumCard.question).toContain('digabung dengan tanggal');
+    expect(datumCard.question).toContain('tidak ada tanggal buatan');
     expect(datumCard.baseDateLabel).toBe('03 Desember 2024');
-    expect(datumCard.baseDateNextDayLabel).toBe('04 Desember 2024');
     // Kartu kejadian: kandidat sudah memuat tanggal (dateLabel terisi).
     expect(cards[0].candidates.every((candidate) => typeof candidate.dateLabel === 'string' && candidate.dateLabel.length > 0)).toBe(true);
   });
 });
 
-describe('helper penggabungan tanggal kandidat datum (resolveDatumTimeValue dsb.)', () => {
+describe('helper penggabungan tanggal kandidat datum (resolveDatumTimeValue)', () => {
   test('parseLeadingIndoDateLabel: "03 Desember 2024 10.53 WIT" → "03 Desember 2024"', () => {
     expect(parseLeadingIndoDateLabel('03 Desember 2024 10.53 WIT')).toBe('03 Desember 2024');
     expect(parseLeadingIndoDateLabel('10.53 WIT')).toBeNull();
   });
 
-  test('addDaysToIndoDateLabel: lintas bulan & tahun aman (aritmetika UTC)', () => {
-    expect(addDaysToIndoDateLabel('03 Desember 2024', 1)).toBe('04 Desember 2024');
-    expect(addDaysToIndoDateLabel('31 Desember 2024', 1)).toBe('01 Januari 2025');
-    expect(addDaysToIndoDateLabel('17 November 2026', 1)).toBe('18 November 2026');
-    expect(addDaysToIndoDateLabel('bukan tanggal', 1)).toBeNull();
-  });
-
-  test('resolveDatumTimeValue: kandidat tanpa tanggal digabung; "esok hari" memakai tanggal +1', () => {
+  test('resolveDatumTimeValue: kandidat tanpa tanggal digabung tanggal soal — TANPA +1 hari buatan (aturan pengguna)', () => {
     const base = '03 Desember 2024';
-    const next = '04 Desember 2024';
-    expect(resolveDatumTimeValue({ value: '10.53 WIT' }, base, next)).toBe('03 Desember 2024 10.53 WIT');
+    expect(resolveDatumTimeValue({ value: '10.53 WIT' }, base)).toBe('03 Desember 2024 10.53 WIT');
+    // Frasa "esok hari" TIDAK lagi menambah tanggal buatan — kandidat tetap
+    // digabung tanggal soal yang dipilih pengguna; bila tanggal sebenarnya
+    // berbeda, pengguna mengisi manual.
     expect(
       resolveDatumTimeValue(
         { value: '06.00 WIT', source: 'Direncanakan pencarian akan dilanjutkan esok hari pukul 0600 WIT.' },
         base,
-        next,
       ),
-    ).toBe('04 Desember 2024 06.00 WIT');
+    ).toBe('03 Desember 2024 06.00 WIT');
     // Kandidat bertanggal tidak disentuh; tanpa tanggal dasar juga apa adanya.
-    expect(resolveDatumTimeValue({ value: '19 November 2026 07.00 WIB' }, base, next)).toBe('19 November 2026 07.00 WIB');
+    expect(resolveDatumTimeValue({ value: '19 November 2026 07.00 WIB' }, base)).toBe('19 November 2026 07.00 WIB');
     expect(resolveDatumTimeValue({ value: '10.53 WIT' })).toBe('10.53 WIT');
   });
 });
@@ -376,6 +372,97 @@ describe('findDatumTimeCandidates (kandidat waktu naratif untuk kartu Datum Time
 
   test('teks kosong → tanpa kandidat', () => {
     expect(findDatumTimeCandidates('')).toEqual([]);
+  });
+});
+
+// ── Aturan pengguna: SELURUH tanggal/waktu soal tampil di kartu, MINUS data
+//    angin (ASW) & forecast cuaca — tanpa kandidat buatan (+1 hari) ──────────
+
+const SOAL_ASW_ANGIN_FORECAST = `Pada 18 November 2026 pesawat PK-XYZ berangkat pukul 09.00 WIT.
+ATC declare DETRESFA pada pukul 09.20 WIT dengan LKP pada koordinat 4°59'00"S.
+SRU tiba di lokasi 13.30 WIT.
+Data angin:
+00.00 WIB 155⁰ / 12kts
+06.00 WIB 260⁰ / 14 kts
+12.00 WIB 285⁰ / 13 kts
+18.00 WIB 310⁰ / 10 kts
+00.00 WIB 155⁰ / 12 kts
+Prakiraan cuaca tanggal 19 November 2026 pukul 03.00 UTC:
+Wind 150°/10 kts, Wave 1.5 m, Weather shower.
+Appendix 4. SRUs Details
+Direncanakan pencarian akan dilanjutkan esok hari pukul 0600 WIT.`;
+
+describe('kandidat waktu = seluruh soal MINUS data angin & forecast (aturan pengguna)', () => {
+  test('waktu berzona TANPA "pukul" ikut jadi kandidat ("SRU tiba di lokasi 13.30 WIT")', () => {
+    const candidates = findDatumTimeCandidates('SRU tiba di lokasi 06.30 WIT pada 19 November 2026.');
+    expect(candidates.length).toBe(1);
+    expect(candidates[0].value).toBe('19 November 2026 06.30 WIT');
+  });
+
+  test('baris deret angin (jika berzona) & waktu forecast cuaca BUKAN kandidat', () => {
+    const candidates = findDatumTimeCandidates(SOAL_ASW_ANGIN_FORECAST);
+    const values = candidates.map((c) => c.value);
+    // Seluruh waktu narasi soal tampil.
+    expect(values).toContain('18 November 2026 09.00 WIT'); // berangkat
+    expect(values).toContain('18 November 2026 09.20 WIT'); // DETRESFA
+    expect(values).toContain('18 November 2026 13.30 WIT'); // SRU tiba (tanpa "pukul")
+    expect(values).toContain('18 November 2026 06.00 WIT'); // pencarian dilanjutkan (esok hari)
+    // Waktu data angin (deret angin ASW) dikecualikan.
+    expect(values.some((v) => v.includes('WIB'))).toBe(false);
+    expect(values.some((v) => /00\.00 WIB|12\.00 WIB|18\.00 WIB/.test(v))).toBe(false);
+    // Waktu/tanggal forecast cuaca dikecualikan (19 November 2026 03.00 UTC).
+    expect(values.some((v) => v.includes('03.00 UTC'))).toBe(false);
+    expect(values.some((v) => v.includes('19 November 2026'))).toBe(false);
+  });
+
+  test('label "esok hari" jelas (Waktu pencarian dilanjutkan) — tanggal narasi tidak menyerap tanggal forecast', () => {
+    const candidates = findDatumTimeCandidates(SOAL_ASW_ANGIN_FORECAST);
+    const esok = candidates.find((c) => c.label.includes('Waktu pencarian dilanjutkan'));
+    expect(esok).toBeDefined();
+    expect(esok!.label).toContain('esok hari');
+    // Tanggal kandidat = tanggal narasi soal (18 November), BUKAN tanggal
+    // forecast (19 November) dan BUKAN tanggal buatan (+1 hari).
+    expect(esok!.value).toBe('18 November 2026 06.00 WIT');
+  });
+
+  test('tanggal blok data angin tidak menempel ke kandidat narasi sesudahnya', () => {
+    const soal = `Pada 18 November 2026 pesawat berangkat pukul 05.00 WIT.
+Data angin dari tanggal 20 November 2026:
+1) 00.00 50⁰ / 5 kts
+2) 06.00 69⁰ / 10 kts
+3) 12.00 80⁰ / 12 kts
+4) 18.00 96⁰ / 10 kts
+5) 00.00 102⁰ / 7 kts
+6) 06.00 90⁰ / 9 kts
+Pencarian kedua akan dilakukan pukul 14.00 WIT.`;
+    const candidates = findDatumTimeCandidates(soal);
+    const second = candidates.find((c) => c.label.includes('Waktu pencarian kedua'));
+    expect(second).toBeDefined();
+    // Tanggal dasar deret angin (di dalam blok, 20 November) TIDAK dijadikan
+    // tanggal kandidat narasi — tanggal kandidat = tanggal narasi soal.
+    expect(second!.value).toBe('18 November 2026 14.00 WIT');
+    expect(second!.value).not.toContain('20 November 2026');
+  });
+
+  test('DTG "1118.0100 Z" tidak pecah menjadi kandidat palsu "00.00 Z"', () => {
+    const candidates = findDatumTimeCandidates('Datum time ditetapkan 1118.0100 Z pada area pencarian.');
+    expect(candidates.every((c) => c.value !== '00.00 Z')).toBe(true);
+    expect(candidates.every((c) => c.value !== '18.01 Z')).toBe(true);
+  });
+
+  test('FULL EXERCISE SRX48: kartu datum memuat 4 waktu narasi (incl. esok hari), tanpa waktu deret angin', () => {
+    const facts = extractCaseFacts(SOAL_FULL_EXERCISE);
+    const candidates = facts.datumTimeCandidates?.value ?? [];
+    const values = candidates.map((c) => c.value);
+    expect(values).toContain('10.50 WIT'); // kerusakan (tanpa tanggal — tanggal berslash ambigu)
+    expect(values).toContain('10.53 WIT'); // DETRESFA
+    expect(values).toContain('11.05 WIT'); // informasi diterima
+    expect(values.some((c) => c.includes('06.00 WIT'))).toBe(true); // esok hari
+    expect(candidates.some((c) => c.label.includes('Waktu pencarian dilanjutkan (esok hari)'))).toBe(true);
+    // Tidak ada waktu dari deret angin soal (00.00/06.00/12.00/18.00 tanpa zona
+    // dan tanpa "pukul") maupun tanggal buatan.
+    expect(values.every((v) => !v.startsWith('00.00') && !v.includes('12.00'))).toBe(true);
+    expect(values.every((v) => !v.includes('04 Desember 2024'))).toBe(true);
   });
 });
 

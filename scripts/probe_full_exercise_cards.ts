@@ -2,8 +2,9 @@
  * PROBE E2E — skenario pengguna (FULL EXERCISE SRX48):
  * model mengisi lastContactTime "03/12/2024 10.50 WIT" + altitude salah →
  * enrich HARUS: mengoreksi altitude (⚠), MENGHAPUS waktu ambigu (bukan
- * koreksi), dan mengirim 2 kartu pilihan waktu (kejadian 4 kandidat kombinasi
- * DD/MM×MM/DD × jam + datum 4 kandidat termasuk "esok hari").
+ * koreksi), dan mengirim 2 kartu pilihan waktu — kandidat HANYA tanggal/waktu
+ * yang tertulis di soal (4 kandidat datum incl. "esok hari"; waktu data angin
+ * & forecast cuaca dikecualikan) TANPA tanggal buatan +1 hari.
  */
 import { extractPdfTextFromBase64 } from '../src/lib/ai/pdfText';
 import { enrichCaseFromSourceText } from '../src/lib/ai/caseTextEnrich';
@@ -38,7 +39,7 @@ async function main() {
   console.log('\n=== KARTU PILIHAN WAKTU ===');
   for (const card of result.timeClarifications) {
     console.log(`\n[${card.kind}] ${card.question.slice(0, 140)}…`);
-    console.log(`  baseDate: ${card.baseDateLabel} | nextDay: ${card.baseDateNextDayLabel}`);
+    console.log(`  baseDate: ${card.baseDateLabel}`);
     for (const candidate of card.candidates) {
       console.log(`  • value="${candidate.value}" | dateLabel=${candidate.dateLabel ?? '-'} | ${candidate.label.slice(0, 90)}`);
     }
