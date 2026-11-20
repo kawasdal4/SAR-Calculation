@@ -30,6 +30,9 @@ export interface ManualTableGroup {
   /** Halaman PDF sub-tabel ini (mis. I-5(1) hal. 13, I-5(2) hal. 14). */
   page: number;
   rows: ManualTableRow[];
+  /** Judul kolom label milik sub-tabel ini — menimpa def.rowLabelHeader
+   *  pada mode stacked (J-1 "Alat navigasi" vs J-2 "Jenis kapal/pesawat"). */
+  rowLabelHeader?: string;
 }
 
 export interface ManualTableDef {
@@ -53,6 +56,10 @@ export interface ManualTableDef {
   figure?: boolean;
   /** Unit nilai pada tabel (untuk keterangan panel). */
   unit?: string;
+  /** Judul kolom LABEL baris untuk tabel satu kolom nilai (mis. J-1 "Alat
+   *  navigasi", J-2 "Jenis kapal/pesawat", J-3 "Jenis unit"). Tanpa ini,
+   *  tabel satu kolom hanya merender angka tanpa label baris. */
+  rowLabelHeader?: string;
 }
 
 const fmt = (v: number | null | undefined): string => (v === null || v === undefined ? '—' : String(v));
@@ -238,6 +245,21 @@ const TABLE_I10_DEF: ManualTableDef = {
 // Table J-1 / J-2 — fix error navigasi (Appendix_J.pdf hal. 1 — ketiga tabel
 // J-1/J-2/J-3 berada pada halaman pertama PDF Appendix J)
 // ---------------------------------------------------------------------------
+// Baris J-1/J-2 dipisah per tabel: panel verifikasi (stackGroups) menampilkan
+// KEDUA tabel berjajar lengkap — baris alat navigasi aktif blink pada tabelnya
+// (blink di J-1 bila x/y dari alat navigasi, di J-2 bila per jenis kapal/
+// pesawat), dan klik baris di tabel mana pun langsung menerapkan nilai.
+const J1_ROWS: ManualTableRow[] = TABLE_J1_NAV_ERRORS.map((e) => ({ key: e.id, label: e.label, cells: [String(e.errorNm)] }));
+const J2_ROWS: ManualTableRow[] = TABLE_J2_NAV_ERRORS.map((e) => ({ key: e.id, label: e.label, cells: [String(e.errorNm)] }));
+
+/** Kedua tabel J selalu berjajar — x/y Worksheet 1 & Datum bisa bersumber dari
+ *  J-1 (alat navigasi diketahui) ATAU J-2 (navigasi tidak diketahui), jadi
+ *  panel verifikasi "Table J-1/J-2" wajib menampilkan keduanya (hal. 1 PDF). */
+const J_STACK_GROUPS: ManualTableGroup[] = [
+  { key: 'J-1', label: 'Table J-1 — Navigational fix errors (alat navigasi diketahui)', page: 1, rows: J1_ROWS, rowLabelHeader: 'Alat navigasi' },
+  { key: 'J-2', label: 'Table J-2 — Fix error bila alat navigasi tidak diketahui (per jenis kapal/pesawat)', page: 1, rows: J2_ROWS, rowLabelHeader: 'Jenis kapal/pesawat' },
+];
+
 const TABLE_J1: ManualTableDef = {
   id: 'J-1',
   title: 'Table J-1. Navigational fix errors',
@@ -245,9 +267,12 @@ const TABLE_J1: ManualTableDef = {
   page: 1,
   colKeys: ['error'],
   columns: ['Galat posisi (NM)'],
-  rows: TABLE_J1_NAV_ERRORS.map((e) => ({ key: e.id, label: e.label, cells: [String(e.errorNm)] })),
+  rows: J1_ROWS,
+  rowLabelHeader: 'Alat navigasi',
   unit: 'NM',
-  note: 'Dipakai untuk x (distress craft error) dan y (search craft error) sesuai alat navigasi yang tersedia.',
+  stackGroups: true,
+  groups: J_STACK_GROUPS,
+  note: 'Dipakai untuk x (distress craft error) dan y (search craft error) sesuai alat navigasi yang tersedia (mis. GPS → 0.1 NM). Bila alat navigasi tidak diketahui, pakai Table J-2 berdasarkan jenis kapal/pesawat. Klik baris untuk memakai galat tersebut di worksheet.',
 };
 
 const TABLE_J2: ManualTableDef = {
@@ -257,9 +282,12 @@ const TABLE_J2: ManualTableDef = {
   page: 1,
   colKeys: ['error'],
   columns: ['Galat posisi (NM)'],
-  rows: TABLE_J2_NAV_ERRORS.map((e) => ({ key: e.id, label: e.label, cells: [String(e.errorNm)] })),
+  rows: J2_ROWS,
+  rowLabelHeader: 'Jenis kapal/pesawat',
   unit: 'NM',
-  note: 'Galat untuk area praktis bila alat navigasi tidak diketahui.',
+  stackGroups: true,
+  groups: J_STACK_GROUPS,
+  note: 'Galat untuk area praktis bila alat navigasi tidak diketahui. Panel juga menampilkan Table J-1 — klik baris pada salah satu tabel untuk memakai galat tersebut di worksheet.',
 };
 
 // Table J-3 — dead reckoning (DR) errors (Appendix_J.pdf hal. 1, baris teks).
@@ -287,6 +315,7 @@ const TABLE_J3: ManualTableDef = {
       cells: ['Galat fix positif terakhir + 15% jarak dari fix tersebut'],
     },
   ],
+  rowLabelHeader: 'Jenis unit',
   note: 'Ditambahkan di atas galat fix terakhir untuk navigasi dead reckoning ( Worksheet 4: DR 10% × Tr pesawat). Nilai J.1–J.3 adalah nilai minimum dan boleh dinaikkan SMC.',
 };
 
@@ -450,7 +479,9 @@ export function manualTablePage(def: ManualTableDef, groupKey?: string): number 
   return def.page;
 }
 
-/** Nilai sel yang dirujuk (string apa adanya di tabel); undefined bila tak ketemu. */
+/** Nilai sel yang dirujuk (string apa adanya di tabel); undefined bila tak ketemu.
+ *  Baris juga dicari di SEMUA group (mode stacked J-1/J-2: klik pada tabel
+ *  satungan tetap menemukan selnya meski def induknya tabel lain). */
 export function manualTableCell(
   def: ManualTableDef,
   rowKey: string | undefined,
@@ -458,7 +489,10 @@ export function manualTableCell(
   groupKey?: string,
 ): string | undefined {
   if (!rowKey || !colKey || def.figure) return undefined;
-  const row = manualTableRows(def, groupKey).find((r) => r.key === rowKey);
+  let row = manualTableRows(def, groupKey).find((r) => r.key === rowKey);
+  if (!row && def.groups) {
+    row = def.groups.flatMap((g) => g.rows).find((r) => r.key === rowKey);
+  }
   const colIndex = def.colKeys.indexOf(colKey);
   if (!row || colIndex < 0) return undefined;
   return row.cells[colIndex];

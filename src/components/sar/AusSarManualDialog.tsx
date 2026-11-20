@@ -225,9 +225,19 @@ export default function AusSarManualDialog({ open, onOpenChange, initialDocId, i
   // kategori tersebut.
   const stackedGroups = activeRef && def?.stackGroups && def.groups ? def.groups : null;
 
-  const renderRefTable = (groupRows: ManualTableRow[], groupPage?: number, groupTitle?: string) => {
+  const renderRefTable = (groupRows: ManualTableRow[], groupPage?: number, groupTitle?: string, groupLabelHeader?: string) => {
     if (!def || !activeRef) return null;
     const gRowIndex = blinkRowKey ? groupRows.findIndex((r) => r.key === blinkRowKey) : -1;
+    // Kolom label baris: selalu tampil untuk tabel multi-kolom, dan untuk tabel
+    // SATU kolom nilai (J-1/J-2/J-3) bila def.rowLabelHeader diisi — tanpa ini
+    // label alat navigasi (GPS, Radar, …) hilang dan tabel tampak kosong label.
+    const showLabelCol = def.columns.length > 1 || !!def.rowLabelHeader;
+    const labelHeader = def.columns.length > 1
+      ? (def.id === 'I-7' ? 'Weather: winds (kt) atau seas (m)' : 'Search object')
+      : (groupLabelHeader ?? def.rowLabelHeader);
+    // Mode per BARIS (kategori leeway I-1/I-2, alat navigasi J-1/J-2): klik pada
+    // LABEL baris juga menerapkan baris tersebut — blink tetap di sel nilai.
+    const rowModeClickable = !!activeRef.allowOverride && !!activeRef.applyOverride && !!activeRef.applyRowKey;
     return (
       <div key={`grp-${groupTitle ?? 'main'}`}>
         {groupTitle && (
@@ -239,9 +249,9 @@ export default function AusSarManualDialog({ open, onOpenChange, initialDocId, i
         <table className="w-full border-collapse text-[11px]">
           <thead>
             <tr>
-              {def.columns.length > 1 && (
+              {showLabelCol && (
                 <th className="border border-slate-300 bg-slate-100 px-2 py-1 text-left font-bold text-slate-700 w-[38%]">
-                  {def.id === 'I-7' ? 'Weather: winds (kt) atau seas (m)' : 'Search object'}
+                  {labelHeader}
                 </th>
               )}
               {def.columns.map((col, ci) => (
@@ -274,8 +284,19 @@ export default function AusSarManualDialog({ open, onOpenChange, initialDocId, i
               }
               return (
                 <tr key={row.key} className={cn(ri === gRowIndex && 'ref-row-hl')}>
-                  {def.columns.length > 1 && (
-                    <td className="border border-slate-300 px-2 py-1 text-slate-700">{row.label}</td>
+                  {showLabelCol && (
+                    <td
+                      onClick={rowModeClickable ? () => handleApplyCell(row.key, def.colKeys[0], row.cells[0] ?? '') : undefined}
+                      title={rowModeClickable
+                        ? `Klik untuk pakai baris ini (${row.label}) di worksheet — nilai tetap bisa diubah`
+                        : undefined}
+                      className={cn(
+                        'border border-slate-300 px-2 py-1 text-slate-700',
+                        rowModeClickable && 'cursor-pointer hover:bg-amber-100 transition-colors',
+                      )}
+                    >
+                      {row.label}
+                    </td>
                   )}
                   {row.cells.map((cell, ci) => {
                     const isSelected = ri === gRowIndex && ci === colIndex;
@@ -426,7 +447,7 @@ export default function AusSarManualDialog({ open, onOpenChange, initialDocId, i
                     // judul seksi kategori (incl. Aviation Life Rafts) +
                     // sub-tabel Table I-2 deep ballast.
                     <div className="space-y-1.5">
-                      {stackedGroups.map((g) => renderRefTable(g.rows, g.page, g.label))}
+                      {stackedGroups.map((g) => renderRefTable(g.rows, g.page, g.label, g.rowLabelHeader))}
                     </div>
                   ) : (
                     renderRefTable(rows)
