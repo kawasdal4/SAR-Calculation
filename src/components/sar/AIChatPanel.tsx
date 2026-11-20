@@ -302,6 +302,7 @@ function DatumTimeClarifyCard({
   onAnswer,
   title = 'Klarifikasi Datum Time',
   manualPlaceholder = 'Isi datum time manual, mis. 18 Nov 2026 03.00 UTC',
+  answeredLabel = 'Datum time',
 }: {
   question?: string;
   candidates?: DatumTimeCandidate[];
@@ -309,6 +310,7 @@ function DatumTimeClarifyCard({
   onAnswer: (value: string, label?: string) => void;
   title?: string;
   manualPlaceholder?: string;
+  answeredLabel?: string;
 }) {
   const [manual, setManual] = useState('');
   const basarnasPreview = manual.trim() ? toBasarnasTimeFormat(manual) : null;
@@ -322,7 +324,7 @@ function DatumTimeClarifyCard({
       {answered ? (
         <div className="text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded px-2 py-1.5 flex items-center gap-1.5">
           <Check className="h-3.5 w-3.5 shrink-0" />
-          <span>Datum time dikirim ke chat: <span className="font-mono">{answered}</span></span>
+          <span>{answeredLabel} dikirim ke chat: <span className="font-mono">{answered}</span></span>
         </div>
       ) : (
         <>
@@ -1883,6 +1885,7 @@ export default function AIChatPanel({
                               onAnswer={(value, label) => handleClarifyAnswer(clarifyKey, value, label, 'incident')}
                               title="Klarifikasi Waktu Kejadian (ADW A.1)"
                               manualPlaceholder="Isi waktu kejadian manual, mis. 17 Nov 2026 15.56 WIT"
+                              answeredLabel="Waktu kejadian"
                             />
                           );
                         }

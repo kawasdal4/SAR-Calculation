@@ -21,6 +21,8 @@ import {
   enrichCaseFromSourceText,
   formatAwaCaseDataAnchor,
   formatIncidentDateTimeAnchor,
+  formatAswDatumTimeAnchor,
+  findDatumTimeCandidates,
   type SarCaseSchema,
 } from '../src/lib/ai/caseTextEnrich';
 
@@ -230,5 +232,114 @@ describe('anchor chat AI (set_awa_case siap pakai + tanggal/waktu/LKP)', () => {
 
   test('formatIncidentDateTimeAnchor tanpa input → null', () => {
     expect(formatIncidentDateTimeAnchor({})).toBeNull();
+  });
+});
+
+// ── Kartu pemilihan Datum Time (aturan pengguna: banyak tanggal/waktu di soal) ──
+
+const SOAL_BANYAK_WAKTU = `Pada 18 November 2026 pesawat PK-ABC berangkat dari Fakta pukul 06.00 WIT.
+Pada pukul 07.15 WIT ATC menerima panggilan MAYDAY dari pilot.
+Kantor SAR Ambon menerima informasi dari ATC pukul 07.30 WIT via telephone.
+ATC declare DETRESFA pada pukul 0720 WIT dengan LKP pada koordinat 4°59'00"S.
+Pencarian pertama dilakukan pukul 01.00 UTC.
+Pencarian kedua akan dilakukan pukul 03.00 UTC.`;
+
+describe('findDatumTimeCandidates (kandidat waktu naratif untuk kartu Datum Time)', () => {
+  test('soal banyak waktu → ≥4 kandidat berlabel + nilai + kutipan', () => {
+    const candidates = findDatumTimeCandidates(SOAL_BANYAK_WAKTU);
+    expect(candidates.length).toBeGreaterThanOrEqual(5);
+    const values = candidates.map((c) => c.value);
+    expect(values).toContain('18 November 2026 06.00 WIT'); // berangkat
+    expect(values).toContain('18 November 2026 07.15 WIT'); // MAYDAY
+    expect(values).toContain('18 November 2026 07.30 WIT'); // informasi diterima
+    expect(values).toContain('18 November 2026 07.20 WIT'); // DETRESFA ("0720" = 07.20)
+    expect(values).toContain('18 November 2026 01.00 UTC'); // pencarian pertama
+    expect(values).toContain('18 November 2026 03.00 UTC'); // pencarian kedua
+    for (const c of candidates) {
+      expect(c.label.length).toBeGreaterThan(0);
+      expect(c.source.length).toBeGreaterThan(0);
+      expect(c.label).toContain('—');
+    }
+    const labels = candidates.map((c) => c.label).join(' | ');
+    expect(labels).toContain('Waktu MAYDAY diterima');
+    expect(labels).toContain('Waktu deklarasi DETRESFA');
+    expect(labels).toContain('Waktu Kantor SAR/RCC menerima informasi');
+    expect(labels).toContain('Waktu pencarian pertama');
+    expect(labels).toContain('Waktu pencarian kedua');
+  });
+
+  test('label pencarian kedua/pertama terdeteksi dari frasa', () => {
+    const candidates = findDatumTimeCandidates('Pencarian kedua akan dilakukan pukul 03.00 UTC pada 19 November 2026.');
+    expect(candidates.length).toBe(1);
+    expect(candidates[0].label).toContain('Waktu pencarian kedua');
+    expect(candidates[0].value).toBe('19 November 2026 03.00 UTC');
+  });
+
+  test('waktu sama disebut dua frasa → dicatat sekali (dedupe)', () => {
+    const candidates = findDatumTimeCandidates(
+      'Pencarian dilakukan pukul 03.00 UTC. SRU tiba di lokasi pukul 03.00 UTC pada 19 November 2026.',
+    );
+    expect(candidates.length).toBe(1);
+  });
+
+  test('soal satu waktu pencarian tunggal → tepat 1 kandidat', () => {
+    const candidates = findDatumTimeCandidates('SRU tiba di lokasi pukul 06.30 WIT pada 19 November 2026.');
+    expect(candidates.length).toBe(1);
+    expect(candidates[0].value).toBe('19 November 2026 06.30 WIT');
+    expect(candidates[0].label).toContain('SRU/unit tiba di lokasi');
+  });
+
+  test('tabel deret angin (tanpa kata pukul) tidak ikut jadi kandidat', () => {
+    const candidates = findDatumTimeCandidates(
+      'Data angin dari tanggal 18 November 2026:\n07.00 180°/10 kts\n10.00 190°/12 kts\n13.00 200°/14 kts\nSRU tiba di lokasi pukul 06.30 WIT.',
+    );
+    expect(candidates.length).toBe(1);
+  });
+
+  test('teks kosong → tanpa kandidat', () => {
+    expect(findDatumTimeCandidates('')).toEqual([]);
+  });
+});
+
+describe('formatAswDatumTimeAnchor (kartu pemilihan Datum Time + mode interval ASW)', () => {
+  test('≥2 kandidat → perintah WAJIB kartu clarify_datum_time dengan semua kandidat', () => {
+    const facts = extractCaseFacts(SOAL_BANYAK_WAKTU);
+    const anchor = formatAswDatumTimeAnchor(facts);
+    expect(anchor).not.toBeNull();
+    expect(anchor).toContain('KANDIDAT TANGGAL/WAKTU');
+    expect(anchor).toContain('WAJIB tampilkan KARTU PEMILIHAN WAKTU');
+    expect(anchor).toContain('clarify_datum_time');
+    expect(anchor).toContain('JANGAN memilih sendiri');
+    expect(anchor).toContain('Waktu pencarian kedua');
+    expect(anchor).toContain('03.00 UTC');
+    expect(anchor).toContain('Waktu deklarasi DETRESFA');
+  });
+
+  test('tepat 1 kandidat → instruksi pakai langsung, TANPA perintah kartu', () => {
+    const facts = extractCaseFacts('SRU tiba di lokasi pukul 06.30 WIT pada 19 November 2026.');
+    const anchor = formatAswDatumTimeAnchor(facts);
+    expect(anchor).not.toBeNull();
+    expect(anchor).toContain('Pakai PERSIS sebagai datumTime');
+    expect(anchor).not.toContain('KARTU PEMILIHAN');
+  });
+
+  test('mode interval 3 jam → intervalMode "3h" di anchor', () => {
+    const soal = 'Data angin dari tanggal 18 November 2026:\n07.00 180°/10 kts\n10.00 190°/12 kts\n13.00 200°/14 kts';
+    const facts = extractCaseFacts(soal);
+    const anchor = formatAswDatumTimeAnchor(facts);
+    expect(anchor).toContain('MODE INTERVAL OBSERVASI ASW');
+    expect(anchor).toContain('"3h"');
+    expect(anchor).toContain('3 jam');
+  });
+
+  test('mode interval 6 jam → intervalMode "6h" di anchor', () => {
+    const soal = 'Data angin dari tanggal 18 November 2026:\n00.00 180°/10 kts\n06.00 190°/12 kts\n12.00 200°/14 kts\n18.00 210°/16 kts';
+    const facts = extractCaseFacts(soal);
+    const anchor = formatAswDatumTimeAnchor(facts);
+    expect(anchor).toContain('"6h"');
+  });
+
+  test('tanpa kandidat & tanpa deret angin → null', () => {
+    expect(formatAswDatumTimeAnchor(extractCaseFacts('Koordinat LKP 4°59\'00"S -133°53\'48"E.'))).toBeNull();
   });
 });

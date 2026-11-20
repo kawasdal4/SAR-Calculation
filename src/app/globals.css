@@ -655,6 +655,30 @@
     size: A4 portrait;
     margin: 6mm;
   }
+
+  /* ==========================================================================
+     FOOTER STEMPEL SEMUA HASIL PRINT (aturan pengguna):
+     "SAR Calculator App - <Tanggal Jam>" — teks di bawah tengah TIAP halaman
+     cetak (position: fixed diulang per halaman oleh browser). Waktu di-set
+     printFooter.ts (beforeprint + pemanggil eksplisit per jalur cetak).
+     Latar pill putih agar terbaca saat menimpa tepi bawah lembar scan/plot. */
+  .sar-print-footer {
+    display: block !important;
+    position: fixed !important;
+    bottom: 1mm !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    max-width: 96% !important;
+    padding: 0.5mm 3mm !important;
+    border-radius: 2mm !important;
+    background: rgba(255, 255, 255, 0.92) !important;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif !important;
+    font-size: 7.5pt !important;
+    line-height: 1.35 !important;
+    color: #475569 !important;
+    white-space: nowrap !important;
+    z-index: 2147483647 !important;
+  }
 }
 
 /* ==========================================================================
@@ -697,8 +721,9 @@
 
   /* Print Mode terpisah: saat scope aktif, hanya portal target yang tercetak.
      Anak langsung <body> lainnya (akar aplikasi) di-display:none sehingga
-     tinggi dokumen = satu halaman -> tidak ada halaman kosong. */
-  html[data-print-scope='sheet'] body > *:not(.portal-print-sheet) {
+     tinggi dokumen = satu halaman -> tidak ada halaman kosong.
+     Footer stempel cetak (.sar-print-footer) tetap tampil di semua lembar. */
+  html[data-print-scope='sheet'] body > *:not(.portal-print-sheet):not(.sar-print-footer) {
     display: none !important;
   }
 

@@ -127,6 +127,9 @@ export interface CaseTextFacts {
   surfaceWindSeries?: CaseTextFact<Array<{ obsTime: string; windDirFrom: number; windSpeedKts: number }>>;
   current?: CaseTextFact<{ dirToDeg: number; speedKts: number }>;
   datumTime?: CaseTextFact<string>;
+  /** Semua waktu naratif di soal (pencarian/SRU tiba/MAYDAY/DETRESFA/dsb.) —
+   *  bila ≥2, aturan pengguna: kartu pemilihan Datum Time wajib ditampilkan. */
+  datumTimeCandidates?: CaseTextFact<DatumTimeCandidateFact[]>;
   sruCandidates?: CaseTextFact<Array<Record<string, unknown>>>;
   /** Tanggal di awal soal ("03/12/2024, pesawat SRX48 berangkat …") — bacaan
    *  DD/MM vs MM/DD bisa AMBIGU (lihat CaseDateFact.ambiguous). */
@@ -453,6 +456,202 @@ function parseDatumTime(text: string): CaseTextFact<string> | undefined {
 
 function formatIndoDateFull(date: { day: number; month: number; year: number }): string {
   return `${String(date.day).padStart(2, '0')} ${indoMonthName(date.month)} ${date.year}`;
+}
+
+// ── Kandidat waktu naratif (kartu pemilihan Datum Time — aturan pengguna) ───
+
+export interface DatumTimeCandidateFact {
+  /** Label mudah dibaca: makna waktu di soal + nilai, mis. "Waktu pencarian kedua — 19 November 2026 03.00 UTC". */
+  label: string;
+  /** Nilai waktu apa adanya (tanggal bila ketemu + jam + zona). */
+  value: string;
+  /** Kutipan frasa soal sumber kandidat. */
+  source: string;
+  /** Posisi kemunculan di teks (urut kandidat sesuai soal). */
+  index: number;
+}
+
+interface DatumTimeCandidatePattern {
+  label: string;
+  regex: RegExp;
+}
+
+/** Frasa naratif yang menyebut waktu — kandidat Datum Time / waktu kejadian.
+ *  Urutan = prioritas label (frasa spesifik menang atas catch-all). */
+const DATUM_TIME_CANDIDATE_PATTERNS: DatumTimeCandidatePattern[] = [
+  { label: 'Waktu pencarian', regex: /pencarian[^.\n]{0,130}?(?:dimulai|dilakukan)\s+(?:pada\s+)?(?:pukul|jam)/gi },
+  { label: 'SRU/unit tiba di lokasi (onscene)', regex: /(?:sru|unit|osc|sar\s+unit)[^.\n]{0,70}?tiba[^.\n]{0,70}?(?:pukul|jam)/gi },
+  { label: 'On-scene arrival (SRU tiba di lokasi)', regex: /on[\s-]*scene\s+(?:arrival|time)[^.\n]{0,60}?(?:at|pukul|jam)/gi },
+  { label: 'Pencarian oleh SRU dimulai', regex: /(?:sru|unit)[^.\n]{0,90}?melaksanakan\s+pencarian[^.\n]{0,60}?(?:pukul|jam)/gi },
+  { label: 'Search commenced (pencarian dimulai)', regex: /search\s+(?:commence[ds]?|started|conducted)[^.\n]{0,60}?(?:at|pukul|jam)/gi },
+  { label: 'Waktu MAYDAY diterima (waktu kejadian)', regex: /(?:menerima\s+(?:panggilan\s+)?mayday|mayday\s+(?:call|diterima|dipancarkan)|panggilan\s+mayday)[^.\n]{0,90}?(?:pukul|jam)/gi },
+  { label: 'Waktu MAYDAY diterima (waktu kejadian)', regex: /(?:pukul|jam)\s+\d{1,2}[.:]\d{2}[^.\n]{0,80}?mayday/gi },
+  { label: 'Waktu deklarasi DETRESFA', regex: /detresfa[^.\n]{0,140}?(?:pukul|jam|at|time)/gi },
+  { label: 'Waktu Kantor SAR/RCC menerima informasi', regex: /(?:kantor\s+sar|rcc|scc|sar\s+office|airport\s+authority)[^.\n]{0,100}?menerima\s+(?:informasi|laporan|pemberitahuan)[^.\n]{0,60}?(?:pukul|jam)/gi },
+  { label: 'Waktu berangkat', regex: /(?:berangkat|departure|departed|take[\s-]*off|wheels[\s-]*up)[^.\n]{0,70}?(?:pukul|jam)/gi },
+];
+
+/** Kualifikasi frasa pencarian → label lebih spesifik. */
+function searchPhraseQualifier(phrase: string): string | null {
+  if (/kedua|second/i.test(phrase)) return 'Waktu pencarian kedua';
+  if (/ketiga|third/i.test(phrase)) return 'Waktu pencarian ketiga';
+  if (/pertama|first/i.test(phrase)) return 'Waktu pencarian pertama';
+  if (/selanjutnya|berikutnya|lanjutan|next/i.test(phrase)) return 'Waktu pencarian selanjutnya';
+  return null;
+}
+
+/** Ambil jam-menit + zona dalam jendela sekitar frasa (cari SETELAH frasa dulu,
+ *  fallback ke BELAKANG frasa untuk pola "pukul 10.53 WIT ATC menyatakan …").
+ *  Menangani "10.53", "10:53", dan "1053" (4 digit tanpa pemisah). */
+function extractTimeNear(text: string, index: number): { hour: number; minute: number; zone?: string; value: string } | null {
+  const forward = text.slice(index, index + 220);
+  const around = text.slice(Math.max(0, index - 160), index + 220);
+  const tryWindows: Array<[string, number]> = [[forward, index], [around, Math.max(0, index - 160)]];
+  for (const [window, windowStart] of tryWindows) {
+    const timeMatch = window.match(/(?:pukul|jam)\s+(\d{1,2})(?:[.:](\d{2})|(\d{2}))?\b/i);
+    if (!timeMatch || timeMatch.index === undefined) continue;
+    if (!timeMatch[2] && !timeMatch[3]) continue; // tanpa menit ("pukul 05") — bukan kandidat
+    const hour = Number(timeMatch[1]);
+    const minute = Number(timeMatch[2] ?? timeMatch[3]);
+    if (hour > 23 || minute > 59) continue;
+    const zoneEnd = windowStart + timeMatch.index + timeMatch[0].length + 24;
+    const zoneWindow = text.slice(windowStart + timeMatch.index + timeMatch[0].length, Math.min(text.length, Math.max(zoneEnd, windowStart + timeMatch.index + timeMatch[0].length + 4)));
+    const zone = zoneWindow.match(/\b(WIB|WITA|WIT|UTC|Z)\b/i)?.[1]?.toUpperCase();
+    const time = `${String(hour).padStart(2, '0')}.${String(minute).padStart(2, '0')}${zone ? ` ${zone}` : ''}`;
+    return { hour, minute, ...(zone ? { zone } : {}), value: time };
+  }
+  return null;
+}
+
+/** Tanggal terdekat di sekitar posisi teks: prioritas tanggal SESUDAH frasa
+ *  (mis. "pukul 03.00 UTC pada 19 November 2026"), bila nihil tanggal TERDEKAT
+ *  SEBELUM frasa (tanggal kasus di awal soal bisa berjarak beberapa baris). */
+function nearestDateAround(text: string, index: number): { day: number; month: number; year: number } | null {
+  const after = parseIndoDate(text.slice(index, index + 140));
+  if (after) return after;
+  const before = text.slice(Math.max(0, index - 400), index);
+  const matches = [...before.matchAll(new RegExp(`(\\d{1,2}\\s+(?:${MONTH_NAME_PATTERN})\\s+\\d{4})`, 'gi'))];
+  return matches.length > 0 ? parseIndoDate(matches[matches.length - 1][1]) : null;
+}
+
+/** Semua waktu naratif di soal (bukan tabel deret angin): frasa pencarian/SRU
+ *  tiba/onscene/MAYDAY/DETRESFA/informasi/berangkat + catch-all "pukul HH.MM".
+ *  Kandidat sama (jam+menit+zona sama) hanya dicatat sekali — frasa spesifik
+ *  menang atas catch-all, kandidat bertanggal menang atas varian tanpa tanggal.
+ *  Aturan pengguna: bila ≥2 kandidat, AI asisten WAJIB menampilkan kartu
+ *  pemilihan waktu, bukan memilih sendiri. */
+export function findDatumTimeCandidates(text: string): DatumTimeCandidateFact[] {
+  const flat = (text ?? '').replace(/\r/g, '');
+  if (!flat.trim()) return [];
+  const candidates: DatumTimeCandidateFact[] = [];
+  const seen = new Set<string>();
+
+  const push = (index: number, label: string, time: { hour: number; minute: number; zone?: string; value: string }): void => {
+    const date = nearestDateAround(flat, index);
+    const value = `${date ? `${formatIndoDateFull(date)} ` : ''}${time.value}`;
+    const timeKey = `${String(time.hour).padStart(2, '0')}.${String(time.minute).padStart(2, '0')}|${time.zone ?? ''}`.toLowerCase();
+    const key = `${date ? `${date.day}-${date.month}-${date.year}|` : ''}${timeKey}`;
+    if (seen.has(key)) return;
+    // Varian sama (jam/zona sama) tanpa tanggal vs bertanggal: sisakan yang
+    // bertanggal — label kartu lebih informatif tanpa kandidat ganda.
+    if (date && seen.has(`undated|${timeKey}`)) {
+      const idx = candidates.findIndex((candidate) => candidate.value.toLowerCase().endsWith(time.value.toLowerCase()));
+      if (idx >= 0) {
+        candidates.splice(idx, 1);
+        seen.delete(`undated|${timeKey}`);
+      }
+    }
+    if (!date && seen.has(`dated|${timeKey}`)) return;
+    seen.add(key);
+    seen.add(date ? `dated|${timeKey}` : `undated|${timeKey}`);
+    candidates.push({ label: `${label} — ${value}`, value, source: snippet(flat, index, 130), index });
+  };
+
+  for (const pattern of DATUM_TIME_CANDIDATE_PATTERNS) {
+    for (const match of flat.matchAll(pattern.regex)) {
+      if (match.index === undefined) continue;
+      const time = extractTimeNear(flat, match.index);
+      if (!time) continue;
+      const label = pattern.label === 'Waktu pencarian'
+        ? (searchPhraseQualifier(match[0]) ?? 'Waktu pencarian')
+        : pattern.label;
+      push(match.index, label, time);
+    }
+  }
+
+  // Catch-all: "pukul HH.MM (zona)" naratif lain — tabel deret angin tidak
+  // memakai kata "pukul", jadi tidak ikut terambat.
+  for (const match of flat.matchAll(/\b(?:pukul|jam)\s+(\d{1,2})[.:](\d{2})\b/gi)) {
+    if (match.index === undefined) continue;
+    const hour = Number(match[1]);
+    const minute = Number(match[2]);
+    if (hour > 23 || minute > 59) continue;
+    const zone = flat.slice(match.index + match[0].length, match.index + match[0].length + 20).match(/\b(WIB|WITA|WIT|UTC|Z)\b/i)?.[1]?.toUpperCase();
+    const time = { hour, minute, ...(zone ? { zone } : {}), value: `${String(hour).padStart(2, '0')}.${String(minute).padStart(2, '0')}${zone ? ` ${zone}` : ''}` };
+    push(match.index, 'Waktu lain di soal', time);
+  }
+  // Catch-all 4 digit tanpa pemisah: "pukul 1050 WIT" (= 10.50) — gaya umum
+  // soal kasus Basarnas.
+  for (const match of flat.matchAll(/\b(?:pukul|jam)\s+(\d{2})(\d{2})\s*(WIB|WITA|WIT|UTC|Z)?\b/gi)) {
+    if (match.index === undefined) continue;
+    const hour = Number(match[1]);
+    const minute = Number(match[2]);
+    if (hour > 23 || minute > 59) continue;
+    const zone = match[3]?.toUpperCase();
+    const time = { hour, minute, ...(zone ? { zone } : {}), value: `${String(hour).padStart(2, '0')}.${String(minute).padStart(2, '0')}${zone ? ` ${zone}` : ''}` };
+    push(match.index, 'Waktu lain di soal', time);
+  }
+
+  return candidates.sort((a, b) => a.index - b.index);
+}
+
+/** Mode interval observasi ASW dari jarak antar baris deret angin soal:
+ *  baris berjarak ~3 jam → "3h", ~6 jam → "6h". */
+function inferAswIntervalMode(series?: Array<{ obsTime: string }>): { mode: '6h' | '3h'; spacingHours: number } | null {
+  if (!series || series.length < 2) return null;
+  const hours = series
+    .map((entry) => {
+      const match = entry.obsTime.match(/(\d{1,2})[.:](\d{2})\s+WIB$/i) ?? entry.obsTime.match(/\b(\d{1,2})[.:](\d{2})\b/);
+      return match ? Number(match[1]) + Number(match[2]) / 60 : null;
+    })
+    .filter((value): value is number => value !== null);
+  if (hours.length < 2) return null;
+  let best: number | null = null;
+  for (let i = 1; i < hours.length; i += 1) {
+    const diff = hours[i] - hours[i - 1];
+    if (diff > 0.01 && (best === null || diff < best)) best = diff;
+  }
+  if (best === null) return null;
+  return best <= 3.5 ? { mode: '3h', spacingHours: Math.round(best * 10) / 10 } : { mode: '6h', spacingHours: Math.round(best * 10) / 10 };
+}
+
+/** Anchor DATUM TIME worksheet ASW (aturan pengguna): daftar kandidat waktu
+ *  naratif hasil parse teks soal + perintah WAJIB menampilkan kartu pemilihan
+ *  (clarify_datum_time) bila soal memuat banyak tanggal/waktu. Dipakai route
+ *  /api/chat sebagai bagian "JANGKAR DETERMINISTIK". */
+export function formatAswDatumTimeAnchor(facts: CaseTextFacts): string | null {
+  const lines: string[] = [];
+  const candidates = facts.datumTimeCandidates?.value ?? [];
+  if (candidates.length >= 2) {
+    lines.push(
+      `SOAL MEMUAT ${candidates.length} KANDIDAT TANGGAL/WAKTU (hasil parse teks soal — ATURAN PENGGUNA):`
+      + '\n' + candidates.map((candidate, i) => `${i + 1}. ${candidate.label} | value: "${candidate.value}" | kutipan: "${candidate.source}"`).join('\n')
+      + '\n→ WAJIB tampilkan KARTU PEMILIHAN WAKTU: panggil tool clarify_datum_time dengan SEMUA kandidat di atas sebagai candidates (label/value/source persis seperti daftar) SEBELUM memanggil set_asw_case. JANGAN memilih sendiri dan JANGAN mengisi datumTime sebelum pengguna memilih di kartu. Kandidat datum time yang benar umumnya waktu pencarian/SRU tiba/onscene — bukan waktu MAYDAY/DETRESFA/informasi — tapi KEPUTUSAN AKHIR TETAP MILIK PENGGUNA di kartu. Bila waktu yang benar tidak ada di daftar, tetap tampilkan kartu dan minta pengguna mengisi manual. Bila kandidat tidak memuat tanggal, saat mengisi datumTime gabungkan jam terpilih dengan tanggal awal soal yang SUDAH dikonfirmasi pengguna.',
+    );
+  } else if (candidates.length === 1) {
+    lines.push(
+      `WAKTU PENCARIAN/DATUM di soal (hasil parse): ${candidates[0].label} (kutipan: "${candidates[0].source}").`
+      + '\n→ Pakai PERSIS sebagai datumTime set_asw_case — jangan mengubah nilai.',
+    );
+  }
+  if (candidates.length <= 1 && facts.datumTime && !candidates.some((candidate) => candidate.value === facts.datumTime!.value)) {
+    lines.push(`DATUM TIME hasil parse frasa pencarian: "${facts.datumTime.value}" (kutipan: "${facts.datumTime.source}").`);
+  }
+  const interval = inferAswIntervalMode(facts.surfaceWindSeries?.value);
+  if (interval) {
+    lines.push(`MODE INTERVAL OBSERVASI ASW (hasil parse deret angin soal): "${interval.mode}" — baris angin berjarak ${interval.spacingHours} jam. Pakai di intervalMode set_asw_case agar Time of Observation & Time Interval worksheet terisi benar.`);
+  }
+  return lines.length > 0 ? lines.join('\n') : null;
 }
 
 // ── Tanggal angka berslash (DD/MM vs MM/DD) & waktu deklarasi DETRESFA ──────
@@ -852,6 +1051,10 @@ export function extractCaseFacts(text: string): CaseTextFacts {
   if (current) facts.current = current;
   const datumTime = parseDatumTime(flat);
   if (datumTime) facts.datumTime = datumTime;
+  const datumTimeCandidates = findDatumTimeCandidates(flat);
+  if (datumTimeCandidates.length > 0) {
+    facts.datumTimeCandidates = { value: datumTimeCandidates, source: `${datumTimeCandidates.length} kandidat waktu naratif di soal` };
+  }
   const caseDate = findCaseOpeningDate(flat);
   if (caseDate) facts.caseDate = caseDate;
   const detresfa = parseDetresfaTime(flat);

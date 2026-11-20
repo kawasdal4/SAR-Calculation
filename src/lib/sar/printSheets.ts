@@ -14,6 +14,7 @@
  */
 
 import { useSyncExternalStore } from 'react';
+import { stampPrintFooter } from '@/lib/sar/printFooter';
 
 export type PrintPaper = 'a3' | 'a4';
 
@@ -76,6 +77,9 @@ function removePageStyle() {
 
 export function activatePrintScope(paper: PrintPaper, target: string, frozen = false) {
   injectPageStyle(paper);
+  // Stempel footer cetak "SAR Calculator App - <tanggal jam>" — jalur headless
+  // (?printFreeze) tidak memicu beforeprint, jadi ditempel eksplisit di sini.
+  stampPrintFooter();
   // Atribut pada <html> mengaktifkan CSS isolasi cetak (globals.css)
   document.documentElement.dataset.printScope = 'sheet';
   document.documentElement.dataset.printPaper = paper;

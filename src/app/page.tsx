@@ -85,6 +85,7 @@ import {
   WS1_DEFAULT_DRIFT_ERROR_PERCENT,
 } from '@/lib/sar/sarCalculations';
 import { formatDMS } from '@/lib/sar/coordFormat';
+import { installPrintFooterListener } from '@/lib/sar/printFooter';
 import { computeDatumWs1, ws1DatumDtgUtc } from '@/lib/sar/datumWs1';
 import type { MapMarker, MapLine, MapPolygon, MapCircle } from '@/components/sar/SeaMap';
 import BasicCalculation from '@/components/sar/BasicCalculation';
@@ -259,6 +260,10 @@ export default function Home() {
   // SISI BAWAH yang menempel di dasar viewport — seluruh isi kolom dapat
   // dijelajahi dengan scroll, lalu terkunci rapi saat dasarnya tercapai.
   const rightColumnRef = useRef<HTMLElement | null>(null);
+  // Footer stempel SEMUA hasil print: "SAR Calculator App - <tanggal jam>".
+  // beforeprint memperbarui waktu tiap pencetakan (mencakup jalur window.print
+  // langsung: dokumen, peta A3, studio peta scan; jalur lain dicover eksplisit).
+  useEffect(() => installPrintFooterListener(), []);
   useEffect(() => {
     const aside = rightColumnRef.current;
     if (!aside) return;

@@ -1,5 +1,7 @@
 'use client';
 
+import { stampPrintFooter } from '@/lib/sar/printFooter';
+
 /**
  * Cetak satu worksheet (tab aktif) dalam satu halaman A4 portrait.
  *
@@ -49,6 +51,9 @@ function computeFitZoom(contentW: number, contentH: number): number {
 export function printActiveWorksheetFit() {
   if (typeof window === 'undefined') return;
   if (cleanupFn) cleanupFn();
+
+  // Stempel footer cetak "SAR Calculator App - <tanggal jam>" di semua hasil print.
+  stampPrintFooter();
 
   const panel = document.querySelector(
     '[role="tabpanel"][data-state="active"]',
