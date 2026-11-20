@@ -12,6 +12,7 @@ import {
   allFacilityPoints,
   FACILITY_LAYER_COLORS,
   FACILITY_LAYER_LABELS,
+  SAR_OFFICES,
 } from '@/lib/sar/transportFacilities';
 import { SRU_BASES, SRU_BASE_COLOR } from '@/lib/sar/sruBases';
 import type { MapCircle, MapLine, MapMarker, MapPolygon } from '@/components/sar/SeaMap';
@@ -948,7 +949,7 @@ export default function Worksheet4MapLibre({
           <input type="checkbox" checked={kansarVisible} onChange={(event) => { setKansarVisible(event.target.checked); setKansarStatus(''); }} />
           Batas KANSAR
         </label>
-        <label className="flex items-center gap-1 px-1 text-xs text-slate-800" title="170 fasilitas transportasi (bandara/pelabuhan/dermaga) + 43 KANSAR + Kantor Pusat Basarnas — referensi, bukan data operasi resmi">
+        <label className="flex items-center gap-1 px-1 text-xs text-slate-800" title={`170 fasilitas transportasi (bandara/pelabuhan/dermaga) + ${SAR_OFFICES.length} kantor SAR hasil audit pemilik (43 KANSAR + Kantor Pusat, UNVERIFIED bukan GNSS) — referensi, bukan data operasi resmi`}>
           <input type="checkbox" checked={facilitiesVisible} onChange={(event) => setFacilitiesVisible(event.target.checked)} />
           Fasilitas &amp; Kantor SAR
         </label>

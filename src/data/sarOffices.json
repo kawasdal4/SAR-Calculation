@@ -1,750 +1,837 @@
 [
-  {
-    "id": "loc-basarnas-kantor-pusat",
-    "kind": "sar-office",
-    "name": "Kantor Pusat Basarnas",
-    "category": "kantor-pusat",
-    "lat": -6.157572,
-    "lng": 106.847747,
-    "specs": {
-      "address": "Jl. Angkasa Blok B.15 Kav 2-3, Kemayoran, Jakarta Pusat 10720",
-      "positionBasis": "geocode jalan alamat (indikatif, bukan titik gedung)"
-    },
-    "source": "Alamat resmi: Jl. Angkasa Blok B.15 Kav 2-3, Kemayoran, Jakarta Pusat 10720 (id.wikipedia.org / panduan BAPETEN 2024, dicek 19 Nov 2026); titik = geocode jalan alamat via OSM Nominatim (diakses 19 Nov 2026) — indikatif, bukan titik gedung",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+ {
+  "id": "loc-basarnas-kantor-pusat",
+  "kind": "sar-office",
+  "name": "Kantor Pusat Basarnas",
+  "category": "kantor-pusat",
+  "lat": -6.157234,
+  "lng": 106.841864,
+  "specs": {
+   "address": "Jl. Angkasa Blok B.15 Kav. 2-3, Kemayoran, Jakarta Pusat, DKI Jakarta 10610",
+   "positionBasis": "JDIH-BASARNAS · DARAT (koordinat resmi JDIH)"
   },
-  {
-    "id": "loc-kansar-ambon",
-    "kind": "sar-office",
-    "name": "Kantor SAR Ambon",
-    "category": "kantor-sar",
-    "lat": -6.234379,
-    "lng": 130.231808,
-    "specs": {
-      "kansar": "Ambon",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Laman resmi JDIH Basarnas mencantumkan Latitude -6.157234 dan Longitude 106.841864 untuk alamat Biro Hukum dan Kerja Sama di Kantor Pusat Basarnas, Jl. Angkasa Blok B.15 Kav. 2-3, Kemayoran. Alamat kantor pusat juga tercantum pada situs resmi Basarnas. Bukan hasil survei GNSS lapangan; cocokkan posisi gedung/gerbang sebelum digunakan sebagai titik operasional.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=-6.157234%2C106.841864",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-ambon",
+  "kind": "sar-office",
+  "name": "Kantor SAR Ambon",
+  "category": "kantor-sar",
+  "lat": -3.645,
+  "lng": 128.189,
+  "specs": {
+   "kansar": "Ambon",
+   "address": "Jl. Dr. J. Leimena, Hative Besar, Ambon",
+   "positionBasis": "EST · DARAT"
   },
-  {
-    "id": "loc-kansar-balikpapan",
-    "kind": "sar-office",
-    "name": "Kantor SAR Balikpapan",
-    "category": "kantor-sar",
-    "lat": 0.386556,
-    "lng": 117.079162,
-    "specs": {
-      "kansar": "Balikpapan",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Mask resolusi tinggi menunjukkan daratan pesisir, bukan laut. Cocokkan lagi dengan gerbang/bangunan di Jl. Dr. J. Leimena, Hative Besar.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=Ambon+Kantor+SAR+Basarnas+Jl.+Dr.+J.+Leimena,+Hative+Besar,+Ambon",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-balikpapan",
+  "kind": "sar-office",
+  "name": "Kantor SAR Balikpapan",
+  "category": "kantor-sar",
+  "lat": -1.2597,
+  "lng": 116.8981,
+  "specs": {
+   "kansar": "Balikpapan",
+   "address": "Jl. Marsma R. Iswahyudi RT. 10 No. 03, Sepinggan Raya, Balikpapan Selatan",
+   "positionBasis": "EST · DARAT"
   },
-  {
-    "id": "loc-kansar-banda-aceh",
-    "kind": "sar-office",
-    "name": "Kantor SAR Banda Aceh",
-    "category": "kantor-sar",
-    "lat": 4.462106,
-    "lng": 95.087206,
-    "specs": {
-      "kansar": "Banda Aceh",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. EST adalah estimasi area, bukan titik GNSS bangunan/gerbang; cocokkan dengan alamat dan pin kantor.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=Balikpapan+Kantor+SAR+Basarnas+Jl.+Marsma+R.+Iswahyudi+RT.+10+No.+03,+Sepinggan+Raya,+Balikpapan+Selatan",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-banda-aceh",
+  "kind": "sar-office",
+  "name": "Kantor SAR Banda Aceh",
+  "category": "kantor-sar",
+  "lat": 5.520011,
+  "lng": 95.322769,
+  "specs": {
+   "kansar": "Banda Aceh",
+   "address": "Jl. Sultan Malikul Saleh No. 108, Lhong Raya, Banda Aceh - 23238",
+   "positionBasis": "H13 · DARAT"
   },
-  {
-    "id": "loc-kansar-bandung",
-    "kind": "sar-office",
-    "name": "Kantor SAR Bandung",
-    "category": "kantor-sar",
-    "lat": -8.303504,
-    "lng": 107.37919,
-    "specs": {
-      "kansar": "Bandung",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=Banda+Aceh+Kantor+SAR+Basarnas+Jl.+Sultan+Malikul+Saleh+No.+108,+Lhong+Raya,+Banda+Aceh+-+23238",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-bandung",
+  "kind": "sar-office",
+  "name": "Kantor SAR Bandung",
+  "category": "kantor-sar",
+  "lat": -6.966111,
+  "lng": 107.675,
+  "specs": {
+   "kansar": "Bandung",
+   "address": "Jl. Raya Bandung - Garut Km. 27, Sindangpakuon, Cimanggung, Kabupaten Sumedang, Jawa Barat",
+   "positionBasis": "H13 · DARAT"
   },
-  {
-    "id": "loc-kansar-banjarmasin",
-    "kind": "sar-office",
-    "name": "Kantor SAR Banjarmasin",
-    "category": "kantor-sar",
-    "lat": -3.780611,
-    "lng": 115.82962,
-    "specs": {
-      "kansar": "Banjarmasin",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=Bandung+Kantor+SAR+Basarnas+Jl.+Raya+Bandung+-+Garut+Km.+27,+Sindangpakuon,+Cimanggung,+Kabupaten+Sumedang,+Jawa+Barat",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-banjarmasin",
+  "kind": "sar-office",
+  "name": "Kantor SAR Banjarmasin",
+  "category": "kantor-sar",
+  "lat": -3.45,
+  "lng": 114.766667,
+  "specs": {
+   "kansar": "Banjarmasin",
+   "address": "Jl. A. Yani No. 29, Landasan Ulin Timur, Landasan Ulin, Kota Banjarbaru, Kalimantan Selatan",
+   "positionBasis": "H13 · DARAT"
   },
-  {
-    "id": "loc-kansar-banten",
-    "kind": "sar-office",
-    "name": "Kantor SAR Banten",
-    "category": "kantor-sar",
-    "lat": -7.993485,
-    "lng": 104.823298,
-    "specs": {
-      "kansar": "Banten",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=Banjarmasin+Kantor+SAR+Basarnas+Jl.+A.+Yani+No.+29,+Landasan+Ulin+Timur,+Landasan+Ulin,+Kota+Banjarbaru,+Kalimantan+Selatan",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-banten",
+  "kind": "sar-office",
+  "name": "Kantor SAR Banten",
+  "category": "kantor-sar",
+  "lat": -6.04,
+  "lng": 106.12,
+  "specs": {
+   "kansar": "Banten",
+   "address": "Jl. Raya Serang - Cilegon Km. 70, Wanayasa, Kramatwatu, Kabupaten Serang, Banten",
+   "positionBasis": "EST · DARAT"
   },
-  {
-    "id": "loc-kansar-bengkulu",
-    "kind": "sar-office",
-    "name": "Kantor SAR Bengkulu",
-    "category": "kantor-sar",
-    "lat": -5.568984,
-    "lng": 101.292207,
-    "specs": {
-      "kansar": "Bengkulu",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. EST adalah estimasi area, bukan titik GNSS bangunan/gerbang; cocokkan dengan alamat dan pin kantor.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=Banten+Kantor+SAR+Basarnas+Jl.+Raya+Serang+-+Cilegon+Km.+70,+Wanayasa,+Kramatwatu,+Kabupaten+Serang,+Banten",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-bengkulu",
+  "kind": "sar-office",
+  "name": "Kantor SAR Bengkulu",
+  "category": "kantor-sar",
+  "lat": -3.878417,
+  "lng": 102.347917,
+  "specs": {
+   "kansar": "Bengkulu",
+   "address": "Jl. Soeprapto Dalam No. 10 RT. 17, Betungan, Bengkulu",
+   "positionBasis": "H13 · DARAT"
   },
-  {
-    "id": "loc-kansar-biak",
-    "kind": "sar-office",
-    "name": "Kantor SAR Biak",
-    "category": "kantor-sar",
-    "lat": 0.357832,
-    "lng": 135.694804,
-    "specs": {
-      "kansar": "Biak",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=Bengkulu+Kantor+SAR+Basarnas+Jl.+Soeprapto+Dalam+No.+10+RT.+17,+Betungan,+Bengkulu",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-biak",
+  "kind": "sar-office",
+  "name": "Kantor SAR Biak",
+  "category": "kantor-sar",
+  "lat": -1.188056,
+  "lng": 136.118611,
+  "specs": {
+   "kansar": "Biak",
+   "address": "Jl. Bosnik Raya No. 111, Biak, Papua",
+   "positionBasis": "H13 · DARAT"
   },
-  {
-    "id": "loc-kansar-cilacap",
-    "kind": "sar-office",
-    "name": "Kantor SAR Cilacap",
-    "category": "kantor-sar",
-    "lat": -9.799128,
-    "lng": 108.699267,
-    "specs": {
-      "kansar": "Cilacap",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=Biak+Kantor+SAR+Basarnas+Jl.+Bosnik+Raya+No.+111,+Biak,+Papua",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-cilacap",
+  "kind": "sar-office",
+  "name": "Kantor SAR Cilacap",
+  "category": "kantor-sar",
+  "lat": -7.74,
+  "lng": 109.01,
+  "specs": {
+   "kansar": "Cilacap",
+   "address": "Jl. Penyu No. 115, Pandanarang, Cilacap Selatan, Kabupaten Cilacap, Jawa Tengah",
+   "positionBasis": "EST · DARAT"
   },
-  {
-    "id": "loc-kansar-denpasar",
-    "kind": "sar-office",
-    "name": "Kantor SAR Denpasar",
-    "category": "kantor-sar",
-    "lat": -9.802007,
-    "lng": 115.257997,
-    "specs": {
-      "kansar": "Denpasar",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. EST adalah estimasi area, bukan titik GNSS bangunan/gerbang; cocokkan dengan alamat dan pin kantor.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=Cilacap+Kantor+SAR+Basarnas+Jl.+Penyu+No.+115,+Pandanarang,+Cilacap+Selatan,+Kabupaten+Cilacap,+Jawa+Tengah",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-denpasar",
+  "kind": "sar-office",
+  "name": "Kantor SAR Denpasar",
+  "category": "kantor-sar",
+  "lat": -8.790278,
+  "lng": 115.163333,
+  "specs": {
+   "kansar": "Denpasar",
+   "address": "Jl. Raya Uluwatu No. 201, Jimbaran, Kuta Selatan, Badung, Bali",
+   "positionBasis": "H13 · DARAT"
   },
-  {
-    "id": "loc-kansar-gorontalo",
-    "kind": "sar-office",
-    "name": "Kantor SAR Gorontalo",
-    "category": "kantor-sar",
-    "lat": 1.585397,
-    "lng": 122.553534,
-    "specs": {
-      "kansar": "Gorontalo",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=Denpasar+Kantor+SAR+Basarnas+Jl.+Raya+Uluwatu+No.+201,+Jimbaran,+Kuta+Selatan,+Badung,+Bali",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-gorontalo",
+  "kind": "sar-office",
+  "name": "Kantor SAR Gorontalo",
+  "category": "kantor-sar",
+  "lat": 0.556072,
+  "lng": 123.066564,
+  "specs": {
+   "kansar": "Gorontalo",
+   "address": "Jl. Pangeran Hidayat II, Kelurahan Pulubala, Kota Tengah, Kota Gorontalo",
+   "positionBasis": "H13 · DARAT"
   },
-  {
-    "id": "loc-kansar-jakarta",
-    "kind": "sar-office",
-    "name": "Kantor SAR Jakarta",
-    "category": "kantor-sar",
-    "lat": -7.612239,
-    "lng": 106.189134,
-    "specs": {
-      "kansar": "Jakarta",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=Gorontalo+Kantor+SAR+Basarnas+Jl.+Pangeran+Hidayat+II,+Kelurahan+Pulubala,+Kota+Tengah,+Kota+Gorontalo",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-jakarta",
+  "kind": "sar-office",
+  "name": "Kantor SAR Jakarta",
+  "category": "kantor-sar",
+  "lat": -6.126389,
+  "lng": 106.655556,
+  "specs": {
+   "kansar": "Jakarta",
+   "address": "Jl. Marsekal Suryadarma No. 115, Selapajang Jaya, Neglasari, Kota Tangerang, Banten",
+   "positionBasis": "H13 · DARAT"
   },
-  {
-    "id": "loc-kansar-jambi",
-    "kind": "sar-office",
-    "name": "Kantor SAR Jambi",
-    "category": "kantor-sar",
-    "lat": -1.638798,
-    "lng": 102.877668,
-    "specs": {
-      "kansar": "Jambi",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=Jakarta+Kantor+SAR+Basarnas+Jl.+Marsekal+Suryadarma+No.+115,+Selapajang+Jaya,+Neglasari,+Kota+Tangerang,+Banten",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-jambi",
+  "kind": "sar-office",
+  "name": "Kantor SAR Jambi",
+  "category": "kantor-sar",
+  "lat": -1.633067,
+  "lng": 103.647617,
+  "specs": {
+   "kansar": "Jambi",
+   "address": "Jl. Jawa RT 07, Kelurahan Talang Bakung, Kecamatan Jambi Selatan",
+   "positionBasis": "H13 · DARAT"
   },
-  {
-    "id": "loc-kansar-jayapura",
-    "kind": "sar-office",
-    "name": "Kantor SAR Jayapura",
-    "category": "kantor-sar",
-    "lat": -0.66208,
-    "lng": 139.060059,
-    "specs": {
-      "kansar": "Jayapura",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=Jambi+Kantor+SAR+Basarnas+Jl.+Jawa+RT+07,+Kelurahan+Talang+Bakung,+Kecamatan+Jambi+Selatan",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-jayapura",
+  "kind": "sar-office",
+  "name": "Kantor SAR Jayapura",
+  "category": "kantor-sar",
+  "lat": -2.58,
+  "lng": 140.52,
+  "specs": {
+   "kansar": "Jayapura",
+   "address": "Jl. Raya Hawai No. 115, Sentani, Kabupaten Jayapura, Papua",
+   "positionBasis": "EST · DARAT"
   },
-  {
-    "id": "loc-kansar-kendari",
-    "kind": "sar-office",
-    "name": "Kantor SAR Kendari",
-    "category": "kantor-sar",
-    "lat": -5.013616,
-    "lng": 123.110985,
-    "specs": {
-      "kansar": "Kendari",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. EST adalah estimasi area, bukan titik GNSS bangunan/gerbang; cocokkan dengan alamat dan pin kantor.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=Jayapura+Kantor+SAR+Basarnas+Jl.+Raya+Hawai+No.+115,+Sentani,+Kabupaten+Jayapura,+Papua",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-kendari",
+  "kind": "sar-office",
+  "name": "Kantor SAR Kendari",
+  "category": "kantor-sar",
+  "lat": -4.040639,
+  "lng": 122.488625,
+  "specs": {
+   "kansar": "Kendari",
+   "address": "Jl. Kapten Pierre Tendean, Baruga, Kota Kendari, Sulawesi Tenggara",
+   "positionBasis": "H13 · DARAT"
   },
-  {
-    "id": "loc-kansar-kupang",
-    "kind": "sar-office",
-    "name": "Kantor SAR Kupang",
-    "category": "kantor-sar",
-    "lat": -9.203624,
-    "lng": 124.281334,
-    "specs": {
-      "kansar": "Kupang",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=Kendari+Kantor+SAR+Basarnas+Jl.+Kapten+Pierre+Tendean,+Baruga,+Kota+Kendari,+Sulawesi+Tenggara",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-kupang",
+  "kind": "sar-office",
+  "name": "Kantor SAR Kupang",
+  "category": "kantor-sar",
+  "lat": -10.172,
+  "lng": 123.655183,
+  "specs": {
+   "kansar": "Kupang",
+   "address": "Jl. Adisucipto, Penfui, Kupang, Nusa Tenggara Timur",
+   "positionBasis": "H13 · DARAT"
   },
-  {
-    "id": "loc-kansar-lampung",
-    "kind": "sar-office",
-    "name": "Kantor SAR Lampung",
-    "category": "kantor-sar",
-    "lat": -6.417275,
-    "lng": 103.847814,
-    "specs": {
-      "kansar": "Lampung",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=Kupang+Kantor+SAR+Basarnas+Jl.+Adisucipto,+Penfui,+Kupang,+Nusa+Tenggara+Timur",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-lampung",
+  "kind": "sar-office",
+  "name": "Kantor SAR Lampung",
+  "category": "kantor-sar",
+  "lat": -5.242,
+  "lng": 105.188,
+  "specs": {
+   "kansar": "Lampung",
+   "address": "Jl. Branti Raya, Bumisari, Natar, Kabupaten Lampung Selatan, Lampung",
+   "positionBasis": "EST · DARAT"
   },
-  {
-    "id": "loc-kansar-makassar",
-    "kind": "sar-office",
-    "name": "Kantor SAR Makassar",
-    "category": "kantor-sar",
-    "lat": -5.925265,
-    "lng": 119.680804,
-    "specs": {
-      "kansar": "Makassar",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. EST adalah estimasi area, bukan titik GNSS bangunan/gerbang; cocokkan dengan alamat dan pin kantor.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=Lampung+Kantor+SAR+Basarnas+Jl.+Branti+Raya,+Bumisari,+Natar,+Kabupaten+Lampung+Selatan,+Lampung",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-makassar",
+  "kind": "sar-office",
+  "name": "Kantor SAR Makassar",
+  "category": "kantor-sar",
+  "lat": -5.072017,
+  "lng": 119.544283,
+  "specs": {
+   "kansar": "Makassar",
+   "address": "Jl. Bandar Udara Internasional Sultan Hasanuddin, Makassar",
+   "positionBasis": "H13 · DARAT"
   },
-  {
-    "id": "loc-kansar-mamuju",
-    "kind": "sar-office",
-    "name": "Kantor SAR Mamuju",
-    "category": "kantor-sar",
-    "lat": -3.258039,
-    "lng": 118.207506,
-    "specs": {
-      "kansar": "Mamuju",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=Makassar+Kantor+SAR+Basarnas+Jl.+Bandar+Udara+Internasional+Sultan+Hasanuddin,+Makassar",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-mamuju",
+  "kind": "sar-office",
+  "name": "Kantor SAR Mamuju",
+  "category": "kantor-sar",
+  "lat": -2.5914725,
+  "lng": 119.0303164,
+  "specs": {
+   "kansar": "Mamuju",
+   "address": "Jl. Poros Trans Sulawesi Barat Lingkar Dua Bandara Tampa Padang, Kalukku, Kabupaten Mamuju, Sulawesi Barat",
+   "positionBasis": "MAP/OLC · DARAT (kandidat baru)"
   },
-  {
-    "id": "loc-kansar-manado",
-    "kind": "sar-office",
-    "name": "Kantor SAR Manado",
-    "category": "kantor-sar",
-    "lat": 2.96633,
-    "lng": 125.310448,
-    "specs": {
-      "kansar": "Manado",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Titik lama (-2.580000, 118.850000) jatuh di laut. Kandidat baru -2.5914725, 119.0303164 didekode dari Plus Code peta C25J+C48. Berada di darat, tetapi belum GNSS/cek gerbang.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=6P9XC25J%2BC48",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-manado",
+  "kind": "sar-office",
+  "name": "Kantor SAR Manado",
+  "category": "kantor-sar",
+  "lat": 1.401433,
+  "lng": 125.014444,
+  "specs": {
+   "kansar": "Manado",
+   "address": "Jl. Worang Bypass, Desa Kaasar, Kauditan, Kabupaten Minahasa Utara, Sulawesi Utara",
+   "positionBasis": "H13 · DARAT"
   },
-  {
-    "id": "loc-kansar-manokwari",
-    "kind": "sar-office",
-    "name": "Kantor SAR Manokwari",
-    "category": "kantor-sar",
-    "lat": 0.221721,
-    "lng": 133.706064,
-    "specs": {
-      "kansar": "Manokwari",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=Manado+Kantor+SAR+Basarnas+Jl.+Worang+Bypass,+Desa+Kaasar,+Kauditan,+Kabupaten+Minahasa+Utara,+Sulawesi+Utara",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-manokwari",
+  "kind": "sar-office",
+  "name": "Kantor SAR Manokwari",
+  "category": "kantor-sar",
+  "lat": -0.891467,
+  "lng": 134.043283,
+  "specs": {
+   "kansar": "Manokwari",
+   "address": "Jl. Drs. Essau Sesa, Sowi Gunung, Manokwari Selatan, Papua Barat",
+   "positionBasis": "H13 · DARAT"
   },
-  {
-    "id": "loc-kansar-mataram",
-    "kind": "sar-office",
-    "name": "Kantor SAR Mataram",
-    "category": "kantor-sar",
-    "lat": -10.030966,
-    "lng": 117.291081,
-    "specs": {
-      "kansar": "Mataram",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=Manokwari+Kantor+SAR+Basarnas+Jl.+Drs.+Essau+Sesa,+Sowi+Gunung,+Manokwari+Selatan,+Papua+Barat",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-mataram",
+  "kind": "sar-office",
+  "name": "Kantor SAR Mataram",
+  "category": "kantor-sar",
+  "lat": -8.631389,
+  "lng": 116.126111,
+  "specs": {
+   "kansar": "Mataram",
+   "address": "Jl. TGH. Lopan, Labu Api, Lombok Barat, Nusa Tenggara Barat",
+   "positionBasis": "H13 · DARAT"
   },
-  {
-    "id": "loc-kansar-maumere",
-    "kind": "sar-office",
-    "name": "Kantor SAR Maumere",
-    "category": "kantor-sar",
-    "lat": -8.339847,
-    "lng": 122.437162,
-    "specs": {
-      "kansar": "Maumere",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=Mataram+Kantor+SAR+Basarnas+Jl.+TGH.+Lopan,+Labu+Api,+Lombok+Barat,+Nusa+Tenggara+Barat",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-maumere",
+  "kind": "sar-office",
+  "name": "Kantor SAR Maumere",
+  "category": "kantor-sar",
+  "lat": -8.62,
+  "lng": 122.21,
+  "specs": {
+   "kansar": "Maumere",
+   "address": "Jl. Diponegoro, Wolomarang, Alok Barat, Kabupaten Sikka, Nusa Tenggara Timur",
+   "positionBasis": "EST · DARAT"
   },
-  {
-    "id": "loc-kansar-medan",
-    "kind": "sar-office",
-    "name": "Kantor SAR Medan",
-    "category": "kantor-sar",
-    "lat": 2.757881,
-    "lng": 99.296788,
-    "specs": {
-      "kansar": "Medan",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. EST adalah estimasi area, bukan titik GNSS bangunan/gerbang; cocokkan dengan alamat dan pin kantor.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=Maumere+Kantor+SAR+Basarnas+Jl.+Diponegoro,+Wolomarang,+Alok+Barat,+Kabupaten+Sikka,+Nusa+Tenggara+Timur",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-medan",
+  "kind": "sar-office",
+  "name": "Kantor SAR Medan",
+  "category": "kantor-sar",
+  "lat": 3.5033,
+  "lng": 98.6124,
+  "specs": {
+   "kansar": "Medan",
+   "address": "Jl. Jamin Ginting No. 99, Sidomulyo, Medan Tuntungan, Medan - 20136",
+   "positionBasis": "EST · DARAT"
   },
-  {
-    "id": "loc-kansar-mentawai",
-    "kind": "sar-office",
-    "name": "Kantor SAR Mentawai",
-    "category": "kantor-sar",
-    "lat": -3.59229,
-    "lng": 98.499178,
-    "specs": {
-      "kansar": "Mentawai",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. EST adalah estimasi area, bukan titik GNSS bangunan/gerbang; cocokkan dengan alamat dan pin kantor.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=Medan+Kantor+SAR+Basarnas+Jl.+Jamin+Ginting+No.+99,+Sidomulyo,+Medan+Tuntungan,+Medan+-+20136",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-mentawai",
+  "kind": "sar-office",
+  "name": "Kantor SAR Mentawai",
+  "category": "kantor-sar",
+  "lat": -2.0725216,
+  "lng": 99.605072,
+  "specs": {
+   "kansar": "Mentawai",
+   "address": "Jl. Raya Tuapejat Km. 9, Dusun Karya Bakti, Desa Siporajaya, Sipora Utara, Kabupaten Kepulauan Mentawai",
+   "positionBasis": "GMAP-USER · DARAT (pin Google Maps)"
   },
-  {
-    "id": "loc-kansar-merauke",
-    "kind": "sar-office",
-    "name": "Kantor SAR Merauke",
-    "category": "kantor-sar",
-    "lat": -8.17926,
-    "lng": 138.87481,
-    "specs": {
-      "kansar": "Merauke",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Koordinat lama (-2.021000, 99.642000) jatuh di laut dan dibatalkan. Pengguna memberikan tautan Google Maps Kantor SAR Mentawai; pin tempat pada tautan tersebut terbaca -2.0725216, 99.6050720. Titik ini menggantikan titik lama dan perlu validasi akhir terhadap gerbang/bangunan.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=-2.0725216%2C99.605072",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-merauke",
+  "kind": "sar-office",
+  "name": "Kantor SAR Merauke",
+  "category": "kantor-sar",
+  "lat": -8.518633,
+  "lng": 140.41215,
+  "specs": {
+   "kansar": "Merauke",
+   "address": "Jl. R. E. Marthadinata, depan Bandara Mopah, Rimba Jaya, Merauke, Papua Selatan",
+   "positionBasis": "H13 · DARAT"
   },
-  {
-    "id": "loc-kansar-natuna",
-    "kind": "sar-office",
-    "name": "Kantor SAR Natuna",
-    "category": "kantor-sar",
-    "lat": 4.519212,
-    "lng": 107.936009,
-    "specs": {
-      "kansar": "Natuna",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=Merauke+Kantor+SAR+Basarnas+Jl.+R.+E.+Marthadinata,+depan+Bandara+Mopah,+Rimba+Jaya,+Merauke,+Papua+Selatan",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-natuna",
+  "kind": "sar-office",
+  "name": "Kantor SAR Natuna",
+  "category": "kantor-sar",
+  "lat": 3.95,
+  "lng": 108.38,
+  "specs": {
+   "kansar": "Natuna",
+   "address": "Jl. Adam Malik, Ranai Kota, Bunguran Timur, Kabupaten Natuna, Kepulauan Riau",
+   "positionBasis": "EST · DARAT"
   },
-  {
-    "id": "loc-kansar-nias",
-    "kind": "sar-office",
-    "name": "Kantor SAR Nias",
-    "category": "kantor-sar",
-    "lat": -0.261432,
-    "lng": 95.488654,
-    "specs": {
-      "kansar": "Nias",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. EST adalah estimasi area, bukan titik GNSS bangunan/gerbang; cocokkan dengan alamat dan pin kantor.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=Natuna+Kantor+SAR+Basarnas+Jl.+Adam+Malik,+Ranai+Kota,+Bunguran+Timur,+Kabupaten+Natuna,+Kepulauan+Riau",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-nias",
+  "kind": "sar-office",
+  "name": "Kantor SAR Nias",
+  "category": "kantor-sar",
+  "lat": 1.257,
+  "lng": 97.602,
+  "specs": {
+   "kansar": "Nias",
+   "address": "Jl. Pelabuhan Udara Binaka Km. 9, Desa Ononamolo I Lot, Gunungsitoli Selatan, Kota Gunungsitoli",
+   "positionBasis": "EST · DARAT"
   },
-  {
-    "id": "loc-kansar-padang",
-    "kind": "sar-office",
-    "name": "Kantor SAR Padang",
-    "category": "kantor-sar",
-    "lat": -0.863848,
-    "lng": 100.422481,
-    "specs": {
-      "kansar": "Padang",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. EST adalah estimasi area, bukan titik GNSS bangunan/gerbang; cocokkan dengan alamat dan pin kantor.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=Nias+Kantor+SAR+Basarnas+Jl.+Pelabuhan+Udara+Binaka+Km.+9,+Desa+Ononamolo+I+Lot,+Gunungsitoli+Selatan,+Kota+Gunungsitoli",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-padang",
+  "kind": "sar-office",
+  "name": "Kantor SAR Padang",
+  "category": "kantor-sar",
+  "lat": -0.83,
+  "lng": 100.341,
+  "specs": {
+   "kansar": "Padang",
+   "address": "Jl. By Pass Km. 25, Anak Air, Batipuh Panjang, Koto Tangah, Padang, Sumatera Barat",
+   "positionBasis": "EST · DARAT"
   },
-  {
-    "id": "loc-kansar-palangkaraya",
-    "kind": "sar-office",
-    "name": "Kantor SAR Palangkaraya",
-    "category": "kantor-sar",
-    "lat": -2.308276,
-    "lng": 113.11421,
-    "specs": {
-      "kansar": "Palangkaraya",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. EST adalah estimasi area, bukan titik GNSS bangunan/gerbang; cocokkan dengan alamat dan pin kantor.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=Padang+Kantor+SAR+Basarnas+Jl.+By+Pass+Km.+25,+Anak+Air,+Batipuh+Panjang,+Koto+Tangah,+Padang,+Sumatera+Barat",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-palangkaraya",
+  "kind": "sar-office",
+  "name": "Kantor SAR Palangkaraya",
+  "category": "kantor-sar",
+  "lat": -2.223,
+  "lng": 113.944,
+  "specs": {
+   "kansar": "Palangkaraya",
+   "address": "Jl. Adonis Samad, Panarung, Pahandut, Kota Palangka Raya, Kalimantan Tengah",
+   "positionBasis": "EST · DARAT"
   },
-  {
-    "id": "loc-kansar-palembang",
-    "kind": "sar-office",
-    "name": "Kantor SAR Palembang",
-    "category": "kantor-sar",
-    "lat": -3.197599,
-    "lng": 104.380513,
-    "specs": {
-      "kansar": "Palembang",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. EST adalah estimasi area, bukan titik GNSS bangunan/gerbang; cocokkan dengan alamat dan pin kantor.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=Palangkaraya+Kantor+SAR+Basarnas+Jl.+Adonis+Samad,+Panarung,+Pahandut,+Kota+Palangka+Raya,+Kalimantan+Tengah",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-palembang",
+  "kind": "sar-office",
+  "name": "Kantor SAR Palembang",
+  "category": "kantor-sar",
+  "lat": -2.898333,
+  "lng": 104.715556,
+  "specs": {
+   "kansar": "Palembang",
+   "address": "Jl. Gubernur H. Asnawi Mangku Alam, Kebun Bunga, Sukarami, Palembang, Sumatera Selatan",
+   "positionBasis": "H13 · DARAT"
   },
-  {
-    "id": "loc-kansar-palu",
-    "kind": "sar-office",
-    "name": "Kantor SAR Palu",
-    "category": "kantor-sar",
-    "lat": -0.056076,
-    "lng": 121.592806,
-    "specs": {
-      "kansar": "Palu",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=Palembang+Kantor+SAR+Basarnas+Jl.+Gubernur+H.+Asnawi+Mangku+Alam,+Kebun+Bunga,+Sukarami,+Palembang,+Sumatera+Selatan",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-palu",
+  "kind": "sar-office",
+  "name": "Kantor SAR Palu",
+  "category": "kantor-sar",
+  "lat": -0.918,
+  "lng": 119.895,
+  "specs": {
+   "kansar": "Palu",
+   "address": "Jl. Elang No. 12, Birobuli Utara, Palu Selatan, Kota Palu, Sulawesi Tengah",
+   "positionBasis": "EST · DARAT"
   },
-  {
-    "id": "loc-kansar-pangkalpinang",
-    "kind": "sar-office",
-    "name": "Kantor SAR Pangkalpinang",
-    "category": "kantor-sar",
-    "lat": -2.944973,
-    "lng": 107.518117,
-    "specs": {
-      "kansar": "Pangkalpinang",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. EST adalah estimasi area, bukan titik GNSS bangunan/gerbang; cocokkan dengan alamat dan pin kantor.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=Palu+Kantor+SAR+Basarnas+Jl.+Elang+No.+12,+Birobuli+Utara,+Palu+Selatan,+Kota+Palu,+Sulawesi+Tengah",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-pangkalpinang",
+  "kind": "sar-office",
+  "name": "Kantor SAR Pangkalpinang",
+  "category": "kantor-sar",
+  "lat": -2.116667,
+  "lng": 106.104722,
+  "specs": {
+   "kansar": "Pangkalpinang",
+   "address": "Jl. Pulau Pelepas, Desa Beluluk, Pangkalanbaru, Kabupaten Bangka Tengah, Kepulauan Bangka Belitung",
+   "positionBasis": "H13 · DARAT"
   },
-  {
-    "id": "loc-kansar-pekanbaru",
-    "kind": "sar-office",
-    "name": "Kantor SAR Pekanbaru",
-    "category": "kantor-sar",
-    "lat": 0.727679,
-    "lng": 101.869311,
-    "specs": {
-      "kansar": "Pekanbaru",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=Pangkalpinang+Kantor+SAR+Basarnas+Jl.+Pulau+Pelepas,+Desa+Beluluk,+Pangkalanbaru,+Kabupaten+Bangka+Tengah,+Kepulauan+Bangka+Belitung",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-pekanbaru",
+  "kind": "sar-office",
+  "name": "Kantor SAR Pekanbaru",
+  "category": "kantor-sar",
+  "lat": 0.469444,
+  "lng": 101.451389,
+  "specs": {
+   "kansar": "Pekanbaru",
+   "address": "Jl. Jenderal Sudirman - Jl. Reformasi, Simpang Tiga, Perhentian Marpoyan, Marpoyan Damai, Pekanbaru, Riau 28288",
+   "positionBasis": "H13 · DARAT"
   },
-  {
-    "id": "loc-kansar-pontianak",
-    "kind": "sar-office",
-    "name": "Kantor SAR Pontianak",
-    "category": "kantor-sar",
-    "lat": -0.633954,
-    "lng": 110.385648,
-    "specs": {
-      "kansar": "Pontianak",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=Pekanbaru+Kantor+SAR+Basarnas+Jl.+Jenderal+Sudirman+-+Jl.+Reformasi,+Simpang+Tiga,+Perhentian+Marpoyan,+Marpoyan+Damai,+Pekanbaru,+Riau+28288",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-pontianak",
+  "kind": "sar-office",
+  "name": "Kantor SAR Pontianak",
+  "category": "kantor-sar",
+  "lat": -0.136217,
+  "lng": 109.407417,
+  "specs": {
+   "kansar": "Pontianak",
+   "address": "Jl. Adisucipto Km. 15.6, Desa Limbung, Sungai Raya, Kabupaten Kubu Raya",
+   "positionBasis": "H13 · DARAT"
   },
-  {
-    "id": "loc-kansar-semarang",
-    "kind": "sar-office",
-    "name": "Kantor SAR Semarang",
-    "category": "kantor-sar",
-    "lat": -6.074004,
-    "lng": 110.332421,
-    "specs": {
-      "kansar": "Semarang",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=Pontianak+Kantor+SAR+Basarnas+Jl.+Adisucipto+Km.+15.6,+Desa+Limbung,+Sungai+Raya,+Kabupaten+Kubu+Raya",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-semarang",
+  "kind": "sar-office",
+  "name": "Kantor SAR Semarang",
+  "category": "kantor-sar",
+  "lat": -7.000833,
+  "lng": 110.339956,
+  "specs": {
+   "kansar": "Semarang",
+   "address": "Perumahan Permata Puri, Jl. Bukit Barisan Blok A IV No. 9, Bringin, Ngaliyan, Semarang, Jawa Tengah",
+   "positionBasis": "H13 · DARAT"
   },
-  {
-    "id": "loc-kansar-sorong",
-    "kind": "sar-office",
-    "name": "Kantor SAR Sorong",
-    "category": "kantor-sar",
-    "lat": 0.418944,
-    "lng": 131.404468,
-    "specs": {
-      "kansar": "Sorong",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=Semarang+Kantor+SAR+Basarnas+Perumahan+Permata+Puri,+Jl.+Bukit+Barisan+Blok+A+IV+No.+9,+Bringin,+Ngaliyan,+Semarang,+Jawa+Tengah",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-sorong",
+  "kind": "sar-office",
+  "name": "Kantor SAR Sorong",
+  "category": "kantor-sar",
+  "lat": -0.889806,
+  "lng": 131.323111,
+  "specs": {
+   "kansar": "Sorong",
+   "address": "Jl. Avignam No. 115, Klawuyuk, Sorong",
+   "positionBasis": "H13 · DARAT"
   },
-  {
-    "id": "loc-kansar-surabaya",
-    "kind": "sar-office",
-    "name": "Kantor SAR Surabaya",
-    "category": "kantor-sar",
-    "lat": -8.351448,
-    "lng": 113.329931,
-    "specs": {
-      "kansar": "Surabaya",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=Sorong+Kantor+SAR+Basarnas+Jl.+Avignam+No.+115,+Klawuyuk,+Sorong",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-surabaya",
+  "kind": "sar-office",
+  "name": "Kantor SAR Surabaya",
+  "category": "kantor-sar",
+  "lat": -7.371053,
+  "lng": 112.778283,
+  "specs": {
+   "kansar": "Surabaya",
+   "address": "Jl. Ir. Haji Juanda, Bandara Juanda Baru, Sedati, Kabupaten Sidoarjo, Jawa Timur",
+   "positionBasis": "H13 · DARAT"
   },
-  {
-    "id": "loc-kansar-tanjung-pinang",
-    "kind": "sar-office",
-    "name": "Kantor SAR Tanjung Pinang",
-    "category": "kantor-sar",
-    "lat": 0.330534,
-    "lng": 105.893408,
-    "specs": {
-      "kansar": "Tanjung Pinang",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=Surabaya+Kantor+SAR+Basarnas+Jl.+Ir.+Haji+Juanda,+Bandara+Juanda+Baru,+Sedati,+Kabupaten+Sidoarjo,+Jawa+Timur",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-tanjung-pinang",
+  "kind": "sar-office",
+  "name": "Kantor SAR Tanjung Pinang",
+  "category": "kantor-sar",
+  "lat": 0.9026,
+  "lng": 104.486667,
+  "specs": {
+   "kansar": "Tanjung Pinang",
+   "address": "Jl. Raja H. Fisabililah, Batu IX, Tanjungpinang Timur, Kota Tanjung Pinang, Kepulauan Riau",
+   "positionBasis": "H13 · DARAT"
   },
-  {
-    "id": "loc-kansar-tarakan",
-    "kind": "sar-office",
-    "name": "Kantor SAR Tarakan",
-    "category": "kantor-sar",
-    "lat": 3.030787,
-    "lng": 117.121685,
-    "specs": {
-      "kansar": "Tarakan",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=Tanjung+Pinang+Kantor+SAR+Basarnas+Jl.+Raja+H.+Fisabililah,+Batu+IX,+Tanjungpinang+Timur,+Kota+Tanjung+Pinang,+Kepulauan+Riau",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-tarakan",
+  "kind": "sar-office",
+  "name": "Kantor SAR Tarakan",
+  "category": "kantor-sar",
+  "lat": 3.385,
+  "lng": 117.565,
+  "specs": {
+   "kansar": "Tarakan",
+   "address": "Jl. Lestari No. 102 RT. 002, Karang Harapan, Tarakan Barat, Kota Tarakan, Kalimantan Utara",
+   "positionBasis": "EST · DARAT"
   },
-  {
-    "id": "loc-kansar-ternate",
-    "kind": "sar-office",
-    "name": "Kantor SAR Ternate",
-    "category": "kantor-sar",
-    "lat": 1.10804,
-    "lng": 127.691585,
-    "specs": {
-      "kansar": "Ternate",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. EST adalah estimasi area, bukan titik GNSS bangunan/gerbang; cocokkan dengan alamat dan pin kantor.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=Tarakan+Kantor+SAR+Basarnas+Jl.+Lestari+No.+102+RT.+002,+Karang+Harapan,+Tarakan+Barat,+Kota+Tarakan,+Kalimantan+Utara",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-ternate",
+  "kind": "sar-office",
+  "name": "Kantor SAR Ternate",
+  "category": "kantor-sar",
+  "lat": 0.7621,
+  "lng": 127.3169,
+  "specs": {
+   "kansar": "Ternate",
+   "address": "Jl. Depot Pertamina, Jambula, Ternate",
+   "positionBasis": "EST · DARAT"
   },
-  {
-    "id": "loc-kansar-timika",
-    "kind": "sar-office",
-    "name": "Kantor SAR Timika",
-    "category": "kantor-sar",
-    "lat": -4.893448,
-    "lng": 136.178969,
-    "specs": {
-      "kansar": "Timika",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. EST adalah estimasi area, bukan titik GNSS bangunan/gerbang; cocokkan dengan alamat dan pin kantor.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=Ternate+Kantor+SAR+Basarnas+Jl.+Depot+Pertamina,+Jambula,+Ternate",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-timika",
+  "kind": "sar-office",
+  "name": "Kantor SAR Timika",
+  "category": "kantor-sar",
+  "lat": -4.525,
+  "lng": 136.868611,
+  "specs": {
+   "kansar": "Timika",
+   "address": "Jl. Yos Sudarso Km. 5, Wania, Kabupaten Mimika, Papua Tengah",
+   "positionBasis": "H13 · DARAT"
   },
-  {
-    "id": "loc-kansar-yogyakarta",
-    "kind": "sar-office",
-    "name": "Kantor SAR Yogyakarta",
-    "category": "kantor-sar",
-    "lat": -10.20127,
-    "lng": 110.156175,
-    "specs": {
-      "kansar": "Yogyakarta",
-      "positionBasis": "centroid wilayah kerja KANSAR (representatif)"
-    },
-    "source": "BATAS WILAYAH KANSAR 9 OKT 21.kmz (upload pemilik) — titik representatif centroid wilayah kerja (bukan titik gedung kantor)",
-    "updatedRef": "2026-11-19",
-    "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
-    "verification": "UNVERIFIED",
-    "approval": "DRAFT"
-  }
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. Sumber historis LAKIP Basarnas 2013; belum membuktikan posisi bangunan sekarang tepat di titik ini.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=Timika+Kantor+SAR+Basarnas+Jl.+Yos+Sudarso+Km.+5,+Wania,+Kabupaten+Mimika,+Papua+Tengah",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ },
+ {
+  "id": "loc-kansar-yogyakarta",
+  "kind": "sar-office",
+  "name": "Kantor SAR Yogyakarta",
+  "category": "kantor-sar",
+  "lat": -7.8136,
+  "lng": 110.2623,
+  "specs": {
+   "kansar": "Yogyakarta",
+   "address": "Jl. Raya Yogyakarta - Wates Km. 11,5, Argorejo, Sedayu, Kabupaten Bantul, DI Yogyakarta",
+   "positionBasis": "EST · DARAT"
+  },
+  "source": "Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv (upload pemilik) — Lolos mask darat. EST adalah estimasi area, bukan titik GNSS bangunan/gerbang; cocokkan dengan alamat dan pin kantor.",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=Yogyakarta+Kantor+SAR+Basarnas+Jl.+Raya+Yogyakarta+-+Wates+Km.+11,5,+Argorejo,+Sedayu,+Kabupaten+Bantul,+DI+Yogyakarta",
+  "updatedRef": "2026-11-21",
+  "units": "koordinat: derajat desimal WGS84 (S/W negatif)",
+  "verification": "UNVERIFIED",
+  "approval": "DRAFT"
+ }
 ]

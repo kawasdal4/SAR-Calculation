@@ -1199,7 +1199,7 @@ export default function SeaMap({
             <label><input type="checkbox" id="${mapControlId(mapScope, 'kansar')}" ${kansarDefaultOn ? 'checked' : ''} suppressHydrationWarning /> Batas wilayah KANSAR (43)</label>
           </div>
           <div class="layer-row">
-            <label><input type="checkbox" id="${mapControlId(mapScope, 'facilities')}" ${facilitiesDefaultOn ? 'checked' : ''} suppressHydrationWarning /> Fasilitas transportasi &amp; Kantor SAR (214)</label>
+            <label><input type="checkbox" id="${mapControlId(mapScope, 'facilities')}" ${facilitiesDefaultOn ? 'checked' : ''} suppressHydrationWarning /> Fasilitas transportasi &amp; Kantor SAR (${allFacilityPoints().length})</label>
           </div>
           <div class="layer-row">
             <label><input type="checkbox" id="${mapControlId(mapScope, 'sru-base')}" ${sruBasesDefaultOn ? 'checked' : ''} suppressHydrationWarning /> Pangkalan SRU Basarnas (${SRU_BASES.length})</label>

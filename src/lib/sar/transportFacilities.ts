@@ -7,10 +7,11 @@
  *  - `src/data/transportFacilities.json` : 170 fasilitas dari CSV pemilik
  *    (bandara Navo24/OurAirports, pelabuhan ListBase/OpenTravelData, terminal
  *    SMDG). Koordinat eksplisit → verification VERIFIED, approval DRAFT.
- *  - `src/data/sarOffices.json` : 43 KANSAR (titik representatif centroid
- *    wilayah kerja dari KMZ batas) + Kantor Pusat Basarnas (geocode jalan
- *    alamat resmi) → verification UNVERIFIED, approval DRAFT — BUKAN titik
- *    gedung kantor; jangan dipakai sebagai alamat operasi resmi.
+ *  - `src/data/sarOffices.json` : 44 lokasi kantor SAR hasil AUDIT pemilik
+ *    (Audit_Verifikasi_Koordinat_44_Lokasi_Basarnas.csv — 43 KANSAR + Kantor
+ *    Pusat). Titik = kolom "Latitude/Longitude dipakai" (H13/EST/GMAP-USER/
+ *    MAP-OLC/JDIH), lolos mask darat-laut; BUKAN hasil survei GNSS bangunan →
+ *    verification UNVERIFIED, approval DRAFT.
  *
  * Data di-bundle lewat import JSON (`resolveJsonModule`) — total ±220 titik,
  * ringan untuk layer peta. Prisma `CaseBankItem` tetap jalur penyimpanan
@@ -57,6 +58,8 @@ export interface SarOfficeEntry {
     positionBasis?: string;
   };
   source: string;
+  /** Tautan Google Maps rujukan audit (provenance; belum dipakai UI). */
+  mapUrl?: string;
   updatedRef: string;
   units: string;
   verification: 'VERIFIED' | 'UNVERIFIED' | 'MISSING' | 'SIMULATION';
@@ -66,7 +69,7 @@ export interface SarOfficeEntry {
 /** 170 fasilitas transportasi (bandara 132, pelabuhan 19, terminal/dermaga 19). */
 export const TRANSPORT_FACILITIES = facilitiesData as TransportFacilityEntry[];
 
-/** 43 KANSAR + Kantor Pusat Basarnas (titik representatif/indikatif). */
+/** 44 lokasi kantor SAR hasil audit pemilik (43 KANSAR + Kantor Pusat). */
 export const SAR_OFFICES = officesData as SarOfficeEntry[];
 
 /** Warna titik per kategori — dipakai konsisten di peta laut (leaflet) & ONC (maplibre). */
@@ -93,7 +96,8 @@ export function facilityTooltip(entry: TransportFacilityEntry | SarOfficeEntry):
     : '';
   const base = code ? `${entry.name} (${code})` : entry.name;
   if (entry.kind === 'sar-office') {
-    return `${base} — ${entry.verification === 'VERIFIED' ? '' : 'posisi representatif/indikatif, UNVERIFIED'}`;
+    const basis = (entry as SarOfficeEntry).specs.positionBasis;
+    return `${base} — hasil audit pemilik: ${basis ?? 'UNVERIFIED, bukan GNSS bangunan'}`;
   }
   return `${base} — ${entry.verification.toLowerCase()} (${entry.source})`;
 }

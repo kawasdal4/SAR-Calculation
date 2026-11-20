@@ -12,7 +12,7 @@
  *    pangkalan dari soal/AI (mis. "Pelabuhan Belawan", "Bandara Juanda",
  *    "Kantor SAR Jayapura") ke titik yang SUDAH ada di bank data
  *    (transportFacilities.json koordinat VERIFIED dari CSV pemilik, lalu
- *    sarOffices.json titik representatif UNVERIFIED). Tanpa kecocokan → null,
+ *    sarOffices.json titik hasil audit pemilik, UNVERIFIED). Tanpa kecocokan → null,
  *    pemanggil kembali ke perilaku lama (koordinat manual/preset).
  */
 
