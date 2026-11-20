@@ -248,6 +248,47 @@ const SEARCH_CONNECTOR_COLOR = '#a16207';
 export default function Home() {
   // Layar penuh kartu Peta Laut & Alokasi Vektor (kolom kanan).
   const { ref: petaLautFsRef, isFullscreen: petaLautFullscreen, toggle: togglePetaLautFullscreen } = useFullscreen<HTMLDivElement>();
+
+  // Kolom kanan (Cuaca + kartu Peta Laut + Ringkasan) tingginya sering MELEBIHI
+  // tinggi viewport (±1.200 px vs ±800 px). Sticky default (lg:top-4) menempelkan
+  // SISI ATAS kolom sehingga bagian bawahnya (dasar kartu Peta Laut + Ringkasan
+  // Misi) tidak pernah bisa dicapai — saat di-scroll, satu-satunya gerakan yang
+  // terlihat hanyalah worksheet di kolom kiri. Kompensasi (sticky bottom): bila
+  // kolom lebih tinggi dari viewport, offset sticky digeser negatif sehingga
+  // SISI BAWAH yang menempel di dasar viewport — seluruh isi kolom dapat
+  // dijelajahi dengan scroll, lalu terkunci rapi saat dasarnya tercapai.
+  const rightColumnRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    const aside = rightColumnRef.current;
+    if (!aside) return;
+    let raf = 0;
+    const apply = () => {
+      raf = 0;
+      const margin = 16; // selaras lg:top-4
+      const viewportH = window.innerHeight;
+      const height = aside.offsetHeight;
+      if (height + margin <= viewportH) {
+        // Kolom muat sepenuhnya — perilaku sticky biasa di atas.
+        aside.style.top = `${margin}px`;
+      } else {
+        // Kolom lebih tinggi: tempelkan dasar kolom di dasar viewport.
+        aside.style.top = `${Math.min(margin, viewportH - height - margin)}px`;
+      }
+    };
+    apply();
+    const schedule = () => {
+      if (!raf) raf = requestAnimationFrame(apply);
+    };
+    window.addEventListener('resize', schedule);
+    // Tinggi kolom berubah saat peta/cuaca selesai memuat — ikuti perubahan.
+    const observer = new ResizeObserver(schedule);
+    observer.observe(aside);
+    return () => {
+      window.removeEventListener('resize', schedule);
+      observer.disconnect();
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
   // AWA & ASW states
   // Data AWA yang di-report worksheet saat tab AWA aktif (authoritative saat user mengedit).
   const [awaWorksheet, setAwaWorksheet] = useState<AWAData>({ aswDirFrom: 0, aswSpeed: 0, isValid: false });
@@ -3940,7 +3981,7 @@ export default function Home() {
         </section>
 
         {/* Right Column: Interactive Map & Weather Panel & Mission Summary */}
-        <aside className="lg:col-span-2 space-y-4 lg:sticky lg:top-4 lg:self-start print:hidden">
+        <aside ref={rightColumnRef} className="lg:col-span-2 space-y-4 lg:sticky lg:top-4 lg:self-start print:hidden">
           {isLkpSet && <WeatherPanel
             lkp={lkp}
             driftIntervalHours={driftIntervalForWeather}
