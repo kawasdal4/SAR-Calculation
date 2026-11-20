@@ -24,11 +24,15 @@ const PK_TAL = pkTalJson as unknown as SarCaseSchema;
 describe('Pemetaan seed worksheet (fixture PK-TAL)', () => {
   const { seeds, assumptions } = buildCaseWorksheetSeeds(PK_TAL);
 
-  it('ASW: distress/datum dari soal, mode 6h, 6 baris angin dengan obsTime', () => {
-    expect(seeds.asw?.distressTime).toBe('18 November 2026 13.50 WIB');
-    expect(seeds.asw?.datumTime).toBe('19 November 2026 07.00 WIB');
+  it('ASW: distress/datum + baris angin dikonversi ke Basarnas zona UTC (aturan pengguna)', () => {
+    // Aturan pengguna: format tanggal/waktu soal → Basarnas MMDD.HHMM Z saat
+    // masuk worksheet; zona memakai logika tab Penghitungan Dasar (WIB +7).
+    expect(seeds.asw?.distressTime).toBe('1118.0650 Z'); // 18 Nov 13.50 WIB
+    expect(seeds.asw?.datumTime).toBe('1119.0000 Z');    // 19 Nov 07.00 WIB
     expect(seeds.asw?.intervalMode).toBe('6h');
     expect(seeds.asw?.windData.length).toBe(6);
+    // Konvensi grid ASW: jam angin apa adanya (dipasangkan per label jam),
+    // bukan digeser zona — header distress/datum saja yang dikonversi Basarnas.
     expect(seeds.asw?.windData[0]).toMatchObject({ obsTime: '18 November 2026 00.00 WIB', windDirFrom: 50, windSpeed: 5 });
     expect(seeds.asw?.windData[5]).toMatchObject({ obsTime: '19 November 2026 06.00 WIB', windDirFrom: 90, windSpeed: 9 });
   });
@@ -42,6 +46,8 @@ describe('Pemetaan seed worksheet (fixture PK-TAL)', () => {
 
   it('ADW: LKP desimal, glide 121 kn ratio 6, heading 103°M, variation 1°E, Altmin 0', () => {
     expect(seeds.aero?.incidentPos).toEqual({ lat: -6.879444, lng: 105.261389 });
+    // Waktu insiden A.1 masuk worksheet dalam format Basarnas zona UTC.
+    expect(seeds.aero?.incidentTime).toBe('1118.0650 Z');
     expect(seeds.aero?.aircraftTASgKts).toBe(121);
     expect(seeds.aero?.aircraftGlideRatio).toBe(6);
     expect(seeds.aero?.aircraftAltMaxFt).toBe(20000);

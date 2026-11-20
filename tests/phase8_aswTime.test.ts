@@ -335,3 +335,36 @@ test('formatBasarnasTime menolak waktu tanpa bulan/tanggal tanpa fallback', () =
   expect(formatBasarnasTime(parseSarTimeToHours('07.00 UTC')!)).toBeNull();
   expect(formatBasarnasTime(parseSarTimeToHours('17 Nov 2026 07.00 UTC')!)).toBe('1117.0700');
 });
+
+// ---------------------------------------------------------------------------
+// Konvensi grid ASW + konversi zona header (aturan pengguna) — header
+// distress/datum masuk worksheet dalam Basarnas MMDD.HHMM Z (zona via
+// Penghitungan Dasar: WIB +7/WITA +8/WIT +9 → Z); jam angin & baris observasi
+// dipasangkan per LABEL JAM (grid BMKG 00/06/12/18), bukan digeser zona.
+// Kartu pilihan waktu di kolom chat tetap memakai format asli soal.
+// ---------------------------------------------------------------------------
+
+test('header waktu soal → Basarnas UTC (zona via Penghitungan Dasar)', () => {
+  expect(toBasarnasTimeFormat('18 November 2026 13.50 WIB')).toBe('1118.0650');
+  expect(toBasarnasTimeFormat('19 November 2026 07.00 WIB')).toBe('1119.0000');
+  expect(toBasarnasTimeFormat('03 Desember 2024 10.53 WIT')).toBe('1203.0153');
+  // Sudah Basarnas/UTC → idempotent.
+  expect(toBasarnasTimeFormat('1117.0700 Z')).toBe('1117.0700');
+});
+
+test('grid angin: distress/datum UTC + angin berlabel jam soal tetap terpasang per label jam', () => {
+  // Jalur handleApplyASW: distress/datum sudah Basarnas UTC; jam angin soal
+  // (grid 00/06/12/18) dipasangkan ke baris berlabel jam sama.
+  const rows = buildAswObservationsFromCase('1118.0650 Z', '1119.0000 Z', '6h', [
+    { obsTime: '18 November 2026 00.00 WIB', windDirFrom: 50, windSpeed: 5 },
+    { obsTime: '18 November 2026 06.00 WIB', windDirFrom: 69, windSpeed: 10 },
+    { obsTime: '18 November 2026 12.00 WIB', windDirFrom: 80, windSpeed: 12 },
+    { obsTime: '18 November 2026 18.00 WIB', windDirFrom: 96, windSpeed: 10 },
+    { obsTime: '19 November 2026 00.00 WIB', windDirFrom: 102, windSpeed: 7 },
+    { obsTime: '19 November 2026 06.00 WIB', windDirFrom: 90, windSpeed: 9 },
+  ]);
+  expect(rows.length).toBe(4);
+  expect(rows.map((r) => r.timeObs)).toEqual(['06.00', '12.00', '18.00', '00.00']);
+  expect(rows.map((r) => r.windDirFrom)).toEqual([69, 80, 96, 102]);
+  expect(rows.map((r) => r.windSpeed)).toEqual([10, 12, 10, 7]);
+});

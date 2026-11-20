@@ -18,7 +18,7 @@ import {
   type SurfaceWindEntry,
   type WindLayer,
 } from './caseSchema';
-import { buildAswObservationsFromCase, type AswCaseWindEntry } from './aswTime';
+import { buildAswObservationsFromCase, toBasarnasTimeFormat, type AswCaseWindEntry } from './aswTime';
 import { normalizeTafCondition, type SruAssetInput, type SruType } from './assetAllocation';
 import {
   type W2Target,
@@ -270,13 +270,22 @@ export function buildCaseWorksheetSeeds(
       assumptions.push({ field: 'asw.intervalMode', value: '6h', reason: 'Jam observasi angin tidak terbaca — memakai mode 6 jam default.' });
     }
     const windData: AswCaseWindEntry[] = surfaceWind.map((entry) => ({
+      // Konvensi grid ASW: jam angin dipasangkan ke baris worksheet per label
+      // jam (grid BMKG 00/06/12/18) — obsTime dikirim apa adanya (bukan
+      // digeser zona), sejajar dengan buildAswObservationsFromCase.
       obsTime: entry.obsTime,
       windDirFrom: entry.windDirFrom,
       windSpeed: entry.windSpeedKts,
     }));
     seeds.asw = {
-      distressTime: incident.lastContactTime,
-      datumTime: sarCase.search.datumTime as string,
+      // Waktu distress/datum juga dikonversi ke Basarnas (zona UTC) di sini —
+      // SATU batas konversi antara kasus (format asli soal) dan worksheet.
+      distressTime: toBasarnasTimeFormat(incident.lastContactTime)
+        ? `${toBasarnasTimeFormat(incident.lastContactTime)} Z`
+        : incident.lastContactTime,
+      datumTime: toBasarnasTimeFormat(sarCase.search.datumTime as string)
+        ? `${toBasarnasTimeFormat(sarCase.search.datumTime as string)} Z`
+        : sarCase.search.datumTime as string,
       intervalMode: mode,
       windData,
       caseTitle: sarCase.caseTitle,
@@ -305,7 +314,12 @@ export function buildCaseWorksheetSeeds(
       plannerName: '',
       searchObject: [incident.craftType, incident.callsign].filter(Boolean).join(' '),
       incidentPos: { lat: lkpCoord.lat, lng: lkpCoord.lng },
-      incidentTime: incident.lastContactTime ?? '',
+      // Aturan pengguna: waktu insiden A.1 masuk worksheet dalam format
+      // Basarnas MMDD.HHMM Z (zona via Penghitungan Dasar); fallback tanggal =
+      // tanggal soal bila jam tidak mencantumkan tanggal.
+      incidentTime: toBasarnasTimeFormat(incident.lastContactTime ?? '', sarCase.examHeader?.examDate ?? '')
+        ? `${toBasarnasTimeFormat(incident.lastContactTime ?? '', sarCase.examHeader?.examDate ?? '')} Z`
+        : (incident.lastContactTime ?? ''),
       useAircraftGlide: true,
       aircraftAltMaxFt: altMaxFt,
       aircraftAltMinFt: incident.type === 'aircraft-ditching' ? 0 : 0,

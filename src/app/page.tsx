@@ -1311,6 +1311,8 @@ export default function Home() {
     // "17 Nov 2026 07.00 UTC", "1117.0700 Z", ...). Jangan mengandalkan
     // regenerasi worksheet saja — kolom waktu ASW read-only, kalau kosong
     // pengguna tidak bisa memperbaikinya manual (bug kasus EXE FAKFAK 2026).
+    // Catatan konvensi grid: baris observasi & jam angin dipasangkan per
+    // label jam (grid BMKG 00/06/12/18) — angin tidak digeser zona sendiri.
     const obsWithWind = buildAswObservationsFromCase(
       distressTime,
       datumTime,
