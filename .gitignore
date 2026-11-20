@@ -86,3 +86,17 @@ prisma/*.db*
 
 # SQLite dev database bersarang (lokal saja)
 prisma/prisma/
+local-*
+.claude
+.z-ai-config
+*.log
+dev.log
+dev.out.log
+test
+prompt
+server.log
+# Skills directory
+/skills/
+
+# local sqlite db
+/db/
