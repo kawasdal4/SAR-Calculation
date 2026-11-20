@@ -323,7 +323,7 @@ function createScaleControl(
       const bar = L.DomUtil.create('div', 'land-scale-bar', barWrap);
       const labels = L.DomUtil.create('div', 'land-scale-labels', barWrap);
       const note = L.DomUtil.create('div', 'land-scale-note', container);
-      note.textContent = 'Skala layar bergantung DPI — gunakan mode Skala cetak & kalibrasi DPI agar cetak 1:1.';
+      note.textContent = 'Zoom scroll melepas skala cetak otomatis — kunci kembali lewat tombol Skala cetak. Kalibrasi DPI agar cetak 1:1.';
       const actions = L.DomUtil.create('div', 'land-scale-actions', container);
       const modeBtn = L.DomUtil.create('button', 'land-scale-btn', actions) as HTMLButtonElement;
       modeBtn.type = 'button';
@@ -408,7 +408,6 @@ export default function Worksheet4LandMap({ center, zoom = 12, markers = [], lin
   const kansarLayerRef = useRef<L.LayerGroup | null>(null);
   const gridLayerRef = useRef<L.LayerGroup | null>(null);
   const scaleModeRef = useRef({ printMode: true, dpi: 96, n: PRINT_SCALE_N });
-  const lockZoomRef = useRef(false);
   const rafRef = useRef(0);
   const updateFnRef = useRef<() => void>(() => {});
 
@@ -417,11 +416,13 @@ export default function Worksheet4LandMap({ center, zoom = 12, markers = [], lin
   const [basemapNotice, setBasemapNotice] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [hideToast, setHideToast] = useState(false);
+  const [scaleToast, setScaleToast] = useState(false);
   const [viewPrefs, setViewPrefs] = useState<LandViewPrefs>(() => loadLandViewPrefs());
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const autoFellBackRef = useRef(false);
   const hotZoneRef = useRef(false); // kursor di atas peta darat → shortcut H aktif
   const hideToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scaleToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prefsRef = useRef<LandViewPrefs>(viewPrefs);
   useEffect(() => { prefsRef.current = viewPrefs; }, [viewPrefs]);
   useEffect(() => { saveLandViewPrefs(viewPrefs); }, [viewPrefs]);
@@ -443,6 +444,18 @@ export default function Worksheet4LandMap({ center, zoom = 12, markers = [], lin
       clearTimeout(hideToastTimer.current);
       hideToastTimer.current = null;
     }
+  }, []);
+  // Toast pemberitahuan: skala cetak dilepas otomatis karena pengguna zoom.
+  const flashScaleToast = useCallback(() => {
+    setScaleToast(true);
+    if (scaleToastTimer.current) clearTimeout(scaleToastTimer.current);
+    scaleToastTimer.current = setTimeout(() => {
+      setScaleToast(false);
+      scaleToastTimer.current = null;
+    }, 7000);
+  }, []);
+  useEffect(() => () => {
+    if (scaleToastTimer.current) clearTimeout(scaleToastTimer.current);
   }, []);
 
   // Shortcut H: sembunyikan/tampilkan SEMUA elemen overlay. Hanya aktif saat
@@ -582,13 +595,16 @@ export default function Worksheet4LandMap({ center, zoom = 12, markers = [], lin
     new LegendControl().addTo(map);
 
     // Kontrol skala custom (bukan L.control.scale) — di bawah legenda.
+    // applyScaleMode dipakai bersama: tombol "Skala cetak", input DPI, dan
+    // pelepasan otomatis saat pengguna zoom manual.
+    const applyScaleMode = (next: { printMode: boolean; dpi: number }) => {
+      scaleModeRef.current.printMode = next.printMode;
+      scaleModeRef.current.dpi = next.dpi;
+      writeCalibration(typeof window !== 'undefined' ? window.localStorage : null, { printMode: next.printMode, dpi: next.dpi });
+    };
     map.addControl(createScaleControl(
       () => scaleModeRef.current,
-      (next) => {
-        scaleModeRef.current.printMode = next.printMode;
-        scaleModeRef.current.dpi = next.dpi;
-        writeCalibration(typeof window !== 'undefined' ? window.localStorage : null, { printMode: next.printMode, dpi: next.dpi });
-      },
+      applyScaleMode,
       () => {
         // Kunci zoom ke zoomTarget — zoom pecahan diizinkan (zoomSnap 0.05).
         const map2 = mapRef.current;
@@ -619,14 +635,18 @@ export default function Worksheet4LandMap({ center, zoom = 12, markers = [], lin
     map.on('overlayadd overlayremove', syncLegend);
     map.on('moveend', syncLegend);
 
-    // Mode cetak: zoom terkunci ke zoomTarget (snap balik bila pengguna zoom).
+    // Zoom manual pengguna (scroll mouse, dua-klik, tombol +/-, drag-zoom)
+    // melepas mode skala cetak OTOMATIS. Sebelumnya zoom DIPAKSA kembali
+    // (snap) ke zoomTarget tiap zoomend — scroll mouse terasa mati karena
+    // zoom langsung dibatalkan. Kini zoom bebas; skala cetak 1:25.000 dapat
+    // dikunci lagi lewat tombol "Skala cetak" pada kontrol skala (kanan
+    // bawah), grid UTM 1 km & label tepi ikut menyesuaikan.
     map.on('zoomend', () => {
-      if (lockZoomRef.current || !scaleModeRef.current.printMode) return;
+      if (!scaleModeRef.current.printMode) return;
       const target = zoomTargetForScale(map.getCenter().lat, scaleModeRef.current.n, scaleModeRef.current.dpi);
       if (Math.abs(map.getZoom() - target) > 0.03) {
-        lockZoomRef.current = true;
-        map.setZoom(target);
-        lockZoomRef.current = false;
+        applyScaleMode({ printMode: false, dpi: scaleModeRef.current.dpi });
+        flashScaleToast();
       }
     });
 
@@ -868,7 +888,8 @@ export default function Worksheet4LandMap({ center, zoom = 12, markers = [], lin
       gridLayerRef.current = null;
     };
     // center/zoom hanya dipakai saat inisialisasi — dependency disengaja minimal.
-  }, []);
+    // flashScaleToast stabil (useCallback []).
+  }, [flashScaleToast]);
 
   // ---- Adapter hasil Worksheet 4 (tipe Map* — logika worksheet tak disentuh) ----
   useEffect(() => {
@@ -1106,6 +1127,13 @@ export default function Worksheet4LandMap({ center, zoom = 12, markers = [], lin
               Elemen peta darat disembunyikan — klik tombol{' '}
               <strong>Tampilan</strong> di kiri bawah (atau tekan <strong>H</strong>)
               untuk menampilkan kembali.
+            </div>
+          )}
+          {scaleToast && (
+            <div className="seamap-hide-toast" role="status" style={{ bottom: 96 }}>
+              Zoom bebas diaktifkan — skala cetak dilepas otomatis. Klik tombol{' '}
+              <strong>Skala cetak</strong> di panel skala kanan bawah untuk
+              mengunci kembali ke 1:25.000.
             </div>
           )}
         </div>
