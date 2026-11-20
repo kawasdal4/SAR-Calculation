@@ -309,4 +309,141 @@ describe('enrichCaseFromSourceText', () => {
     expect(enriched.lkp?.coord).toBeUndefined();
     expect(enriched.sea?.current).toBeUndefined();
   });
+
+  test('varian header FULL EXERCISE (KETINGGIAN/ALTITUDE — ARAH DIRECTON — KECEPATAN SPEED) terbaca', () => {
+    // Persis FULL EXERCISE.pdf (SRX48 Ternate→Merauke): "DIRECTON" typo dan
+    // "SPEED" (bukan VELOCITY) — regex lama mentok di sini sehingga tabel
+    // angin altitude TIDAK terbaca dan bacaan salah model lolos ke AWA.
+    const soal = `Appendix 3. Meteorological Information
+KETINGGIAN
+ALTITUDE
+ARAH
+DIRECTON
+KECEPATAN
+SPEED
+Surface 200⁰ 20
+3000 FT 180⁰ 12
+6000 FT 190⁰ 25
+9000 FT 300⁰ 24
+12000 FT 250⁰ 24
+18000 FT 120⁰ 26
+24000 FT 330⁰ 40`;
+    const facts = extractCaseFacts(soal);
+    const rows = facts.windLayers?.value ?? [];
+    expect(rows.length).toBe(7);
+    expect(rows[0]).toMatchObject({ altitudeFt: 0, windDirFrom: 200, windSpeedKts: 20 });
+    expect(rows[1]).toMatchObject({ altitudeFt: 3000, windDirFrom: 180, windSpeedKts: 12 });
+    expect(rows[4]).toMatchObject({ altitudeFt: 12000, windDirFrom: 250, windSpeedKts: 24 });
+    expect(rows[5]).toMatchObject({ altitudeFt: 18000, windDirFrom: 120, windSpeedKts: 26 });
+    expect(rows[6]).toMatchObject({ altitudeFt: 24000, windDirFrom: 330, windSpeedKts: 40 });
+  });
+
+  test('fallback tanpa header: ≥3 baris berurutan alt menaik tetap terbaca', () => {
+    const soal = `Data pengamatan angin atas:
+Surface 10⁰ 5
+3000 40⁰ 10
+6000 120⁰ 15
+9000 90⁰ 20`;
+    const facts = extractCaseFacts(soal);
+    const rows = facts.windLayers?.value ?? [];
+    expect(rows.length).toBe(4);
+    expect(rows[2]).toMatchObject({ altitudeFt: 6000, windDirFrom: 120, windSpeedKts: 15 });
+  });
+
+  test('deret angin permukaan (jam HH.MM) TIDAK keliru terbaca sebagai tabel ketinggian', () => {
+    const facts = extractCaseFacts('Data angin:\n00.00 155⁰ / 12kts\n06.00 260⁰ / 14 kts\n12.00 285⁰ / 13 kts\n18.00 310⁰ / 10 kts');
+    expect(facts.windLayers).toBeUndefined();
+    expect(facts.surfaceWindSeries?.value.length).toBe(4);
+  });
+});
+
+describe('koreksi deterministik tabel angin (bug FULL EXERCISE AWA)', () => {
+  const SOAL_SRX48 = `Pada pukul 1050 WIT Pesawat melaporkan kerusakan pada kedua mesin dan
+melaporkan kepada ATC di ketinggian 18000 feet dengan heading 134⁰(M).
+Appendix 3. Meteorological Information
+KETINGGIAN
+ALTITUDE
+ARAH
+DIRECTON
+KECEPATAN
+SPEED
+Surface 200⁰ 20
+3000 FT 180⁰ 12
+6000 FT 190⁰ 25
+9000 FT 300⁰ 24
+12000 FT 250⁰ 24
+18000 FT 120⁰ 26
+24000 FT 330⁰ 40`;
+
+  test('bacaan model salah (angin karangan + altitude 12000) → DITIMPA nilai teks + corrections', () => {
+    // Nilai model persis seperti state kasus rusak di production: angin yang
+    // TIDAK ada di tabel soal dan ketinggian distress salah (12000).
+    const brokenModel: SarCaseSchema = sarCaseSchema.parse({
+      schemaVersion: 1,
+      incident: { type: 'aircraft-ditching', altitudeFt: 12000 },
+      aeroDrift: {
+        windLayers: [
+          { altitudeFt: 0, windDirFrom: 155, windSpeedKts: 12 },
+          { altitudeFt: 3000, windDirFrom: 130, windSpeedKts: 15 },
+          { altitudeFt: 6000, windDirFrom: 165, windSpeedKts: 12 },
+          { altitudeFt: 9000, windDirFrom: 155, windSpeedKts: 16 },
+          { altitudeFt: 12000, windDirFrom: 150, windSpeedKts: 20 },
+          { altitudeFt: 18000, windDirFrom: 145, windSpeedKts: 26 },
+          { altitudeFt: 24000, windDirFrom: 190, windSpeedKts: 23 },
+        ],
+      },
+      meta: { source: 'pdf' },
+    });
+    const { case: enriched, corrections } = enrichCaseFromSourceText(brokenModel, SOAL_SRX48);
+    // Tabel angin = persis nilai soal (sumber kolom "Altitude interval (A)" AWA).
+    const rows = enriched.aeroDrift?.windLayers ?? [];
+    expect(rows.length).toBe(7);
+    expect(rows[0]).toMatchObject({ altitudeFt: 0, windDirFrom: 200, windSpeedKts: 20 });
+    expect(rows[3]).toMatchObject({ altitudeFt: 9000, windDirFrom: 300, windSpeedKts: 24 });
+    expect(rows[5]).toMatchObject({ altitudeFt: 18000, windDirFrom: 120, windSpeedKts: 26 });
+    // Ketinggian distress dikoreksi ke nilai teks (18000 ft).
+    expect(enriched.incident?.altitudeFt).toBe(18000);
+    expect(enriched.incident?.flightLevelFt).toBeUndefined();
+    // Dua koreksi tercatat dan dilaporkan.
+    const fields = corrections.map((entry) => entry.field);
+    expect(fields).toContain('aeroDrift.windLayers');
+    expect(fields).toContain('incident.altitudeFt');
+    const awaCorrection = corrections.find((entry) => entry.field === 'aeroDrift.windLayers');
+    expect(awaCorrection?.to).toContain('7 baris: 0ft 200°/20kt, 3000ft 180°/12kt');
+  });
+
+  test('bacaan model SAMA dengan teks → tidak ada koreksi (nilai model dipertahankan)', () => {
+    const correctModel: SarCaseSchema = sarCaseSchema.parse({
+      schemaVersion: 1,
+      incident: { type: 'aircraft-ditching', altitudeFt: 18000 },
+      aeroDrift: {
+        windLayers: [
+          { altitudeFt: 0, altitudeLabel: 'Surface', windDirFrom: 200, windSpeedKts: 20 },
+          { altitudeFt: 3000, windDirFrom: 180, windSpeedKts: 12 },
+          { altitudeFt: 6000, windDirFrom: 190, windSpeedKts: 25 },
+          { altitudeFt: 9000, windDirFrom: 300, windSpeedKts: 24 },
+          { altitudeFt: 12000, windDirFrom: 250, windSpeedKts: 24 },
+          { altitudeFt: 18000, windDirFrom: 120, windSpeedKts: 26 },
+          { altitudeFt: 24000, windDirFrom: 330, windSpeedKts: 40 },
+        ],
+      },
+      meta: { source: 'pdf' },
+    });
+    const { case: enriched, corrections } = enrichCaseFromSourceText(correctModel, SOAL_SRX48);
+    expect(corrections).toHaveLength(0);
+    expect(enriched.incident?.altitudeFt).toBe(18000);
+    expect(enriched.aeroDrift?.windLayers?.[0]).toMatchObject({ altitudeLabel: 'Surface', windDirFrom: 200 });
+  });
+
+  test('FL model yang didukung teks (FL200) TIDAK dikoreksi oleh parser altitude', () => {
+    const soalFl = 'kontak terakhir di ketinggian FL200 dengan heading 103⁰(M).';
+    const modelFl: SarCaseSchema = sarCaseSchema.parse({
+      schemaVersion: 1,
+      incident: { type: 'aircraft-ditching', flightLevelFt: 200 },
+      meta: { source: 'pdf' },
+    });
+    const { case: enriched, corrections } = enrichCaseFromSourceText(modelFl, soalFl);
+    expect(corrections).toHaveLength(0);
+    expect(enriched.incident?.flightLevelFt).toBe(200);
+  });
 });

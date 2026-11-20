@@ -66,18 +66,8 @@ function validationFeedback(detail: string[]): string {
 /** Ekstraksi TEKS PDF server-side (unpdf/pdf.js) — bahan pass deterministik
  *  Fase C2. Best-effort: gagal → string kosong, alur tetap jalan. */
 async function extractPdfText(base64: string): Promise<string> {
-  try {
-    const { extractText, getDocumentProxy } = await import('unpdf');
-    const buffer = Buffer.from(base64, 'base64');
-    const pdf = await getDocumentProxy(new Uint8Array(buffer));
-    const { text } = await extractText(pdf, { mergePages: true });
-    if (typeof text === 'string') return text;
-    if (Array.isArray(text)) return (text as string[]).join('\n');
-    return '';
-  } catch (err) {
-    console.warn('[parse-case] Ekstraksi teks PDF gagal (dilanjutkan tanpa enrichment teks):', err instanceof Error ? err.message.slice(0, 120) : err);
-    return '';
-  }
+  const { extractPdfTextFromBase64 } = await import('@/lib/ai/pdfText');
+  return extractPdfTextFromBase64(base64);
 }
 
 /** Catat turn ekstraksi ke AiSessionLog (best-effort, metadata saja). */
@@ -257,10 +247,20 @@ export async function POST(req: NextRequest) {
           // ── Fase C2 (deterministik): isi field kosong dari teks soal —
           // jaring pengaman bila model meleset membaca halaman/tabel.
           // Nilai model TIDAK pernah ditimpa; isian dicatat VERIFIED + kutipan.
+          // PENGECEKAN: tabel angin altitude & ketinggian insiden diperiksa
+          // AKTIF terhadap teks — bacaan model yang tidak didukung teks soal
+          // ditimpa (tercatat di enrich.corrections) dan dilaporkan sebagai
+          // warning agar pengguna tahu nilai yang dipakai adalah dari teks.
           let finalResult: CaseExtractionSuccess = extraction;
           const sourceText = sourceTextParts.join('\n\n').slice(0, MAX_TEXT_CHARS);
+          const correctionWarnings: string[] = [];
           if (sourceText.trim()) {
             const enrich = enrichCaseFromSourceText(extraction.case, sourceText);
+            for (const correction of enrich.corrections) {
+              correctionWarnings.push(
+                `Nilai "${correction.field}" diambil dari TEKS soal (${correction.to}) — bacaan model "${correction.from}" tidak cocok dengan tabel/kalimat soal.`,
+              );
+            }
             if (enrich.filled.length > 0) {
               console.log(`[parse-case] Pass deterministik mengisi ${enrich.filled.length} field: ${enrich.filled.map((entry) => entry.field).join(', ')}`);
               const rebuilt = buildCaseExtractionResult(enrich.case, {}, {
@@ -301,8 +301,10 @@ export async function POST(req: NextRequest) {
           }
           return NextResponse.json({
             ...success,
+            ...(correctionWarnings.length > 0 || fileWarnings.length > 0
+              ? { warnings: [...correctionWarnings, ...fileWarnings] }
+              : {}),
             ...(referenceChoices.length > 0 ? { referenceChoices } : {}),
-            ...(fileWarnings.length > 0 ? { warnings: fileWarnings } : {}),
           });
         }
         // Validasi Zod gagal → kirim ulang pesan error validasi ke model.

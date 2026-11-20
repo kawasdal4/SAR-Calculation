@@ -204,9 +204,42 @@ function parseLkpCoord(text: string): CaseTextFact<{ lat: number; lng: number; d
 }
 
 function parseWindLayers(text: string): CaseTextFact<Array<{ altitudeFt: number; altitudeLabel?: string; windDirFrom: number; windSpeedKts: number }>> | undefined {
-  const header = text.match(/altitude[\s\S]{0,60}?direction[\s\S]{0,60}?velocity/i);
-  if (!header || header.index === undefined) return undefined;
-  const block = text.slice(header.index + header[0].length, header.index + header[0].length + 1400);
+  // Header tabel angin BANYAK VARIAN di soal Basarnas: "ALTITUDE DIRECTION
+  // VELOCITY" (PK-TAL), "KETINGGIAN ALTITUDE / ARAH DIRECTON / KECEPATAN
+  // SPEED" (FULL EXERCISE — "DIRECTON" typo + SPEED, bukan VELOCITY), dan
+  // padanan Indonesia. Sebelumnya regex mentok ke direction+velocity persis
+  // sehingga tabel ini TIDAK PERNAH terbaca dan bacaan salah model (nilai
+  // angin karangan) dibiarkan masuk worksheet AWA tanpa jaring pengaman.
+  const header = text.match(
+    /(?:altitude|ketinggian)[\s\S]{0,80}?(?:direction|directon|arah|direct)[\s\S]{0,80}?(?:velocity|speed|kecepatan)/i,
+  );
+  const collected = collectWindLayerRows(
+    header && header.index !== undefined
+      ? text.slice(header.index + header[0].length, header.index + header[0].length + 1400)
+      : null,
+  );
+  if (collected.rows.length >= 2) {
+    return { value: collected.rows, source: snippet(text, header?.index ?? 0) };
+  }
+  // Fallback TANPA header: tabel soal kadang tanpa label kolom — bila ada
+  // ≥3 baris berurutan berpola "ketinggian arah kecepatan" yang alt-nya
+  // menaik, perlakukan sebagai tabel angin ketinggian.
+  if (!header) {
+    const loose = collectConsecutiveWindRows(text);
+    if (loose.rows.length >= 3) {
+      return { value: loose.rows, source: snippet(text, loose.startIndex ?? 0) };
+    }
+  }
+  return undefined;
+}
+
+interface WindRowCollection {
+  rows: Array<{ altitudeFt: number; altitudeLabel?: string; windDirFrom: number; windSpeedKts: number }>;
+  startIndex?: number;
+}
+
+function collectWindLayerRows(block: string | null): WindRowCollection {
+  if (!block) return { rows: [] };
   const rows: Array<{ altitudeFt: number; altitudeLabel?: string; windDirFrom: number; windSpeedKts: number }> = [];
   let misses = 0;
   for (const line of block.split(/\n/)) {
@@ -236,8 +269,54 @@ function parseWindLayers(text: string): CaseTextFact<Array<{ altitudeFt: number;
     rows.push({ altitudeFt, altitudeLabel, windDirFrom: dir, windSpeedKts: speed });
     if (rows.length >= 15) break;
   }
-  if (rows.length < 2) return undefined;
-  return { value: rows, source: snippet(text, header.index, 140) };
+  return { rows };
+}
+
+/** Fallback tanpa header: kumpulkan ≥3 baris berurutan berpola "ketinggian
+ *  arah kecepatan" (alt menaik) langsung dari teks penuh. Baris deret waktu
+ *  ("00.00 155⁰ / 12kts") otomatis gugur karena token pertamanya HH.MM. */
+function collectConsecutiveWindRows(text: string): WindRowCollection {
+  const rowRe = /^(surface|permukaan|\d{1,5}(?:[.,]\d{3})*)\s*(?:feet|ft)?\s+(\d{1,3})\s*[°º⁰*]?\s*\/?\s*(\d{1,3}(?:[.,]\d+)?)\s*(?:kts|kt)?\s*$/i;
+  const lines = text.split(/\n/);
+  let best: WindRowCollection = { rows: [] };
+  let current: WindRowCollection['rows'] = [];
+  let currentStart: number | undefined;
+  const flush = (): void => {
+    if (current.length > best.rows.length) best = { rows: current, startIndex: currentStart };
+    current = [];
+    currentStart = undefined;
+  };
+  for (let index = 0; index < lines.length; index += 1) {
+    const trimmed = lines[index].trim();
+    const match = trimmed ? trimmed.match(rowRe) : null;
+    if (!match) {
+      flush();
+      continue;
+    }
+    const altitudeToken = /surface|permukaan/i.test(match[1]) ? '0' : /^\d{1,3},\d{3}$/.test(match[1]) ? match[1].replace(',', '') : match[1];
+    const altitudeFt = toNumber(altitudeToken);
+    const dir = Number(match[2]);
+    const speed = toNumber(match[3]);
+    if (!Number.isFinite(altitudeFt) || !Number.isFinite(dir) || !Number.isFinite(speed)
+      || altitudeFt > 60000 || dir > 360 || speed > 200) {
+      flush();
+      continue;
+    }
+    if (current.length === 0) currentStart = index;
+    current.push({
+      altitudeFt,
+      altitudeLabel: match[1].trim(),
+      windDirFrom: dir,
+      windSpeedKts: speed,
+    });
+    if (current.length >= 15) break;
+  }
+  flush();
+  // Alt harus menaik unik — bukti tabel ketinggian, bukan kebetulan.
+  const rows = best.rows;
+  const ascending = rows.every((row, i) => i === 0 || row.altitudeFt > rows[i - 1].altitudeFt);
+  if (!ascending || rows.length < 3) return { rows: [] };
+  return best;
 }
 
 function parseSurfaceWindSeries(text: string): CaseTextFact<Array<{ obsTime: string; windDirFrom: number; windSpeedKts: number }>> | undefined {
@@ -626,23 +705,75 @@ export interface CaseEnrichResult {
   case: SarCaseSchema;
   /** Daftar field yang terisi oleh pass deterministik. */
   filled: Array<{ field: string; value: string; source: string }>;
+  /** Field yang nilainya DITIMPA teks soal — bacaan model salah (mis. tabel
+   *  angin altitude terbaca salah oleh model sehingga worksheet AWA terisi
+   *  nilai yang tidak ada di soal). Koreksi HANYA untuk field yang teksnya
+   *  bisa diparse deterministik penuh, dan selalu tercatat di sini. */
+  corrections: Array<{ field: string; from: string; to: string; source: string }>;
+}
+
+/** Semua nilai ketinggian BERLABEL di teks ("ketinggian 18000 feet",
+ *  "altitude 12000 ft", "FL200") — bukti eksplisit untuk validasi bacaan
+ *  model atas ketinggian insiden. */
+function labeledAltitudeValues(text: string): number[] {
+  const values: number[] = [];
+  for (const match of text.matchAll(/\b(?:altitude|ketinggian|alt)\b[^.\n]{0,40}?(\d{3,5})\s*(?:ft|feet)/gi)) {
+    const value = toNumber(match[1]);
+    if (Number.isFinite(value) && value >= 100 && value <= 60000) values.push(value);
+  }
+  for (const match of text.matchAll(/\bFL\s?(\d{2,3})\b/gi)) {
+    const value = Number(match[1]);
+    if (value >= 50 && value <= 600) values.push(value * 100);
+  }
+  return values;
+}
+
+/** Bandingkan dua set lapis angin (model vs teks) — sama bila tiap baris
+ *  model terdapat padanan altitude/dir/speed di teks (toleransi ±1°/±0,5 kt
+ *  untuk pembulatan) dan jumlahnya sama. */
+function windLayersMatch(model: Array<{ altitudeFt: number; windDirFrom: number; windSpeedKts: number }>, deterministic: Array<{ altitudeFt: number; windDirFrom: number; windSpeedKts: number }>): boolean {
+  if (model.length !== deterministic.length) return false;
+  const sortedDet = [...deterministic].sort((a, b) => a.altitudeFt - b.altitudeFt);
+  const sortedModel = [...model].sort((a, b) => a.altitudeFt - b.altitudeFt);
+  return sortedModel.every((row, index) => {
+    const reference = sortedDet[index];
+    return Math.abs(row.altitudeFt - reference.altitudeFt) <= 50
+      && Math.abs(row.windDirFrom - reference.windDirFrom) <= 1
+      && Math.abs(row.windSpeedKts - reference.windSpeedKts) <= 0.5;
+  });
 }
 
 /** Tipe satu entri SRU (array optional — akses [number] perlu NonNullable). */
 type SruEntry = NonNullable<SarCaseSchema['sru']>[number];
 
 /** Isi field kasus yang masih kosong dari fakta teks soal — TANPA menimpa
- *  nilai model. Setiap isian dicatat ke meta.fieldSources (VERIFIED). */
+ *  nilai model, KECUALI dua pengecualian terukur yang bacaan salahnya langsung
+ *  merusak worksheet (pengalaman FULL EXERCISE SRX48: tabel angin altitude
+ *  terbaca salah → AWA/ADW dan seluruh hilir salah):
+ *  1. `aeroDrift.windLayers` — tabel angin per ketinggian (sumber kolom
+ *     "Altitude interval (A)" di worksheet AWA). Bila bacaan model TIDAK
+ *     cocok dengan tabel di teks, teks soal menang.
+ *  2. `incident.altitudeFt`/`flightLevelFt` — ketinggian distress/target AWA.
+ *     Nilai model dipertahankan HANYA bila didukung salah satu ketinggian
+ *     berlabel di teks; bila tidak, dipakai nilai dari teks.
+ *  Setiap timpaan tercatat di `corrections` + meta.fieldSources (VERIFIED). */
 export function enrichCaseFromSourceText(sarCase: SarCaseSchema, sourceText: string): CaseEnrichResult {
   const facts = extractCaseFacts(sourceText);
   const working = JSON.parse(JSON.stringify(sarCase)) as SarCaseSchema;
   const filled: CaseEnrichResult['filled'] = [];
+  const corrections: CaseEnrichResult['corrections'] = [];
   const sources = [...(working.meta?.fieldSources ?? [])];
   const assumptions = [...(working.meta?.assumptions ?? [])];
 
   const record = (field: string, value: string, source: string): void => {
     filled.push({ field, value, source });
     sources.push({ field, source: `Ekstraksi deterministik teks soal: ${source}`, status: 'VERIFIED' });
+  };
+
+  const correct = (field: string, from: string, to: string, source: string): void => {
+    corrections.push({ field, from, to, source });
+    filled.push({ field, value: to, source });
+    sources.push({ field, source: `Koreksi deterministik teks soal (nilai model "${from}" tidak didukung teks): ${source}`, status: 'VERIFIED' });
   };
 
   // ADW
@@ -671,10 +802,26 @@ export function enrichCaseFromSourceText(sarCase: SarCaseSchema, sourceText: str
     record('aeroDrift.deviation', `${facts.deviationDeg.value.deg}° ${facts.deviationDeg.value.dir}`, facts.deviationDeg.source);
     aeroChanged = true;
   }
-  if (facts.windLayers && (aero.windLayers === undefined || aero.windLayers.length === 0)) {
-    aero.windLayers = facts.windLayers.value;
-    record('aeroDrift.windLayers', `${facts.windLayers.value.length} baris`, facts.windLayers.source);
-    aeroChanged = true;
+  if (facts.windLayers) {
+    const deterministic = facts.windLayers.value;
+    const model = aero.windLayers ?? [];
+    if (model.length === 0) {
+      aero.windLayers = deterministic;
+      record('aeroDrift.windLayers', `${deterministic.length} baris`, facts.windLayers.source);
+      aeroChanged = true;
+    } else if (!windLayersMatch(model, deterministic)) {
+      // Bacaan model TIDAK cocok dengan tabel di teks soal — teks menang.
+      const format = (rows: typeof deterministic): string =>
+        rows.map((row) => `${row.altitudeFt}ft ${row.windDirFrom}°/${row.windSpeedKts}kt`).join(', ');
+      correct(
+        'aeroDrift.windLayers',
+        `${model.length} baris: ${format(model.slice(0, 4))}${model.length > 4 ? '…' : ''}`,
+        `${deterministic.length} baris: ${format(deterministic.slice(0, 4))}${deterministic.length > 4 ? '…' : ''}`,
+        facts.windLayers.source,
+      );
+      aero.windLayers = deterministic;
+      aeroChanged = true;
+    }
   }
   if (aeroChanged) working.aeroDrift = aero;
 
@@ -694,6 +841,35 @@ export function enrichCaseFromSourceText(sarCase: SarCaseSchema, sourceText: str
   } else if (facts.altitudeFt && incident.altitudeFt === undefined && incident.flightLevelFt === undefined) {
     incident.altitudeFt = facts.altitudeFt.value;
     record('incident.altitudeFt', String(facts.altitudeFt.value), facts.altitudeFt.source);
+    incidentChanged = true;
+  }
+  // Ketinggian insiden — nilai model dipertahankan bila didukung ketinggian
+  // berlabel di teks; bila tidak (bacaan salah tabel/FL), koreksi dari teks.
+  const labeledAltitudes = labeledAltitudeValues(sourceText);
+  const modelAltSupported = labeledAltitudes.some((value) => {
+    if (incident.flightLevelFt !== undefined && Math.abs(value - incident.flightLevelFt * 100) <= 50) return true;
+    if (incident.altitudeFt !== undefined && Math.abs(value - incident.altitudeFt) <= 50) return true;
+    return false;
+  });
+  if (!modelAltSupported && (facts.flightLevelFt || facts.altitudeFt)) {
+    const fact = (facts.flightLevelFt ?? facts.altitudeFt)!;
+    const fromParts: string[] = [];
+    if (incident.flightLevelFt !== undefined) fromParts.push(`FL${incident.flightLevelFt}`);
+    if (incident.altitudeFt !== undefined) fromParts.push(`${incident.altitudeFt} ft`);
+    const isFlightLevel = fact === facts.flightLevelFt;
+    if (isFlightLevel) {
+      incident.flightLevelFt = fact.value;
+      incident.altitudeFt = undefined;
+    } else {
+      incident.altitudeFt = fact.value;
+      incident.flightLevelFt = undefined;
+    }
+    correct(
+      isFlightLevel ? 'incident.flightLevelFt' : 'incident.altitudeFt',
+      fromParts.join(' / ') || '(kosong)',
+      isFlightLevel ? `FL${fact.value}` : `${fact.value} ft`,
+      fact.source,
+    );
     incidentChanged = true;
   }
   if (incidentChanged) working.incident = incident;
@@ -776,5 +952,14 @@ export function enrichCaseFromSourceText(sarCase: SarCaseSchema, sourceText: str
   if (filled.length > 0) {
     working.meta = { ...working.meta, fieldSources: sources, assumptions };
   }
-  return { case: working, filled };
+  return { case: working, filled, corrections };
+}
+
+/** Anchor deterministik untuk prompt chat AI: tabel angin per ketinggian dari
+ *  teks soal (hasil parse regex, bukan bacaan visual model). Dipakai route
+ *  /api/chat agar argumen set_awa_case memakai nilai soal persis. */
+export function formatWindLayersAnchor(rows: Array<{ altitudeFt: number; windDirFrom: number; windSpeedKts: number }>): string {
+  return rows
+    .map((row) => `- ${row.altitudeFt === 0 ? 'Surface (0 ft)' : `${row.altitudeFt} ft`}: ${row.windDirFrom}°T / ${row.windSpeedKts} kts`)
+    .join('\n');
 }

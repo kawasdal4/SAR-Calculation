@@ -97,6 +97,7 @@ ATURAN KASUS INTERCEPT:
 
 JIKA PENGGUNA MELAMPIRKAN FILE/GAMBAR:
 - Bacalah isi dokumen atau amati gambar dengan teliti.
+- JANGKAR DETERMINISTIK: bila input memuat bagian "📎 JANGKAR DETERMINISTIK" atau "📄 TEKS LENGKAP SOAL", nilai di bagian itu adalah hasil parse TEKS soal dan MENANG atas bacaan visual PDF — salin angkanya APA ADANYA ke tool worksheet (khususnya set_awa_case: tabel angin per ketinggian & ketinggian insiden). DILARANG mengganti dengan nilai hasil bacaan visual/menebak.
 - Langkah pertama: simpulkan worksheet mana saja yang harus dipakai untuk penghitungan yang diminta soal, lalu sajikan sesuai FORMAT WAJIB di atas.
 - Ekstrak data operasional: Distress Time, Datum Time, Data Angin BMKG (waktu, arah °T, kecepatan kts), ketinggian, LKP, jenis musibah.
 - Pilih setiap worksheet berdasarkan data dan tujuan kasus, bukan berdasarkan ada/tidaknya lampiran saja.
@@ -1170,6 +1171,7 @@ ${describeDependencyGraph()}`;
     ];
 
     const input: Array<Record<string, string>> = [];
+    const pdfBase64Parts: string[] = []; // jangkar deterministik (teks soal)
 
     for (const file of incomingFiles) {
       try {
@@ -1181,11 +1183,55 @@ ${describeDependencyGraph()}`;
             data: processed.inlineData.data,
             mime_type: mimeType,
           });
+          if (mimeType === 'application/pdf') pdfBase64Parts.push(processed.inlineData.data);
         } else if (processed.text) {
           input.push({ type: 'text', text: `Isi lampiran ${file.name}:\n${processed.text}` });
         }
       } catch (fErr) {
         console.warn(`Error processing file ${file.name}:`, fErr);
+      }
+    }
+
+    // ── JANGKAR DETERMINISTIK (pengalaman FULL EXERCISE SRX48: tabel angin
+    // per ketinggian terbaca salah oleh model dari tampilan visual PDF —
+    // worksheet AWA terisi nilai angin yang tidak ada di soal). Teks PDF
+    // diekstrak dan tabel angin/ketinggian hasil parse regex ditempel sebagai
+    // sumber kebenaran; model WAJIB memakai nilai ini di set_awa_case dll.
+    if (pdfBase64Parts.length > 0) {
+      try {
+        const { extractPdfTextFromBase64 } = await import('@/lib/ai/pdfText');
+        const { extractCaseFacts, formatWindLayersAnchor } = await import('@/lib/ai/caseTextEnrich');
+        const pdfText = (await Promise.all(pdfBase64Parts.map((data) => extractPdfTextFromBase64(data))))
+          .join('\n\n').replace(/\r/g, '').slice(0, 30000);
+        if (pdfText.trim()) {
+          const facts = extractCaseFacts(pdfText);
+          const anchorSections: string[] = [];
+          if (facts.windLayers?.value.length) {
+            anchorSections.push(
+              'TABEL ANGIN PER KETINGGIAN (hasil parse teks soal — WAJIB dipakai PERSIS di set_awa_case; DILARANG mengganti/mengarang nilai):\n'
+              + formatWindLayersAnchor(facts.windLayers.value),
+            );
+          }
+          if (facts.altitudeFt || facts.flightLevelFt) {
+            const alt = facts.flightLevelFt
+              ? `FL${facts.flightLevelFt.value} (= ${facts.flightLevelFt.value * 100} ft)`
+              : `${facts.altitudeFt!.value} ft`;
+            anchorSections.push(`KETINGGIAN INSIDEN (hasil parse teks soal — WAJIB dipakai di set_awa_case/set_aero_drift_case): ${alt}. Kutipan: "${facts.flightLevelFt?.source ?? facts.altitudeFt?.source ?? ''}"`);
+          }
+          if (anchorSections.length > 0) {
+            input.push({
+              type: 'text',
+              text: '📎 JANGKAR DETERMINISTIK dari teks PDF lampiran — angka di bagian ini adalah HASIL PARSE TEKS SOAL dan MENANG atas bacaan visual:\n\n'
+                + anchorSections.join('\n\n'),
+            });
+          }
+          input.push({
+            type: 'text',
+            text: `📄 TEKS LENGKAP SOAL (ekstraksi teks PDF — angka di teks ini adalah sumber kebenaran; tabel/kalimat di sini MENANG atas bacaan visual):\n${pdfText}`,
+          });
+        }
+      } catch (anchorErr) {
+        console.warn('Jangkar deterministik PDF gagal (dilanjutkan tanpa jangkar):', anchorErr);
       }
     }
 
