@@ -642,8 +642,8 @@ export default function ScenarioGeneratorPanel({ onApplyCaseSteps }: ScenarioGen
                           <table className="w-full border-collapse text-[12px]">
                             <thead>
                               <tr>
-                                {block.columns.map((c) => (
-                                  <th key={c} className="border border-slate-400 px-2 py-1 bg-slate-100 font-bold">{c}</th>
+                                {block.columns.map((c, ci) => (
+                                  <th key={`${ci}-${c}`} className="border border-slate-400 px-2 py-1 bg-slate-100 font-bold">{c}</th>
                                 ))}
                               </tr>
                             </thead>

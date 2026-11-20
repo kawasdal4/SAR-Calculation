@@ -1729,6 +1729,9 @@ export default function Home() {
           case 'ws2':
             handleApplyWS2(step.payload as Worksheet2InitialState);
             break;
+          case 'ws3':
+            handleApplyWS3(step.payload as Worksheet3InitialState);
+            break;
           case 'ws8':
             handleApplyWS8(step.payload as Worksheet8InitialState);
             break;
@@ -1749,7 +1752,7 @@ export default function Home() {
       toast.success(`Kasus ekstraksi diterapkan: ${applied.length} langkah (${[...new Set(steps.filter((s) => applied.includes(s.id)).map((s) => s.worksheet))].join(', ')}).`);
     }
     return { applied, failed };
-  }, [handleApplyASW, handleApplyAWA, handleApplyAeroDrift, handleApplyDatum, handleApplyWS2, handleApplyWS8, handleApplyAssetAllocation]);
+  }, [handleApplyASW, handleApplyAWA, handleApplyAeroDrift, handleApplyDatum, handleApplyWS2, handleApplyWS3, handleApplyWS8, handleApplyAssetAllocation]);
 
 
   useEffect(() => {
@@ -2779,6 +2782,7 @@ export default function Home() {
                 onAssetsChange={setAssets}
                 ws2Initial={activeWs2Data}
                 ws3Initial={activeWs3Data}
+                ws4AreaNm2={ws4State?.searchAreaNm2 ?? null}
                 ws8Initial={activeWs8Data}
                 /* Data live untuk lembar AWA/ASW/ADW di summary view + deteksi
                    "worksheet terpakai" agar cetak keseluruhan melewatkan lembar kosong. */
@@ -3366,6 +3370,7 @@ export default function Home() {
                     searchResults={searchResults}
                     E={datumResults?.E ?? 5.0}
                     initialState={sheet.data}
+                    ws4AreaNm2={ws4State?.searchAreaNm2 ?? null}
                     onTrackSpacingChange={(result) => handleWS3TrackSpacingChange(sheet.key, result)}
                     onStateChange={(data) => handleWS3SheetData(sheet.key, data)}
                   />

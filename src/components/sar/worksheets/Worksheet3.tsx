@@ -46,6 +46,10 @@ interface Worksheet3Props {
   E?: number;
   readOnly?: boolean;
   initialState?: Worksheet3InitialState;
+  /** Nilai A hasil hitung Worksheet 4 (Search Radius — darat): total trapesium
+   *  antar fix / lingkaran possibility (NM²). Sumber UTAMA nilai A lembar ini
+   *  (sinkron otomatis dari WS 4); fallback: Ao Worksheet 1 lalu input manual. */
+  ws4AreaNm2?: number | null;
   onTrackSpacingChange?: (result: { platform: LandSearchPlatform | null; heights: readonly number[]; spacingByHeight: Array<number | null> }) => void;
   /** Mirror seluruh input lembar ke induk (sheet.data) — dasar save case
    *  lengkap & recalculate otomatis antar worksheet. */
@@ -66,21 +70,42 @@ function asVegetation(value?: Worksheet3InitialState['vegetationType']): LandVeg
   return null;
 }
 
-export default function Worksheet3({ searchResults, readOnly = false, initialState, onTrackSpacingChange, onStateChange }: Worksheet3Props) {
+/** Koersi angka aman: nilai mirror/AI/JSON lama bisa berupa string — tanpa ini
+ *  render crash (mis. `x.toFixed` pada string). Selalu angka finite (default 0). */
+function asNumber(value: unknown, fallback = 0): number {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+/** Search Number valid Tabel/Figure I-12 = 1..5. Di luar rentang (0, 6,
+ *  string aneh) → null: POD tidak dibaca, TIDAK crash. */
+function asSearchNumber(value: unknown): SearchNumber | null {
+  const n = asNumber(value, NaN);
+  return Number.isInteger(n) && n >= 1 && n <= 5 ? (n as SearchNumber) : null;
+}
+
+export default function Worksheet3({ searchResults, readOnly = false, initialState, ws4AreaNm2, onTrackSpacingChange, onStateChange }: Worksheet3Props) {
   const [caseTitle, setCaseTitle] = useState(initialState?.caseTitle ?? '-');
   const [plannerName, setPlannerName] = useState('-');
   const [searchDate, setSearchDate] = useState('-');
   const [searchObject, setSearchObject] = useState<LandSearchTarget | null>(asLandTarget(initialState?.searchObject));
-  const [visibilityKm, setVisibilityKm] = useState(initialState?.visibilityKm ?? 0);
+  const [visibilityKm, setVisibilityKm] = useState(asNumber(initialState?.visibilityKm));
   const [vegetationType, setVegetationType] = useState<LandVegetation | null>(asVegetation(initialState?.vegetationType));
   const [isFatigue, setIsFatigue] = useState<boolean | null>(initialState?.isFatigue ?? null);
   const [searchPlatform, setSearchPlatform] = useState<LandSearchPlatform | null>(initialState?.searchPlatform ?? null);
-  const [searchNumber, setSearchNumber] = useState<SearchNumber | null>(initialState?.searchNumber ?? null);
-  const [searchSpeed, setSearchSpeed] = useState(initialState?.searchSpeedKts ?? initialState?.searchTas ?? 0);
-  const [hoursAvailable, setHoursAvailable] = useState(initialState?.hoursAvailable ?? 0);
+  const [searchNumber, setSearchNumber] = useState<SearchNumber | null>(asSearchNumber(initialState?.searchNumber));
+  const [searchSpeed, setSearchSpeed] = useState(asNumber(initialState?.searchSpeedKts ?? initialState?.searchTas));
+  const [hoursAvailable, setHoursAvailable] = useState(asNumber(initialState?.hoursAvailable));
   // Override nilai tabel appendix (klik nilai → panel verifikasi → Terapkan).
-  const [fvOverride, setFvOverride] = useState<number | undefined>(initialState?.fvOverride);
-  const [wuOverrides, setWuOverrides] = useState<Record<string, number>>(initialState?.wuOverrides ?? {});
+  const [fvOverride, setFvOverride] = useState<number | undefined>(() => {
+    const n = initialState?.fvOverride;
+    return n === undefined ? undefined : asNumber(n);
+  });
+  const [wuOverrides, setWuOverrides] = useState<Record<string, number>>(() => {
+    const entries = Object.entries(initialState?.wuOverrides ?? {});
+    return entries.length === 0 ? {} : Object.fromEntries(entries.map(([k, v]) => [k, asNumber(v)]));
+  });
 
   const heights = LAND_SEARCH_HEIGHTS;
   const fvTable = lookupLandFv(searchObject, vegetationType);
@@ -127,10 +152,12 @@ export default function Worksheet3({ searchResults, readOnly = false, initialSta
   ]);
   const coverages = wFactors.map((width, index) => width !== null && trackSpacings[index] ? width / trackSpacings[index]! : null);
   const pods = coverages.map((coverage) => coverage !== null && searchNumber !== null ? readFigureI12(coverage, searchNumber) : null);
-  const hasSearchArea = (searchResults?.Ao ?? initialState?.searchAreaNm2 ?? 0) > 0;
-  const searchAreaA = searchResults?.Ao !== undefined && searchResults.Ao !== null
-    ? searchResults.Ao
-    : initialState?.searchAreaNm2 ?? 0;
+  // Nilai A lembar darat — PRIORITAS: hasil hitung Worksheet 4 (Search Radius,
+  // sinkron otomatis via mirror) → Ao Worksheet 1 → input manual lembar.
+  const ws4Area = typeof ws4AreaNm2 === 'number' && Number.isFinite(ws4AreaNm2) && ws4AreaNm2 > 0 ? ws4AreaNm2 : null;
+  const searchAreaA = ws4Area
+    ?? (searchResults?.Ao !== undefined && searchResults.Ao !== null ? asNumber(searchResults.Ao) : asNumber(initialState?.searchAreaNm2));
+  const hasSearchArea = searchAreaA > 0;
   const hoursRequired = trackSpacings.map((spacing) => spacing && searchSpeed > 0 && hasSearchArea
     ? Number((searchAreaA / (searchSpeed * spacing)).toFixed(1))
     : null);
@@ -292,7 +319,7 @@ export default function Worksheet3({ searchResults, readOnly = false, initialSta
                 }}
                 title="Klik untuk lihat Figure I-12 (POD) di Appendix"
               >{pod === null ? (hasBaseInputs ? '—' : '0') : pod.toFixed(2)}</TableValue>{pod === null ? '' : '%'}</td>)}</tr>
-              <tr><td className="py-1.5 px-3 border-r border-slate-300">Search Area A (from Worksheet 1) — NM²</td>{heights.map((height) => <td key={height} className="py-1.5 px-2 text-center border-r border-slate-300 last:border-r-0 font-mono font-bold text-slate-900">{hasSearchArea ? searchAreaA.toFixed(2) : hasBaseInputs ? '—' : 0}</td>)}</tr>
+              <tr><td className="py-1.5 px-3 border-r border-slate-300">Search Area A (from Worksheet 4) — NM²</td>{heights.map((height) => <td key={height} className="py-1.5 px-2 text-center border-r border-slate-300 last:border-r-0 font-mono font-bold text-slate-900">{hasSearchArea ? searchAreaA.toFixed(2) : hasBaseInputs ? '—' : 0}</td>)}</tr>
               <tr className="bg-slate-100/70 border-b-2 border-slate-900"><td className="py-1.5 px-3 font-bold border-r border-slate-300"><div>Search Hours T Required</div><div className="text-[10px] text-slate-600 font-mono">T = A/(V × S)</div></td>{hoursRequired.map((hours, i) => <td key={heights[i]} className="py-1.5 px-2 text-center border-r border-slate-300 last:border-r-0 font-mono font-bold text-blue-900">{hours === null ? (hasBaseInputs ? '—' : '0') : hours.toFixed(1)}{hours !== null && <span className="ml-1 text-[10px] font-normal text-slate-600">hrs</span>}</td>)}</tr>
             </tbody>
           </table>

@@ -609,7 +609,9 @@ export function renderCaseNaskah(
     });
   }
   if ((sarCase.sru ?? []).length > 0) {
-    const columns = ['SRU', ...(sarCase.sru ?? []).map((s) => SRU_KIND_LABEL[s.kind])];
+    // Header kolom dibuat unik (jenis + call-sign): komposisi SRU sering
+    // memuat 2 helikopter — header duplikat merusak tabel pratinjau.
+    const columns = ['SRU', ...(sarCase.sru ?? []).map((s) => `${SRU_KIND_LABEL[s.kind]} (${s.callsign})`)];
     const cell = (sru: CaseSru, value: string) => value; // placeholder agar tipe jelas
     void cell;
     const rowDefs: Array<{ label: string; valueOf: (sru: CaseSru) => string | undefined }> = [

@@ -849,7 +849,7 @@ export function mergeUserFieldValue(sarCase: SarCaseSchema, path: string, rawVal
 
 // ── Apply plan: kasus → langkah apply handler (SATU mekanisme) ──────────────
 
-export type CaseApplyWorksheet = 'asw' | 'awa' | 'aero' | 'datum' | 'ws2' | 'ws8' | 'assets';
+export type CaseApplyWorksheet = 'asw' | 'awa' | 'aero' | 'datum' | 'ws2' | 'ws3' | 'ws8' | 'assets';
 
 export interface CaseApplyStep {
   id: string;
@@ -868,6 +868,17 @@ export interface CaseApplyPlan {
 }
 
 const W2_PLATFORMS = new Set(['fixed-wing', 'helicopter']);
+const WS3_OBJECTS = new Set(['person', 'vehicle', 'aircraft-under-5700', 'aircraft-over-5700']);
+
+/** Gate ringan payload lembar WS 3 (darat): platform + objek darat wajib ada;
+ *  visibility/vegetasi/fatigue = pilihan planner yang boleh menyusul (kontrak
+ *  dua tingkat yang sama dengan applyFunctionCalls). */
+function ws3PayloadReady(payload: Record<string, unknown>): boolean {
+  const platform = payload['searchPlatform'];
+  const object = payload['searchObject'];
+  return typeof platform === 'string' && W2_PLATFORMS.has(platform)
+    && typeof object === 'string' && WS3_OBJECTS.has(object);
+}
 
 /** Gate ringan payload lembar WS 2 (fakta inti; pilihan planner boleh parsial —
  *  kontrak dua tingkat yang sama dengan applyFunctionCalls). */
@@ -908,6 +919,8 @@ interface CaseApplySources {
   lkp?: { lat: number; lng: number };
   ws2Sheets: Array<{ sruName?: string; data: Record<string, unknown> }>;
   ws8Sheets: Array<{ sruName?: string; data: Record<string, unknown> }>;
+  /** Lembar pencarian darat (WS 3) untuk kasus darat (1 SRU udara = 1 lembar). */
+  ws3Sheets: Array<{ sruName?: string; data: Record<string, unknown> }>;
   assets: Array<Record<string, unknown>>;
 }
 
@@ -932,6 +945,7 @@ export function buildApplyPlan(
     lkp: seeds.lkp,
     ws2Sheets: seeds.ws2Sheets as unknown as Array<{ sruName?: string; data: Record<string, unknown> }>,
     ws8Sheets: seeds.ws8Sheets as unknown as Array<{ sruName?: string; data: Record<string, unknown> }>,
+    ws3Sheets: seeds.ws3Sheets as unknown as Array<{ sruName?: string; data: Record<string, unknown> }>,
     assets: seeds.assets as unknown as Array<Record<string, unknown>>,
   };
 
@@ -1011,6 +1025,21 @@ export function buildApplyPlan(
       });
     } else {
       skipped.push({ worksheet: 'ws2', reason: `Lembar WS 2 ${sheet.sruName ?? ''} belum siap (platform/objek pencarian kurang).` });
+    }
+  }
+
+  // 5b. Lembar WS 3 (darat) per SRU udara — kasus darat (analisa darat/laut).
+  for (const sheet of sources.ws3Sheets) {
+    const ready = ws3PayloadReady(sheet.data);
+    if (ready) {
+      steps.push({
+        id: `ws3:${sheet.sruName ?? sheet.data['sruName'] ?? 'SRU'}`,
+        worksheet: 'ws3',
+        label: `WS 3 (darat) — ${sheet.sruName ?? sheet.data['sruName'] ?? 'SRU'}`,
+        payload: { ...sheet.data },
+      });
+    } else {
+      skipped.push({ worksheet: 'ws3', reason: `Lembar WS 3 ${sheet.sruName ?? ''} belum siap (platform/objek pencarian darat kurang).` });
     }
   }
 

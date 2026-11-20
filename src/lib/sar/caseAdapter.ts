@@ -100,11 +100,11 @@ export interface CaseWorksheetSeeds {
     fs?: number;
   };
   lkp?: LatLng;
-  /** 1 SRU udara = 1 lembar WS 2. */
+  /** 1 SRU udara = 1 lembar WS 2 (kasus laut). */
   ws2Sheets: Array<{ sruName?: string; data: Record<string, unknown> }>;
   /** 1 SRU laut = 1 lembar WS 8. */
   ws8Sheets: Array<{ sruName?: string; data: Record<string, unknown> }>;
-  /** Lembar pencarian darat (WS 3) — kosong untuk kasus laut. */
+  /** Lembar pencarian darat (WS 3) — kasus darat: 1 SRU udara = 1 lembar WS 3. */
   ws3Sheets: Array<{ sruName?: string; data: Record<string, unknown> }>;
   /** Aset Alokasi (1 alut = 1 unit); sweepWidthNm=0 diisi pipeline dari S. */
   assets: SruAssetInput[];
@@ -364,7 +364,7 @@ export function buildCaseWorksheetSeeds(
     }
   }
 
-  // ── Lembar WS 2 (udara) / WS 8 (laut) per SRU ────────────────────────────
+  // ── Lembar WS 2 (udara-laut) / WS 3 (udara-darat) / WS 8 (laut) per SRU ──
   const raftCapacity = incident.lifeRaftCapacityPerRaft ?? incident.pob;
   const fatigue: 'Yes' | 'No' = planner.fatigue ?? 'No';
   if (planner.fatigue === undefined) {
@@ -375,12 +375,49 @@ export function buildCaseWorksheetSeeds(
     assumptions.push({ field: 'ws2.selectedHeight', value: '1000', reason: 'Ketinggian pencarian WS 2 tidak disebut — default konvensi app 1000 ft.' });
   }
   const searchNumber: SearchNumber = ((planner.searchNumber ?? sarCase.search?.searchNumber ?? 1) as SearchNumber);
+  // Analisa darat/laut: insiden darat (pesawat jatuh di darat / orang hilang di
+  // darat) + SRU udara → Worksheet 3 (Land), BUKAN WS 2 yang khusus laut.
+  const isLandCase = incident.type === 'aircraft-land-crash' || incident.type === 'missing-person-land';
+  const landTarget: 'person' | 'aircraft-under-5700' | 'aircraft-over-5700' = incident.type === 'missing-person-land'
+    ? 'person'
+    : 'aircraft-under-5700';
+  const landVisibilityKm = sarCase.search?.visibilityKm;
+  const landVisibility = typeof landVisibilityKm === 'number' && [5, 10, 20, 30, 40].includes(landVisibilityKm)
+    ? landVisibilityKm
+    : undefined;
+  if (isLandCase && landVisibility === undefined) {
+    assumptions.push({ field: 'ws3.visibilityKm', reason: 'Visibility pencarian darat tidak disebut / di luar Tabel I-9 (5-40 km) — lembar belum siap dihitung.' });
+  }
+  const landVegetation = sarCase.search?.terrainVegetation;
+  if (isLandCase && landVegetation === undefined) {
+    assumptions.push({ field: 'ws3.vegetationType', reason: 'Vegetasi Tabel I-10 tidak disebut soal — lembar belum siap dihitung (MISSING).' });
+  }
   for (const sru of sarCase.sru ?? []) {
     const caseWind = sru.windSpeedKts !== undefined ? {
       caseWindDirFrom: sru.windDirFrom,
       caseWindSpeed: sru.windSpeedKts,
     } : {};
     if (sru.kind === 'helicopter' || sru.kind === 'fixed-wing') {
+      // Kasus darat: SRU udara (fixed-wing/helikopter) diarahkan ke Worksheet 3
+      // (Land) — sesuai panduan pencarian darat Tabel I-9/I-10.
+      if (isLandCase) {
+        seeds.ws3Sheets.push({
+          sruName: sru.callsign,
+          data: {
+            caseTitle: sarCase.caseTitle,
+            sruName: sru.callsign,
+            searchPlatform: sru.kind === 'helicopter' ? 'helicopter' : 'fixed-wing',
+            searchObject: landTarget,
+            visibilityKm: landVisibility,
+            vegetationType: landVegetation,
+            isFatigue: fatigue === 'Yes',
+            searchNumber,
+            searchSpeedKts: sru.tasSearchKts ?? sru.tasMaxKts,
+            hoursAvailable: sru.sheet?.hoursAvailable,
+          },
+        });
+        continue;
+      }
       const visibilityIndex = w2VisibilityIndexForKm(sru.visibilityKm);
       const target = incident.type === 'person-overboard'
         ? 'piw' as W2Target

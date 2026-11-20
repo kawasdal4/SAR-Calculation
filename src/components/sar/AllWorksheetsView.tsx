@@ -56,6 +56,8 @@ interface AllWorksheetsViewProps {
    *  hasil apply AI hanya terlihat di AWA/ASW/ADW sedangkan WS 2/3/8 kosong. */
   ws2Initial?: Worksheet2InitialState | null;
   ws3Initial?: Worksheet3InitialState | null;
+  /** Nilai A hasil hitung Worksheet 4 (NM²) — sumber A salinan read-only WS 3. */
+  ws4AreaNm2?: number | null;
   ws8Initial?: Worksheet8InitialState | null;
   /** true bila ADW sudah menghasilkan LKP (worksheet terpakai). */
   aeroHasResults?: boolean;
@@ -89,6 +91,7 @@ export default function AllWorksheetsView({
   aeroState = null,
   ws2Initial = null,
   ws3Initial = null,
+  ws4AreaNm2 = null,
   ws8Initial = null,
   aeroHasResults = false,
   ws1Measured = null,
@@ -364,6 +367,7 @@ export default function AllWorksheetsView({
             searchResults={searchResults}
             E={datumResults?.E ?? 5.0}
             initialState={ws3Initial ?? undefined}
+            ws4AreaNm2={ws4AreaNm2}
             readOnly
           />
         </section>

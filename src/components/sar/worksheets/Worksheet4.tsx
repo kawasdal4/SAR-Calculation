@@ -1,7 +1,7 @@
 'use client';
 
 import { printActiveWorksheetFit } from '@/lib/sar/printFit';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { Card, CardContent } from '@/components/ui/card';
 import type { SearchPlanResults } from '@/components/sar/SearchPlanWorksheet';
@@ -77,6 +77,10 @@ export interface Worksheet4InitialState {
   yNavError?: number;
   /** fs pencarian ke-1..5 sesuai panduan: 1.1 / 1.8 / 2.0 / 2.3 / 2.6. Nilai lama dipetakan otomatis. */
   safetyFactor?: number;
+  /** Hasil hitung: luas Search Area A (NM²) — total trapesium antar fix / luas
+   *  lingkaran possibility. Dilaporkan ke induk tiap mirror (bukan input).
+   *  Dipakai Worksheet 3 (Land) sebagai nilai A lembar darat. */
+  searchAreaNm2?: number;
 }
 
 interface Worksheet4Props {
@@ -174,37 +178,6 @@ export default function Worksheet4({
     : null);
   const activeMappedPoints = mappedPoints.filter((item) => item !== null) as Array<{ point: LatLng; index: number; name: string }>;
 
-  // Mirror seluruh input ke induk tiap perubahan (deps primitif → tanpa loop).
-  // trList hasil hitungan ikut dilaporkan demi kompatibilitas skema lama;
-  // remount memakai initialTrNm + routeLegDistancesNm sebagai sumber kebenaran.
-  useEffect(() => {
-    onStateChange?.({
-      caseTitle,
-      searchDate,
-      callsign,
-      searchNo,
-      commenceUtc,
-      latitude,
-      longitude,
-      distressTimeUtc,
-      trStartMode,
-      initialTrNm,
-      elapsedMinutesSinceLastFix,
-      targetTasKts,
-      routeLegDistancesNm,
-      routePoints,
-      trList,
-      fixErrors,
-      targetNavigationType: targetNavigationType ?? undefined,
-      yNavError,
-      safetyFactor,
-    });
-  }, [
-    onStateChange, caseTitle, searchDate, callsign, searchNo, commenceUtc,
-    latitude, longitude, distressTimeUtc, trStartMode, initialTrNm,
-    elapsedMinutesSinceLastFix, targetTasKts, routeLegDistancesNm, routePoints,
-    trList, fixErrors, targetNavigationType, yNavError, safetyFactor,
-  ]);
   const mapSpanNm = activeMappedPoints.reduce((maxDistance, item, index) => Math.max(
     maxDistance,
     ...activeMappedPoints.slice(index + 1).map((next) => distanceNm(item.point, next.point)),
@@ -263,6 +236,50 @@ export default function Worksheet4({
   const totalSearchAreaSqNm = singlePointIndex !== null
     ? possibilityCircleAreaSqNm(roundedRValues[singlePointIndex])
     : legGeometries.reduce((sum, leg) => sum + (leg.trap.valid ? leg.trap.areaSqNm : 0), 0);
+
+  // Mirror seluruh input ke induk tiap perubahan (deps primitif → tanpa loop).
+  // trList hasil hitungan ikut dilaporkan demi kompatibilitas skema lama;
+  // remount memakai initialTrNm + routeLegDistancesNm sebagai sumber kebenaran.
+  // searchAreaNm2 = hasil hitung Search Area A (NM²) — sumber nilai A
+  // Worksheet 3 (Land); primitive number → effect hanya berjalan saat A berubah.
+  // GUARD signature: deps array (routeLegDistancesNm/trList/fixErrors) beridentitas
+  // baru tiap render, jadi effect bisa menyala tiap render — payload yang SAMA
+  // tidak boleh dikirim dua kali (setState → re-render → loop React #185).
+  const lastMirrorSignatureRef = useRef('');
+  useEffect(() => {
+    const payload = {
+      caseTitle,
+      searchDate,
+      callsign,
+      searchNo,
+      commenceUtc,
+      latitude,
+      longitude,
+      distressTimeUtc,
+      trStartMode,
+      initialTrNm,
+      elapsedMinutesSinceLastFix,
+      targetTasKts,
+      routeLegDistancesNm,
+      routePoints,
+      trList,
+      fixErrors,
+      targetNavigationType: targetNavigationType ?? undefined,
+      yNavError,
+      safetyFactor,
+      searchAreaNm2: totalSearchAreaSqNm > 0 ? Number(totalSearchAreaSqNm.toFixed(2)) : undefined,
+    };
+    const signature = JSON.stringify(payload);
+    if (signature === lastMirrorSignatureRef.current) return;
+    lastMirrorSignatureRef.current = signature;
+    onStateChange?.(payload);
+  }, [
+    onStateChange, caseTitle, searchDate, callsign, searchNo, commenceUtc,
+    latitude, longitude, distressTimeUtc, trStartMode, initialTrNm,
+    elapsedMinutesSinceLastFix, targetTasKts, routeLegDistancesNm, routePoints,
+    trList, fixErrors, targetNavigationType, yNavError, safetyFactor,
+    totalSearchAreaSqNm,
+  ]);
   const ws4Polygons: MapPolygon[] = (() => {
     const polygons: MapPolygon[] = [];
     for (const leg of legGeometries) {

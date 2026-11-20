@@ -341,7 +341,7 @@ const SchemaTypeLiteral = {
 /** Description tool `set_fields` untuk functionDeclarations (di-generate dari
  *  registry agar tidak ada nama karangan). */
 export function setFieldsToolDescription(): string {
-  return `Isi beberapa field worksheet/form sekaligus. ATURAN: worksheet wajib salah satu dari ${SET_FIELDS_WORKSHEETS.join(', ')}. HANYA field terdaftar yang boleh diubah (nama field persis seperti worksheet); tiap field mengisi TEPAT SATU dari value_string / value_number / value_json. Untuk lembar per-SRU (ws2/ws3/ws8/assets) sertakan sruName (1 alut = 1 lembar). Contoh: worksheet "datum", fields [{name:"seaCurrentDir", value_number:250}, {name:"seaCurrentSpeed", value_number:0.3}]. Angin = arah DARI; arus = arah KE.`;
+  return `Isi beberapa field worksheet/form sekaligus. ATURAN: worksheet wajib salah satu dari ${SET_FIELDS_WORKSHEETS.join(', ')}. HANYA field terdaftar yang boleh diubah (nama field persis seperti worksheet); tiap field mengisi TEPAT SATU dari value_string / value_number / value_json. Untuk lembar per-SRU (ws2/ws3/ws8/assets) sertakan sruName (1 alut = 1 lembar). ANALISA DARAT/LAUT WAJIB: bila LKP/area pencarian berada DI DARAT (pendaki hilang, pesawat jatuh di darat, rute darat) dan SRU-nya pesawat fixed wing/helikopter → pakai worksheet "ws3" (Land), BUKAN ws2; ws2 hanya untuk pencarian DI LAUT. Contoh: worksheet "datum", fields [{name:"seaCurrentDir", value_number:250}, {name:"seaCurrentSpeed", value_number:0.3}]. Angin = arah DARI; arus = arah KE.`;
 }
 
 /** Ringkas parameter JSON Schema untuk declaration (subset OpenAPI). */
