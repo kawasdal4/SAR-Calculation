@@ -34,7 +34,9 @@ import {
   extractJsonCandidate,
   buildCaseExtractionResult,
   type CaseExtractionResult,
+  type CaseExtractionSuccess,
 } from '@/lib/ai/parseCase';
+import { enrichCaseFromSourceText } from '@/lib/ai/caseTextEnrich';
 import { buildReferenceChoice, type ReferenceChoicePayload } from '@/lib/ai/tools/referenceChoice';
 
 export const maxDuration = 300;
@@ -59,6 +61,23 @@ function validationFeedback(detail: string[]): string {
     'Kesalahan:',
     ...detail.map((issue) => `- ${issue}`),
   ].join('\n');
+}
+
+/** Ekstraksi TEKS PDF server-side (unpdf/pdf.js) — bahan pass deterministik
+ *  Fase C2. Best-effort: gagal → string kosong, alur tetap jalan. */
+async function extractPdfText(base64: string): Promise<string> {
+  try {
+    const { extractText, getDocumentProxy } = await import('unpdf');
+    const buffer = Buffer.from(base64, 'base64');
+    const pdf = await getDocumentProxy(new Uint8Array(buffer));
+    const { text } = await extractText(pdf, { mergePages: true });
+    if (typeof text === 'string') return text;
+    if (Array.isArray(text)) return (text as string[]).join('\n');
+    return '';
+  } catch (err) {
+    console.warn('[parse-case] Ekstraksi teks PDF gagal (dilanjutkan tanpa enrichment teks):', err instanceof Error ? err.message.slice(0, 120) : err);
+    return '';
+  }
 }
 
 /** Catat turn ekstraksi ke AiSessionLog (best-effort, metadata saja). */
@@ -123,6 +142,7 @@ export async function POST(req: NextRequest) {
 
     // ── Input parts: file via extractor yang SAMA dengan /api/chat ──────────
     const input: Array<Record<string, string>> = [];
+    const sourceTextParts: string[] = []; // bahan pass deterministik Fase C2
     let fileWarnings: string[] = [];
     for (const file of filesRaw.slice(0, 6)) {
       if (typeof file?.base64 !== 'string' || file.base64.length === 0) continue;
@@ -139,15 +159,25 @@ export async function POST(req: NextRequest) {
             data: processed.inlineData.data,
             mime_type: mimeType,
           });
+          // PDF TETAP inlineData untuk model, TEKSnya ikut diambil untuk
+          // pass deterministik (jaring pengaman bila model meleset).
+          if (mimeType === 'application/pdf') {
+            const pdfText = await extractPdfText(processed.inlineData.data);
+            if (pdfText.trim()) sourceTextParts.push(pdfText);
+          }
         } else if (processed.text) {
           input.push({ type: 'text', text: `Isi lampiran ${file.name ?? ''}:\n${processed.text}` });
+          sourceTextParts.push(processed.text);
         }
       } catch (fileErr) {
         const message = fileErr instanceof Error ? fileErr.message : 'gagal diproses';
         fileWarnings = [...fileWarnings, `Lampiran ${file.name ?? ''}: ${message}`];
       }
     }
-    if (userText) input.push({ type: 'text', text: userText });
+    if (userText) {
+      input.push({ type: 'text', text: userText });
+      sourceTextParts.push(userText);
+    }
     if (userNote) input.push({ type: 'text', text: `Catatan tambahan pengguna: ${userNote}` });
     if (input.length === 0) {
       return NextResponse.json({ error: 'Tidak ada konten soal yang bisa dibaca dari permintaan Anda.', warnings: fileWarnings }, { status: 400 });
@@ -224,8 +254,29 @@ export async function POST(req: NextRequest) {
           attempts: totalAttempts,
         });
         if (extraction.ok) {
-          extraction.model = usedModel ?? model;
-          extraction.attempts = totalAttempts;
+          // ── Fase C2 (deterministik): isi field kosong dari teks soal —
+          // jaring pengaman bila model meleset membaca halaman/tabel.
+          // Nilai model TIDAK pernah ditimpa; isian dicatat VERIFIED + kutipan.
+          let finalResult: CaseExtractionSuccess = extraction;
+          const sourceText = sourceTextParts.join('\n\n').slice(0, MAX_TEXT_CHARS);
+          if (sourceText.trim()) {
+            const enrich = enrichCaseFromSourceText(extraction.case, sourceText);
+            if (enrich.filled.length > 0) {
+              console.log(`[parse-case] Pass deterministik mengisi ${enrich.filled.length} field: ${enrich.filled.map((entry) => entry.field).join(', ')}`);
+              const rebuilt = buildCaseExtractionResult(enrich.case, {}, {
+                model: usedModel ?? model,
+                attempts: totalAttempts,
+              });
+              if (rebuilt.ok) {
+                finalResult = rebuilt;
+              } else {
+                console.warn('[parse-case] Kasus hasil enrichment gagal validasi — pakai hasil model murni.');
+              }
+            }
+          }
+          const success = finalResult;
+          success.model = usedModel ?? model;
+          success.attempts = totalAttempts;
           await logParseCaseTurn({
             sessionId, caseId, model: usedModel, status: 'ok',
             usage: result.usage, attempts: totalAttempts, ok: true,
@@ -249,7 +300,7 @@ export async function POST(req: NextRequest) {
             if (choice) referenceChoices.push(choice);
           }
           return NextResponse.json({
-            ...extraction,
+            ...success,
             ...(referenceChoices.length > 0 ? { referenceChoices } : {}),
             ...(fileWarnings.length > 0 ? { warnings: fileWarnings } : {}),
           });

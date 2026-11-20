@@ -121,9 +121,13 @@ describe('schema JSON yang dikirim mencerminkan CaseSchema', () => {
     }
   });
 
-  it('schema adalah object type dengan required minimal (incident)', () => {
+  it('schema adalah object type dengan required blok kunci (incident wajib + blok data lain dipaksa hadir)', () => {
     expect(CASE_EXTRACTION_JSON_SCHEMA['type']).toBe('object');
-    expect(CASE_EXTRACTION_JSON_SCHEMA['required']).toEqual(['incident']);
+    // Fase C2: blok kunci dipaksa hadir agar structured output tidak
+    // "melonggarkan" field yang jelas tertulis di soal (regresi PK-TAL).
+    expect(CASE_EXTRACTION_JSON_SCHEMA['required']).toEqual([
+      'incident', 'target', 'sarOffice', 'lkp', 'aeroDrift', 'sea', 'search', 'sru', 'meta',
+    ]);
   });
 });
 

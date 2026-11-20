@@ -345,6 +345,11 @@ export default function CaseExtractionCard({
       {/* Langkah penerapan — Fase F: diblokir PER WORKSHEET, bukan total. */}
       {!appliedAll && (
         <div className="px-2.5 pb-2.5 space-y-2">
+          {pendingSteps.length === 0 && (
+            <p className="text-[10px] text-amber-800 bg-amber-50 border border-amber-200 rounded px-2 py-1 leading-snug">
+              Belum ada langkah penerapan yang bisa dibuat — isi atau setujui data hilang di atas (nilai yang diisi otomatis menghitung ulang rencana), lalu minta ekstraksi ulang bila data soal belum terbaca.
+            </p>
+          )}
           {mode === 'full' ? (
             <button
               type="button"

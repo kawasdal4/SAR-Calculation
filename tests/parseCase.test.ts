@@ -52,8 +52,12 @@ describe('CASE_EXTRACTION_JSON_SCHEMA', () => {
     }
   });
 
-  test('incident wajib; meta.fieldSources + missingFields + assumptions ada', () => {
-    expect(CASE_EXTRACTION_JSON_SCHEMA['required']).toEqual(['incident']);
+  test('blok kunci wajib hadir; meta.fieldSources + missingFields + assumptions ada', () => {
+    // Fase C2: structured output dipaksa memuat semua blok data (bisa objek
+    // kosong) agar field yang jelas tertulis di soal tidak dilonggarkan model.
+    expect(CASE_EXTRACTION_JSON_SCHEMA['required']).toEqual([
+      'incident', 'target', 'sarOffice', 'lkp', 'aeroDrift', 'sea', 'search', 'sru', 'meta',
+    ]);
     const properties = CASE_EXTRACTION_JSON_SCHEMA['properties'] as Record<string, { properties: Record<string, unknown> }>;
     const meta = properties['meta'].properties;
     expect(meta['fieldSources']).toBeDefined();
@@ -357,5 +361,31 @@ describe('deriveExtractionFieldRows — status HILANG', () => {
     const rows = deriveExtractionFieldRows(noDatumTime, {});
     const row = rows.find((entry) => entry.field === 'search.datumTime');
     expect(row?.status).toBe('HILANG');
+  });
+
+  test('lkp.coord tidak ada → TIDAK HILANG (alur resmi LKP dari rantai AWA → ADW)', () => {
+    // Keputusan alur pengguna: koordinat LKP bukan prasyarat chat. LKP untuk
+    // Datum = posisi ditching hasil ADW; bila soal mencantumkan Koordinat Lost
+    // Contact nilainya dipakai sebagai titik awal drift (terisi enrichment).
+    const noLkp: SarCaseSchema = { ...GOLDEN, lkp: undefined };
+    const rows = deriveExtractionFieldRows(noLkp, {});
+    const row = rows.find((entry) => entry.field === 'lkp.coord');
+    expect(row?.status).not.toBe('HILANG');
+    expect(row?.statusClass).not.toBe('MISSING');
+    // Panel "Data hilang (wajib)" tidak berisi lkp.coord.
+    expect(rows.some((entry) => entry.field === 'lkp.coord' && (entry.statusClass ?? (entry.status === 'HILANG' ? 'MISSING' : 'EXTRACTED')) === 'MISSING')).toBe(false);
+  });
+
+  test('klaim model "lkp.coord hilang" diabaikan — tidak mengunci penerapan', () => {
+    const withLkpMissing: SarCaseSchema = {
+      ...GOLDEN,
+      lkp: undefined,
+      meta: {
+        ...GOLDEN.meta,
+        missingFields: [{ field: 'lkp.coord', reason: 'Koordinat LKP tidak ada di soal.' }],
+      },
+    };
+    const rows = deriveExtractionFieldRows(withLkpMissing, {});
+    expect(rows.some((entry) => entry.field === 'lkp.coord' && entry.status === 'HILANG')).toBe(false);
   });
 });

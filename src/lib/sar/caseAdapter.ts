@@ -520,11 +520,18 @@ export interface CaseCompleteness {
  *   kekurangan data.
  * - `datum.leewayObjectId` — kategori leeway (Tabel I-1/I-2) dipilih planner di
  *   Datum WS 1 (picker LEWAY_OBJECT_TYPES dengan default terpilih).
+ * - `lkp.coord` — alur resmi kasus ditching (keputusan pengguna): LKP untuk
+ *   Datum dihasilkan rantai AWA → ADW (posisi ditching hasil ADW menjadi LKP,
+ *   lkpSource "adw-landing"). Koordinat soal ("Koordinat Lost Contact") tetap
+ *   dipakai apa adanya bila terekstrak (titik awal drift ADW), tetapi ketidakan-
+ *   nya TIDAK memblokir penerapan — pengguna mengisi posisi insiden langsung
+ *   di worksheet ADW. Klaim "missing" dari model untuk field ini diabaikan.
  */
 export const DOWNSTREAM_FIELDS: ReadonlySet<string> = new Set([
   'aeroDrift.glideRatio',
   'sea.waveHeightM',
   'datum.leewayObjectId',
+  'lkp.coord',
 ]);
 
 /** True bila klaim "missing" untuk field ini sebenarnya nilai worksheet/planner.
@@ -552,9 +559,12 @@ export function checkCaseCompleteness(
   if (!incident.lastContactTime) push('MISSING', 'incident.lastContactTime', 'ASW/ADW', 'Waktu MAYDAY/kontak terakhir tidak ada di soal.');
   if (!sarCase.search?.datumTime) push('MISSING', 'search.datumTime', 'ASW/Datum', 'Datum Time tidak ada di soal.');
 
-  // LKP
+  // LKP — BUKAN prasyarat blokir: alur resmi AWA → ADW menghasilkan posisi
+  // ditching yang menjadi LKP (lkpSource "adw-landing"); koordinat soal tetap
+  // dipakai bila terekstrak. Ketiadaan koordinat hanya info (ASSUMED), bukan
+  // pemblokir — pengguna mengisi posisi insiden langsung di worksheet ADW.
   if (!sarCase.lkp?.coord && sarCase.lkp?.source !== 'adw-landing') {
-    push('MISSING', 'lkp.coord', 'ADW/Datum', 'Koordinat LKP tidak ada dan LKP tidak dari hasil ADW.');
+    push('ASSUMED', 'lkp.coord', 'ADW/Datum', 'Koordinat LKP tidak terekstrak dari soal — LKP dihasilkan rantai AWA → ADW (posisi ditching hasil ADW menjadi LKP) atau diisi langsung di worksheet ADW.');
   }
 
   // ADW

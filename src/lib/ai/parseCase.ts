@@ -284,7 +284,7 @@ export const CASE_EXTRACTION_JSON_SCHEMA: Record<string, unknown> = {
       },
     },
   },
-  required: ['incident'],
+  required: ['incident', 'target', 'sarOffice', 'lkp', 'aeroDrift', 'sea', 'search', 'sru', 'meta'],
 };
 
 /** Instruksi sistem ekstraksi (Bahasa Indonesia; satu panggilan tanpa tools). */
@@ -303,12 +303,13 @@ ATURAN MUTLAK (pelanggaran = jawaban ditolak):
    - KOORDINAT: derajat desimal bertanda — S negatif, W negatif (mis. "06°52'46\\"S" → lat -6.879). dmsLat/dmsLng diisi string aslinya.
    - SATUAN: jarak NM, kecepatan knots, ketinggian feet, gelombang meter, visibility kilometer. FL200 → flightLevelFt 200 (bukan 20000; kaki dihitung aplikasi).
    - ANGKA Indonesia: "1.000" = 1000; "1,5" = 1.5.
-5. Tabel angin per ketinggian soal → aeroDrift.windLayers (altitudeFt 0 = Surface, sertakan altitudeLabel asli). Deret angin permukaan berwaktu → sea.surfaceWindSeries (obsTime string asli).
+5. Tabel angin per ketinggian soal → aeroDrift.windLayers (altitudeFt 0 = Surface, sertakan altitudeLabel asli). Deret angin permukaan berwaktu → sea.surfaceWindSeries (obsTime string asli). POLA LABEL SOAL YANG WAJIB TERTANGKAP: "Glide Speed : 121 Knots" → aeroDrift.glideSpeedKts 121; "Variation : 1° E" → variationDeg 1 + variationDirection "E"; "heading 103°(M)" → incident.headingDeg 103 + headingReference "magnetic"; "FL200" → incident.flightLevelFt 200; "Koordinat Lost Contact : 06°52'46\"S – 105°15'41\"E" → lkp.coord; "Arus laut di lokasi : 250° / 0,3 knots" → sea.current {dirToDeg: 250, speedKts: 0.3}; deret bernomor "1) 00.00 50° / 5 kts …" setelah "Data angin dari tanggal …" → sea.surfaceWindSeries (tanggal entri setelah jam kembali kecil = hari berikutnya dari tanggal dasar).
 6. Setiap SRU/alut di tabel data soal → satu entri sru (callsign WAJIB; kind: helicopter/fixed-wing/vessel; endurance "2j 45m" → enduranceHours 2 + enduranceMinutes 45). TABEL DATA SRU DIBACA PER KOLOM: setiap KOLOM tabel = SATU SRU lengkap (callsign, jenis, model, koordinat lokasi aset, endurance, TAS max, TAS area, visibility, angin, kondisi observer, TAF, frekuensi radio, captain, GPS/nav) — DILARANG mencampur nilai antar-kolom. "Radio 123.1"/"Ch.16 dan 123.1" → frequencies ["123.1"] (["Ch.16","123.1"]); "GPS" → navigation ["GPS"]; "Observer fresh" → observerCondition "fresh"; "TAF Inter" → taf "Inter". KOORDINAT SRU/PANGKALAN: bila soal mencantum koordinat (desimal atau DMS), WAJIB pakai koordinat soal apa adanya — DILARANG mencari/mengganti dengan bandara/dermaga "terdekat". Identifikasi bandara/dermaga terdekat HANYA bila koordinat SRU/pangkalan sama sekali tidak tercantum di soal, dan catat sebagai asumsi.
 7. RASIO GLIDE: "Glide Ratio: 6:1" → aeroDrift.glideRatio = 6 (ANGKA polos, kontrak fungsi kalkulator ADW) DAN glideRatioRaw = "6:1" (nilai mentah). Rasio "1.5:1" → 1.5.
 8. "Koordinat Lost Contact"/posisi kontak terakhir → lkp.coord (simpan DMS asli di dmsLat/dmsLng); checkpoint/narasi insiden tetap di incident.checkpoint. Bila soal menyebut Position of Distress sama dengan lost contact, keduanya tetap LKP.
 9. meta.source: "pdf" bila sumber lampiran PDF/gambar, "text" bila teks ditempel pengguna.
-10. Jangan mengisi field hasil perhitungan (ASW/AWA/datum/luas area/POD) — skema tidak memilikinya; hanya INPUT worksheet.`;
+10. Jangan mengisi field hasil perhitungan (ASW/AWA/datum/luas area/POD) — skema tidak memilikinya; hanya INPUT worksheet.
+11. BACA SELURUH HALAMAN & TABEL LAMPIRAN — data perhitungan Aeronautical Drift (koordinat lost contact, glide speed/ratio, variation, tabel angin per ketinggian), arus laut, deret angin, dan tabel SRU sering berada di halaman 2/3 setelah narasi. Field yang tertulis DI HALAMAN MANA PUN bukan missing. search.datumTime: kalimat "Pencarian selanjutnya akan dimulai pada … pukul … (Datum Time)", "SRU tiba di lokasi pukul …", "Pencarian akan dilakukan pukul …", "Pencarian pertama dilakukan pukul …" adalah kandidat Datum Time — pilih yang menyatakan awal pencarian pada datum.`;
 
 // ── Normalisasi pra-parse (FASE C) ──────────────────────────────────────────
 
@@ -937,16 +938,32 @@ export function buildApplyPlan(
   // 1. ASW
   if (sources.asw && sources.asw.windData.length > 0 && sources.asw.distressTime && sources.asw.datumTime) {
     steps.push({ id: 'asw', worksheet: 'asw', label: 'Worksheet ASW (deret angin permukaan)', payload: { ...sources.asw } });
+  } else {
+    // Transparansi: langkah yang TIDAK jadi dibuat dilaporkan — bukan hilang diam-diam.
+    skipped.push({
+      worksheet: 'asw',
+      reason: 'Worksheet ASW tidak dibuat — deret angin permukaan / waktu distress→datum belum lengkap di kasus.',
+    });
   }
 
   // 2. AWA
   if (sources.awa && Array.isArray(sources.awa['observations']) && (sources.awa['observations'] as unknown[]).length > 0) {
     steps.push({ id: 'awa', worksheet: 'awa', label: 'Worksheet AWA (angin per ketinggian)', payload: { ...sources.awa } });
+  } else {
+    skipped.push({
+      worksheet: 'awa',
+      reason: 'Worksheet AWA tidak dibuat — tabel angin per ketinggian belum ada di kasus.',
+    });
   }
 
   // 3. ADW (butuh LKP + glide)
   if (sources.aero && sources.lkp && sources.aero['aircraftGlideRatio'] && sources.aero['aircraftTASgKts']) {
     steps.push({ id: 'aero', worksheet: 'aero', label: 'Aero Drift (ADW) — ditching', payload: { ...sources.aero } });
+  } else {
+    skipped.push({
+      worksheet: 'aero',
+      reason: 'ADW tidak dibuat — LKP, glide speed, atau data glide belum lengkap (koordinat lost contact wajib ada).',
+    });
   }
 
   // 4. Datum WS 1 — driftInterval dihitung fungsi resmi (total hours ASW).

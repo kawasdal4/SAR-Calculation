@@ -218,6 +218,34 @@ describe('checkCaseCompleteness (fixture PK-TAL)', () => {
     expect(report.issues.some((issue) => DOWNSTREAM_FIELDS.has(issue.field))).toBe(false);
   });
 
+  it('kasus ditching tanpa koordinat LKP: TIDAK MISSING — alur resmi LKP dari rantai AWA → ADW', () => {
+    // Keputusan alur pengguna: lkp.coord bukan prasyarat chat — LKP untuk Datum
+    // dihasilkan posisi ditching hasil ADW (lkpSource "adw-landing"); bila soal
+    // mencantumkan Koordinat Lost Contact, nilai itu dipakai sebagai titik awal
+    // drift. Ketiadaan koordinat hanya info ASSUMED, tidak mengunci penerapan.
+    const noLkp = { ...PK_TAL, lkp: undefined } as typeof PK_TAL;
+    const report = checkCaseCompleteness(noLkp);
+    const lkpIssue = report.issues.find((issue) => issue.field === 'lkp.coord');
+    expect(lkpIssue?.status).toBe('ASSUMED');
+    expect(lkpIssue?.reason).toContain('AWA');
+    expect(report.missingCount).toBe(0);
+    expect(report.complete).toBe(true);
+  });
+
+  it('klaim model "lkp.coord hilang" diabaikan (field alur ADW, bukan blokir)', () => {
+    const withLkpMissing = {
+      ...PK_TAL,
+      lkp: undefined,
+      meta: {
+        ...(PK_TAL.meta ?? {}),
+        missingFields: [{ field: 'lkp.coord', reason: 'Koordinat LKP tidak ada di soal.' }],
+      },
+    } as typeof PK_TAL;
+    const report = checkCaseCompleteness(withLkpMissing);
+    expect(report.issues.some((issue) => issue.field === 'lkp.coord' && issue.status === 'MISSING')).toBe(false);
+    expect(report.missingCount).toBe(0);
+  });
+
   it('kasus kosong: banyak MISSING, tidak pernah melempar', () => {
     const empty = { incident: { type: 'aircraft-ditching' } } as unknown as SarCaseSchema;
     const report = checkCaseCompleteness(empty);
