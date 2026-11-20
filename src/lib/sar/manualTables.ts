@@ -227,7 +227,8 @@ const TABLE_I10_DEF: ManualTableDef = {
 };
 
 // ---------------------------------------------------------------------------
-// Table J-1 / J-2 — fix error navigasi (Appendix_J.pdf hal. 1)
+// Table J-1 / J-2 — fix error navigasi (Appendix_J.pdf hal. 1 — ketiga tabel
+// J-1/J-2/J-3 berada pada halaman pertama PDF Appendix J)
 // ---------------------------------------------------------------------------
 const TABLE_J1: ManualTableDef = {
   id: 'J-1',
@@ -253,29 +254,73 @@ const TABLE_J2: ManualTableDef = {
   note: 'Galat untuk area praktis bila alat navigasi tidak diketahui.',
 };
 
+// Table J-3 — dead reckoning (DR) errors (Appendix_J.pdf hal. 1, baris teks).
+const TABLE_J3: ManualTableDef = {
+  id: 'J-3',
+  title: 'Table J-3. Dead reckoning (DR) errors',
+  docId: 'appendix-j',
+  page: 1,
+  colKeys: ['dre'],
+  columns: ['Dead reckoning error (DRe)'],
+  rows: [
+    {
+      key: 'ship',
+      label: 'Ship, Submarine (Military)',
+      cells: ['Galat fix positif terakhir + 5% jarak dari fix tersebut'],
+    },
+    {
+      key: 'aircraft',
+      label: 'Aircraft',
+      cells: ['Galat fix positif terakhir + 10% jarak dari fix tersebut'],
+    },
+    {
+      key: 'small-craft',
+      label: 'Small craft, Submersibles',
+      cells: ['Galat fix positif terakhir + 15% jarak dari fix tersebut'],
+    },
+  ],
+  note: 'Ditambahkan di atas galat fix terakhir untuk navigasi dead reckoning ( Worksheet 4: DR 10% × Tr pesawat). Nilai J.1–J.3 adalah nilai minimum dan boleh dinaikkan SMC.',
+};
+
 // ---------------------------------------------------------------------------
 // Table I-1/I-2 — Leeway (Appendix_I_al1.pdf) — multiplier × windspeed +
 // modifier & divergence angle per kategori search target. Nilai per baris
 // adalah data yang sama dengan LEEWAY_OBJECT_TYPES (didigitasi dari manual),
 // jadi panel verifikasi selalu cocok dengan yang dipakai aplikasi.
 // ---------------------------------------------------------------------------
+/** Kategori leeway pada labelnya menunjukkan tabel sumbernya (Table I-1 / I-2)
+ *  — dipakai untuk memilih halaman PDF lompatan rujukan (I-1 hal. 3, I-2 hal. 4). */
+export function leewayTableGroupKey(type: { label: string }): 'I-1' | 'I-2' {
+  return type.label.includes('Table I-2') ? 'I-2' : 'I-1';
+}
+
+const I1_ROWS: ManualTableRow[] = LEEWAY_OBJECT_TYPES.map((t) => ({
+  key: t.id,
+  label: t.label,
+  cells: [
+    String(t.leewayRate),
+    fmt(t.leewayModifier ?? 0),
+    String(t.divergenceAngle),
+    fmt(t.probableError),
+  ],
+}));
+
 const TABLE_I1: ManualTableDef = {
   id: 'I-1',
   title: 'Table I-1/I-2. Leeway speed — multiplier × windspeed + modifier & divergence angle',
   docId: 'appendix-i',
-  page: 1,
+  // Halaman PDF Table I-1 pada Appendix_I_al1.pdf (verifikasi pdftotext: hal. 3;
+  // cover = hal. 1, Table I-2 sub-tabel life raft deep ballast = hal. 4).
+  page: 3,
   colKeys: ['multiplier', 'modifier', 'divergence', 'error'],
   columns: ['Multiplier', 'Modifier (kt)', 'Divergence (°)', 'LWe (kt)'],
-  rows: LEEWAY_OBJECT_TYPES.map((t) => ({
-    key: t.id,
-    label: t.label,
-    cells: [
-      String(t.leewayRate),
-      fmt(t.leewayModifier ?? 0),
-      String(t.divergenceAngle),
-      fmt(t.probableError),
-    ],
-  })),
+  rows: I1_ROWS,
+  // Semua baris tetap tersedia di kedua "grup" — grup hanya menentukan halaman
+  // PDF lompatan: kategori Table I-1 → hal. 3, kategori Table I-2 → hal. 4.
+  groups: [
+    { key: 'I-1', label: 'Table I-1 — Leeway speed and direction values for drift objects (kts)', page: 3, rows: I1_ROWS },
+    { key: 'I-2', label: 'Table I-2 — Sub-table for maritime life rafts with deep ballast systems and canopies (kts)', page: 4, rows: I1_ROWS },
+  ],
   unit: 'kt / °',
   note: 'Leeway speed = multiplier × kecepatan angin (ASW) + modifier; arah = downwind ± divergence. Pembagian baris ke Table I-1 / I-2 mengikuti keterangan kategori pada manual (lihat label baris). Klik baris pada tabel ini untuk memakai kategori tersebut di Worksheet Datum.',
 };
@@ -296,6 +341,21 @@ const FIGURE_I12: ManualTableDef = {
 };
 
 // ---------------------------------------------------------------------------
+// Figure I-1 — Local Wind Current Graph (hal. 2) — referensi gambar
+// ---------------------------------------------------------------------------
+const FIGURE_I1: ManualTableDef = {
+  id: 'FIG-I-1',
+  title: 'Figure I-1. Local Wind Current Graph — arus angin & divergensi menurut lintang',
+  docId: 'appendix-i',
+  page: 2,
+  colKeys: [],
+  columns: [],
+  rows: [],
+  figure: true,
+  note: 'Drift arus angin = 0,036 × ASW (kt). Divergensi: pita 10°N–10°S → 0°; di luarnya 30° (utara 10°N ke kanan, selatan 10°S ke kiri) — konstanta yang sama dipakai Worksheet Datum.',
+};
+
+// ---------------------------------------------------------------------------
 // Registry + helper
 // ---------------------------------------------------------------------------
 export const MANUAL_TABLES: Record<string, ManualTableDef> = {
@@ -310,7 +370,9 @@ export const MANUAL_TABLES: Record<string, ManualTableDef> = {
   'I-10': TABLE_I10_DEF,
   'J-1': TABLE_J1,
   'J-2': TABLE_J2,
+  'J-3': TABLE_J3,
   'FIG-I-12': FIGURE_I12,
+  'FIG-I-1': FIGURE_I1,
 };
 
 /** Baris efektif dari def (group bila ada). */

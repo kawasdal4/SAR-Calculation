@@ -18,6 +18,7 @@ import {
   type LandVegetation,
 } from '@/lib/sar/landSearchTables';
 import TableValue from '@/components/sar/TableValue';
+import TableRefText from '@/components/sar/TableRefText';
 
 export interface Worksheet3InitialState {
   caseTitle?: string;
@@ -211,7 +212,19 @@ export default function Worksheet3({ searchResults, readOnly = false, initialSta
               {heights.map((height) => <th key={height} className="py-2 px-2 text-center w-[15%] border-r border-slate-300 last:border-r-0">{height} ft</th>)}
             </tr></thead>
             <tbody className="divide-y divide-slate-300 text-[11px]">
-              <tr><td className="py-1.5 px-3 font-medium border-r border-slate-300">Uncorrected Sweep Width Wu — Table I-9</td>{wuList.map((wu, i) => <td key={heights[i]} className="py-1.5 px-2 text-center border-r border-slate-300 last:border-r-0 font-bold text-blue-900 font-mono"><TableValue
+              <tr><td className="py-1.5 px-3 font-medium border-r border-slate-300">Uncorrected Sweep Width Wu — {'\u200b'}<TableRefText
+                disabled={readOnly || !searchObject || !visibilityKm}
+                request={{
+                  docId: 'appendix-i',
+                  page: 17,
+                  tableId: 'I-9',
+                  groupKey: String(heights[0] ?? 500),
+                  rowKey: searchObject ?? undefined,
+                  colKey: visibilityKm ? String(visibilityKm) : undefined,
+                  sourceLabel: 'Worksheet 3 — Wu (Table I-9)',
+                  currentValueLabel: `${wuList[0] ?? '—'} NM (500 ft)`,
+                }}
+              >Table I-9</TableRefText></td>{wuList.map((wu, i) => <td key={heights[i]} className="py-1.5 px-2 text-center border-r border-slate-300 last:border-r-0 font-bold text-blue-900 font-mono"><TableValue
                 disabled={readOnly || !searchObject || !visibilityKm}
                 request={{
                   docId: 'appendix-i',
@@ -227,7 +240,18 @@ export default function Worksheet3({ searchResults, readOnly = false, initialSta
                   applyOverride: (v) => setWuOverrides((prev) => ({ ...prev, [String(heights[i])]: v > 0 ? v : 0 })),
                 }}
               >{wu === null ? (searchObject === 'person' && heights[i] >= 1500 ? 'N/A' : '0') : wu.toFixed(1)}</TableValue>{wu !== null && <span className="ml-1 text-[10px] font-normal text-slate-500">NM</span>}</td>)}</tr>
-              <tr><td className="py-1.5 px-3 border-r border-slate-300">Vegetation/Terrain Factor Fv — Table I-10</td>{heights.map((height) => <td key={height} className="py-1.5 px-2 text-center border-r border-slate-300 last:border-r-0 font-mono font-bold text-blue-900"><TableValue
+              <tr><td className="py-1.5 px-3 border-r border-slate-300">Vegetation/Terrain Factor Fv — {'\u200b'}<TableRefText
+                disabled={readOnly || !searchObject || !vegetationType}
+                request={{
+                  docId: 'appendix-i',
+                  page: 17,
+                  tableId: 'I-10',
+                  rowKey: searchObject ?? undefined,
+                  colKey: vegetationType ?? undefined,
+                  sourceLabel: 'Worksheet 3 — Fv (Table I-10)',
+                  currentValueLabel: fv === null ? '—' : `Fv ${fv.toFixed(2)}`,
+                }}
+              >Table I-10</TableRefText></td>{heights.map((height) => <td key={height} className="py-1.5 px-2 text-center border-r border-slate-300 last:border-r-0 font-mono font-bold text-blue-900"><TableValue
                 disabled={readOnly || !searchObject || !vegetationType}
                 request={{
                   docId: 'appendix-i',
@@ -246,7 +270,16 @@ export default function Worksheet3({ searchResults, readOnly = false, initialSta
               <tr className="bg-blue-50/40"><td className="py-1.5 px-3 font-bold border-r border-slate-300">Corrected Sweep Width W = Wu × Fv × Ff</td>{wFactors.map((width, i) => <td key={heights[i]} className="py-1.5 px-2 text-center border-r border-slate-300 last:border-r-0 font-mono font-bold text-blue-950">{renderValue(width, 2, width === null ? undefined : 'NM')}</td>)}</tr>
               <tr><td className="py-1.5 px-3 border-r border-slate-300">Practical Track Spacing S (Worksheet 3 rule)</td>{trackSpacings.map((spacing, i) => <td key={heights[i]} className="py-1.5 px-2 text-center border-r border-slate-300 last:border-r-0 font-mono font-bold text-slate-800">{renderValue(spacing, 2, spacing === null ? undefined : 'NM')}</td>)}</tr>
               <tr><td className="py-1.5 px-3 border-r border-slate-300">Coverage Factor C = W/S</td>{coverages.map((coverage, i) => <td key={heights[i]} className="py-1.5 px-2 text-center border-r border-slate-300 last:border-r-0 font-mono font-bold text-indigo-900">{renderValue(coverage)}</td>)}</tr>
-              <tr className="bg-emerald-50/50"><td className="py-1.5 px-3 font-bold text-emerald-950 border-r border-slate-300">Probability of Detection (POD) — Figure I-12</td>{pods.map((pod, i) => <td key={heights[i]} className="py-1.5 px-2 text-center border-r border-slate-300 last:border-r-0 font-mono font-black text-emerald-900"><TableValue
+              <tr className="bg-emerald-50/50"><td className="py-1.5 px-3 font-bold text-emerald-950 border-r border-slate-300">Probability of Detection (POD) — {'\u200b'}<TableRefText
+                disabled={readOnly}
+                request={{
+                  docId: 'appendix-i',
+                  page: 11,
+                  tableId: 'FIG-I-12',
+                  sourceLabel: 'Worksheet 3 — POD (Figure I-12)',
+                  currentValueLabel: `POD ${pods[0] === null || pods[0] === undefined ? '—' : pods[0].toFixed(2) + '%'} (C = ${coverages[0] ?? 0})`,
+                }}
+              >Figure I-12</TableRefText></td>{pods.map((pod, i) => <td key={heights[i]} className="py-1.5 px-2 text-center border-r border-slate-300 last:border-r-0 font-mono font-black text-emerald-900"><TableValue
                 disabled={readOnly}
                 request={{
                   docId: 'appendix-i',
@@ -266,7 +299,7 @@ export default function Worksheet3({ searchResults, readOnly = false, initialSta
 
           {hasLowCoverage && <div role="alert" className="mx-3 mt-2 rounded border border-amber-400 bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-900">Coverage C &lt; 0.5 pada satu atau lebih ketinggian. Panduan menyatakan pencarian di bawah C = 0.5 tidak memuaskan dan tidak direkomendasikan.</div>}
           {hasBaseInputs && !searchPlatform && <div className="mx-3 mt-2 text-[11px] text-amber-800">Pilih platform untuk menghitung S dengan aturan Worksheet 3.</div>}
-          {isCalculationReady && searchNumber === null && <div className="mx-3 mt-2 text-[11px] text-amber-800">Pilih Search Number untuk membaca POD dari Figure I-12.</div>}
+          {isCalculationReady && searchNumber === null && <div className="mx-3 mt-2 text-[11px] text-amber-800">Pilih Search Number untuk membaca POD dari{'\u200b'} <TableRefText request={{ docId: 'appendix-i', page: 11, tableId: 'FIG-I-12', sourceLabel: 'Worksheet 3 — POD (Figure I-12)' }}>Figure I-12</TableRefText>.</div>}
 
           <div className="p-2.5 bg-slate-50 border-b-2 border-slate-900 text-xs flex flex-wrap items-center justify-between gap-2">
             <div><span className="font-bold text-slate-800">Total Search Hours Available:</span>{' '}<input type="number" step="0.1" value={hoursAvailable} disabled={readOnly} onChange={(e) => setHoursAvailable(Number(e.target.value) || 0)} className="font-bold text-blue-900 bg-white border border-slate-300 rounded px-2 py-0.5 w-16 text-right font-mono" />{' '}<span className="font-medium text-slate-600">hrs — input terpisah; tidak digunakan pada rumus di atas</span></div>

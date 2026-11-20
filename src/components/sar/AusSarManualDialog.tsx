@@ -173,6 +173,9 @@ export default function AusSarManualDialog({ open, onOpenChange, initialDocId, i
   // klik, blink tetap pada sel rujukan awal dari worksheet.
   const cellValue = activeRef ? manualTableCell(def as ManualTableDef, activeRef.rowKey, activeRef.colKey, activeRef.groupKey) : undefined;
   const rows = activeRef ? manualTableRows(def as ManualTableDef, activeRef.groupKey) : [];
+  // Link rujukan murni (keterangan tabel yang diklik) tanpa nilai worksheet —
+  // panel menampilkan tabel blink TANPA kotak "Nilai terpakai di worksheet".
+  const hasRefValue = activeRef !== null && (activeRef.currentValue !== null || !!activeRef.currentValueLabel);
   const blinkRowKey = selectedCell?.rowKey ?? activeRef?.rowKey;
   const blinkColKey = selectedCell?.colKey ?? activeRef?.colKey;
   const rowIndex = blinkRowKey ? rows.findIndex((r) => r.key === blinkRowKey) : -1;
@@ -307,15 +310,17 @@ export default function AusSarManualDialog({ open, onOpenChange, initialDocId, i
                   {def.figure ? (
                     <div className="rounded border border-amber-300 bg-white p-2.5">
                       <div className="text-[11px] text-slate-700">{def.note}</div>
-                      <div className="mt-2 flex items-center gap-3">
-                        <span className="text-slate-600">Nilai terpakai di worksheet:</span>
-                        <span className="font-mono font-bold text-blue-900">
-                          {activeRef.currentValueLabel ?? String(activeRef.currentValue)}
-                        </span>
-                        <span className="text-[10px] text-slate-500">
-                          {activeRef.tableId === 'FIG-I-12' ? 'POD dari C (coverage) — dihitung otomatis, tidak bisa dioverride.' : ''}
-                        </span>
-                      </div>
+                      {hasRefValue && (
+                        <div className="mt-2 flex items-center gap-3">
+                          <span className="text-slate-600">Nilai terpakai di worksheet:</span>
+                          <span className="font-mono font-bold text-blue-900">
+                            {activeRef.currentValueLabel ?? String(activeRef.currentValue)}
+                          </span>
+                          <span className="text-[10px] text-slate-500">
+                            {activeRef.tableId === 'FIG-I-12' ? 'POD dari C (coverage) — dihitung otomatis, tidak bisa dioverride.' : ''}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <table className="w-full border-collapse text-[11px]">
@@ -380,58 +385,60 @@ export default function AusSarManualDialog({ open, onOpenChange, initialDocId, i
 
                   {def.note && <div className="text-[10px] leading-relaxed text-slate-600">{def.note}</div>}
 
-                  {/* Nilai terpakai + override */}
-                  <div className="rounded border border-amber-300 bg-white p-2 flex flex-wrap items-center gap-2">
-                    <span className="text-[11px] text-slate-600 font-semibold">Nilai terpakai di worksheet:</span>
-                    <span className="font-mono font-bold text-blue-900">
-                      {activeRef.currentValueLabel ?? String(activeRef.currentValue)}
-                    </span>
-                    {cellValue !== undefined && cellValue !== '—' && (
-                      <span className="text-[10px] text-slate-500">
-                        (nilai tabel: <span className="font-mono font-bold">{cellValue}</span>
-                        {activeRef.tableValueLabel && activeRef.tableValueLabel !== cellValue ? ` → dipakai: ${activeRef.tableValueLabel}` : ''})
+                  {/* Nilai terpakai + override (disembunyikan untuk link rujukan tanpa nilai) */}
+                  {hasRefValue && (
+                    <div className="rounded border border-amber-300 bg-white p-2 flex flex-wrap items-center gap-2">
+                      <span className="text-[11px] text-slate-600 font-semibold">Nilai terpakai di worksheet:</span>
+                      <span className="font-mono font-bold text-blue-900">
+                        {activeRef.currentValueLabel ?? String(activeRef.currentValue)}
                       </span>
-                    )}
+                      {cellValue !== undefined && cellValue !== '—' && (
+                        <span className="text-[10px] text-slate-500">
+                          (nilai tabel: <span className="font-mono font-bold">{cellValue}</span>
+                          {activeRef.tableValueLabel && activeRef.tableValueLabel !== cellValue ? ` → dipakai: ${activeRef.tableValueLabel}` : ''})
+                        </span>
+                      )}
 
-                    {appliedValue && (
-                      <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-300 rounded px-1.5 py-0.5">
-                        ✓ diterapkan: <span className="font-mono">{appliedValue}</span> — tetap bisa diubah
-                      </span>
-                    )}
+                      {appliedValue && (
+                        <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-300 rounded px-1.5 py-0.5">
+                          ✓ diterapkan: <span className="font-mono">{appliedValue}</span> — tetap bisa diubah
+                        </span>
+                      )}
 
-                    {activeRef.allowOverride && activeRef.applyOverride && (
-                      <span className="flex items-center gap-1.5 ml-auto">
-                        <PencilLine className="h-3.5 w-3.5 text-amber-700" />
-                        <input
-                          type="number"
-                          step="any"
-                          value={overrideInput}
-                          onChange={(e) => setOverrideInput(e.target.value)}
-                          className="w-24 rounded border border-slate-300 bg-white px-1.5 py-0.5 text-xs font-mono text-right"
-                          aria-label="Ubah nilai"
-                        />
-                        <button
-                          type="button"
-                          onClick={handleApplyOverride}
-                          className="text-[10px] font-bold px-2 py-1 rounded bg-amber-500 hover:bg-amber-400 text-white transition-colors"
-                        >
-                          Terapkan
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setOverrideInput('');
-                            setAppliedValue(null);
-                            activeRef.applyOverride?.(0);
-                          }}
-                          title="Kembalikan ke nilai tabel appendix"
-                          className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition-colors"
-                        >
-                          <RotateCcw className="h-3 w-3" /> Reset
-                        </button>
-                      </span>
-                    )}
-                  </div>
+                      {activeRef.allowOverride && activeRef.applyOverride && (
+                        <span className="flex items-center gap-1.5 ml-auto">
+                          <PencilLine className="h-3.5 w-3.5 text-amber-700" />
+                          <input
+                            type="number"
+                            step="any"
+                            value={overrideInput}
+                            onChange={(e) => setOverrideInput(e.target.value)}
+                            className="w-24 rounded border border-slate-300 bg-white px-1.5 py-0.5 text-xs font-mono text-right"
+                            aria-label="Ubah nilai"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleApplyOverride}
+                            className="text-[10px] font-bold px-2 py-1 rounded bg-amber-500 hover:bg-amber-400 text-white transition-colors"
+                          >
+                            Terapkan
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOverrideInput('');
+                              setAppliedValue(null);
+                              activeRef.applyOverride?.(0);
+                            }}
+                            title="Kembalikan ke nilai tabel appendix"
+                            className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition-colors"
+                          >
+                            <RotateCcw className="h-3 w-3" /> Reset
+                          </button>
+                        </span>
+                      )}
+                    </div>
+                  )}
                   {activeRef.allowOverride && (
                     <div className="text-[10px] text-slate-500">
                       Klik langsung nilai pada tabel di atas untuk memakainya, atau ubah angka lalu klik Terapkan — worksheet dan bagian terkait (W, S, C, POD, T) otomatis dihitung ulang. Nilai hasil klik tetap bisa diubah kapan saja. Reset mengembalikan nilai asli tabel.

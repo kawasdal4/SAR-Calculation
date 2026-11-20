@@ -9,6 +9,7 @@ import type { DatumData, DatumResults } from '@/components/sar/DatumWorksheet';
 import { Printer } from 'lucide-react';
 import { computeW2Row, readFigureI12, W2_TARGET_OPTIONS, W2_VISIBILITY_LABELS, type W2Target, type SearchNumber } from '@/lib/sar/wscPodTables';
 import TableValue from '@/components/sar/TableValue';
+import TableRefText from '@/components/sar/TableRefText';
 
 export interface Worksheet2InitialState {
   caseTitle?: string;
@@ -350,7 +351,23 @@ export default function Worksheet2({
               <div>
                 <span className="text-slate-600">Seas: </span>
                 <span className="font-bold text-blue-900 font-mono">{caseWaveHeightM?.toFixed(1)}</span>{' '}
-                <span className="font-semibold text-slate-700">m (Kasus) — penentu baris Fw Table I-7 bersama winds</span>
+                <span className="font-semibold text-slate-700">m (Kasus) — penentu baris Fw{'\u200b'}
+                  <TableRefText
+                    disabled={readOnly}
+                    request={{
+                      docId: 'appendix-i',
+                      page: 16,
+                      tableId: 'I-7',
+                      rowKey: fwRowKey,
+                      colKey: targetMeta?.fwGroup,
+                      sourceLabel: 'Worksheet 2 — Penentu baris Fw (Table I-7)',
+                      currentValueLabel: `Fw ${fw.toFixed(2)} (baris winds/seas, kolom search object)`,
+                    }}
+                  >
+                    Table I-7
+                  </TableRefText>
+                  {'\u200b'}bersama winds
+                </span>
               </div>
             )}
             <div>
@@ -366,11 +383,50 @@ export default function Worksheet2({
                 <option value="Yes">Yes (0.9)</option>
               </select>
             </div>
-              <div><span className="text-slate-600">Figure I-12 Search: </span><select value={searchNumber} disabled={readOnly} onChange={(e) => setSearchNumber(Number(e.target.value) as SearchNumber | 0)} className="font-bold text-blue-900 bg-white border border-slate-300 rounded px-1.5 py-0.5"><option value={0}>-</option><option value={1}>First</option><option value={2}>Second</option><option value={3}>Third</option><option value={4}>Fourth</option><option value={5}>Fifth</option></select></div>
+              <div><span className="text-slate-600">{'\u200b'}<TableRefText
+                disabled={readOnly}
+                request={{
+                  docId: 'appendix-i',
+                  page: 11,
+                  tableId: 'FIG-I-12',
+                  sourceLabel: 'Worksheet 2 — Urutan pencarian (Figure I-12)',
+                  currentValueLabel: searchNumber ? `kurva pencarian ke-${searchNumber}` : 'kurva pencarian (pilih urutan)',
+                }}
+              >
+                Figure I-12
+              </TableRefText>{'\u200b'}Search: </span><select value={searchNumber} disabled={readOnly} onChange={(e) => setSearchNumber(Number(e.target.value) as SearchNumber | 0)} className="font-bold text-blue-900 bg-white border border-slate-300 rounded px-1.5 py-0.5"><option value={0}>-</option><option value={1}>First</option><option value={2}>Second</option><option value={3}>Third</option><option value={4}>Fourth</option><option value={5}>Fifth</option></select></div>
             <div><span className="text-slate-600">Height for Area A: </span><select value={selectedHeight} disabled={readOnly} onChange={(e) => setSelectedHeight(Number(e.target.value) as 0 | 500 | 1000 | 1500 | 2000)} className="font-bold text-blue-900 bg-white border border-slate-300 rounded px-1.5 py-0.5"><option value={0}>Pilih ft</option>{heights.map((height) => <option key={height} value={height}>{height} ft</option>)}</select></div>
-            {targetMeta?.isPiw && <label className="flex items-center gap-1 text-slate-700"><input type="checkbox" checked={piwFlotationKnown} disabled={readOnly} onChange={(e) => setPiwFlotationKnown(e.target.checked)} /> PIW menggunakan flotation device (Table I-5/I-6 note; hanya 500 ft)</label>}
+            {targetMeta?.isPiw && <label className="flex items-center gap-1 text-slate-700"><input type="checkbox" checked={piwFlotationKnown} disabled={readOnly} onChange={(e) => setPiwFlotationKnown(e.target.checked)} /> PIW menggunakan flotation device ({'\u200b'}<TableRefText
+              disabled={readOnly}
+              request={{
+                docId: 'appendix-i',
+                page: searchPlatform === 'helicopter' ? 15 : 13,
+                tableId: searchPlatform === 'helicopter' ? 'I-6' : 'I-5',
+                groupKey: '500',
+                rowKey: searchObject || undefined,
+                colKey: visibilityIndex >= 0 ? W2_VISIBILITY_LABELS[visibilityIndex] : undefined,
+                sourceLabel: 'Worksheet 2 — PIW flotation (Table I-5/I-6 note)',
+                currentValueLabel: 'PIW dengan flotation device — hanya baris 500 ft',
+              }}
+            >
+              Table I-5/I-6
+            </TableRefText>{'\u200b'}note; hanya 500 ft)</label>}
             {searchPlatform && searchTas > 0 && fs === 0 && <p className="text-[10px] text-amber-800">TAS tidak cocok dengan kolom Table I-8 untuk platform ini; perlukan keputusan planner, tidak dilakukan interpolasi.</p>}
-            <span className="text-[10px] text-slate-500">POD dari kurva Figure I-12 — dihitung dengan rumus polinomial Excel POD.xls (bukan lagi estimasi pembacaan kurva digital).</span>
+            <span className="text-[10px] text-slate-500">POD dari kurva{'\u200b'}
+              <TableRefText
+                disabled={readOnly}
+                request={{
+                  docId: 'appendix-i',
+                  page: 11,
+                  tableId: 'FIG-I-12',
+                  sourceLabel: 'Worksheet 2 — POD (Figure I-12)',
+                  currentValueLabel: `POD ${(selP || 0).toFixed(2)}% (C = ${(selC || 0).toFixed(2)}, urutan pencarian ke-${searchNumber || 1})`,
+                }}
+              >
+                Figure I-12
+              </TableRefText>
+              {'\u200b'}— dihitung dengan rumus polinomial Excel POD.xls (bukan lagi estimasi pembacaan kurva digital).
+            </span>
           </div>
 
           {/* Main Evaluation Table: Multi-Altitude Sweep Width */}
@@ -393,7 +449,22 @@ export default function Worksheet2({
                 <td className="py-1.5 px-3 font-medium text-slate-800 border-r border-slate-300">
                   <div className="font-bold">Uncorrected Sweep Width (Wu)</div>
                   <div className="text-[10px] text-slate-500 font-mono">
-                    -Tables I-3, I-4, I-5 (1), I-5 (2), I-6 (1), I-6 (2)
+                    -Tables I-3, I-4,{'\u200b'}
+                    <TableRefText
+                      disabled={readOnly || !searchObject || visibilityIndex < 0}
+                      request={{
+                        docId: 'appendix-i',
+                        page: searchPlatform === 'helicopter' ? 15 : 13,
+                        tableId: searchPlatform === 'helicopter' ? 'I-6' : 'I-5',
+                        groupKey: String(selectedHeight || heights[0]),
+                        rowKey: searchObject || undefined,
+                        colKey: visibilityIndex >= 0 ? W2_VISIBILITY_LABELS[visibilityIndex] : undefined,
+                        sourceLabel: `Worksheet 2 — Wu (Table ${searchPlatform === 'helicopter' ? 'I-6' : 'I-5'} · ${selectedHeight || heights[0]} ft)`,
+                        currentValueLabel: `${wuList[heights.indexOf(selectedHeight)] ?? wuList[0]} NM`,
+                      }}
+                    >
+                      {searchPlatform === 'helicopter' ? 'I-6 (1), I-6 (2)' : 'I-5 (1), I-5 (2)'}
+                    </TableRefText>
                   </div>
                 </td>
                 {wuList.map((wu, i) => (
@@ -425,7 +496,22 @@ export default function Worksheet2({
               {/* Row 2: Weather Correction Factor Fw */}
               <tr>
                 <td className="py-1.5 px-3 font-medium text-slate-800 border-r border-slate-300">
-                  <div>Maritime: Weather Correction Factor (Fw) - <span className="font-bold text-blue-700">Table I-7</span></div>
+                  <div>Maritime: Weather Correction Factor (Fw) -{'\u200b'}
+                    <TableRefText
+                      disabled={readOnly}
+                      request={{
+                        docId: 'appendix-i',
+                        page: 16,
+                        tableId: 'I-7',
+                        rowKey: fwRowKey,
+                        colKey: targetMeta?.fwGroup,
+                        sourceLabel: 'Worksheet 2 — Fw (Table I-7)',
+                        currentValueLabel: `Fw ${fw.toFixed(2)} (baris winds/seas, kolom search object)`,
+                      }}
+                    >
+                      Table I-7
+                    </TableRefText>
+                  </div>
                   <div className="text-[10px] text-slate-500">baris: winds (header) / seas &middot; kolom: search object</div>
                 </td>
                 {heights.map((_, i) => (
@@ -456,7 +542,21 @@ export default function Worksheet2({
                 <td className="py-1.5 px-3 font-medium text-slate-800 border-r border-slate-300">
                   <div className="font-semibold">Speed Correction Factor (Fs)</div>
                   <div className="text-[10px] text-slate-500">
-                    a) Aircraft searching over water use Fs from Table I-8
+                    a) Aircraft searching over water use Fs from{'\u200b'}
+                    <TableRefText
+                      disabled={readOnly || !searchPlatform}
+                      request={{
+                        docId: 'appendix-i',
+                        page: 17,
+                        tableId: 'I-8',
+                        rowKey: targetMeta?.fsRow,
+                        colKey: fsColKey,
+                        sourceLabel: 'Worksheet 2 — Fs (Table I-8)',
+                        currentValueLabel: `Fs ${fs.toFixed(2)} (baris search object, kolom platform/TAS)`,
+                      }}
+                    >
+                      Table I-8
+                    </TableRefText>
                     <br />
                     b) Searches by vessels enter 1.0
                   </div>

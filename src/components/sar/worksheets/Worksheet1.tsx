@@ -18,7 +18,9 @@ import {
   ws1DatumDtgUtc,
 } from '@/lib/sar/datumWs1';
 import { formatDMS } from '@/lib/sar/coordFormat';
+import { leewayTableGroupKey } from '@/lib/sar/manualTables';
 import TableValue from '@/components/sar/TableValue';
+import TableRefText from '@/components/sar/TableRefText';
 import type { DatumData, DatumResults } from '@/components/sar/DatumWorksheet';
 
 /** Mirror pengukuran peta Worksheet 1 untuk hitungan gambar di sisi halaman. */
@@ -91,9 +93,13 @@ interface Worksheet1Props {
    *  remount (pindah tab, load kasus, bump caseVersion) agar editan manual
    *  tidak kembali ke default. */
   initialMeasured?: Ws1Measured | null;
-  /** Buka Appendix I (Table I-1/I-2 leeway) di dialog Manual SAR AUS pada
-   *  halaman — rujukan nilai Multiplier/Modifier/Divergence. */
-  onOpenManualAppendix?: () => void;
+  /** Ganti kategori leeway (baris Table I-1/I-2) dari klik rujukan tabel pada
+   *  worksheet ini — diteruskan ke Worksheet Datum via halaman. */
+  onLeewayObjectChange?: (leewayObjectId: string) => void;
+  /** Ganti nilai x (distress craft fix error, Table J-1/J-2) dari klik rujukan. */
+  onXChange?: (x: number) => void;
+  /** Ganti nilai y (search craft fix error, Table J-1/J-2) dari klik rujukan. */
+  onYChange?: (y: number) => void;
 }
 
 /** Format derajat-menit (Panduan bagian 5: posisi datum dalam derajat-menit dan desimal). */
@@ -119,8 +125,15 @@ export default function Worksheet1({
   initialMeasured,
   selectedFs,
   onFsChange,
-  onOpenManualAppendix,
+  onLeewayObjectChange,
+  onXChange,
+  onYChange,
 }: Worksheet1Props) {
+  // Kategori leeway aktif — penentu baris blink pada Table I-1/I-2 & halaman PDF
+  // (kategori berlabel "Table I-2" melompat ke hal. 4, lainnya hal. 3).
+  const leewayGroup = datumResults?.lw?.objectType
+    ? leewayTableGroupKey(datumResults.lw.objectType)
+    : undefined;
   const [localFs, setLocalFs] = useState(1.1);
   const fsSelected = selectedFs ?? localFs;
   const [driftErrorPercent, setDriftErrorPercent] = useState<number>(
@@ -502,7 +515,19 @@ export default function Worksheet1({
               </tr>
               <tr className="border-b-2 border-slate-700">
                 <td className="py-2 px-3 font-medium text-slate-700 border-r border-slate-300">
-                  Vektor arus angin Wc: P1 → P2 (use reciprocal bearing and divergence) (Figure I-1)
+                  Vektor arus angin Wc: P1 → P2 (use reciprocal bearing and divergence) (
+                  <TableRefText
+                    disabled={readOnly}
+                    request={{
+                      docId: 'appendix-i',
+                      page: 2,
+                      tableId: 'FIG-I-1',
+                      sourceLabel: 'Worksheet 1 — Wind Current (Figure I-1)',
+                      currentValueLabel: `drift 0,036 × ASW ${windSpeed.toFixed(1)} kt = ${(0.036 * windSpeed).toFixed(3)} kt · divergensi ${wcDivergence}°`,
+                    }}
+                  >
+                    Figure I-1
+                  </TableRefText>)
                 </td>
                 <td colSpan={3} className="py-2 px-3 font-mono">
                   {useWindCurrent ? (
@@ -550,7 +575,22 @@ export default function Worksheet1({
               </tr>
               <tr className="border-b border-slate-300">
                 <td className="py-2 px-3 font-medium text-slate-700 border-r border-slate-300">
-                  Leeway angles (divergence) (Table I-1 or I.2)
+                  Leeway angles (divergence) (
+                  <TableRefText
+                    disabled={readOnly}
+                    request={{
+                      docId: 'appendix-i',
+                      page: leewayGroup === 'I-2' ? 4 : 3,
+                      tableId: 'I-1',
+                      groupKey: leewayGroup,
+                      rowKey: datumResults?.lw?.objectType?.id,
+                      colKey: 'divergence',
+                      sourceLabel: 'Worksheet 1 — Leeway angles (divergence) (Table I-1/I-2)',
+                      currentValueLabel: `±${lwDivAngle.toFixed(0)}° — ${datumResults?.lw?.objectType?.label ?? 'kategori leeway'}`,
+                    }}
+                  >
+                    Table I-1 or I.2
+                  </TableRefText>)
                 </td>
                 <td colSpan={3} className="py-2 px-3 font-mono">
                   <span className="text-slate-600 font-sans">Reciprocal Surface Wind (b)</span>{' '}
@@ -562,16 +602,23 @@ export default function Worksheet1({
                     disabled={readOnly}
                     request={{
                       docId: 'appendix-i',
-                      page: 1,
+                      page: leewayGroup === 'I-2' ? 4 : 3,
                       tableId: 'I-1',
+                      groupKey: leewayGroup,
                       rowKey: datumResults?.lw?.objectType?.id,
                       colKey: 'divergence',
                       sourceLabel: 'Worksheet 1 — Leeway divergence (Table I-1/I-2)',
                       currentValue: lwDivAngle,
                       currentValueLabel: `±${lwDivAngle.toFixed(0)}° — ${datumResults?.lw?.objectType?.label ?? 'kategori leeway'}`,
-                      allowOverride: false,
+                      allowOverride: true,
+                      applyRowKey: true,
+                      applyOverride: (_value, rowKey) => {
+                        // Klik baris kategori lain pada Table I-1/I-2 → kategori
+                        // leeway Worksheet Datum berganti (divergence ikut berubah).
+                        if (rowKey) onLeewayObjectChange?.(rowKey);
+                      },
                     }}
-                    title="Klik untuk buka Table I-1/I-2 — baris kategori leeway aktif berkedip (divergence)"
+                    title="Klik untuk buka Table I-1/I-2 — baris kategori leeway aktif berkedip; klik baris lain untuk mengganti kategori"
                   >
                     <span className="font-bold text-blue-900 bg-blue-50/80 px-2 py-0.5 rounded border border-blue-200">
                       {lwDivAngle.toFixed(0)}
@@ -607,16 +654,23 @@ export default function Worksheet1({
                     disabled={readOnly}
                     request={{
                       docId: 'appendix-i',
-                      page: 1,
+                      page: leewayGroup === 'I-2' ? 4 : 3,
                       tableId: 'I-1',
+                      groupKey: leewayGroup,
                       rowKey: datumResults?.lw?.objectType?.id,
                       colKey: 'multiplier',
                       sourceLabel: 'Worksheet 1 — Leeway multiplier (Table I-1/I-2)',
                       currentValue: lwMult,
                       currentValueLabel: `${datumResults?.lw?.objectType?.label ?? 'kategori leeway'} — multiplier ${lwMult.toFixed(3)}`,
-                      allowOverride: false,
+                      allowOverride: true,
+                      applyRowKey: true,
+                      applyOverride: (_value, rowKey) => {
+                        // Klik baris kategori lain pada Table I-1/I-2 → kategori
+                        // leeway Worksheet Datum berganti (multiplier/modifier ikut).
+                        if (rowKey) onLeewayObjectChange?.(rowKey);
+                      },
                     }}
-                    title="Klik untuk buka Table I-1/I-2 — baris kategori leeway aktif berkedip (multiplier)"
+                    title="Klik untuk buka Table I-1/I-2 — baris kategori leeway aktif berkedip; klik baris lain untuk mengganti kategori"
                   >
                     <span className="font-bold text-blue-900 bg-blue-50/80 px-1.5 py-0.5 rounded border border-blue-200">
                       {lwMult.toFixed(3)}
@@ -645,17 +699,24 @@ export default function Worksheet1({
                   )}
                   <div className="mt-1 flex items-center gap-2 flex-wrap">
                     <span className="text-[10px] text-slate-500 font-sans">
-                      Multiplier, Modifier &amp; Divergence {lwDivAngle}° dari Table I-1/I-2 (Appendix I — Leeway tables) baris “{targetDesc}” sesuai Search target (description).
-                    </span>
-                    {onOpenManualAppendix && (
-                      <button
-                        type="button"
-                        onClick={onOpenManualAppendix}
-                        className="text-[10px] font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded px-1.5 py-0.5 transition-colors"
+                      Multiplier, Modifier &amp; Divergence {lwDivAngle}° dari{'\u200b'}
+                      <TableRefText
+                        disabled={readOnly}
+                        request={{
+                          docId: 'appendix-i',
+                          page: leewayGroup === 'I-2' ? 4 : 3,
+                          tableId: 'I-1',
+                          groupKey: leewayGroup,
+                          rowKey: datumResults?.lw?.objectType?.id,
+                          colKey: 'multiplier',
+                          sourceLabel: 'Worksheet 1 — Sumber nilai leeway (Table I-1/I-2)',
+                          currentValueLabel: `${datumResults?.lw?.objectType?.label ?? 'kategori leeway'} — multiplier ${lwMult.toFixed(3)}, modifier ${lwMod.toFixed(2)}, divergensi ±${lwDivAngle.toFixed(0)}°`,
+                        }}
                       >
-                        Lihat Table I-1/I-2
-                      </button>
-                    )}
+                        Table I-1/I-2
+                      </TableRefText>
+                      (Appendix I — Leeway tables) baris “{targetDesc}” sesuai Search target (description) — klik rujukan untuk membuka tabel & mengganti kategori.
+                    </span>
                   </div>
                 </td>
               </tr>
@@ -753,12 +814,41 @@ export default function Worksheet1({
               {/* SECTION: FIX ERROR */}
               <tr className="bg-slate-200 border-b-2 border-slate-700">
                 <td colSpan={4} className="py-1.5 px-3 font-bold text-slate-900 tracking-wide uppercase">
-                  FIX ERROR (Tabel J-1/J-2 — diisi di Worksheet Datum)
+                  FIX ERROR ({'\u200b'}
+                  <TableRefText
+                    disabled={readOnly}
+                    request={{
+                      docId: 'appendix-j',
+                      page: 1,
+                      tableId: 'J-1',
+                      rowKey: [...TABLE_J1_NAV_ERRORS, ...TABLE_J2_NAV_ERRORS].find((e) => e.errorNm === distressCraftX)?.id,
+                      colKey: 'error',
+                      sourceLabel: 'Worksheet 1 — Fix error (Tabel J-1/J-2)',
+                      currentValueLabel: `x ${distressCraftX.toFixed(1)} NM / y ${searchCraftY.toFixed(1)} NM`,
+                    }}
+                  >
+                    Tabel J-1/J-2
+                  </TableRefText>
+                  — diisi di Worksheet Datum)
                 </td>
               </tr>
               <tr className="border-b border-slate-300">
                 <td className="py-2 px-3 font-medium text-slate-700 border-r border-slate-300">
-                  Distress craft error (x): Worksheet Datum / Table J
+                  Distress craft error (x): Worksheet Datum /{'\u200b'}
+                  <TableRefText
+                    disabled={readOnly}
+                    request={{
+                      docId: 'appendix-j',
+                      page: 1,
+                      tableId: TABLE_J1_NAV_ERRORS.some((e) => e.errorNm === distressCraftX) ? 'J-1' : 'J-2',
+                      rowKey: [...TABLE_J1_NAV_ERRORS, ...TABLE_J2_NAV_ERRORS].find((e) => e.errorNm === distressCraftX)?.id,
+                      colKey: 'error',
+                      sourceLabel: 'Worksheet 1 — Distress craft error (x) (Table J)',
+                      currentValueLabel: `${distressCraftX.toFixed(1)} NM`,
+                    }}
+                  >
+                    Table J
+                  </TableRefText>
                 </td>
                 <td colSpan={3} className="py-2 px-3 font-mono">
                   <TableValue
@@ -772,9 +862,16 @@ export default function Worksheet1({
                       sourceLabel: 'Worksheet 1 — Distress craft error (x) (Table J-1/J-2)',
                       currentValue: distressCraftX,
                       currentValueLabel: `${distressCraftX.toFixed(1)} NM`,
-                      allowOverride: false,
+                      allowOverride: true,
+                      applyRowKey: true,
+                      applyOverride: (_value, rowKey) => {
+                        // Klik baris alat navigasi lain pada Table J-1/J-2 → nilai x
+                        // Worksheet Datum berganti sesuai galat alat navigasi itu.
+                        const entry = [...TABLE_J1_NAV_ERRORS, ...TABLE_J2_NAV_ERRORS].find((e) => e.id === rowKey);
+                        if (entry) onXChange?.(entry.errorNm);
+                      },
                     }}
-                    title="Klik untuk buka Table J-1/J-2 — baris alat navigasi yang dipakai berkedip"
+                    title="Klik untuk buka Table J-1/J-2 — baris alat navigasi aktif berkedip; klik baris lain untuk mengganti nilai x"
                   >
                     <span className="font-bold text-blue-900 bg-blue-50/80 px-2 py-0.5 rounded border border-blue-200">
                       {distressCraftX.toFixed(1)}
@@ -785,7 +882,21 @@ export default function Worksheet1({
               </tr>
               <tr className="border-b-2 border-slate-700">
                 <td className="py-2 px-3 font-medium text-slate-700 border-r border-slate-300">
-                  Search craft error (y): Worksheet Datum / Table J
+                  Search craft error (y): Worksheet Datum /{'\u200b'}
+                  <TableRefText
+                    disabled={readOnly}
+                    request={{
+                      docId: 'appendix-j',
+                      page: 1,
+                      tableId: TABLE_J1_NAV_ERRORS.some((e) => e.errorNm === searchCraftY) ? 'J-1' : 'J-2',
+                      rowKey: [...TABLE_J1_NAV_ERRORS, ...TABLE_J2_NAV_ERRORS].find((e) => e.errorNm === searchCraftY)?.id,
+                      colKey: 'error',
+                      sourceLabel: 'Worksheet 1 — Search craft error (y) (Table J)',
+                      currentValueLabel: `${searchCraftY.toFixed(1)} NM`,
+                    }}
+                  >
+                    Table J
+                  </TableRefText>
                 </td>
                 <td colSpan={3} className="py-2 px-3 font-mono">
                   <TableValue
@@ -799,9 +910,16 @@ export default function Worksheet1({
                       sourceLabel: 'Worksheet 1 — Search craft error (y) (Table J-1/J-2)',
                       currentValue: searchCraftY,
                       currentValueLabel: `${searchCraftY.toFixed(1)} NM`,
-                      allowOverride: false,
+                      allowOverride: true,
+                      applyRowKey: true,
+                      applyOverride: (_value, rowKey) => {
+                        // Klik baris alat navigasi lain pada Table J-1/J-2 → nilai y
+                        // Worksheet Datum berganti sesuai galat alat navigasi itu.
+                        const entry = [...TABLE_J1_NAV_ERRORS, ...TABLE_J2_NAV_ERRORS].find((e) => e.id === rowKey);
+                        if (entry) onYChange?.(entry.errorNm);
+                      },
                     }}
-                    title="Klik untuk buka Table J-1/J-2 — baris alat navigasi yang dipakai berkedip"
+                    title="Klik untuk buka Table J-1/J-2 — baris alat navigasi aktif berkedip; klik baris lain untuk mengganti nilai y"
                   >
                     <span className="font-bold text-blue-900 bg-blue-50/80 px-2 py-0.5 rounded border border-blue-200">
                       {searchCraftY.toFixed(1)}

@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { WorksheetCard, NumberInput } from './WorksheetCard';
 import CoordinateInput from './CoordinateInput';
 import TableValue from './TableValue';
+import TableRefText from './TableRefText';
+import { leewayTableGroupKey } from '@/lib/sar/manualTables';
 import {
   computeWC,
   computeLW,
@@ -97,6 +99,10 @@ interface DatumWorksheetProps {
   /** Fired whenever any internal state changes — used by parent to save state. */
   onStateChange?: (state: DatumInitialState) => void;
   initialState?: DatumInitialState | null;
+  /** Perintah perubahan seleksi dari LUAR worksheet (mis. klik rujukan tabel
+   *  pada Worksheet 1 yang mengubah kategori leeway / nilai x / nilai y).
+   *  Dikenali lewat `ts` monoton agar perintah yang sama bisa dikirim ulang. */
+  externalSelection?: { ts: number; leewayObjectId?: string; X?: number; Y?: number } | null;
 }
 
 export default function DatumWorksheet({
@@ -116,6 +122,7 @@ export default function DatumWorksheet({
   onDataChange,
   onStateChange,
   initialState,
+  externalSelection,
 }: DatumWorksheetProps) {
   const [driftInterval, setDriftInterval] = useState<number>(initialState?.driftInterval ?? 0);
   const [latitude, setLatitude] = useState<number>(initialState?.latitude ?? Math.abs(startLat));
@@ -127,6 +134,23 @@ export default function DatumWorksheet({
   const [Y, setY] = useState<number>(initialState?.Y ?? 0);
   /** Sakelar "abaikan arus angin" (§4.7.44, Panduan Datum bagian 3.3). */
   const [useWindCurrent, setUseWindCurrent] = useState<boolean>(initialState?.useWindCurrent !== false);
+
+  // Terapkan perintah seleksi dari luar (klik rujukan tabel Worksheet 1):
+  // ganti kategori leeway / nilai x / nilai y. Guard ts mencegah efek dijalankan
+  // ulang untuk perintah yang sama (render ulang tanpa perintah baru).
+  const appliedExternalTs = useRef<number | null>(null);
+  useEffect(() => {
+    if (!externalSelection || externalSelection.ts === appliedExternalTs.current) return;
+    appliedExternalTs.current = externalSelection.ts;
+    if (
+      externalSelection.leewayObjectId !== undefined &&
+      LEEWAY_OBJECT_TYPES.some((t) => t.id === externalSelection.leewayObjectId)
+    ) {
+      setLeewayObjectId(externalSelection.leewayObjectId);
+    }
+    if (externalSelection.X !== undefined) setX(externalSelection.X);
+    if (externalSelection.Y !== undefined) setY(externalSelection.Y);
+  }, [externalSelection]);
 
   // Keep |latitude| (used for wind current divergence) synced with startLat
   useEffect(() => {
@@ -303,7 +327,20 @@ export default function DatumWorksheet({
           <div>
             <Label className="text-xs">|Latitude| for WC divergence (°)</Label>
             <NumberInput value={latitude} onChange={setLatitude} />
-            <p className="text-[10px] text-slate-400 mt-1">Figure I-1: 10°N–10°S → 0°, di luarnya → 30°</p>
+            <p className="text-[10px] text-slate-400 mt-1">
+              <TableRefText
+                request={{
+                  docId: 'appendix-i',
+                  page: 2,
+                  tableId: 'FIG-I-1',
+                  sourceLabel: 'Worksheet Datum — |Latitude| untuk divergensi WC (Figure I-1)',
+                  currentValueLabel: `divergensi ${latitude <= 10 ? 0 : 30}° pada |lintang| ${latitude.toFixed(1)}°`,
+                }}
+              >
+                Figure I-1
+              </TableRefText>
+              : 10°N–10°S → 0°, di luarnya → 30°
+            </p>
           </div>
           {onRequestMapPick && (
             <div className="sm:col-span-1 col-span-2 flex items-end">
@@ -325,7 +362,7 @@ export default function DatumWorksheet({
 
       <WorksheetCard
         title="Wind Current (WC)"
-        description="Local wind-generated surface current — Figure I-1: drift = 0,036 × ASW, divergensi menurut zona lintang"
+        description="Local wind-generated surface current — drift = 0,036 × ASW, divergensi menurut zona lintang (rujukan pada kartu di atas)"
         badge="Fig I-1"
       >
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
@@ -417,8 +454,9 @@ export default function DatumWorksheet({
               <TableValue
                 request={{
                   docId: 'appendix-i',
-                  page: 1,
+                  page: leewayTableGroupKey(objectType) === 'I-2' ? 4 : 3,
                   tableId: 'I-1',
+                  groupKey: leewayTableGroupKey(objectType),
                   rowKey: objectType.id,
                   colKey: 'multiplier',
                   sourceLabel: 'Worksheet Datum — Leeway (Table I-1/I-2)',
@@ -434,7 +472,7 @@ export default function DatumWorksheet({
                     }
                   },
                 }}
-                title="Klik untuk buka Table I-1/I-2 — klik baris kategori objek untuk memakainya"
+                title="Klik untuk buka Table I-1/I-2 — baris kategori aktif berkedip; klik baris lain untuk mengganti kategori"
               >
                 {lw.leewaySpeed.toFixed(3)}
               </TableValue>
@@ -447,8 +485,9 @@ export default function DatumWorksheet({
               <TableValue
                 request={{
                   docId: 'appendix-i',
-                  page: 1,
+                  page: leewayTableGroupKey(objectType) === 'I-2' ? 4 : 3,
                   tableId: 'I-1',
+                  groupKey: leewayTableGroupKey(objectType),
                   rowKey: objectType.id,
                   colKey: 'divergence',
                   sourceLabel: 'Worksheet Datum — Divergence (Table I-1/I-2)',
@@ -477,7 +516,22 @@ export default function DatumWorksheet({
       >
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
           <div>
-            <Label className="text-xs">X — Distress craft fix error (NM), Table J-1/J-2</Label>
+            <Label className="text-xs">
+              X — Distress craft fix error (NM),{'\u200b'}
+              <TableRefText
+                request={{
+                  docId: 'appendix-j',
+                  page: 1,
+                  tableId: TABLE_J1_NAV_ERRORS.some((e) => e.errorNm === X) ? 'J-1' : 'J-2',
+                  rowKey: [...TABLE_J1_NAV_ERRORS, ...TABLE_J2_NAV_ERRORS].find((e) => e.errorNm === X)?.id,
+                  colKey: 'error',
+                  sourceLabel: 'Worksheet Datum — X (Table J-1/J-2)',
+                  currentValueLabel: `${X} NM`,
+                }}
+              >
+                Table J-1/J-2
+              </TableRefText>
+            </Label>
             <Select value="" onValueChange={(id) => { const err = [...TABLE_J1_NAV_ERRORS, ...TABLE_J2_NAV_ERRORS].find((e) => e.id === id)?.errorNm; if (err !== undefined) setX(err); }}>
               <SelectTrigger className="h-8 mt-1">
                 <SelectValue placeholder="Pilih alat navigasi distress craft…" />
@@ -520,10 +574,25 @@ export default function DatumWorksheet({
                 <span className="text-[10px] font-bold text-blue-800 bg-blue-50 border border-blue-200 rounded px-1.5 py-0.5 whitespace-nowrap">J-1/J-2 ↗</span>
               </TableValue>
             </div>
-            <p className="mt-1 text-[10px] leading-relaxed text-slate-500">Nilai dari Table J-1 sesuai alat navigasi objek yang disebut soal (mis. GPS → 0.1); J-2 untuk navigasi tidak diketahui / area praktis (Appendix J). AI mengisi otomatis dari analisis kalimat soal.</p>
+            <p className="mt-1 text-[10px] leading-relaxed text-slate-500">Nilai dari{'\u200b'} <TableRefText request={{ docId: 'appendix-j', page: 1, tableId: 'J-1', rowKey: [...TABLE_J1_NAV_ERRORS, ...TABLE_J2_NAV_ERRORS].find((e) => e.errorNm === X)?.id, colKey: 'error', sourceLabel: 'Worksheet Datum — X (Table J-1)' , currentValueLabel: `${X} NM`}}>Table J-1</TableRefText> sesuai alat navigasi objek yang disebut soal (mis. GPS → 0.1);{'\u200b'} <TableRefText request={{ docId: 'appendix-j', page: 1, tableId: 'J-2', colKey: 'error', sourceLabel: 'Worksheet Datum — X (Table J-2)' }}>J-2</TableRefText> untuk navigasi tidak diketahui / area praktis (Appendix J). AI mengisi otomatis dari analisis kalimat soal.</p>
           </div>
           <div>
-            <Label className="text-xs">Y — Search craft fix error (NM), Table J-1/J-2</Label>
+            <Label className="text-xs">
+              Y — Search craft fix error (NM),{'\u200b'}
+              <TableRefText
+                request={{
+                  docId: 'appendix-j',
+                  page: 1,
+                  tableId: TABLE_J1_NAV_ERRORS.some((e) => e.errorNm === Y) ? 'J-1' : 'J-2',
+                  rowKey: [...TABLE_J1_NAV_ERRORS, ...TABLE_J2_NAV_ERRORS].find((e) => e.errorNm === Y)?.id,
+                  colKey: 'error',
+                  sourceLabel: 'Worksheet Datum — Y (Table J-1/J-2)',
+                  currentValueLabel: `${Y} NM`,
+                }}
+              >
+                Table J-1/J-2
+              </TableRefText>
+            </Label>
             <Select value="" onValueChange={(id) => { const err = [...TABLE_J1_NAV_ERRORS, ...TABLE_J2_NAV_ERRORS].find((e) => e.id === id)?.errorNm; if (err !== undefined) setY(err); }}>
               <SelectTrigger className="h-8 mt-1">
                 <SelectValue placeholder="Pilih alat navigasi SRU…" />
@@ -566,7 +635,7 @@ export default function DatumWorksheet({
                 <span className="text-[10px] font-bold text-blue-800 bg-blue-50 border border-blue-200 rounded px-1.5 py-0.5 whitespace-nowrap">J-1/J-2 ↗</span>
               </TableValue>
             </div>
-            <p className="mt-1 text-[10px] leading-relaxed text-slate-500">Nilai dari Table J-1 sesuai alat navigasi SRU pencari yang disebut soal (mis. GPS → 0.1); J-2 untuk navigasi tidak diketahui / area praktis (Appendix J). AI mengisi otomatis dari analisis kalimat soal.</p>
+            <p className="mt-1 text-[10px] leading-relaxed text-slate-500">Nilai dari{'\u200b'} <TableRefText request={{ docId: 'appendix-j', page: 1, tableId: 'J-1', rowKey: [...TABLE_J1_NAV_ERRORS, ...TABLE_J2_NAV_ERRORS].find((e) => e.errorNm === Y)?.id, colKey: 'error', sourceLabel: 'Worksheet Datum — Y (Table J-1)', currentValueLabel: `${Y} NM`}}>Table J-1</TableRefText> sesuai alat navigasi SRU pencari yang disebut soal (mis. GPS → 0.1);{'\u200b'} <TableRefText request={{ docId: 'appendix-j', page: 1, tableId: 'J-2', colKey: 'error', sourceLabel: 'Worksheet Datum — Y (Table J-2)' }}>J-2</TableRefText> untuk navigasi tidak diketahui / area praktis (Appendix J). AI mengisi otomatis dari analisis kalimat soal.</p>
           </div>
           <StatBox label="De — Drift Error" value={`${datum.De.toFixed(2)} NM`} />
         </div>

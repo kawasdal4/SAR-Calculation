@@ -380,6 +380,10 @@ export default function Home() {
     setAusSarManualInitialDoc(req.docId);
     setIsAusSarManualOpen(true);
   }, []);
+  /** Perintah perubahan seleksi Worksheet Datum dari klik rujukan tabel pada
+   *  Worksheet 1 (kategori leeway Table I-1/I-2, x & y Table J-1/J-2).
+   *  Diteruskan ke DatumWorksheet via prop externalSelection (ts monoton). */
+  const [datumSelectionCmd, setDatumSelectionCmd] = useState<{ ts: number; leewayObjectId?: string; X?: number; Y?: number } | null>(null);
   const handleAusSarManualOpenChange = useCallback((open: boolean) => {
     setIsAusSarManualOpen(open);
     if (!open) setTableRefRequest(null);
@@ -2759,10 +2763,6 @@ export default function Home() {
                 lkp={lkp}
                 datumData={datumData}
                 datumResults={datumResults}
-                onOpenManualAppendix={() => {
-                  setAusSarManualInitialDoc('appendix-i');
-                  setIsAusSarManualOpen(true);
-                }}
                 searchResults={searchResults}
                 ws1Ao={ws1Ao}
                 onWorksheet1AoChange={setWorksheet1Ao}
@@ -2952,10 +2952,9 @@ export default function Home() {
                 initialMeasured={ws1Measured}
                 selectedFs={worksheet1Fs}
                 onFsChange={setWorksheet1Fs}
-                onOpenManualAppendix={() => {
-                  setAusSarManualInitialDoc('appendix-i');
-                  setIsAusSarManualOpen(true);
-                }}
+                onLeewayObjectChange={(leewayObjectId) => setDatumSelectionCmd({ ts: Date.now(), leewayObjectId })}
+                onXChange={(x) => setDatumSelectionCmd({ ts: Date.now(), X: x })}
+                onYChange={(y) => setDatumSelectionCmd({ ts: Date.now(), Y: y })}
               />
               <DatumWorksheet
                 aswDirFrom={asw.aswDirFrom}
@@ -2980,6 +2979,7 @@ export default function Home() {
                 onDataChange={setDatumData}
                 onStateChange={setDatumState}
                 initialState={loadedInitialState?.datum}
+                externalSelection={datumSelectionCmd}
                 key={`datum-${caseVersion}`}
               />
               <PrintCompanionMap

@@ -21,6 +21,7 @@ import {
 } from '@/lib/sar/landSearchRadius.mjs';
 
 const Worksheet4Map = dynamic(() => import('@/components/sar/worksheets/Worksheet4MapLibre'), { ssr: false });
+import TableRefText from '@/components/sar/TableRefText';
 
 export type Worksheet4TrStartMode = 'manual' | 'elapsed-time';
 // Panduan Land Search: navigasi pesawat target hanya GPS (x₀ 5 NM) atau non-GPS
@@ -510,7 +511,37 @@ export default function Worksheet4({
             </section>
 
             <section className="space-y-2">
-              <h3 className="font-bold text-slate-800">Navigational Error Target (x) — Tabel J-2 + J-3</h3>
+              <h3 className="font-bold text-slate-800">Navigational Error Target (x) —{'\u200b'}
+                <TableRefText
+                  disabled={readOnly}
+                  request={{
+                    docId: 'appendix-j',
+                    page: 1,
+                    tableId: 'J-2',
+                    rowKey: targetNavigationType === 'gps' ? 'gps' : undefined,
+                    colKey: 'error',
+                    sourceLabel: 'Worksheet 4 — x₀ target (Tabel J-2)',
+                    currentValueLabel: targetNavigationType === 'gps' ? 'GPS/self-contained 5 NM' : targetNavigationType === 'non-gps' ? 'Non-GPS 10 NM' : 'pilih navigasi target',
+                  }}
+                >
+                  Tabel J-2
+                </TableRefText>
+                {'\u200b'}+{'\u200b'}
+                <TableRefText
+                  disabled={readOnly}
+                  request={{
+                    docId: 'appendix-j',
+                    page: 1,
+                    tableId: 'J-3',
+                    rowKey: 'aircraft',
+                    colKey: 'dre',
+                    sourceLabel: 'Worksheet 4 — DR error (Tabel J-3)',
+                    currentValueLabel: 'Aircraft: galat fix terakhir + 10% jarak (DR)',
+                  }}
+                >
+                  J-3
+                </TableRefText>
+              </h3>
               <label className="flex flex-wrap items-center gap-2">
                 <span>Navigasi pesawat target:</span>
                 <select value={targetNavigationType ?? ''} disabled={readOnly} onChange={(e) => setTargetNavigationType((e.target.value || null) as Worksheet4TargetNavigation | null)} className="rounded border border-slate-300 bg-white px-2 py-1 font-semibold text-blue-900">
@@ -521,9 +552,9 @@ export default function Worksheet4({
                 </select>
               </label>
               {targetNavigationType === 'custom' && <div className="text-[10px] text-slate-600">Masukkan x₀ tiap posisi di baris x (Appendix J: nilai minimum boleh dinaikkan SMC). DR 10% × Tr tidak ditambahkan otomatis pada mode ini.</div>}
-              {targetNavigationType === 'gps' && <p className="text-[10px] text-slate-600">x = 5 NM + 10% × Tr (DR Tabel J-3 pesawat, tetap diterapkan).</p>}
-              {targetNavigationType === 'non-gps' && <p className="text-[10px] text-slate-600">x = 10 NM + 10% × Tr (DR Tabel J-3 pesawat, tetap diterapkan).</p>}
-              <p className="text-[10px] text-slate-500">x₀ mengikuti Tabel J-2 (pesawat): GPS/self-contained 5 NM, non-GPS 10 NM. Error navigasi SRU (y) diisi dari Tabel J-1.</p>
+              {targetNavigationType === 'gps' && <p className="text-[10px] text-slate-600">x = 5 NM + 10% × Tr (DR{'\u200b'} <TableRefText disabled={readOnly} request={{ docId: 'appendix-j', page: 1, tableId: 'J-3', rowKey: 'aircraft', colKey: 'dre', sourceLabel: 'Worksheet 4 — DR error pesawat (Tabel J-3)', currentValueLabel: 'Aircraft: galat fix terakhir + 10% jarak (DR)' }}>Tabel J-3</TableRefText> pesawat, tetap diterapkan).</p>}
+              {targetNavigationType === 'non-gps' && <p className="text-[10px] text-slate-600">x = 10 NM + 10% × Tr (DR{'\u200b'} <TableRefText disabled={readOnly} request={{ docId: 'appendix-j', page: 1, tableId: 'J-3', rowKey: 'aircraft', colKey: 'dre', sourceLabel: 'Worksheet 4 — DR error pesawat (Tabel J-3)', currentValueLabel: 'Aircraft: galat fix terakhir + 10% jarak (DR)' }}>Tabel J-3</TableRefText> pesawat, tetap diterapkan).</p>}
+              <p className="text-[10px] text-slate-500">x₀ mengikuti{'\u200b'} <TableRefText disabled={readOnly} request={{ docId: 'appendix-j', page: 1, tableId: 'J-2', colKey: 'error', sourceLabel: 'Worksheet 4 — x₀ (Tabel J-2)' }}>Tabel J-2</TableRefText> (pesawat): GPS/self-contained 5 NM, non-GPS 10 NM. Error navigasi SRU (y) diisi dari{'\u200b'} <TableRefText disabled={readOnly} request={{ docId: 'appendix-j', page: 1, tableId: 'J-1', colKey: 'error', sourceLabel: 'Worksheet 4 — y navigasi SRU (Tabel J-1)' }}>Tabel J-1</TableRefText>.</p>
             </section>
           </div>
 

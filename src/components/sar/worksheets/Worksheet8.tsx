@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Printer } from 'lucide-react';
 import { computeW8Row, readFigureI12, W8_TARGET_OPTIONS, w8TargetGroup, type W8Target, type SearchNumber } from '@/lib/sar/wscPodTables';
 import TableValue from '@/components/sar/TableValue';
+import TableRefText from '@/components/sar/TableRefText';
 
 export interface Worksheet8InitialState {
   caseTitle?: string;
@@ -296,7 +297,23 @@ export default function Worksheet8({
             {(initialState?.caseWaveHeightM ?? 0) > 0 && (
               <div>
                 <span className="text-slate-600">Seas: </span>
-                <span className="font-bold text-blue-900">{initialState?.caseWaveHeightM?.toFixed(1)} m (Kasus) — penentu baris Fw Table I-7 bersama winds</span>
+                <span className="font-bold text-blue-900">{initialState?.caseWaveHeightM?.toFixed(1)} m (Kasus) — penentu baris Fw{'\u200b'}
+                  <TableRefText
+                    disabled={readOnly}
+                    request={{
+                      docId: 'appendix-i',
+                      page: 16,
+                      tableId: 'I-7',
+                      rowKey: fwRowKey,
+                      colKey: fwColKey,
+                      sourceLabel: 'Worksheet 8 — Penentu baris Fw (Table I-7)',
+                      currentValueLabel: `Fw ${fw.toFixed(2)} (baris winds/seas, kolom search object)`,
+                    }}
+                  >
+                    Table I-7
+                  </TableRefText>
+                  {'\u200b'}bersama winds
+                </span>
               </div>
             )}
             <div>
@@ -315,8 +332,49 @@ export default function Worksheet8({
           </div>
           <div className="px-3 py-2 bg-white border-b border-slate-300 flex flex-wrap gap-4 items-center text-[11px]">
             <label>Eye height for Area A: <select value={eyeHeight} disabled={readOnly} onChange={(e) => setEyeHeight(e.target.value as ''|'8'|'14'|'MERSHIP')} className="border rounded px-1"><option value="">Pilih</option><option value="8">8 ft</option><option value="14">14 ft</option><option value="MERSHIP">MERSHIP</option></select></label>
-            <label>Urutan pencarian (Figure I-12): <select value={searchNumber} disabled={readOnly} onChange={(e) => setSearchNumber(Number(e.target.value) as SearchNumber | 0)} className="border rounded px-1"><option value={0}>-</option>{[1,2,3,4,5].map((n) => <option key={n} value={n}>{['First','Second','Third','Fourth','Fifth'][n-1]}</option>)}</select></label>
-            <span className="text-slate-500">Wu: Table {eyeHeight === 'MERSHIP' ? 'I-4' : 'I-3'} · POD: Figure I-12 (rumus polinomial Excel POD.xls)</span>
+            <label>Urutan pencarian ({'\u200b'}<TableRefText
+              disabled={readOnly}
+              request={{
+                docId: 'appendix-i',
+                page: 11,
+                tableId: 'FIG-I-12',
+                sourceLabel: 'Worksheet 8 — Urutan pencarian (Figure I-12)',
+                currentValueLabel: searchNumber ? `kurva pencarian ke-${searchNumber}` : 'kurva pencarian (pilih urutan)',
+              }}
+            >
+              Figure I-12
+            </TableRefText>): <select value={searchNumber} disabled={readOnly} onChange={(e) => setSearchNumber(Number(e.target.value) as SearchNumber | 0)} className="border rounded px-1"><option value={0}>-</option>{[1,2,3,4,5].map((n) => <option key={n} value={n}>{['First','Second','Third','Fourth','Fifth'][n-1]}</option>)}</select></label>
+            <span className="text-slate-500">
+              Wu:{'\u200b'}
+              <TableRefText
+                disabled={readOnly || !searchObject || !visibilityKm}
+                request={{
+                  docId: 'appendix-i',
+                  page: 12,
+                  tableId: eyeHeight === 'MERSHIP' ? 'I-4' : 'I-3',
+                  rowKey: searchObject || undefined,
+                  colKey: eyeHeight === 'MERSHIP' ? visibilityKm || undefined : visibilityKm ? `${eyeHeight}:${visibilityKm}` : undefined,
+                  sourceLabel: `Worksheet 8 — Wu (Table ${eyeHeight === 'MERSHIP' ? 'I-4' : 'I-3'})`,
+                  currentValueLabel: `${wuList[heights.indexOf(eyeHeight as typeof heights[number])] ?? wuList[0]} NM`,
+                }}
+              >
+                Table {eyeHeight === 'MERSHIP' ? 'I-4' : 'I-3'}
+              </TableRefText>
+              {'\u200b'}· POD:{'\u200b'}
+              <TableRefText
+                disabled={readOnly}
+                request={{
+                  docId: 'appendix-i',
+                  page: 11,
+                  tableId: 'FIG-I-12',
+                  sourceLabel: 'Worksheet 8 — POD (Figure I-12)',
+                  currentValueLabel: `POD ${(selP || 0).toFixed(2)}% (C = ${(selC || 0).toFixed(2)}, urutan pencarian ke-${searchNumber || 1})`,
+                }}
+              >
+                Figure I-12
+              </TableRefText>
+              {'\u200b'}(rumus polinomial Excel POD.xls)
+            </span>
           </div>
 
           {/* Main Evaluation Table: Vessel Sweep Width */}
@@ -337,7 +395,37 @@ export default function Worksheet8({
               {/* Row 1: Uncorrected Sweep Width */}
               <tr>
                 <td className="py-1.5 px-3 font-medium text-slate-800 border-r border-slate-300">
-                  <div className="font-bold">Uncorrected Sweep Width (Wu) - <span className="font-bold text-blue-700">Tables I-3, I-4</span></div>
+                  <div className="font-bold">Uncorrected Sweep Width (Wu) -{'\u200b'}
+                    <TableRefText
+                      disabled={readOnly || !searchObject || !visibilityKm}
+                      request={{
+                        docId: 'appendix-i',
+                        page: 12,
+                        tableId: 'I-3',
+                        rowKey: searchObject || undefined,
+                        colKey: visibilityKm ? `8:${visibilityKm}` : undefined,
+                        sourceLabel: 'Worksheet 8 — Wu (Table I-3 · eye 8 ft)',
+                        currentValueLabel: `${wuList[0]} NM`,
+                      }}
+                    >
+                      Table I-3
+                    </TableRefText>
+                    ,{'\u200b'}
+                    <TableRefText
+                      disabled={readOnly || !searchObject || !visibilityKm}
+                      request={{
+                        docId: 'appendix-i',
+                        page: 12,
+                        tableId: 'I-4',
+                        rowKey: searchObject || undefined,
+                        colKey: visibilityKm || undefined,
+                        sourceLabel: 'Worksheet 8 — Wu (Table I-4 · MERSHIP)',
+                        currentValueLabel: `${wuList[2]} NM`,
+                      }}
+                    >
+                      I-4
+                    </TableRefText>
+                  </div>
                 </td>
                 {wuList.map((wu, i) => (
                   <td key={i} className="py-1.5 px-2 text-center border-r border-slate-300 last:border-r-0">
@@ -367,7 +455,22 @@ export default function Worksheet8({
               {/* Row 2: Weather Correction Factor Fw */}
               <tr>
                 <td className="py-1.5 px-3 font-medium text-slate-800 border-r border-slate-300">
-                  <div>Maritime: Weather Correction Factor (Fw) - <span className="font-bold text-blue-700">Table I-7</span></div>
+                  <div>Maritime: Weather Correction Factor (Fw) -{'\u200b'}
+                    <TableRefText
+                      disabled={readOnly}
+                      request={{
+                        docId: 'appendix-i',
+                        page: 16,
+                        tableId: 'I-7',
+                        rowKey: fwRowKey,
+                        colKey: fwColKey,
+                        sourceLabel: 'Worksheet 8 — Fw (Table I-7)',
+                        currentValueLabel: `Fw ${fw.toFixed(2)} (baris winds/seas, kolom search object)`,
+                      }}
+                    >
+                      Table I-7
+                    </TableRefText>
+                  </div>
                   <div className="text-[10px] text-slate-500">baris: winds (header) / seas &middot; kolom: search object</div>
                 </td>
                 {columns.map((_, i) => (

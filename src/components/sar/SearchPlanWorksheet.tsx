@@ -20,6 +20,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { WorksheetCard, NumberInput } from './WorksheetCard';
+import TableRefText from './TableRefText';
 import {
   computeSweepWidth,
   computeTotalSearchEffort,
@@ -306,7 +307,17 @@ export default function SearchPlanWorksheet({
             <NumberInput value={altitudeFt} onChange={setAltitudeFt} />
           </div>
           <div>
-            <Label className="text-xs">Search Number (Figure I-12)</Label>
+            <Label className="text-xs">Search Number ({'\u200b'}<TableRefText
+              request={{
+                docId: 'appendix-i',
+                page: 11,
+                tableId: 'FIG-I-12',
+                sourceLabel: 'Search Plan — Search Number (Figure I-12)',
+                currentValueLabel: `kurva pencarian ke-${searchNumber}`,
+              }}
+            >
+              Figure I-12
+            </TableRefText>)</Label>
             <Select value={String(searchNumber)} onValueChange={(v) => setSearchNumber(Number(v) as SearchNumber)}>
               <SelectTrigger className="h-9">
                 <SelectValue />
