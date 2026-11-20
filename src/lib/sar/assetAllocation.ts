@@ -29,8 +29,10 @@ export interface SruAssetInput {
   maritimeTsfMins?: number;
 }
 
-/** Domain alut dari jenis SRU: udara (fixed-wing/helikopter) atau laut. */
-export function assetDomain(type: SruType): 'udara' | 'laut' {
+/** Domain alut dari jenis SRU: udara (fixed-wing/helikopter), laut, atau darat
+ *  (tipe alut darat mengikuti penyediaan bank aset; saat ini belum ada sehingga
+ *  tab Alokasi Aset Darat menampilkan keadaan kosong yang informatif). */
+export function assetDomain(type: SruType): 'udara' | 'laut' | 'darat' {
   return type === 'helicopter' || type === 'fixed-wing-aircraft' ? 'udara' : 'laut';
 }
 

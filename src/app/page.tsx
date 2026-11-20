@@ -9,6 +9,7 @@ import {
   Ship,
   Wind,
   Map as MapIcon,
+  Mountain,
   Compass,
   Calculator,
   FileText,
@@ -138,8 +139,51 @@ import {
   calculateSruAsset,
 } from '@/lib/sar/assetAllocation';
 import { deepEqualValue, firstFilledSnapshot, mergeAswSnapshot, hasFilledValue, describeRestoredCaseSections } from '@/lib/sar/stateSync';
+import {
+  SAR_DOMAINS,
+  SAR_DOMAIN_LABELS,
+  type SarDomain,
+  domainFromTabValue,
+  emptyDomainRecord,
+  isSarDomain,
+} from '@/lib/sar/sarDomains';
+import WorksheetWiring, { type WorksheetWiringEdge } from '@/components/sar/WorksheetWiring';
 
 const DEFAULT_CENTER: LatLng = { lat: 0, lng: 0 };
+
+/**
+ * PETA KABEL WORKSHEET (wiring) — dirangkum dari WORKSHEET_DATA_EDGES
+ * (worksheetDependency.ts) ke nilai tab baru: tab sumber (produsen data)
+ * → tab penerima (konsumen data). Dipakai animasi WorksheetWiring.
+ */
+const WORKSHEET_WIRING_EDGES: WorksheetWiringEdge[] = [
+  // Rantai udara: AWA → ADW (angin glide)
+  { from: 'awa', to: 'aero', tone: 'sky', note: 'Angin glide AWA → ADW (drift angin)' },
+  // Rantai laut: ASW → WS 1 (interval drift = total hours ASW)
+  { from: 'asw', to: 'ws1', tone: 'blue', note: 'Total hours ASW → interval drift Datum WS 1' },
+  // Luas area (Ao) dari WS 1 → lembar WSC & POD
+  { from: 'ws1', to: 'ws2', tone: 'blue', note: 'Ao (WS 1) → WS 2' },
+  { from: 'ws1', to: 'ws8', tone: 'blue', note: 'Ao (WS 1) → WS 8' },
+  // Jalur darat: E + divergensi leeway → WS 4; luas trapesium → WS 3
+  { from: 'ws1', to: 'ws4', tone: 'amber', note: 'E & divergensi leeway (Datum) → WS 4' },
+  { from: 'ws4', to: 'ws3', tone: 'amber', note: 'Luas trapesium WS 4 → WS 3 (darat)' },
+  { from: 'ws1', to: 'ws3', tone: 'amber', note: 'Ao (WS 1) → WS 3 (darat)' },
+  // Alokasi Aset per domain: S (sweep width) WS 2/8 + Ao
+  { from: 'ws2', to: 'asset-allocation-udara', tone: 'violet', note: 'S (WS 2) → sweep width aset udara' },
+  { from: 'ws8', to: 'asset-allocation-laut', tone: 'violet', note: 'S (WS 8) → sweep width aset laut' },
+  { from: 'ws1', to: 'asset-allocation-udara', tone: 'violet', note: 'Ao (WS 1) → target alokasi aset udara' },
+  { from: 'ws1', to: 'asset-allocation-laut', tone: 'violet', note: 'Ao (WS 1) → target alokasi aset laut' },
+  // Pola & Rute: orientasi dari bearing LKP→Datum + EST aset
+  { from: 'ws1', to: 'search-pattern', tone: 'emerald', note: 'Bearing LKP→Datum → orientasi pola pencarian' },
+  { from: 'asset-allocation-udara', to: 'search-pattern', tone: 'emerald', note: 'EST & S aset udara → rencana pencarian' },
+  { from: 'asset-allocation-laut', to: 'search-pattern', tone: 'emerald', note: 'EST & S aset laut → rencana pencarian' },
+  // Dokumen komando: hasil rencana → briefing/de-briefing → RENOPS per domain
+  { from: 'search-pattern', to: 'briefing-debrief', tone: 'emerald', note: 'Rencana pencarian → Briefing & De-briefing' },
+  { from: 'ws1', to: 'briefing-debrief', tone: 'emerald', note: 'Hasil Datum WS 1 → Briefing & De-briefing' },
+  { from: 'briefing-debrief', to: 'renops-udara', tone: 'rose', note: 'Bank dokumen → RENOPS Udara' },
+  { from: 'briefing-debrief', to: 'renops-laut', tone: 'rose', note: 'Bank dokumen → RENOPS Laut' },
+  { from: 'briefing-debrief', to: 'renops-darat', tone: 'rose', note: 'Bank dokumen → RENOPS Darat' },
+];
 
 // === Lembar worksheet per-SRU (WS 2/3/8): 1 alut/SRU = 1 lembar ===
 
@@ -415,6 +459,18 @@ export default function Home() {
   // SRU Asset Allocation State (Multi-Asset Fleet)
   const [assets, setAssets] = useState<SruAssetInput[]>([]);
 
+  // Aset dikelompokkan per domain untuk tab Alokasi Aset Udara/Laut/Darat.
+  // Daftar aset TETAP SATU sumber (state `assets`) — tab domain hanya menyaring;
+  // perubahan pada tab domain digabung kembali ke daftar utama per domain.
+  const assetsByDomain = useMemo(() => ({
+    udara: assets.filter((a) => assetDomain(a.type) === 'udara'),
+    laut: assets.filter((a) => assetDomain(a.type) === 'laut'),
+    darat: assets.filter((a) => assetDomain(a.type) === 'darat'),
+  }), [assets]);
+  const handleDomainAssetsChange = useCallback((domain: SarDomain, updated: SruAssetInput[]) => {
+    setAssets((prev) => [...prev.filter((a) => assetDomain(a.type) !== domain), ...updated]);
+  }, []);
+
   // Primary SRU for quick controls
   const primarySru = assets[0] || {
     name: '-',
@@ -465,9 +521,27 @@ export default function Home() {
   // caseVersion, load kasus) sehingga editan manual tidak pernah hilang dan
   // worksheet terkait selalu menghitung ulang dari nilai terbaru.
   const [ws4State, setWs4State] = useState<Worksheet4InitialState | null>(null);
-  const [interceptState, setInterceptState] = useState<InterceptInput | null>(null);
+  // Intercept & RENOPS BER-DOMAIN (udara/laut/darat): setiap domain punya
+  // instansi worksheet + state mandiri. Briefing & De-briefing tetap satu
+  // dokumen komando bersama (tanpa kelompok) sesuai alur perban.
+  const [interceptStates, setInterceptStates] = useState<Record<SarDomain, InterceptInput | null>>(() => emptyDomainRecord(null));
   const [briefingState, setBriefingState] = useState<Record<string, string> | null>(null);
-  const [renopsState, setRenopsState] = useState<Record<string, string> | null>(null);
+  const [renopsStates, setRenopsStates] = useState<Record<SarDomain, Record<string, string> | null>>(() => emptyDomainRecord(null));
+
+  // Handler onStateChange yang STABIL per domain — InterceptWorksheet dan
+  // RenopsForm memanggil onStateChange di dalam useEffect yang bergantung pada
+  // referensi handler; handler inline yang dibuat ulang tiap render akan
+  // memicu loop set-state → render tanpa henti.
+  const interceptChangeHandlers = useMemo(() => ({
+    udara: (input: InterceptInput) => setInterceptStates((prev) => ({ ...prev, udara: input })),
+    laut: (input: InterceptInput) => setInterceptStates((prev) => ({ ...prev, laut: input })),
+    darat: (input: InterceptInput) => setInterceptStates((prev) => ({ ...prev, darat: input })),
+  }), []);
+  const renopsChangeHandlers = useMemo(() => ({
+    udara: (data: Record<string, string>) => setRenopsStates((prev) => ({ ...prev, udara: data })),
+    laut: (data: Record<string, string>) => setRenopsStates((prev) => ({ ...prev, laut: data })),
+    darat: (data: Record<string, string>) => setRenopsStates((prev) => ({ ...prev, darat: data })),
+  }), []);
 
   // === SAR Workflow Memory & Context Manager ===
   // Workspace aktif = SarCase yang dimuat/di-save (CaseManager) — bukan entitas baru.
@@ -564,12 +638,17 @@ export default function Home() {
         ws8TrackSpacings,
         // Worksheet mandiri & dokumen: input lengkap ikut disimpan.
         ws4: ws4State ?? undefined,
-        intercept: interceptState ?? (aiInterceptInput ?? undefined),
+        // Intercept & RENOPS ber-domain. `intercept`/`renops` (domain udara)
+        // dipertahankan untuk kompatibilitas pembaca lama (AI/ekspor);
+        // snapshot baru menyimpan peta lengkap per domain.
+        intercept: interceptStates.udara ?? (aiInterceptInput ?? undefined),
+        interceptByDomain: interceptStates,
         briefing: briefingState ?? undefined,
-        renops: renopsState ?? undefined,
+        renops: renopsStates.udara ?? undefined,
+        renopsByDomain: renopsStates,
       },
     };
-  }, [awaObservations, awaContext, aswState, loadedInitialState, aeroDraft, datumState, searchState, worksheet1Fs, ws1Measured, lkp, assets, patternType, patternAssetId, patternTurn, tsReturn, patternOrientationText, patternEnvironment, patternWorksheetSource, patternLandHeight, sectorAngleText, sectorLegLengthText, sectorLegCountText, trackLineLengthText, tsReturnOffsetText, windOverride, seaCurrentOverride, visibilityOverride, driftIntervalForWeather, adwSyncLkp, ws2Sheets, ws3Sheets, ws8Sheets, ws2TrackSpacings, ws3TrackSpacings, ws8TrackSpacings, ws4State, interceptState, aiInterceptInput, briefingState, renopsState]);
+  }, [awaObservations, awaContext, aswState, loadedInitialState, aeroDraft, datumState, searchState, worksheet1Fs, ws1Measured, lkp, assets, patternType, patternAssetId, patternTurn, tsReturn, patternOrientationText, patternEnvironment, patternWorksheetSource, patternLandHeight, sectorAngleText, sectorLegLengthText, sectorLegCountText, trackLineLengthText, tsReturnOffsetText, windOverride, seaCurrentOverride, visibilityOverride, driftIntervalForWeather, adwSyncLkp, ws2Sheets, ws3Sheets, ws8Sheets, ws2TrackSpacings, ws3TrackSpacings, ws8TrackSpacings, ws4State, interceptStates, aiInterceptInput, briefingState, renopsStates]);
 
   // Fase 2 AI Copilot: snapshot state untuk tool server-side (get_state /
   // run_pipeline / validate_plan). Stabil per perubahan state — identitas
@@ -706,8 +785,12 @@ export default function Home() {
   const AI_BADGE_TAB_KEYS: Record<string, string[]> = {
     asw: ['asw'], awa: ['awa'], aero: ['aero'], ups: ['aero'],
     ws1: ['datum'], ws2: ['ws2'], ws8: ['ws8'], 'search-pattern': ['pattern'],
-    ws3: ['ws3'], ws4: ['ws4'], intercept: ['intercept'],
-    'asset-allocation': ['assets'], 'briefing-renops': ['briefing', 'renops'],
+    ws3: ['ws3'], ws4: ['ws4'],
+    // Tab varian domain: badge AI sama dengan worksheet sumbernya.
+    'intercept-udara': ['intercept'], 'intercept-laut': ['intercept'], 'intercept-darat': ['intercept'],
+    'asset-allocation-udara': ['assets'], 'asset-allocation-laut': ['assets'], 'asset-allocation-darat': ['assets'],
+    'briefing-debrief': ['briefing'],
+    'renops-udara': ['renops'], 'renops-laut': ['renops'], 'renops-darat': ['renops'],
   };
   const aiBadgeDot = (tabValue: string) => {
     const keys = AI_BADGE_TAB_KEYS[tabValue] ?? [];
@@ -824,17 +907,39 @@ export default function Home() {
     // tidak memilikinya — hindari kebocoran data antarkasus).
     const ws4Saved = state.ws4 as Worksheet4InitialState | undefined;
     setWs4State(ws4Saved && typeof ws4Saved === 'object' ? ws4Saved : null);
-    const interceptSaved = state.intercept as InterceptInput | undefined;
-    setInterceptState(
-      interceptSaved && typeof interceptSaved === 'object' && interceptSaved.target && interceptSaved.sru
-        ? interceptSaved
-        : null,
-    );
+    // Intercept & RENOPS ber-domain: snapshot baru menyimpan peta per domain;
+    // kasus lama (single `intercept`/`renops`) dimuat ke domain UDARA.
+    const isValidIntercept = (v: unknown): v is InterceptInput =>
+      !!v && typeof v === 'object' && (v as InterceptInput).target !== undefined && (v as InterceptInput).sru !== undefined;
+    setInterceptStates(() => {
+      const next = emptyDomainRecord<InterceptInput | null>(null);
+      const byDomain = state.interceptByDomain as Record<string, unknown> | undefined;
+      if (byDomain && typeof byDomain === 'object') {
+        for (const domain of SAR_DOMAINS) {
+          const savedDomain = byDomain[domain];
+          if (isValidIntercept(savedDomain)) next[domain] = savedDomain;
+        }
+      } else if (isValidIntercept(state.intercept)) {
+        next.udara = state.intercept as InterceptInput;
+      }
+      return next;
+    });
     setAiInterceptInput(null);
     const briefingSaved = state.briefing as Record<string, string> | undefined;
     setBriefingState(briefingSaved && typeof briefingSaved === 'object' ? briefingSaved : null);
-    const renopsSaved = state.renops as Record<string, string> | undefined;
-    setRenopsState(renopsSaved && typeof renopsSaved === 'object' ? renopsSaved : null);
+    setRenopsStates(() => {
+      const next = emptyDomainRecord<Record<string, string> | null>(null);
+      const byDomain = state.renopsByDomain as Record<string, unknown> | undefined;
+      if (byDomain && typeof byDomain === 'object') {
+        for (const domain of SAR_DOMAINS) {
+          const savedDomain = byDomain[domain];
+          if (savedDomain && typeof savedDomain === 'object') next[domain] = savedDomain as Record<string, string>;
+        }
+      } else if (state.renops && typeof state.renops === 'object') {
+        next.udara = state.renops as Record<string, string>;
+      }
+      return next;
+    });
 
     // Info kelengkapan kasus: kasus versi lama (sebelum save-case lengkap)
     // hanya menyimpan sebagian worksheet — beri tahu pengguna bagian mana
@@ -945,9 +1050,9 @@ export default function Home() {
 
     // Reset persistence worksheet mandiri & dokumen (save case lengkap)
     setWs4State(null);
-    setInterceptState(null);
+    setInterceptStates(emptyDomainRecord(null));
     setBriefingState(null);
-    setRenopsState(null);
+    setRenopsStates(emptyDomainRecord(null));
     setLkp(DEFAULT_CENTER);
     setIsLkpSet(false);
     setAeroResults(null);
@@ -1054,9 +1159,6 @@ export default function Home() {
         setWs8Sheets([{ key: 'default', label: 'SRU 1', assetId: null, data: { caseTitle: '-', visibilityKm: '', vesselSpeedKts: 0 } }]);
         setActiveWs8Key('default');
         break;
-      case 'asset-allocation':
-        setAssets([]);
-        break;
       case 'search-pattern':
         setPatternType('PS');
         setPatternAssetId('');
@@ -1081,16 +1183,38 @@ export default function Home() {
       case 'ws4':
         setWs4State({ caseTitle: '-', searchDate: '-', callsign: '-', searchNo: '0', commenceUtc: '-', latitude: 0, longitude: 0, distressTimeUtc: '-', trList: [0, 0, 0, 0], fixErrors: [0, 0, 0, 0], yNavError: 0 });
         break;
-      case 'intercept':
+      case 'intercept-udara':
+      case 'intercept-laut':
+      case 'intercept-darat': {
+        const domain = domainFromTabValue(activeTab, 'intercept');
         setAiInterceptInput(null);
-        setInterceptState(null);
+        setInterceptStates((prev) => ({ ...prev, [domain ?? 'udara']: null }));
         setInterceptCaseVersion((version) => version + 1);
         break;
-      case 'briefing-renops':
-        setBriefingState(null);
-        setRenopsState(null);
+      }
+      case 'asset-allocation-udara':
+      case 'asset-allocation-laut': {
+        const domain = domainFromTabValue(activeTab, 'asset-allocation');
+        if (domain) setAssets((prev) => prev.filter((a) => assetDomain(a.type) !== domain));
         break;
-      case 'basic-calc':
+      }
+      case 'asset-allocation-darat':
+        // Belum ada tipe alut darat pada bank aset — tidak ada yang dibersihkan.
+        break;
+      case 'briefing-debrief':
+        setBriefingState(null);
+        break;
+      case 'renops-udara':
+      case 'renops-laut':
+      case 'renops-darat': {
+        const domain = domainFromTabValue(activeTab, 'renops');
+        setRenopsStates((prev) => ({ ...prev, [domain ?? 'udara']: null }));
+        break;
+      }
+      case 'basic-calc-udara':
+      case 'basic-calc-laut':
+      case 'basic-calc-darat':
+        // Kalkulator mandiri — remount via tabClearVersions mengosongkan state internal.
         break;
       default:
         break;
@@ -1423,7 +1547,8 @@ export default function Home() {
         : [...prev, next];
     });
     setCaseVersion((version) => version + 1);
-    setActiveTab('asset-allocation');
+    // Buka tab Alokasi Aset sesuai domain alut yang diterapkan AI.
+    setActiveTab(assetDomain(data.sruType) === 'udara' ? 'asset-allocation-udara' : 'asset-allocation-laut');
   }, []);
 
   const handleApplySearchPattern = useCallback((data: SearchPatternPlanInitialState) => {
@@ -1569,9 +1694,11 @@ export default function Home() {
   const handleApplyIntercept = useCallback((data: InterceptInput) => {
     setAiInterceptInput(data);
     setInterceptCaseVersion((version) => version + 1);
-    setActiveTab('intercept');
+    // Kasus intercept dari AI menjadi seed: setiap tab intercept domain akan
+    // memakainya sebagai input awal selama domain itu belum punya state sendiri.
+    setActiveTab('intercept-udara');
     setIsAiChatOpen(false);
-    toast.success('Data kasus otomatis dimasukkan ke worksheet Intercept.');
+    toast.success('Data kasus otomatis dimasukkan ke worksheet Intercept (domain udara — tab domain lain memakai seed yang sama selama belum diisi).');
     return true;
   }, []);
 
@@ -1662,9 +1789,11 @@ export default function Home() {
         break;
       }
       case 'intercept': {
-        setInterceptState((prev) => {
-          const merged = { ...(prev ?? {}), ...values } as InterceptInput;
-          return merged.target && merged.sru ? merged : prev;
+        // AI menulis ke domain tab intercept yang SEDANG dibuka (default udara).
+        const domain = domainFromTabValue(activeTab, 'intercept') ?? 'udara';
+        setInterceptStates((prev) => {
+          const merged = { ...(prev[domain] ?? {}), ...values } as InterceptInput;
+          return merged.target && merged.sru ? { ...prev, [domain]: merged } : prev;
         });
         setAiInterceptInput(null);
         break;
@@ -1682,7 +1811,9 @@ export default function Home() {
         break;
       }
       case 'renops': {
-        setRenopsState((prev) => ({ ...(prev ?? {}), ...values } as Record<string, string>));
+        // AI menulis RENOPS ke domain tab yang sedang dibuka (default udara).
+        const domain = domainFromTabValue(activeTab, 'renops') ?? 'udara';
+        setRenopsStates((prev) => ({ ...prev, [domain]: { ...(prev[domain] ?? {}), ...values } as Record<string, string> }));
         break;
       }
       default:
@@ -1691,7 +1822,7 @@ export default function Home() {
     setCaseVersion((v) => v + 1);
     toast.success(`AI mengisi ${count} field pada ${worksheet.toUpperCase()}${sruName ? ` (${sruName})` : ''}.`);
     return true;
-  }, []);
+  }, [activeTab]);
   // Latest-ref untuk undo batch AI (effect — ref tidak boleh ditulis saat render).
   useEffect(() => {
     handleApplySetFieldsRef.current = handleApplySetFields;
@@ -2739,65 +2870,155 @@ export default function Home() {
         {/* Left Column: Worksheets & Tools */}
         <section className="lg:col-span-3 space-y-4">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            {/* Navigation Tabs List — SEMUA tab tampil (wrap beberapa baris),
-                tanpa scroll samping: cukup klik tab yang dituju. */}
-            <div className="mb-3">
-              <TabsList className="flex flex-wrap h-auto p-1 bg-slate-200/80 rounded-lg gap-1 w-full">
-                <TabsTrigger
-                  value="all-worksheets"
-                  className="text-xs px-2.5 py-1.5 font-bold data-[state=active]:bg-emerald-600 data-[state=active]:text-white"
-                >
-                  <FileCheck className="h-3.5 w-3.5 mr-1 text-emerald-300" /> Semua Worksheet
-                </TabsTrigger>
-                <TabsTrigger value="awa" className="text-xs px-2 py-1.5">
-                  <Wind className="h-3.5 w-3.5 mr-1" /> 1. AWA + MoBo{aiBadgeDot('awa')}
-                </TabsTrigger>
-                <TabsTrigger value="aero" className="text-xs px-2 py-1.5 data-[state=active]:bg-sky-600 data-[state=active]:text-white font-semibold">
-                  <Plane className="h-3.5 w-3.5 mr-1" /> 2. Aero Drift (ADW){aiBadgeDot('aero')}
-                </TabsTrigger>
-                <TabsTrigger value="ups" className="text-xs px-2 py-1.5">
-                  <MapIcon className="h-3.5 w-3.5 mr-1" /> UPS Plotter{aiBadgeDot('ups')}
-                </TabsTrigger>
-                <TabsTrigger value="asw" className="text-xs px-2 py-1.5">
-                  <Wind className="h-3.5 w-3.5 mr-1" /> 3. ASW + MoBo{aiBadgeDot('asw')}
-                </TabsTrigger>
-                <TabsTrigger value="ws1" className="text-xs px-2 py-1.5 font-semibold">
-                  <Ship className="h-3.5 w-3.5 mr-1" /> 4. WS 1 (Datum){aiBadgeDot('ws1')}
-                </TabsTrigger>
-                <TabsTrigger value="ws2" className="text-xs px-2 py-1.5">
-                  <Split className="h-3.5 w-3.5 mr-1" /> 5. WS 2 (Maritime){aiBadgeDot('ws2')}
-                </TabsTrigger>
-                <TabsTrigger value="ws8" className="text-xs px-2 py-1.5">
-                  <Layers className="h-3.5 w-3.5 mr-1" /> 6. WS 8 (Kapal){aiBadgeDot('ws8')}
-                </TabsTrigger>
-                <TabsTrigger
-                  value="asset-allocation"
-                  className="text-xs px-2.5 py-1.5 font-bold data-[state=active]:bg-purple-700 data-[state=active]:text-white"
-                >
-                  <Anchor className="h-3.5 w-3.5 mr-1 text-purple-200" /> 7. Alokasi Aset SRU{aiBadgeDot('asset-allocation')}
-                </TabsTrigger>
-                <TabsTrigger value="search-pattern" className="text-xs px-2.5 py-1.5 font-bold data-[state=active]:bg-emerald-700 data-[state=active]:text-white">
-                  <Navigation className="h-3.5 w-3.5 mr-1 text-emerald-200" /> 8. Pola & Rute{aiBadgeDot('search-pattern')}
-                </TabsTrigger>
-                <TabsTrigger value="ws3" className="text-xs px-2 py-1.5">
-                  <Calculator className="h-3.5 w-3.5 mr-1" /> WS 3 (Land){aiBadgeDot('ws3')}
-                </TabsTrigger>
-                <TabsTrigger value="ws4" className="text-xs px-2 py-1.5">
-                  <Calculator className="h-3.5 w-3.5 mr-1" /> WS 4 (Radius){aiBadgeDot('ws4')}
-                </TabsTrigger>
-                <TabsTrigger value="intercept" className="text-xs px-2.5 py-1.5 data-[state=active]:bg-rose-600 data-[state=active]:text-white font-bold">
-                  <Target className="h-3.5 w-3.5 mr-1 text-rose-300" /> Intercept{aiBadgeDot('intercept')}
-                </TabsTrigger>
-                <TabsTrigger value="briefing-renops" className="text-xs px-2 py-1.5">
-                  <ClipboardList className="h-3.5 w-3.5 mr-1" /> Briefing/Renops{aiBadgeDot('briefing-renops')}
-                </TabsTrigger>
-                <TabsTrigger value="basic-calc" className="text-xs px-2 py-1.5">
-                  <Calculator className="h-3.5 w-3.5 mr-1" /> Hitung Dasar
-                </TabsTrigger>
-                <TabsTrigger value="generator" className="text-xs px-2.5 py-1.5 font-bold data-[state=active]:bg-violet-600 data-[state=active]:text-white">
-                  <Sparkles className="h-3.5 w-3.5 mr-1 text-violet-300" /> Generator Soal
-                </TabsTrigger>
+            {/* Navigation Tabs List — TIGA KELOMPOK DOMAIN (UDARA / LAUT / DARAT).
+                Worksheet Intercept, Alokasi Aset, Hitung Dasar, dan Renops punya
+                instansi per domain dengan state mandiri; Briefing & De-briefing,
+                Pola & Rute, Generator Soal, dan ringkasan tetap tanpa kelompok.
+                SEMUA tab tampil (wrap per baris), tanpa scroll samping.
+                Kabel animasi (WorksheetWiring) menggambar aliran data antar tab
+                yang saling berkaitan sesuai WORKSHEET_DATA_EDGES. */}
+            <div className="mb-3 relative" id="worksheet-tabs-host">
+              <TabsList className="flex flex-col h-auto items-stretch p-1.5 gap-1.5 bg-slate-200/80 rounded-xl border border-slate-300/80 shadow-inner w-full">
+                {/* Baris tanpa kelompok: ringkasan + alat lintas domain */}
+                <div className="flex flex-wrap items-center gap-1 px-0.5 pt-0.5">
+                  <TabsTrigger
+                    value="all-worksheets"
+                    className="text-xs px-2.5 py-1.5 font-bold data-[state=active]:bg-emerald-600 data-[state=active]:text-white"
+                    data-tab-value="all-worksheets"
+                  >
+                    <FileCheck className="h-3.5 w-3.5 mr-1 text-emerald-300" /> Semua Worksheet
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="search-pattern"
+                    className="text-xs px-2.5 py-1.5 font-bold data-[state=active]:bg-emerald-700 data-[state=active]:text-white"
+                    data-tab-value="search-pattern"
+                  >
+                    <Navigation className="h-3.5 w-3.5 mr-1 text-emerald-600" /> Pola &amp; Rute{aiBadgeDot('search-pattern')}
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="briefing-debrief"
+                    className="text-xs px-2 py-1.5 font-semibold data-[state=active]:bg-indigo-700 data-[state=active]:text-white"
+                    data-tab-value="briefing-debrief"
+                  >
+                    <ClipboardList className="h-3.5 w-3.5 mr-1 text-indigo-600" /> Briefing &amp; De-briefing{aiBadgeDot('briefing-debrief')}
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="generator"
+                    className="text-xs px-2.5 py-1.5 font-bold data-[state=active]:bg-violet-600 data-[state=active]:text-white"
+                    data-tab-value="generator"
+                  >
+                    <Sparkles className="h-3.5 w-3.5 mr-1 text-violet-500" /> Generator Soal
+                  </TabsTrigger>
+                </div>
+
+                {/* KELOMPOK 1 — DOMAIN UDARA */}
+                <div className="flex flex-wrap items-center gap-1 rounded-lg border border-sky-300/70 bg-sky-50/60 px-1.5 py-1">
+                  <span
+                    className="mr-1 inline-flex select-none items-center gap-1 rounded-md bg-sky-700 px-2 py-1 text-[10px] font-extrabold uppercase tracking-[0.14em] text-white shadow-sm print:hidden"
+                    title="Domain udara: AWA, Aero Drift, UPS, Intercept, Alokasi Aset, Hitung Dasar, Renops"
+                  >
+                    <Plane className="h-3 w-3" /> Udara
+                  </span>
+                  <TabsTrigger value="awa" className="text-xs px-2 py-1.5" data-tab-value="awa">
+                    <Wind className="h-3.5 w-3.5 mr-1" /> 1. AWA + MoBo{aiBadgeDot('awa')}
+                  </TabsTrigger>
+                  <TabsTrigger value="aero" className="text-xs px-2 py-1.5 data-[state=active]:bg-sky-600 data-[state=active]:text-white font-semibold" data-tab-value="aero">
+                    <Plane className="h-3.5 w-3.5 mr-1" /> 2. Aero Drift (ADW){aiBadgeDot('aero')}
+                  </TabsTrigger>
+                  <TabsTrigger value="ups" className="text-xs px-2 py-1.5" data-tab-value="ups">
+                    <MapIcon className="h-3.5 w-3.5 mr-1" /> UPS Plotter{aiBadgeDot('ups')}
+                  </TabsTrigger>
+                  <TabsTrigger value="intercept-udara" className="text-xs px-2 py-1.5 data-[state=active]:bg-rose-600 data-[state=active]:text-white font-bold" data-tab-value="intercept-udara">
+                    <Target className="h-3.5 w-3.5 mr-1 text-rose-500" /> Intercept{aiBadgeDot('intercept-udara')}
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="asset-allocation-udara"
+                    className="text-xs px-2 py-1.5 font-bold data-[state=active]:bg-purple-700 data-[state=active]:text-white"
+                    data-tab-value="asset-allocation-udara"
+                  >
+                    <Anchor className="h-3.5 w-3.5 mr-1 text-purple-500" /> Alokasi Aset{aiBadgeDot('asset-allocation-udara')}
+                  </TabsTrigger>
+                  <TabsTrigger value="basic-calc-udara" className="text-xs px-2 py-1.5" data-tab-value="basic-calc-udara">
+                    <Calculator className="h-3.5 w-3.5 mr-1" /> Hitung Dasar
+                  </TabsTrigger>
+                  <TabsTrigger value="renops-udara" className="text-xs px-2 py-1.5 font-semibold data-[state=active]:bg-indigo-600 data-[state=active]:text-white" data-tab-value="renops-udara">
+                    <FileText className="h-3.5 w-3.5 mr-1 text-indigo-500" /> Renops{aiBadgeDot('renops-udara')}
+                  </TabsTrigger>
+                </div>
+
+                {/* KELOMPOK 2 — DOMAIN LAUT */}
+                <div className="flex flex-wrap items-center gap-1 rounded-lg border border-blue-300/70 bg-blue-50/60 px-1.5 py-1">
+                  <span
+                    className="mr-1 inline-flex select-none items-center gap-1 rounded-md bg-blue-800 px-2 py-1 text-[10px] font-extrabold uppercase tracking-[0.14em] text-white shadow-sm print:hidden"
+                    title="Domain laut: ASW, Datum WS 1, WS 2 Maritime, WS 8 Kapal, Intercept, Alokasi Aset, Hitung Dasar, Renops"
+                  >
+                    <Ship className="h-3 w-3" /> Laut
+                  </span>
+                  <TabsTrigger value="asw" className="text-xs px-2 py-1.5" data-tab-value="asw">
+                    <Wind className="h-3.5 w-3.5 mr-1" /> 3. ASW + MoBo{aiBadgeDot('asw')}
+                  </TabsTrigger>
+                  <TabsTrigger value="ws1" className="text-xs px-2 py-1.5 font-semibold" data-tab-value="ws1">
+                    <Ship className="h-3.5 w-3.5 mr-1" /> 4. WS 1 (Datum){aiBadgeDot('ws1')}
+                  </TabsTrigger>
+                  <TabsTrigger value="ws2" className="text-xs px-2 py-1.5" data-tab-value="ws2">
+                    <Split className="h-3.5 w-3.5 mr-1" /> 5. WS 2 (Maritime){aiBadgeDot('ws2')}
+                  </TabsTrigger>
+                  <TabsTrigger value="ws8" className="text-xs px-2 py-1.5" data-tab-value="ws8">
+                    <Layers className="h-3.5 w-3.5 mr-1" /> 6. WS 8 (Kapal){aiBadgeDot('ws8')}
+                  </TabsTrigger>
+                  <TabsTrigger value="intercept-laut" className="text-xs px-2 py-1.5 data-[state=active]:bg-rose-600 data-[state=active]:text-white font-bold" data-tab-value="intercept-laut">
+                    <Target className="h-3.5 w-3.5 mr-1 text-rose-500" /> Intercept{aiBadgeDot('intercept-laut')}
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="asset-allocation-laut"
+                    className="text-xs px-2 py-1.5 font-bold data-[state=active]:bg-purple-700 data-[state=active]:text-white"
+                    data-tab-value="asset-allocation-laut"
+                  >
+                    <Anchor className="h-3.5 w-3.5 mr-1 text-purple-500" /> Alokasi Aset{aiBadgeDot('asset-allocation-laut')}
+                  </TabsTrigger>
+                  <TabsTrigger value="basic-calc-laut" className="text-xs px-2 py-1.5" data-tab-value="basic-calc-laut">
+                    <Calculator className="h-3.5 w-3.5 mr-1" /> Hitung Dasar
+                  </TabsTrigger>
+                  <TabsTrigger value="renops-laut" className="text-xs px-2 py-1.5 font-semibold data-[state=active]:bg-indigo-600 data-[state=active]:text-white" data-tab-value="renops-laut">
+                    <FileText className="h-3.5 w-3.5 mr-1 text-indigo-500" /> Renops{aiBadgeDot('renops-laut')}
+                  </TabsTrigger>
+                </div>
+
+                {/* KELOMPOK 3 — DOMAIN DARAT */}
+                <div className="flex flex-wrap items-center gap-1 rounded-lg border border-amber-300/70 bg-amber-50/60 px-1.5 py-1">
+                  <span
+                    className="mr-1 inline-flex select-none items-center gap-1 rounded-md bg-amber-600 px-2 py-1 text-[10px] font-extrabold uppercase tracking-[0.14em] text-white shadow-sm print:hidden"
+                    title="Domain darat: WS 3 (Land), WS 4 (Radius), Intercept, Alokasi Aset, Hitung Dasar, Renops"
+                  >
+                    <Mountain className="h-3 w-3" /> Darat
+                  </span>
+                  <TabsTrigger value="ws3" className="text-xs px-2 py-1.5" data-tab-value="ws3">
+                    <Calculator className="h-3.5 w-3.5 mr-1" /> WS 3 (Land){aiBadgeDot('ws3')}
+                  </TabsTrigger>
+                  <TabsTrigger value="ws4" className="text-xs px-2 py-1.5" data-tab-value="ws4">
+                    <Calculator className="h-3.5 w-3.5 mr-1" /> WS 4 (Radius){aiBadgeDot('ws4')}
+                  </TabsTrigger>
+                  <TabsTrigger value="intercept-darat" className="text-xs px-2 py-1.5 data-[state=active]:bg-rose-600 data-[state=active]:text-white font-bold" data-tab-value="intercept-darat">
+                    <Target className="h-3.5 w-3.5 mr-1 text-rose-500" /> Intercept{aiBadgeDot('intercept-darat')}
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="asset-allocation-darat"
+                    className="text-xs px-2 py-1.5 font-bold data-[state=active]:bg-purple-700 data-[state=active]:text-white"
+                    data-tab-value="asset-allocation-darat"
+                  >
+                    <Anchor className="h-3.5 w-3.5 mr-1 text-purple-500" /> Alokasi Aset{aiBadgeDot('asset-allocation-darat')}
+                  </TabsTrigger>
+                  <TabsTrigger value="basic-calc-darat" className="text-xs px-2 py-1.5" data-tab-value="basic-calc-darat">
+                    <Calculator className="h-3.5 w-3.5 mr-1" /> Hitung Dasar
+                  </TabsTrigger>
+                  <TabsTrigger value="renops-darat" className="text-xs px-2 py-1.5 font-semibold data-[state=active]:bg-indigo-600 data-[state=active]:text-white" data-tab-value="renops-darat">
+                    <FileText className="h-3.5 w-3.5 mr-1 text-indigo-500" /> Renops{aiBadgeDot('renops-darat')}
+                  </TabsTrigger>
+                </div>
               </TabsList>
+
+              {/* Animasi wiring premium: kabel data antar worksheet yang berkaitan */}
+              <WorksheetWiring hostId="worksheet-tabs-host" edges={WORKSHEET_WIRING_EDGES} activeTab={activeTab} />
             </div>
 
             {/* TAB: SEMUA WORKSHEET (SUMMARY VIEW) */}
@@ -3129,20 +3350,23 @@ export default function Home() {
               ))}
             </TabsContent>
 
-            {/* TAB 7: PENGHITUNGAN ALOKASI ASET SRU */}
-            <TabsContent value="asset-allocation" key={`assets-tab-${caseVersion}-${tabClearVersions['asset-allocation'] ?? 0}`} className="mt-0 space-y-4">
+            {/* TAB 7 (per domain): PENGHITUNGAN ALOKASI ASET SRU — UDARA / LAUT / DARAT.
+                Satu daftar aset (state `assets`) disaring per domain; perubahan pada
+                tab domain digabung kembali ke daftar utama. */}
+            <TabsContent value="asset-allocation-udara" key={`assets-udara-tab-${caseVersion}-${tabClearVersions['asset-allocation-udara'] ?? 0}`} className="mt-0 space-y-4">
               <AssetAllocationWorksheet
-                key={`assets-${caseVersion}`}
+                key={`assets-udara-${caseVersion}`}
+                domain="udara"
                 csp={csp}
                 exitPoint={exitPoint}
                 ws1Ao={ws1Ao}
-                assets={assets}
+                assets={assetsByDomain.udara}
                 worksheetSpacing={assetWorksheetSpacing}
-                onAssetsChange={setAssets}
+                onAssetsChange={(updated) => handleDomainAssetsChange('udara', updated)}
               />
               <PrintCompanionMap
-                title="LAMPIRAN: PETA ALOKASI ASET SRU & RUTE TRANSIT"
-                worksheetRef="ALOKASI ASET SRU"
+                title="LAMPIRAN: PETA ALOKASI ASET SRU UDARA & RUTE TRANSIT"
+                worksheetRef="ALOKASI ASET SRU — UDARA"
                 lkp={lkp}
                 mapCenter={mapCenter}
                 markers={markers}
@@ -3156,6 +3380,69 @@ export default function Home() {
                 driftDistance={datumResults?.driftDistance}
                 E={datumResults?.E}
               />
+            </TabsContent>
+
+            <TabsContent value="asset-allocation-laut" key={`assets-laut-tab-${caseVersion}-${tabClearVersions['asset-allocation-laut'] ?? 0}`} className="mt-0 space-y-4">
+              <AssetAllocationWorksheet
+                key={`assets-laut-${caseVersion}`}
+                domain="laut"
+                csp={csp}
+                exitPoint={exitPoint}
+                ws1Ao={ws1Ao}
+                assets={assetsByDomain.laut}
+                worksheetSpacing={assetWorksheetSpacing}
+                onAssetsChange={(updated) => handleDomainAssetsChange('laut', updated)}
+              />
+              <PrintCompanionMap
+                title="LAMPIRAN: PETA ALOKASI ASET SRU LAUT & RUTE TRANSIT"
+                worksheetRef="ALOKASI ASET SRU — LAUT"
+                lkp={lkp}
+                mapCenter={mapCenter}
+                markers={markers}
+                lines={lines}
+                polygons={polygons}
+                circles={circles}
+                searchAreaLength={searchAreaLength}
+                searchAreaWidth={searchAreaWidth}
+                searchAreaOrientation={searchAreaOrientation}
+                ws1Ao={ws1Ao}
+                driftDistance={datumResults?.driftDistance}
+                E={datumResults?.E}
+              />
+            </TabsContent>
+
+            {/* Domain darat: bank aset belum memiliki tipe alut darat — tampilkan
+                panduan alih-alih lembar EST kosong (WS 3/WS 4 mengelola perencanaan darat). */}
+            <TabsContent value="asset-allocation-darat" key={`assets-darat-tab-${caseVersion}-${tabClearVersions['asset-allocation-darat'] ?? 0}`} className="mt-0 space-y-4">
+              <Card className="border-amber-300 shadow-sm bg-white overflow-hidden">
+                <CardHeader className="bg-amber-50 border-b border-amber-200 py-3.5 px-4">
+                  <div className="flex items-center gap-2">
+                    <Anchor className="h-5 w-5 text-amber-700" />
+                    <div>
+                      <CardTitle className="text-sm sm:text-base font-bold text-slate-900 tracking-tight">
+                        ALOKASI ASET SRU — DOMAIN DARAT
+                      </CardTitle>
+                      <p className="text-[11px] text-slate-500 font-mono">
+                        Perencanaan pencarian darat (tim KANSAR / tim SAR darat)
+                      </p>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-4 space-y-3">
+                  <p className="text-xs text-slate-700 leading-relaxed">
+                    Bank aset saat ini belum memiliki tipe alut darat, sehingga lembar OSE/EST darat belum tersedia.
+                    Perencanaan pencarian di darat dikelola melalui worksheet berikut:
+                  </p>
+                  <ul className="text-xs text-slate-700 list-disc pl-5 space-y-1">
+                    <li><span className="font-bold">WS 3 (Land)</span> — WSC &amp; POD pencarian darat (tab kelompok Darat).</li>
+                    <li><span className="font-bold">WS 4 (Radius)</span> — radius pencarian &amp; luas area trapesium darat.</li>
+                    <li><span className="font-bold">Intercept</span> &amp; <span className="font-bold">Renops Darat</span> — konstruksi intercept dan dokumen RENOPS tim darat.</li>
+                  </ul>
+                  <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded p-2">
+                    Bila tipe alut darat (mis. Tim KANSAR, kendaraan sar) ditambahkan ke bank aset, lembar alokasi aset darat akan tampil otomatis di tab ini.
+                  </p>
+                </CardContent>
+              </Card>
             </TabsContent>
 
             {/* TAB 8: POLA PENCARIAN & TRANSIT ASET SRU */}
@@ -3452,18 +3739,25 @@ export default function Home() {
               />
             </TabsContent>
 
-            {/* TAB: INTERCEPT CALCULATOR */}
-            <TabsContent value="intercept" key={`intercept-tab-${caseVersion}-${tabClearVersions.intercept ?? 0}`} className="mt-0">
-              <InterceptWorksheet
-                key={`intercept-${caseVersion}-${interceptCaseVersion}`}
-                initialInput={aiInterceptInput ?? interceptState}
-                onStateChange={setInterceptState}
-              />
-            </TabsContent>
+            {/* TAB: INTERCEPT CALCULATOR (per domain — state mandiri udara/laut/darat) */}
+            {SAR_DOMAINS.map((domain) => (
+              <TabsContent
+                key={`intercept-${domain}-tab-${caseVersion}-${tabClearVersions[`intercept-${domain}`] ?? 0}`}
+                value={`intercept-${domain}`}
+                className="mt-0"
+              >
+                <InterceptWorksheet
+                  key={`intercept-${domain}-${caseVersion}-${interceptCaseVersion}`}
+                  initialInput={aiInterceptInput ?? interceptStates[domain]}
+                  onStateChange={interceptChangeHandlers[domain]}
+                />
+              </TabsContent>
+            ))}
 
-            {/* TAB: BRIEFING & RENOPS (PERBAN 3/2020) — cetak alami multi-halaman
+            {/* TAB: BRIEFING & DE-BRIEFING (PERBAN 3/2020) — tanpa kelompok domain
+                (dokumen komando lintas domain); cetak alami multi-halaman
                 (data-print-flow): jumlah halaman mengikuti banyak keterangan */}
-            <TabsContent value="briefing-renops" key={`briefing-tab-${caseVersion}-${tabClearVersions['briefing-renops'] ?? 0}`} className="mt-0 space-y-6" data-print-flow>
+            <TabsContent value="briefing-debrief" key={`briefing-tab-${caseVersion}-${tabClearVersions['briefing-debrief'] ?? 0}`} className="mt-0 space-y-6" data-print-flow>
               {/* BANK DATA & GENERATOR DOKUMEN — Panduan Agent RENOPS/Briefing/De-Briefing */}
               <DocumentWorkbench
                 lkp={lkp}
@@ -3501,18 +3795,8 @@ export default function Home() {
                 initialState={briefingState}
                 onStateChange={setBriefingState}
               />
-              <div className="print-page-break">
-                <RenopsForm
-                  key={`renops-${caseVersion}`}
-                  lkp={lkp}
-                  datumResults={datumResults}
-                  searchResults={searchResults}
-                  initialState={renopsState}
-                  onStateChange={setRenopsState}
-                />
-              </div>
               <PrintCompanionMap
-                title="LAMPIRAN: PETA OPERASI SAR (BRIEFING & RENOPS)"
+                title="LAMPIRAN: PETA OPERASI SAR (BRIEFING & DE-BRIEFING)"
                 worksheetRef="PERBAN 3/2020 BASARNAS"
                 lkp={lkp}
                 mapCenter={mapCenter}
@@ -3529,12 +3813,38 @@ export default function Home() {
               />
             </TabsContent>
 
-            {/* TAB: HITUNG DASAR */}
-            <TabsContent value="basic-calc" key={`basic-tab-${caseVersion}-${tabClearVersions['basic-calc'] ?? 0}`} className="mt-0 space-y-4">
-              <BasicCalculation key={`calc-${caseVersion}`} />
-              {/* PHASE 4: panduan + kalkulator jarak peta laut & peta udara (1 menit = 1 NM) */}
-              <ChartDistanceGuide key={`chart-dist-${caseVersion}`} />
-            </TabsContent>
+            {/* TAB: RENOPS per domain (udara/laut/darat) — dokumen Rencana Operasi
+                dengan isi mandiri per domain; RENOPS udara tidak menimpa laut, dst. */}
+            {SAR_DOMAINS.map((domain) => (
+              <TabsContent
+                key={`renops-${domain}-tab-${caseVersion}-${tabClearVersions[`renops-${domain}`] ?? 0}`}
+                value={`renops-${domain}`}
+                className="mt-0 space-y-6"
+                data-print-flow
+              >
+                <RenopsForm
+                  key={`renops-${domain}-${caseVersion}`}
+                  lkp={lkp}
+                  datumResults={datumResults}
+                  searchResults={searchResults}
+                  initialState={renopsStates[domain]}
+                  onStateChange={renopsChangeHandlers[domain]}
+                />
+              </TabsContent>
+            ))}
+
+            {/* TAB: HITUNG DASAR (per domain — instansi mandiri per kelompok) */}
+            {SAR_DOMAINS.map((domain) => (
+              <TabsContent
+                key={`basic-${domain}-tab-${caseVersion}-${tabClearVersions[`basic-calc-${domain}`] ?? 0}`}
+                value={`basic-calc-${domain}`}
+                className="mt-0 space-y-4"
+              >
+                <BasicCalculation key={`calc-${domain}-${caseVersion}`} />
+                {/* PHASE 4: panduan + kalkulator jarak peta laut & peta udara (1 menit = 1 NM) */}
+                <ChartDistanceGuide key={`chart-dist-${domain}-${caseVersion}`} />
+              </TabsContent>
+            ))}
 
             {/* TAB: GENERATOR SOAL (Fase 5a — parameter ber-seed + bank lokasi/aset) */}
             <TabsContent value="generator" className="mt-0 space-y-4" key="generator-tab">

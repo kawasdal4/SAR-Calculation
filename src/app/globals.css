@@ -810,3 +810,64 @@
 .ref-col-hl {
   background-color: #fef3c7 !important;
 }
+
+/* ===== WORKSHEET WIRING (premium) — jalur sirkuit + pulsa data antar tab
+   yang saling berkaitan. pathLength=1 dinormalisasi di SVG, sehingga animasi
+   stroke-dashoffset bergerak dalam satuan proporsional (0 → -0.16 = satu
+   periode pola dash "0.052 0.108") dan kecepatan pulsa seragam untuk semua
+   panjang kabel. Arah aliran: produsen → konsumen (dashoffset negatif
+   menggeser pola ke ujung path). ===== */
+@keyframes wiring-flow {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -0.16;
+  }
+}
+
+.wiring-pulse {
+  animation: wiring-flow 3s linear infinite;
+  opacity: 0.8;
+}
+
+/* Kabel yang tersambung ke tab aktif: pulsa lebih cepat + terang. */
+.wiring-pulse--active {
+  animation-duration: 1.5s;
+  opacity: 1;
+}
+
+/* Halo node ujung kabel berdenyut lembut. transform-box: fill-box agar
+   transform-origin center mengacu pada tiap lingkaran (bukan viewBox SVG). */
+@keyframes wiring-node-halo {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.16;
+  }
+  50% {
+    transform: scale(1.9);
+    opacity: 0.34;
+  }
+}
+
+.wiring-node-halo {
+  animation: wiring-node-halo 2.4s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.wiring-trace {
+  /* Jejak tembaga: rounded caps + sedikit texture via dash halus. */
+  stroke-linejoin: round;
+}
+
+/* Hormati preferensi pengguna: tanpa gerak → pulsa & halo statis redup. */
+@media (prefers-reduced-motion: reduce) {
+  .wiring-pulse,
+  .wiring-pulse--active,
+  .wiring-node-halo {
+    animation: none !important;
+    opacity: 0.35;
+  }
+}

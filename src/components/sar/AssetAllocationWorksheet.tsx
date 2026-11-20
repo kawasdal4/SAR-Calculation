@@ -52,6 +52,9 @@ interface AssetAllocationWorksheetProps {
   /** Spacing (S) per assetId dari worksheet sumbernya: udara → WS 2, laut → WS 8. */
   worksheetSpacing?: Record<string, { spacingNm: number; source: 'ws2' | 'ws8' }>;
   onAssetsChange: (assets: SruAssetInput[]) => void;
+  /** Domain tab pemanggil: membatasi tombol tambah aset & menegaskan judul
+   *  (tab Alokasi Aset Udara hanya mengelola alut udara, dst.). */
+  domain?: 'udara' | 'laut' | 'darat';
   className?: string;
 }
 
@@ -71,6 +74,7 @@ export default function AssetAllocationWorksheet({
   assets,
   worksheetSpacing,
   onAssetsChange,
+  domain,
   className = '',
 }: AssetAllocationWorksheetProps) {
   // Lembar aktif = SRU yang sedang diedit; fallback ke lembar pertama.
@@ -159,6 +163,8 @@ export default function AssetAllocationWorksheet({
               <div>
                 <CardTitle className="text-sm sm:text-base font-bold text-slate-900 tracking-tight">
                   PENGHITUNGAN ALOKASI ASET SRU & LEMBAR KERJA OSE/EST ASLI
+                  {domain === 'udara' && <span className="ml-2 inline-flex whitespace-nowrap rounded bg-sky-700 px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-white align-middle">Domain Udara</span>}
+                  {domain === 'laut' && <span className="ml-2 inline-flex whitespace-nowrap rounded bg-blue-800 px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-white align-middle">Domain Laut</span>}
                 </CardTitle>
                 <p className="text-[11px] text-slate-500 font-mono">
                   Berdasarkan Form Diklat Basarnas (EST Maritime / EST Air Asset) — 1 alut = 1 lembar
@@ -237,12 +243,18 @@ export default function AssetAllocationWorksheet({
             onRemove={(key) => removeAsset(key)}
             addControls={
               <span className="flex items-center gap-1.5">
-                <button type="button" onClick={() => addAsset('rescue-vessel')} className="flex items-center gap-1 text-[11px] bg-blue-700 hover:bg-blue-800 text-white font-bold px-2.5 py-1 rounded-full transition">
-                  <Plus className="h-3 w-3" /> Alut Laut
-                </button>
-                <button type="button" onClick={() => addAsset('fixed-wing-aircraft')} className="flex items-center gap-1 text-[11px] bg-sky-700 hover:bg-sky-800 text-white font-bold px-2.5 py-1 rounded-full transition">
-                  <Plus className="h-3 w-3" /> Alut Udara
-                </button>
+                {/* Tab domain: hanya tampilkan tombol tambah sesuai domain tab.
+                    Tanpa domain (pemakaian lama) → kedua tombol tampil. */}
+                {(domain === undefined || domain === 'laut') && (
+                  <button type="button" onClick={() => addAsset('rescue-vessel')} className="flex items-center gap-1 text-[11px] bg-blue-700 hover:bg-blue-800 text-white font-bold px-2.5 py-1 rounded-full transition">
+                    <Plus className="h-3 w-3" /> Alut Laut
+                  </button>
+                )}
+                {(domain === undefined || domain === 'udara') && (
+                  <button type="button" onClick={() => addAsset('fixed-wing-aircraft')} className="flex items-center gap-1 text-[11px] bg-sky-700 hover:bg-sky-800 text-white font-bold px-2.5 py-1 rounded-full transition">
+                    <Plus className="h-3 w-3" /> Alut Udara
+                  </button>
+                )}
               </span>
             }
           />
