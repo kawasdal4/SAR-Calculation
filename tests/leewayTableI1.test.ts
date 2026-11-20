@@ -43,10 +43,13 @@ const TABLE_I1_I2: Record<string, [number, number, number]> = {
   'raft-shallow-ballast-drogue': [0.025, 0.01, 22],    // Shallow: with drogue
   'dinghy-fibreglass': [0.017, -0.10, 8], // Shallow: Capsized
   'raft-deep-ballast': [0.030, 0.02, 13], // Deep ballast (I-1 general; I-2 utk Level 4-6)
-  // Table I-2 (deep ballast systems & canopies)
+  // Table I-2 (deep ballast systems & canopies) — 12 baris lengkap sesuai
+  // hal. 4 Appendix I (termasuk 2 baris "umum" 4-6 person capacity).
   'deep-ballast-raft-default': [0.029, 0.04, 15],
+  'deep-ballast-46-wodrogue': [0.038, -0.04, 15],  // 4-6 person, w/o drogue (general)
   'deep-ballast-46-wodrogue-light': [0.038, -0.04, 15],
   'deep-ballast-46-wodrogue-heavy': [0.036, -0.03, 15],
+  'deep-ballast-46-drogue': [0.018, 0.03, 12],     // 4-6 person, with drogue (general)
   'deep-ballast-46-drogue-light': [0.016, 0.05, 24],
   'deep-ballast-46-drogue-heavy': [0.021, 0.00, 20],
   'deep-ballast-1525-default': [0.036, -0.09, 10],

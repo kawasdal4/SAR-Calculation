@@ -455,7 +455,7 @@ export interface LeewayObjectType {
 // 'Search target (description)' pada Worksheet 1. probableError mengikuti
 // nilai kelompok yang sudah ada sebelumnya pada tiap kategori.
 export const LEEWAY_OBJECT_TYPES: LeewayObjectType[] = [
-  // ── PIW (Persons In Water) — Table I-1 ──
+  // ── PIW (Persons In Water) — Table I-1 ── (urutan baris = urutan Table I-1)
   {
     id: 'piw-novice',
     label: 'PIW – Umum / general (Table I-1)',
@@ -465,18 +465,18 @@ export const LEEWAY_OBJECT_TYPES: LeewayObjectType[] = [
     probableError: 0.07,
   },
   {
-    id: 'piw-sitting',
-    label: 'PIW – Sitting (posisi fetal)',
-    leewayRate: 0.012,
-    leewayModifier: 0.00,
-    divergenceAngle: 18,
-    probableError: 0.07,
-  },
-  {
     id: 'piw-vertical-2',
     label: 'PIW – Vertical',
     leewayRate: 0.005,
     leewayModifier: 0.07,
+    divergenceAngle: 18,
+    probableError: 0.07,
+  },
+  {
+    id: 'piw-sitting',
+    label: 'PIW – Sitting (posisi fetal)',
+    leewayRate: 0.012,
+    leewayModifier: 0.00,
     divergenceAngle: 18,
     probableError: 0.07,
   },
@@ -588,6 +588,10 @@ export const LEEWAY_OBJECT_TYPES: LeewayObjectType[] = [
     divergenceAngle: 13,
     probableError: 0.12,
   },
+  // Baris di bawah = sub-tabel Table I-2 (maritime life rafts with deep
+  // ballast systems and canopies) — urutan & nilai persis Table I-2 hal. 4:
+  // umum, 4-6 person (w/o drogue umum/light/heavy, w/ drogue umum/light/heavy),
+  // 15-25 person, capsized, swamped.
   {
     id: 'deep-ballast-raft-default',
     label: 'Deep ballast life raft (Table I-2 default)',
@@ -597,8 +601,16 @@ export const LEEWAY_OBJECT_TYPES: LeewayObjectType[] = [
     probableError: 0.12,
   },
   {
+    id: 'deep-ballast-46-wodrogue',
+    label: 'Deep ballast 4-6 person, w/o drogue (Table I-2)',
+    leewayRate: 0.038,
+    leewayModifier: -0.04,
+    divergenceAngle: 15,
+    probableError: 0.12,
+  },
+  {
     id: 'deep-ballast-46-wodrogue-light',
-    label: 'Deep ballast 4-6 person, w/o drogue, light loading',
+    label: 'Deep ballast 4-6 person, w/o drogue, light loading (Table I-2)',
     leewayRate: 0.038,
     leewayModifier: -0.04,
     divergenceAngle: 15,
@@ -606,15 +618,23 @@ export const LEEWAY_OBJECT_TYPES: LeewayObjectType[] = [
   },
   {
     id: 'deep-ballast-46-wodrogue-heavy',
-    label: 'Deep ballast 4-6 person, w/o drogue, heavy loading',
+    label: 'Deep ballast 4-6 person, w/o drogue, heavy loading (Table I-2)',
     leewayRate: 0.036,
     leewayModifier: -0.03,
     divergenceAngle: 15,
     probableError: 0.12,
   },
   {
+    id: 'deep-ballast-46-drogue',
+    label: 'Deep ballast 4-6 person, with drogue (Table I-2)',
+    leewayRate: 0.018,
+    leewayModifier: 0.03,
+    divergenceAngle: 12,
+    probableError: 0.12,
+  },
+  {
     id: 'deep-ballast-46-drogue-light',
-    label: 'Deep ballast 4-6 person, with drogue, light loading',
+    label: 'Deep ballast 4-6 person, with drogue, light loading (Table I-2)',
     leewayRate: 0.016,
     leewayModifier: 0.05,
     divergenceAngle: 24,
@@ -622,7 +642,7 @@ export const LEEWAY_OBJECT_TYPES: LeewayObjectType[] = [
   },
   {
     id: 'deep-ballast-46-drogue-heavy',
-    label: 'Deep ballast 4-6 person, with drogue, heavy loading',
+    label: 'Deep ballast 4-6 person, with drogue, heavy loading (Table I-2)',
     leewayRate: 0.021,
     leewayModifier: 0.00,
     divergenceAngle: 20,
@@ -630,7 +650,7 @@ export const LEEWAY_OBJECT_TYPES: LeewayObjectType[] = [
   },
   {
     id: 'deep-ballast-1525-default',
-    label: 'Deep ballast 15-25 person (default)',
+    label: 'Deep ballast 15-25 person (default, Table I-2)',
     leewayRate: 0.036,
     leewayModifier: -0.09,
     divergenceAngle: 10,
@@ -638,7 +658,7 @@ export const LEEWAY_OBJECT_TYPES: LeewayObjectType[] = [
   },
   {
     id: 'deep-ballast-1525-wodrogue-light',
-    label: 'Deep ballast 15-25 person, w/o drogue, light loading',
+    label: 'Deep ballast 15-25 person, w/o drogue, light loading (Table I-2)',
     leewayRate: 0.039,
     leewayModifier: -0.06,
     divergenceAngle: 9,
@@ -646,7 +666,7 @@ export const LEEWAY_OBJECT_TYPES: LeewayObjectType[] = [
   },
   {
     id: 'deep-ballast-1525-drogue',
-    label: 'Deep ballast 15-25 person, with drogue (heavy loading)',
+    label: 'Deep ballast 15-25 person, with drogue, heavy loading (Table I-2)',
     leewayRate: 0.031,
     leewayModifier: -0.07,
     divergenceAngle: 9,
@@ -654,7 +674,7 @@ export const LEEWAY_OBJECT_TYPES: LeewayObjectType[] = [
   },
   {
     id: 'deep-ballast-capsized',
-    label: 'Deep ballast life raft, capsized',
+    label: 'Deep ballast life raft, capsized (Table I-2)',
     leewayRate: 0.009,
     leewayModifier: 0.00,
     divergenceAngle: 12,
@@ -662,7 +682,7 @@ export const LEEWAY_OBJECT_TYPES: LeewayObjectType[] = [
   },
   {
     id: 'deep-ballast-swamped',
-    label: 'Deep ballast life raft, swamped',
+    label: 'Deep ballast life raft, swamped (Table I-2)',
     leewayRate: 0.010,
     leewayModifier: -0.04,
     divergenceAngle: 8,
@@ -882,6 +902,33 @@ export function getLeewayObjectById(id: string): LeewayObjectType {
 }
 
 /**
+ * Baris yang termasuk SUB-TABEL Table I-2 (maritime life rafts with deep
+ * ballast systems and canopies — hal. 4 Appendix I). Semua baris lain pada
+ * LEEWAY_OBJECT_TYPES adalah baris Table I-1 (hal. 3). Dipakai untuk:
+ * - lompatan halaman PDF rujukan leeway (I-1 → hal. 3, I-2 → hal. 4)
+ * - pemisahan daftar baris Table I-1 vs I-2 pada panel Verifikasi nilai.
+ */
+export const LEEWAY_TABLE_I2_IDS: ReadonlySet<string> = new Set([
+  'deep-ballast-raft-default',
+  'deep-ballast-46-wodrogue',
+  'deep-ballast-46-wodrogue-light',
+  'deep-ballast-46-wodrogue-heavy',
+  'deep-ballast-46-drogue',
+  'deep-ballast-46-drogue-light',
+  'deep-ballast-46-drogue-heavy',
+  'deep-ballast-1525-default',
+  'deep-ballast-1525-wodrogue-light',
+  'deep-ballast-1525-drogue',
+  'deep-ballast-capsized',
+  'deep-ballast-swamped',
+]);
+
+/** True bila kategori leeway merupakan baris Table I-2 (bukan Table I-1). */
+export function isLeewayTableI2(id: string): boolean {
+  return LEEWAY_TABLE_I2_IDS.has(id);
+}
+
+/**
  * Kata kunci 'Search target (description)' per baris Table I-1/I-2 (Appendix I).
  * Skor kecocokan = total panjang kata kunci yang ditemukan pada deskripsi
  * (kata kunci lebih panjang = lebih spesifik = skor lebih besar), sehingga
@@ -909,8 +956,10 @@ const LEEWAY_DESC_KEYWORDS: Record<string, string[]> = {
   'dinghy-fibreglass': ['shallow ballast capsized', 'shallow ballast terbalik', 'rakit terbalik', 'capsized', 'terbalik'],
   'raft-deep-ballast': ['deep ballast life raft', 'deep ballast', 'ballast dalam'],
   'deep-ballast-raft-default': ['deep ballast default', 'deep ballast umum'],
+  'deep-ballast-46-wodrogue': ['4-6 person without drogue', '4-6 orang tanpa drogue'],
   'deep-ballast-46-wodrogue-light': ['4-6 person without drogue light', '4-6 orang tanpa drogue ringan', '4-6 person', '4-6 orang', '4-6'],
   'deep-ballast-46-wodrogue-heavy': ['4-6 person without drogue heavy', '4-6 orang tanpa drogue berat', 'without drogue heavy', 'tanpa drogue berat'],
+  'deep-ballast-46-drogue': ['4-6 person with drogue', '4-6 orang dengan drogue'],
   'deep-ballast-46-drogue-light': ['4-6 person with drogue light', '4-6 orang dengan drogue ringan', 'with drogue light', 'dengan drogue ringan'],
   'deep-ballast-46-drogue-heavy': ['4-6 person with drogue heavy', '4-6 orang dengan drogue berat', 'with drogue heavy', 'dengan drogue berat'],
   'deep-ballast-1525-default': ['15-25 person', '15-25 orang', '15-25'],
@@ -1144,7 +1193,10 @@ export const TABLE_J1_NAV_ERRORS: TableJ1Entry[] = [
   { id: 'marine-radio-beacon', label: 'Marine Radio Beacon (fix 3 beacon)', errorNm: 4.0 },
   { id: 'loran-c', label: 'LORAN C', errorNm: 1.0 },
   { id: 'ins', label: 'INS (0,5 NM per jam tanpa update)', errorNm: 0.5 },
-  { id: 'vor-tacan', label: 'VOR/TACAN (min radius 0,5 NM)', errorNm: 0.5 },
+  // VOR & TACAN terpisah sesuai Table J-1 — nilai sama: "±3° arc dan 3% jarak
+  // atau radius 0,5 NM, mana yang lebih besar" (app memakai nilai minimum 0,5).
+  { id: 'vor', label: 'VOR (±3° arc, 3% jarak / min 0,5 NM)', errorNm: 0.5 },
+  { id: 'tacan', label: 'TACAN (±3° arc, 3% jarak / min 0,5 NM)', errorNm: 0.5 },
 ];
 
 /**
@@ -1193,7 +1245,9 @@ export function getNavAidLabelById(id: string): string | undefined {
 export function mapNavAidToFixError(id?: string | null): number | undefined {
   if (!id) return undefined;
   const normalized = String(id).toLowerCase().trim();
-  return TABLE_J_ALL_NAV_ERRORS.find((e) => e.id === normalized)?.errorNm;
+  // Alias lama: 'vor-tacan' digabung — kini dipetakan ke baris VOR (0,5 NM).
+  const resolved = normalized === 'vor-tacan' ? 'vor' : normalized;
+  return TABLE_J_ALL_NAV_ERRORS.find((e) => e.id === resolved)?.errorNm;
 }
 
 // ============================================================================

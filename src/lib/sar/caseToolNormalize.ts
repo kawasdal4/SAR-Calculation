@@ -340,7 +340,8 @@ const NAV_AID_MATCHERS: Array<[RegExp, string]> = [
   [/radio\s*beacon|mrb/i, 'marine-radio-beacon'],
   [/loran/i, 'loran-c'],
   [/\bins\b|inertial/i, 'ins'],
-  [/vor|tacan/i, 'vor-tacan'],
+  [/tacan/i, 'tacan'],
+  [/vor/i, 'vor'],
 ];
 
 function normalizeNavAid(value: unknown): string | undefined {

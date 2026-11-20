@@ -11,7 +11,7 @@
  */
 import { FIXED, HELI, TABLE_I8_ROWS, W2_TARGET_OPTIONS, W8_TARGET_OPTIONS, W8_I3, W8_I4 } from './wscPodTables';
 import { LAND_SEARCH_TARGETS, TABLE_I9, TABLE_I10 } from './landSearchTables';
-import { LEEWAY_OBJECT_TYPES, TABLE_J1_NAV_ERRORS, TABLE_J2_NAV_ERRORS } from './sarCalculations';
+import { LEEWAY_OBJECT_TYPES, isLeewayTableI2, TABLE_J1_NAV_ERRORS, TABLE_J2_NAV_ERRORS } from './sarCalculations';
 
 export type ManualDocId = 'combined' | 'appendix-i' | 'appendix-j' | 'appendix-k';
 
@@ -19,6 +19,9 @@ export interface ManualTableRow {
   key: string;
   label: string;
   cells: string[];
+  /** Baris JUDUL SEKSI (kolom kategori manual, mis. "Survival Craft — Aviation
+   *  Life Rafts") — dirender full-width, tidak bisa diklik, tidak blink. */
+  header?: boolean;
 }
 
 export interface ManualTableGroup {
@@ -41,6 +44,11 @@ export interface ManualTableDef {
   note?: string;
   /** Sub-tabel per kelompok (mis. per ketinggian: I-5/I-6/I-9). */
   groups?: ManualTableGroup[];
+  /** Tampilkan SEMUA sub-tabel berjajar (satu per group, lengkap sesuai
+   *  manual) pada panel verifikasi — untuk tabel pilihan KATEGORI seperti
+   *  leeway Table I-1 + sub-tabel I-2. Bila false, hanya group aktif yang
+   *  ditampilkan (mis. sub-tabel ketinggian I-5/I-6/I-9 mengikuti worksheet). */
+  stackGroups?: boolean;
   /** Referensi berupa kurva/gambar (Figure) — panel menampilkan info, bukan sel tabel. */
   figure?: boolean;
   /** Unit nilai pada tabel (untuk keterangan panel). */
@@ -284,26 +292,74 @@ const TABLE_J3: ManualTableDef = {
 
 // ---------------------------------------------------------------------------
 // Table I-1/I-2 — Leeway (Appendix_I_al1.pdf) — multiplier × windspeed +
-// modifier & divergence angle per kategori search target. Nilai per baris
+// modifier & divergence angle per kategori search target. Daftar baris SAMA
+// PERSIS dengan manual: Table I-1 (hal. 3) berisi seluruh kategori (PIW,
+// Maritime Life Rafts, Other Maritime Survival Craft, AVIATION LIFE RAFTS,
+// Person-Powered Craft, Sailing Vessels, Power Vessels, Boating Debris) dan
+// Table I-2 (hal. 4) berisi 12 baris sub-tabel deep ballast. Nilai per baris
 // adalah data yang sama dengan LEEWAY_OBJECT_TYPES (didigitasi dari manual),
 // jadi panel verifikasi selalu cocok dengan yang dipakai aplikasi.
 // ---------------------------------------------------------------------------
 /** Kategori leeway pada labelnya menunjukkan tabel sumbernya (Table I-1 / I-2)
  *  — dipakai untuk memilih halaman PDF lompatan rujukan (I-1 hal. 3, I-2 hal. 4). */
-export function leewayTableGroupKey(type: { label: string }): 'I-1' | 'I-2' {
+export function leewayTableGroupKey(type: { id?: string; label: string }): 'I-1' | 'I-2' {
+  // Keanggotaan eksplisit sub-tabel I-2 (daftar id) — label hanya fallback.
+  if (type.id) return isLeewayTableI2(type.id) ? 'I-2' : 'I-1';
   return type.label.includes('Table I-2') ? 'I-2' : 'I-1';
 }
 
-const I1_ROWS: ManualTableRow[] = LEEWAY_OBJECT_TYPES.map((t) => ({
-  key: t.id,
-  label: t.label,
-  cells: [
-    String(t.leewayRate),
-    fmt(t.leewayModifier ?? 0),
-    String(t.divergenceAngle),
-    fmt(t.probableError),
-  ],
-}));
+/** Baris nilai Table I-1/I-2 dari kategori aplikasi (urutan = urutan manual). */
+function leewayRow(t: (typeof LEEWAY_OBJECT_TYPES)[number]): ManualTableRow {
+  return {
+    key: t.id,
+    label: t.label,
+    cells: [
+      String(t.leewayRate),
+      fmt(t.leewayModifier ?? 0),
+      String(t.divergenceAngle),
+      fmt(t.probableError),
+    ],
+  };
+}
+
+/** Baris judul seksi (kolom Category / Sub Categories pada Table I-1 manual). */
+function leewayHeader(key: string, label: string): ManualTableRow {
+  return { key, label, cells: [], header: true };
+}
+
+function leewaySection(header: { key: string; label: string }, ids: string[]): ManualTableRow[] {
+  const rows = ids
+    .map((id) => LEEWAY_OBJECT_TYPES.find((t) => t.id === id))
+    .filter((t): t is (typeof LEEWAY_OBJECT_TYPES)[number] => !!t)
+    .map(leewayRow);
+  return [leewayHeader(header.key, header.label), ...rows];
+}
+
+// Seksi Table I-1 persis kolom Category / Sub Categories manual (hal. 3) —
+// termasuk seksi AVIATION LIFE RAFTS (2 baris: no ballast w/canopy 4-6 person
+// w/o drogue, Evac/Slide 46-person).
+const I1_SECTIONS: Array<{ key: string; label: string; ids: string[] }> = [
+  { key: 'sec-piw', label: 'PIW — Persons In Water', ids: ['piw-novice', 'piw-vertical-2', 'piw-sitting', 'piw-lifejacket', 'piw-scuba', 'piw-deceased'] },
+  { key: 'sec-maritime-rafts', label: 'Survival Craft — Maritime Life Rafts', ids: ['raft-1520-person', 'raft-46-person', 'raft-noballast-drogue', 'raft-canopy-no-drogue', 'raft-canopy-drogue', 'dinghy-upright', 'raft-shallow-ballast-nodrogue', 'raft-shallow-ballast-drogue', 'dinghy-fibreglass', 'raft-deep-ballast'] },
+  { key: 'sec-other-maritime', label: 'Survival Craft — Other Maritime Survival Craft', ids: ['life-capsule', 'uscg-sea-rescue-kit'] },
+  { key: 'sec-aviation', label: 'Survival Craft — Aviation Life Rafts', ids: ['raft-aviation-46', 'raft-evac-slide'] },
+  { key: 'sec-person-powered', label: 'Person-Powered Craft', ids: ['sea-kayak', 'surf-board', 'windsurfer'] },
+  { key: 'sec-sailing', label: 'Sailing Vessels — Mono-hull', ids: ['sailboat', 'sailboat-fin-keel'] },
+  { key: 'sec-power-skiffs', label: 'Power Vessels — Skiffs, Sport Boats & Sport Fisher', ids: ['skiff-flat-bottom', 'skiff-v-hull', 'skiff-swamped', 'sport-boat-cuddy', 'sport-fisher-center-console'] },
+  { key: 'sec-power-fishing', label: 'Power Vessels — Commercial Fishing Vessels & Coastal Freighter', ids: ['small-fishing', 'fishing-sampans', 'commercial-fishing', 'fishing-longliners', 'fishing-junk', 'fishing-gill-netter', 'merchant-vessel'] },
+  { key: 'sec-debris', label: 'Boating Debris', ids: ['debris-fv', 'debris-bait-box', 'debris-bait-box-light', 'debris-bait-box-full'] },
+];
+
+const I1_ROWS: ManualTableRow[] = I1_SECTIONS.flatMap((s) => leewaySection(s, s.ids));
+
+// Table I-2 — sub-tabel maritime life rafts with deep ballast systems and
+// canopies (hal. 4): 12 baris, urutan & nilai persis manual.
+const I2_ROWS: ManualTableRow[] = LEEWAY_OBJECT_TYPES
+  .filter((t) => isLeewayTableI2(t.id))
+  .map(leewayRow);
+
+// Gabungan lengkap (tanpa baris header) untuk tampilan tanpa groupKey.
+const I1_I2_ALL_ROWS: ManualTableRow[] = [...I1_ROWS, ...I2_ROWS].filter((r) => !r.header);
 
 const TABLE_I1: ManualTableDef = {
   id: 'I-1',
@@ -314,15 +370,18 @@ const TABLE_I1: ManualTableDef = {
   page: 3,
   colKeys: ['multiplier', 'modifier', 'divergence', 'error'],
   columns: ['Multiplier', 'Modifier (kt)', 'Divergence (°)', 'LWe (kt)'],
-  rows: I1_ROWS,
-  // Semua baris tetap tersedia di kedua "grup" — grup hanya menentukan halaman
-  // PDF lompatan: kategori Table I-1 → hal. 3, kategori Table I-2 → hal. 4.
+  rows: I1_I2_ALL_ROWS,
+  // Daftar baris mengikuti pembagian manual: grup I-1 = seluruh baris Table I-1
+  // (hal. 3, dengan judul seksi per kategori), grup I-2 = 12 baris sub-tabel
+  // deep ballast (hal. 4). stackGroups: panel verifikasi menampilkan KEDUA
+  // tabel berjajar sehingga daftar lengkap seperti manual.
+  stackGroups: true,
   groups: [
     { key: 'I-1', label: 'Table I-1 — Leeway speed and direction values for drift objects (kts)', page: 3, rows: I1_ROWS },
-    { key: 'I-2', label: 'Table I-2 — Sub-table for maritime life rafts with deep ballast systems and canopies (kts)', page: 4, rows: I1_ROWS },
+    { key: 'I-2', label: 'Table I-2 — Sub-table for maritime life rafts with deep ballast systems and canopies (kts)', page: 4, rows: I2_ROWS },
   ],
   unit: 'kt / °',
-  note: 'Leeway speed = multiplier × kecepatan angin (ASW) + modifier; arah = downwind ± divergence. Pembagian baris ke Table I-1 / I-2 mengikuti keterangan kategori pada manual (lihat label baris). Klik baris pada tabel ini untuk memakai kategori tersebut di Worksheet Datum.',
+  note: 'Leeway speed = multiplier × kecepatan angin (ASW) + modifier; arah = downwind ± divergence. Daftar baris lengkap sesuai manual: Table I-1 per seksi kategori (PIW, Maritime Life Rafts, Other Maritime Survival Craft, Aviation Life Rafts, Person-Powered Craft, Sailing Vessels, Power Vessels, Boating Debris) + sub-tabel Table I-2 (deep ballast). Klik baris pada tabel untuk memakai kategori tersebut di Worksheet Datum / Worksheet 1.',
 };
 
 // ---------------------------------------------------------------------------

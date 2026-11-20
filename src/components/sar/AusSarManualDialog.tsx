@@ -17,6 +17,7 @@ import {
   manualTableRows,
   type ManualDocId,
   type ManualTableDef,
+  type ManualTableRow,
 } from '@/lib/sar/manualTables';
 import type { TableRefRequest } from './TableRefContext';
 
@@ -178,7 +179,8 @@ export default function AusSarManualDialog({ open, onOpenChange, initialDocId, i
   const hasRefValue = activeRef !== null && (activeRef.currentValue !== null || !!activeRef.currentValueLabel);
   const blinkRowKey = selectedCell?.rowKey ?? activeRef?.rowKey;
   const blinkColKey = selectedCell?.colKey ?? activeRef?.colKey;
-  const rowIndex = blinkRowKey ? rows.findIndex((r) => r.key === blinkRowKey) : -1;
+  // Indeks baris blink dihitung per tabel (renderRefTable) karena mode stacked
+  // menampilkan beberapa tabel sekaligus; yang global hanya indeks KOLOM.
   const colIndex = blinkColKey && def ? def.colKeys.indexOf(blinkColKey) : -1;
   const groupLabel = activeRef && def?.groups
     ? def.groups.find((g) => g.key === activeRef.groupKey)?.label
@@ -213,6 +215,102 @@ export default function AusSarManualDialog({ open, onOpenChange, initialDocId, i
     }
     // Efek blinking pindah ke sel yang baru diklik (menggantikan yang lama).
     setSelectedCell({ rowKey, colKey });
+  };
+
+  // Mode STACKED (tabel pilihan kategori, mis. leeway Table I-1 + sub-tabel
+  // I-2): SEMUA sub-tabel ditampilkan berjajar lengkap sesuai manual — daftar
+  // baris tiap tabel persis halaman PDF-nya (termasuk judul seksi kategori
+  // seperti "Survival Craft — Aviation Life Rafts"). Baris blink muncul pada
+  // tabel yang memuat kategori aktif; klik baris di tabel mana pun menerapkan
+  // kategori tersebut.
+  const stackedGroups = activeRef && def?.stackGroups && def.groups ? def.groups : null;
+
+  const renderRefTable = (groupRows: ManualTableRow[], groupPage?: number, groupTitle?: string) => {
+    if (!def || !activeRef) return null;
+    const gRowIndex = blinkRowKey ? groupRows.findIndex((r) => r.key === blinkRowKey) : -1;
+    return (
+      <div key={`grp-${groupTitle ?? 'main'}`}>
+        {groupTitle && (
+          <div className="mb-1 mt-1.5 flex flex-wrap items-center gap-2 first:mt-0">
+            <span className="text-[11px] font-bold text-slate-700">{groupTitle}</span>
+            {groupPage && <span className="text-[10px] text-slate-400">(PDF hal. {groupPage})</span>}
+          </div>
+        )}
+        <table className="w-full border-collapse text-[11px]">
+          <thead>
+            <tr>
+              {def.columns.length > 1 && (
+                <th className="border border-slate-300 bg-slate-100 px-2 py-1 text-left font-bold text-slate-700 w-[38%]">
+                  {def.id === 'I-7' ? 'Weather: winds (kt) atau seas (m)' : 'Search object'}
+                </th>
+              )}
+              {def.columns.map((col, ci) => (
+                <th
+                  key={def.colKeys[ci]}
+                  className={cn(
+                    'border border-slate-300 px-2 py-1 text-center font-bold text-slate-700',
+                    ci === colIndex && 'ref-col-hl',
+                  )}
+                >
+                  {col}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {groupRows.map((row, ri) => {
+              // Baris judul seksi (kategori manual) — full-width, bukan nilai.
+              if (row.header) {
+                return (
+                  <tr key={row.key} className="bg-slate-200/80">
+                    <td
+                      colSpan={def.columns.length + 1}
+                      className="border border-slate-300 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-600"
+                    >
+                      {row.label}
+                    </td>
+                  </tr>
+                );
+              }
+              return (
+                <tr key={row.key} className={cn(ri === gRowIndex && 'ref-row-hl')}>
+                  {def.columns.length > 1 && (
+                    <td className="border border-slate-300 px-2 py-1 text-slate-700">{row.label}</td>
+                  )}
+                  {row.cells.map((cell, ci) => {
+                    const isSelected = ri === gRowIndex && ci === colIndex;
+                    const cellText = String(cell ?? '').trim();
+                    const cellNum = Number(cellText.replace(',', '.'));
+                    const clickable = activeRef.allowOverride && !!activeRef.applyOverride
+                      && cellText !== '' && cellText !== '—' && Number.isFinite(cellNum);
+                    return (
+                      <td
+                        key={`${row.key}-${def.colKeys[ci]}`}
+                        onClick={clickable ? () => handleApplyCell(row.key, def.colKeys[ci], cellText) : undefined}
+                        title={clickable
+                          ? (activeRef.applyRowKey
+                            ? `Klik untuk pakai baris ini (${row.label}) di worksheet — nilai tetap bisa diubah`
+                            : `Klik untuk pakai nilai ${cellText} di worksheet — tetap bisa diubah`)
+                          : undefined}
+                        className={cn(
+                          'border border-slate-300 px-2 py-1 text-center font-mono',
+                          clickable && 'cursor-pointer hover:bg-amber-100 transition-colors',
+                          // Blinking HANYA pada sel tabel rujukan — animasi 3x
+                          // lalu berhenti (menetap sebagai sorotan kuning).
+                          isSelected && 'ref-cell-blink',
+                        )}
+                      >
+                        {cell}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
   };
 
   return (
@@ -322,65 +420,16 @@ export default function AusSarManualDialog({ open, onOpenChange, initialDocId, i
                         </div>
                       )}
                     </div>
+                  ) : stackedGroups ? (
+                    // Tabel pilihan kategori (leeway I-1/I-2): KEDUA tabel
+                    // manual ditampilkan berjajar lengkap — Table I-1 dengan
+                    // judul seksi kategori (incl. Aviation Life Rafts) +
+                    // sub-tabel Table I-2 deep ballast.
+                    <div className="space-y-1.5">
+                      {stackedGroups.map((g) => renderRefTable(g.rows, g.page, g.label))}
+                    </div>
                   ) : (
-                    <table className="w-full border-collapse text-[11px]">
-                      <thead>
-                        <tr>
-                          {def.columns.length > 1 && (
-                            <th className="border border-slate-300 bg-slate-100 px-2 py-1 text-left font-bold text-slate-700 w-[38%]">
-                              {def.id === 'I-7' ? 'Weather: winds (kt) atau seas (m)' : 'Search object'}
-                            </th>
-                          )}
-                          {def.columns.map((col, ci) => (
-                            <th
-                              key={def.colKeys[ci]}
-                              className={cn(
-                                'border border-slate-300 px-2 py-1 text-center font-bold text-slate-700',
-                                ci === colIndex && 'ref-col-hl',
-                              )}
-                            >
-                              {col}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {rows.map((row, ri) => (
-                          <tr key={row.key} className={cn(ri === rowIndex && 'ref-row-hl')}>
-                            {def.columns.length > 1 && (
-                              <td className="border border-slate-300 px-2 py-1 text-slate-700">{row.label}</td>
-                            )}
-                            {row.cells.map((cell, ci) => {
-                              const isSelected = ri === rowIndex && ci === colIndex;
-                              const cellText = String(cell ?? '').trim();
-                              const cellNum = Number(cellText.replace(',', '.'));
-                              const clickable = activeRef.allowOverride && !!activeRef.applyOverride
-                                && cellText !== '' && cellText !== '—' && Number.isFinite(cellNum);
-                              return (
-                                <td
-                                  key={`${row.key}-${def.colKeys[ci]}`}
-                                  onClick={clickable ? () => handleApplyCell(row.key, def.colKeys[ci], cellText) : undefined}
-                                  title={clickable
-                                    ? (activeRef.applyRowKey
-                                      ? `Klik untuk pakai baris ini (${row.label}) di worksheet — nilai tetap bisa diubah`
-                                      : `Klik untuk pakai nilai ${cellText} di worksheet — tetap bisa diubah`)
-                                    : undefined}
-                                  className={cn(
-                                    'border border-slate-300 px-2 py-1 text-center font-mono',
-                                    clickable && 'cursor-pointer hover:bg-amber-100 transition-colors',
-                                    // Blinking HANYA pada sel tabel rujukan — animasi 3x
-                                    // lalu berhenti (menetap sebagai sorotan kuning).
-                                    isSelected && 'ref-cell-blink',
-                                  )}
-                                >
-                                  {cell}
-                                </td>
-                              );
-                            })}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                    renderRefTable(rows)
                   )}
 
                   {def.note && <div className="text-[10px] leading-relaxed text-slate-600">{def.note}</div>}
