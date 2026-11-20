@@ -8,6 +8,8 @@ interface AuthenticESTMaritimeWorksheetProps {
   asset: SruAssetInput;
   csp: LatLng;
   exitPoint: LatLng;
+  /** Tidak dipakai lagi (TSF laut dihitung otomatis dari Tr Go + Tr Back);
+   *  dipertahankan demi kompatibilitas pemanggil lama. */
   onUpdateAsset?: <K extends keyof SruAssetInput>(field: K, val: SruAssetInput[K]) => void;
   readOnly?: boolean;
 }
@@ -16,8 +18,6 @@ export default function AuthenticESTMaritimeWorksheet({
   asset,
   csp,
   exitPoint,
-  onUpdateAsset,
-  readOnly = false,
 }: AuthenticESTMaritimeWorksheetProps) {
   // Transit distances
   const sGoNm = distanceNm(asset.homeBasePos, csp);
@@ -31,10 +31,8 @@ export default function AuthenticESTMaritimeWorksheet({
   // Calculations matching EST Mar in EST Formula_s.xlsx
   const trGoMins = transitSpeed > 0 ? (sGoNm / transitSpeed) * 60 : 0;
   const trBackMins = transitSpeed > 0 ? (sBackNm / transitSpeed) * 60 : 0;
-  const totalTrMins = trGoMins + trBackMins;
-  const tsfMins = Number.isFinite(asset.maritimeTsfMins) && (asset.maritimeTsfMins ?? -1) >= 0
-    ? asset.maritimeTsfMins!
-    : null;
+  // TSF (Total Safety Fuel) = Tr Go + Tr Back (total transit) — dihitung otomatis.
+  const tsfMins = trGoMins + trBackMins;
 
   // On Scene Endurance
   const oseMins = tsfMins === null ? null : enduranceMins - tsfMins;
@@ -90,7 +88,7 @@ export default function AuthenticESTMaritimeWorksheet({
           </span>
         </div>
       </div>
-      {!validInputs && <div className="mx-3 mt-3 rounded border border-amber-300 bg-amber-50 p-2 text-[11px] text-amber-900">{tsfMins === null ? 'Masukkan TSF dari instruksi atau skenario Maritime; TSF tidak diisi otomatis.' : 'Lengkapi Endurance (E), Speed (V), Search Speed, dan Spacing (S).'} Perhitungan kapasitas belum tersedia hingga data wajib terisi.</div>}
+      {!validInputs && <div className="mx-3 mt-3 rounded border border-amber-300 bg-amber-50 p-2 text-[11px] text-amber-900">{'Lengkapi Endurance (E), Speed (V), Search Speed, dan Spacing (S); TSF laut dihitung otomatis dari Tr Go + Tr Back.'} Perhitungan kapasitas belum tersedia hingga data wajib terisi.</div>}
       {validInputs && oseMins !== null && oseMins <= 0 && <div className="mx-3 mt-3 rounded border border-rose-300 bg-rose-50 p-2 text-[11px] font-semibold text-rose-900">OSE = {oseMins.toFixed(2)} menit. OSE harus positif; Sweep Width Area tidak dihitung.</div>}
 
       {/* Base Parameters (Endurance, Speeds) */}
@@ -179,48 +177,19 @@ export default function AuthenticESTMaritimeWorksheet({
               </span>
             </td>
           </tr>
-          <tr className="border-b border-slate-300 font-mono">
-            <td className="py-2 px-3 font-sans font-medium text-slate-700 border-r border-slate-300">
-              1. Total Transit (Total Tr)
-            </td>
-            <td className="py-2 px-3" colSpan={3}>
-              <span className="text-slate-600 font-sans">Tr Go + Tr Back = {trGoMins.toFixed(2)} + {trBackMins.toFixed(2)} =</span>{' '}
-              <span className="font-bold text-blue-900 bg-blue-50/80 px-2 py-0.5 rounded border border-blue-200 ml-1">
-                {totalTrMins.toFixed(2)}
-              </span>{' '}
-              <span className="text-slate-600 font-sans font-medium">Mins</span>
-            </td>
-          </tr>
-          <tr className="border-b border-slate-300 font-mono bg-amber-50/50">
-            <td className="py-2 px-3 font-sans font-medium text-slate-700 border-r border-slate-300">
-              2. Total Safety Fuel (TSF) sesuai instruksi Maritime
-            </td>
-            <td className="py-2 px-3" colSpan={3}>
-              <label className="mr-2 text-slate-600 font-sans">Input TSF (menit):</label>
-              <input
-                type="number"
-                min="0"
-                step="1"
-                value={asset.maritimeTsfMins ?? ''}
-                disabled={readOnly}
-                onChange={(event) => onUpdateAsset?.('maritimeTsfMins', event.target.value === '' ? undefined : Math.max(0, Number(event.target.value)))}
-                className="w-24 rounded border border-slate-300 bg-white px-2 py-1 text-right font-bold text-blue-900"
-              />{' '}
-              <span className="text-slate-600 font-sans font-medium">Mins</span>
-              <span className="block mt-1 text-[10px] text-amber-800 font-sans">Diisi dari skenario/perintah maritime. Komponen TSF tidak diasumsikan atau disalin dari Air Worksheet.</span>
-            </td>
-          </tr>
           <tr className="border-b-2 border-slate-700 bg-slate-50 font-mono">
             <td className="py-2 px-3 font-sans font-bold text-slate-800 border-r border-slate-300">
-              TOTAL SAFETY FUEL (TSF) [1 + 2]
+              TOTAL SAFETY FUEL (TSF) = Tr Go + Tr Back
             </td>
             <td className="py-2 px-3" colSpan={3}>
+              <span className="text-slate-600 font-sans font-mono">{trGoMins.toFixed(2)} + {trBackMins.toFixed(2)} =</span>{' '}
               <span className="font-bold text-indigo-900 bg-indigo-50 px-2.5 py-0.5 rounded border border-indigo-200">
-                {tsfMins?.toFixed(2) ?? 'Belum diisi'} Mins
+                {tsfMins.toFixed(2)} Mins
               </span>{' '}
               <span className="text-slate-500 font-sans text-[11px] ml-2">
-                ({tsfMins !== null ? (tsfMins / 60).toFixed(4) : '—'} jam)
+                ({(tsfMins / 60).toFixed(4)} jam)
               </span>
+              <span className="block mt-1 text-[10px] text-slate-600 font-sans">TSF laut adalah total transit (Tr Go + Tr Back); tidak diinput manual.</span>
             </td>
           </tr>
 

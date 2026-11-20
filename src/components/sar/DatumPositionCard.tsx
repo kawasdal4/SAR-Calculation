@@ -14,18 +14,10 @@ import type { LatLng } from '@/lib/sar/sarCalculations';
  * ditampilkan terpisah di bagian bawah, di luar lembar worksheet.
  */
 
-/** Format derajat-menit (Panduan bagian 5: posisi datum dalam derajat-menit dan desimal). */
-function formatDM(value: number, isLat: boolean): string {
-  const hemi = isLat ? (value >= 0 ? 'N' : 'S') : value >= 0 ? 'E' : 'W';
-  const abs = Math.abs(value);
-  const d = Math.floor(abs);
-  const m = (abs - d) * 60;
-  return `${d}°${m.toFixed(1).padStart(4, '0')}′${hemi}`;
-}
-
 function fmtPt(pt: LatLng | undefined | null): string {
   if (!pt || typeof pt.lat !== 'number' || typeof pt.lng !== 'number' || !isFinite(pt.lat) || !isFinite(pt.lng)) return '—';
-  return `${formatDM(pt.lat, true)} ${formatDM(pt.lng, false)} (${pt.lat.toFixed(5)}, ${pt.lng.toFixed(5)})`;
+  // Default tampilan DMS (derajat-menit-detik); desimal tetap tersedia sebagai info kedua.
+  return `${formatDMS(pt.lat, false)} ${formatDMS(pt.lng, true)} (${pt.lat.toFixed(5)}, ${pt.lng.toFixed(5)})`;
 }
 
 function Row({ label, value }: { label: string; value: string }) {

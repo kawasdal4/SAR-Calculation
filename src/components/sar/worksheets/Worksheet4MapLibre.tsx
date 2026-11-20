@@ -281,14 +281,20 @@ function rasterStyle(choice: BasemapChoice): maplibregl.StyleSpecification {
   };
 }
 
-function toDDM(value: number, axis: 'lat' | 'lng'): string {
+// Default tampilan koordinat peta: DMS (derajat-menit-detik); desimal tetap
+// tersedia sebagai info kedua setelah pemisah "·".
+function toDMS(value: number, axis: 'lat' | 'lng'): string {
   const absolute = Math.abs(value);
   const degrees = Math.floor(absolute);
-  const minutes = ((absolute - degrees) * 60).toFixed(3).padStart(6, '0');
+  const minFull = (absolute - degrees) * 60;
+  const minutes = Math.floor(minFull);
+  const seconds = Math.round((minFull - minutes) * 60);
+  const m = seconds >= 60 ? minutes + 1 : minutes;
+  const s = seconds >= 60 ? 0 : seconds;
   const hemisphere = axis === 'lat'
     ? value < 0 ? 'S' : 'N'
     : value < 0 ? 'W' : 'E';
-  return `${String(degrees).padStart(axis === 'lat' ? 2 : 3, '0')}° ${minutes}′ ${hemisphere}`;
+  return `${String(degrees).padStart(axis === 'lat' ? 2 : 3, '0')}°${String(m).padStart(2, '0')}′${String(s).padStart(2, '0')}″ ${hemisphere}`;
 }
 
 function airportDescription(properties: Record<string, unknown>, position: maplibregl.LngLat): HTMLElement {
@@ -311,7 +317,7 @@ function airportDescription(properties: Record<string, unknown>, position: mapli
     ['ICAO', properties.icao_code ?? properties.icaoCode],
     ['IATA', properties.iata_code ?? properties.iataCode],
     ['Tipe', properties.type],
-    ['Koordinat', `${position.lat.toFixed(6)}, ${position.lng.toFixed(6)} · ${toDDM(position.lat, 'lat')}, ${toDDM(position.lng, 'lng')}`],
+    ['Koordinat', `${toDMS(position.lat, 'lat')}, ${toDMS(position.lng, 'lng')} · ${position.lat.toFixed(6)}, ${position.lng.toFixed(6)}`],
     ['Elevasi', elevationLabel],
   ];
   for (const [label, value] of rows) {
@@ -659,7 +665,7 @@ export default function Worksheet4MapLibre({
     map.on('zoomend', updateGraticule);
     map.on('resize', updateGraticule);
     map.on('mousemove', (event) => {
-      setCursor(`${event.lngLat.lat.toFixed(5)}, ${event.lngLat.lng.toFixed(5)} · ${toDDM(event.lngLat.lat, 'lat')}, ${toDDM(event.lngLat.lng, 'lng')}`);
+      setCursor(`${toDMS(event.lngLat.lat, 'lat')}, ${toDMS(event.lngLat.lng, 'lng')} · ${event.lngLat.lat.toFixed(5)}, ${event.lngLat.lng.toFixed(5)}`);
     });
     map.on('mousemove', KANSAR_FILL_LAYER_ID, (event) => {
       const feature = event.features?.[0];

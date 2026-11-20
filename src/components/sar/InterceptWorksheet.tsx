@@ -44,10 +44,12 @@ const METHODS: InterceptType[] = ['head-on', 'overtaking', 'beam-on'];
 export default function InterceptWorksheet({ onResults, initialInput, onStateChange, className = '' }: InterceptWorksheetProps) {
   const [method, setMethod] = useState<InterceptType>(initialInput?.type ?? 'head-on');
   const [coords, setCoords] = useState<CoordinateFields>(() => initialInput ? {
-    targetLat: String(initialInput.target.pos.lat),
-    targetLng: String(initialInput.target.pos.lng),
-    sruLat: String(initialInput.sru.pos.lat),
-    sruLng: String(initialInput.sru.pos.lng),
+    // Nilai awal (mis. dari analisa AI) ditampilkan dalam format DMS — format
+    // desimal/DM tetap bisa diketik ulang (parseCoordinate menerima ketiganya).
+    targetLat: formatDMS(initialInput.target.pos.lat, false),
+    targetLng: formatDMS(initialInput.target.pos.lng, true),
+    sruLat: formatDMS(initialInput.sru.pos.lat, false),
+    sruLng: formatDMS(initialInput.sru.pos.lng, true),
   } : { targetLat: '', targetLng: '', sruLat: '', sruLng: '' });
   const [inputData, setInputData] = useState<InterceptInput>(() => initialInput ? {
     ...initialInput,

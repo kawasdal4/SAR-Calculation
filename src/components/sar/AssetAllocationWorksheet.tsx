@@ -16,6 +16,7 @@ import {
   Printer,
 } from 'lucide-react';
 import { type LatLng } from '@/lib/sar/sarCalculations';
+import CoordinateInput from './CoordinateInput';
 import { formatDMS } from '@/lib/sar/coordFormat';
 import {
   type SruAssetInput,
@@ -342,21 +343,21 @@ export default function AssetAllocationWorksheet({
                   </select>
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500 block mb-1">Latitude Pangkalan</label>
-                  <input
-                    type="number" step="0.0001" value={activeAsset.homeBasePos.lat || ''}
-                    onChange={(e) => updateAsset(activeAsset.id, 'homeBasePos', { ...activeAsset.homeBasePos, lat: parseFloat(e.target.value) || 0 })}
-                    placeholder="dari soal / ONC"
-                    className="w-full bg-white border border-slate-300 rounded px-2 py-1.5 text-right font-mono" suppressHydrationWarning
+                  <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500 block mb-1">Latitude Pangkalan (DMS)</label>
+                  <CoordinateInput
+                    axis="lat"
+                    value={activeAsset.homeBasePos.lat}
+                    onChange={(lat) => updateAsset(activeAsset.id, 'homeBasePos', { ...activeAsset.homeBasePos, lat })}
+                    className="w-full bg-white border border-slate-300 rounded px-2 py-1.5 text-right font-mono"
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500 block mb-1">Longitude Pangkalan</label>
-                  <input
-                    type="number" step="0.0001" value={activeAsset.homeBasePos.lng || ''}
-                    onChange={(e) => updateAsset(activeAsset.id, 'homeBasePos', { ...activeAsset.homeBasePos, lng: parseFloat(e.target.value) || 0 })}
-                    placeholder="dari soal / ONC"
-                    className="w-full bg-white border border-slate-300 rounded px-2 py-1.5 text-right font-mono" suppressHydrationWarning
+                  <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500 block mb-1">Longitude Pangkalan (DMS)</label>
+                  <CoordinateInput
+                    axis="lng"
+                    value={activeAsset.homeBasePos.lng}
+                    onChange={(lng) => updateAsset(activeAsset.id, 'homeBasePos', { ...activeAsset.homeBasePos, lng })}
+                    className="w-full bg-white border border-slate-300 rounded px-2 py-1.5 text-right font-mono"
                   />
                 </div>
                 <div>
@@ -451,7 +452,7 @@ export default function AssetAllocationWorksheet({
                 Jarak transit dihitung pangkalan → CSP (Go) dan Exit Point → pangkalan (Back); posisi pangkalan diplot di peta laut.
                 {activeDomain === 'udara'
                   ? ' Detail TSF udara (variable transit, reserve, TAF) di lembar EST Udara di bawah.'
-                  : ' TSF maritime diisi pada lembar EST Maritim di bawah.'}
+                  : ' TSF laut = Tr Go + Tr Back (total transit), dihitung otomatis pada lembar EST Maritim di bawah.'}
               </p>
 
               {/* Lembar EST asli sesuai klasifikasi udara/laut */}

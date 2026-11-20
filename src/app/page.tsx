@@ -1544,7 +1544,6 @@ export default function Home() {
         assignedSubArea: data.assignedSubArea ?? existing?.assignedSubArea ?? '-',
         airEngineType: isAir ? data.airEngineType ?? existing?.airEngineType : undefined,
         tafCondition: isAir ? data.tafCondition ?? existing?.tafCondition : undefined,
-        maritimeTsfMins: !isAir ? data.maritimeTsfMins ?? existing?.maritimeTsfMins : undefined,
       };
       return existing
         ? prev.map((asset) => (asset.id === existing.id ? next : asset))
@@ -3711,36 +3710,10 @@ export default function Home() {
                 driftDistance={datumResults?.driftDistance}
                 E={datumResults?.E}
               />
-            </TabsContent>
 
-            {/* TAB: WORKSHEET 3 (POINT DATUM EFFORT ALLOCATION - STANDALONE) */}
-            <TabsContent value="ws3" key={`ws3-tab-${caseVersion}-${tabClearVersions.ws3 ?? 0}`} className="mt-0 space-y-4">
-              <WorksheetSheetBar
-                title="Lembar WS 3 — 1 SRU = 1 lembar"
-                sheets={ws3Sheets.map((sheet, index) => ({ key: sheet.key, label: sheet.label || `SRU ${index + 1}`, bound: sheet.assetId !== null }))}
-                activeKey={shownWs3Key}
-                assets={airAssetOptions}
-                boundAssetIds={ws3Sheets.map((sheet) => sheet.assetId).filter((id): id is string => id !== null)}
-                onSelect={setActiveWs3Key}
-                onAddBlank={() => addWs3Sheet()}
-                onAddAsset={(assetId) => addWs3Sheet(assetId)}
-                onRemove={removeWs3Sheet}
-              />
-              {ws3Sheets.map((sheet) => (
-                <div key={sheet.key} className={sheet.key === shownWs3Key ? '' : 'hidden'}>
-                  <Worksheet3
-                    key={`ws3-${caseVersion}-${sheet.key}`}
-                    searchResults={searchResults}
-                    E={datumResults?.E ?? 5.0}
-                    initialState={sheet.data}
-                    ws4AreaNm2={ws4State?.searchAreaNm2 ?? null}
-                    estHoursFromAllocation={ws3SheetEst[sheet.key]?.hours}
-                    estSourceName={ws3SheetEst[sheet.key]?.assetName}
-                    onTrackSpacingChange={(result) => handleWS3TrackSpacingChange(sheet.key, result)}
-                    onStateChange={(data) => handleWS3SheetData(sheet.key, data)}
-                  />
-                </div>
-              ))}
+              {/* Rencana Area Pencarian (Effort Allocation) — lembar perencanaan
+                  maritim berbasis datum WS 1; rumah alaminya di tab Pola & Rute
+                  (bukan di tab WS 3 Darat yang berdiri sendiri). */}
               {datumResults && (
                 <SearchPlanWorksheet
                   E={datumResults.E}
@@ -3758,13 +3731,41 @@ export default function Home() {
               )}
             </TabsContent>
 
-            {/* TAB: WORKSHEET 4 (LEEWAY DIVERGENCE EFFORT ALLOCATION - STANDALONE) */}
+            {/* TAB: WORKSHEET 3 (LAND) — darat, berdiri sendiri dari WS 1 Datum:
+                input hanya dari data kasus (AI) / WS 4 / planner */}
+            <TabsContent value="ws3" key={`ws3-tab-${caseVersion}-${tabClearVersions.ws3 ?? 0}`} className="mt-0 space-y-4">
+              <WorksheetSheetBar
+                title="Lembar WS 3 — 1 SRU = 1 lembar"
+                sheets={ws3Sheets.map((sheet, index) => ({ key: sheet.key, label: sheet.label || `SRU ${index + 1}`, bound: sheet.assetId !== null }))}
+                activeKey={shownWs3Key}
+                assets={airAssetOptions}
+                boundAssetIds={ws3Sheets.map((sheet) => sheet.assetId).filter((id): id is string => id !== null)}
+                onSelect={setActiveWs3Key}
+                onAddBlank={() => addWs3Sheet()}
+                onAddAsset={(assetId) => addWs3Sheet(assetId)}
+                onRemove={removeWs3Sheet}
+              />
+              {ws3Sheets.map((sheet) => (
+                <div key={sheet.key} className={sheet.key === shownWs3Key ? '' : 'hidden'}>
+                  <Worksheet3
+                    key={`ws3-${caseVersion}-${sheet.key}`}
+                    initialState={sheet.data}
+                    ws4AreaNm2={ws4State?.searchAreaNm2 ?? null}
+                    estHoursFromAllocation={ws3SheetEst[sheet.key]?.hours}
+                    estSourceName={ws3SheetEst[sheet.key]?.assetName}
+                    onTrackSpacingChange={(result) => handleWS3TrackSpacingChange(sheet.key, result)}
+                    onStateChange={(data) => handleWS3SheetData(sheet.key, data)}
+                  />
+                </div>
+              ))}
+            </TabsContent>
+
+            {/* TAB: WORKSHEET 4 (SEARCH RADIUS — DARAT, STANDALONE) — input hanya
+                dari data kasus hasil analisa AI (set_fields "ws4") / planner;
+                tidak ada prop dari Worksheet 1 Datum */}
             <TabsContent value="ws4" key={`ws4-tab-${caseVersion}-${tabClearVersions.ws4 ?? 0}`} className="mt-0">
               <Worksheet4
                 key={`ws4-${caseVersion}`}
-                searchResults={searchResults}
-                E={datumResults?.E ?? 5.0}
-                divergenceDistance={datumResults?.divergenceDistance ?? 7.8}
                 initialState={ws4State ?? undefined}
                 onStateChange={setWs4State}
               />

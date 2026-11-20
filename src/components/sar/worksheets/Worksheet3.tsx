@@ -3,7 +3,6 @@
 import { printActiveWorksheetFit } from '@/lib/sar/printFit';
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import type { SearchPlanResults } from '@/components/sar/SearchPlanWorksheet';
 import { Printer } from 'lucide-react';
 import { readFigureI12, type SearchNumber } from '@/lib/sar/wscPodTables';
 import {
@@ -42,13 +41,13 @@ export interface Worksheet3InitialState {
 }
 
 interface Worksheet3Props {
-  searchResults?: SearchPlanResults | null;
-  E?: number;
   readOnly?: boolean;
   initialState?: Worksheet3InitialState;
   /** Nilai A hasil hitung Worksheet 4 (Search Radius — darat): total trapesium
    *  antar fix / lingkaran possibility (NM²). Sumber UTAMA nilai A lembar ini
-   *  (sinkron otomatis dari WS 4); fallback: Ao Worksheet 1 lalu input manual. */
+   *  (sinkron otomatis dari WS 4); fallback: nilai dari data kasus (AI) / input manual.
+   *  Worksheet 3 TIDAK bergantung pada Worksheet 1 (Datum) — semua input hanya
+   *  dari soal kasus yang dianalisa AI asisten atau diisi planner. */
   ws4AreaNm2?: number | null;
   /** EST (Effective Search Time, jam) SRU pemilik lembar ini dari Worksheet
    *  Alokasi Aset — sumber otomatis "Total Search Hours Available" lembar darat
@@ -91,7 +90,7 @@ function asSearchNumber(value: unknown): SearchNumber | null {
   return Number.isInteger(n) && n >= 1 && n <= 5 ? (n as SearchNumber) : null;
 }
 
-export default function Worksheet3({ searchResults, readOnly = false, initialState, ws4AreaNm2, estHoursFromAllocation, estSourceName, onTrackSpacingChange, onStateChange }: Worksheet3Props) {
+export default function Worksheet3({ readOnly = false, initialState, ws4AreaNm2, estHoursFromAllocation, estSourceName, onTrackSpacingChange, onStateChange }: Worksheet3Props) {
   const [caseTitle, setCaseTitle] = useState(initialState?.caseTitle ?? '-');
   const [plannerName, setPlannerName] = useState('-');
   const [searchDate, setSearchDate] = useState('-');
@@ -168,10 +167,10 @@ export default function Worksheet3({ searchResults, readOnly = false, initialSta
   const coverages = wFactors.map((width, index) => width !== null && trackSpacings[index] ? width / trackSpacings[index]! : null);
   const pods = coverages.map((coverage) => coverage !== null && searchNumber !== null ? readFigureI12(coverage, searchNumber) : null);
   // Nilai A lembar darat — PRIORITAS: hasil hitung Worksheet 4 (Search Radius,
-  // sinkron otomatis via mirror) → Ao Worksheet 1 → input manual lembar.
+  // sinkron otomatis via mirror) → nilai dari data kasus (AI) / input manual lembar.
+  // Tidak ada fallback ke Worksheet 1: WS 3 darat tidak berhubungan dengan WS 1 Datum.
   const ws4Area = typeof ws4AreaNm2 === 'number' && Number.isFinite(ws4AreaNm2) && ws4AreaNm2 > 0 ? ws4AreaNm2 : null;
-  const searchAreaA = ws4Area
-    ?? (searchResults?.Ao !== undefined && searchResults.Ao !== null ? asNumber(searchResults.Ao) : asNumber(initialState?.searchAreaNm2));
+  const searchAreaA = ws4Area ?? asNumber(initialState?.searchAreaNm2);
   const hasSearchArea = searchAreaA > 0;
   const hoursRequired = trackSpacings.map((spacing) => spacing && searchSpeed > 0 && hasSearchArea
     ? Number((searchAreaA / (searchSpeed * spacing)).toFixed(1))

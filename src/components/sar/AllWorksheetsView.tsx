@@ -150,8 +150,8 @@ export default function AllWorksheetsView({
     'sec-ws2': (datumData != null && ws1Ao > 0) || ws2Initial != null,
     'sec-ws8': ws1Ao > 0 || ws8Initial != null,
     'sec-assets': assets.length > 0,
-    'sec-ws3': searchResults != null || ws3Initial != null,
-    'sec-ws4': searchResults != null,
+    'sec-ws3': ws3Initial != null || (ws4AreaNm2 != null && ws4AreaNm2 > 0),
+    'sec-ws4': ws4AreaNm2 != null && ws4AreaNm2 > 0,
     'sec-intercept': interceptHasData,
     'sec-briefing': datumResults != null || searchResults != null,
     'sec-renops': datumResults != null || searchResults != null,
@@ -364,8 +364,6 @@ export default function AllWorksheetsView({
             </span>
           </div>
           <Worksheet3
-            searchResults={searchResults}
-            E={datumResults?.E ?? 5.0}
             initialState={ws3Initial ?? undefined}
             ws4AreaNm2={ws4AreaNm2}
             readOnly
@@ -380,9 +378,6 @@ export default function AllWorksheetsView({
             </span>
           </div>
           <Worksheet4
-            searchResults={searchResults}
-            E={datumResults?.E ?? 5.0}
-            divergenceDistance={datumResults?.divergenceDistance ?? 7.8}
             readOnly
           />
         </section>

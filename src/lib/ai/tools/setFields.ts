@@ -158,7 +158,6 @@ export const SET_FIELDS_REGISTRY: Record<SetFieldsWorksheet, Record<string, SetF
     assignedSubArea: { type: 'string', description: 'Sub-area yang ditugaskan.' },
     airEngineType: { type: 'string', description: 'Jenis mesin alut udara.', enum: ['piston', 'turbine'] },
     tafCondition: { type: 'string', description: 'Kondisi TAF alut udara.', enum: ['cerah', 'inter', 'tempo'] },
-    maritimeTsfMins: { type: 'number', description: 'TSF maritim manual (menit).' },
   },
   pattern: {
     patternType: { type: 'string', description: 'Jenis pola pencarian.', enum: ['PS', 'CS', 'SS', 'VS', 'TS'] },

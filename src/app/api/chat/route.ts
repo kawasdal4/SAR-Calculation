@@ -721,7 +721,6 @@ const tools: FunctionDeclaration[] = [
         searchSpeedKts: { type: SchemaType.NUMBER, description: 'Kecepatan saat mencari dalam knot dari soal.' },
         enduranceHours: { type: SchemaType.NUMBER, description: 'Endurance bahan bakar dalam jam dari soal.' },
         sweepWidthNm: { type: SchemaType.NUMBER, description: 'Track spacing S (NM) dari rencana pencarian/worksheet terkait; bila belum ada, kirim 0.' },
-        maritimeTsfMins: { type: SchemaType.NUMBER, description: 'HANYA alut laut: TSF (Time Safety Factor) dalam menit dari instruksi soal. Biarkan kosong untuk alut udara.' },
         airEngineType: { type: SchemaType.STRING, description: 'HANYA alut udara: piston atau turbine. Biarkan kosong untuk alut laut.' },
         tafCondition: { type: SchemaType.STRING, description: 'HANYA alut udara: kondisi cuaca TAF yang DIBACA dari PRAKIRAAN CUACA/TAF di soal kasus — nilai TAF bukan tebakan. Petakan kata kunci soal: cerah/CLEAR/CAVOK → "cerah" (0 menit); INTER/intermittent → "inter" (30 menit); TEMPO/temporary/shower → "tempo" (60 menit). WAJIB diisi untuk SETIAP SRU udara bila soal menyebut TAF/prakiraan cuaca; biarkan kosong untuk alut laut atau bila soal sama sekali tidak menyebut prakiraan cuaca.' },
         assignedSubArea: { type: SchemaType.STRING, description: 'Sub-area yang ditugaskan bila soal menyebut (mis. Sub-Area 1, Datum Kiri).' },

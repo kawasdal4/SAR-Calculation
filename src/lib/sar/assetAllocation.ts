@@ -26,6 +26,9 @@ export interface SruAssetInput {
   assignedSubArea?: string; // Sub-area yang ditugaskan (misal 'Datum Kiri', 'Datum Kanan', 'Sub-Area 1')
   airEngineType?: 'piston' | 'turbine';
   tafCondition?: 'cerah' | 'inter' | 'tempo';
+  /** @deprecated Tidak dipakai lagi — TSF alut laut kini DIHITUNG OTOMATIS
+   *  dari Tr Go + Tr Back (total transit). Field disimpan demi kompatibilitas
+   *  snapshot kasus lama; nilai diabaikan kalkulasi. */
   maritimeTsfMins?: number;
 }
 
@@ -74,7 +77,6 @@ export interface AssetAllocationCaseInput {
   searchSpeedKts?: number;
   enduranceHours?: number;
   sweepWidthNm?: number;
-  maritimeTsfMins?: number;
   airEngineType?: 'piston' | 'turbine';
   tafCondition?: 'cerah' | 'inter' | 'tempo';
   assignedSubArea?: string;
@@ -145,13 +147,14 @@ export function calculateSruAsset(
   const tafMinutes = isAir && input.tafCondition
     ? input.tafCondition === 'cerah' ? 0 : input.tafCondition === 'inter' ? 30 : 60
     : null;
+  // TSF (Total Safety Fuel) menit:
+  //  - udara: total transit + variable transit (10%/15% mesin) + reserve + TAF
+  //  - laut : Tr Go + Tr Back (total transit) — dihitung otomatis, bukan input manual
   const tsf = isAir
     ? variableTransitMinutes !== null && reserveMinutes !== null && tafMinutes !== null
       ? totalTransitMinutes + variableTransitMinutes + reserveMinutes + tafMinutes
       : null
-    : Number.isFinite(input.maritimeTsfMins) && (input.maritimeTsfMins ?? -1) >= 0
-      ? input.maritimeTsfMins!
-      : null;
+    : totalTransitMinutes;
 
   const enduranceMinutes = input.enduranceHours * 60;
   const ose = tsf === null || !(input.enduranceHours > 0) ? null : enduranceMinutes - tsf;
@@ -167,7 +170,7 @@ export function calculateSruAsset(
   const statusMessage = !validInputs
     ? isAir
       ? 'Lengkapi endurance, V_TAS, V_search, S, engine type, dan TAF.'
-      : 'Lengkapi endurance, Speed (V), V_search, S, dan TSF maritime dari instruksi.'
+      : 'Lengkapi endurance, Speed (V), V_search, dan S; TSF laut = Tr Go + Tr Back (otomatis).'
     : isEnduranceDeficit
       ? `OSE tidak positif (${ose?.toFixed(2)} menit); kapasitas sapuan tidak tersedia.`
       : 'Perhitungan OSE, EST, dan Sweep Width Area valid.';

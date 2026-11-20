@@ -4,7 +4,6 @@ import { printActiveWorksheetFit } from '@/lib/sar/printFit';
 import React, { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { Card, CardContent } from '@/components/ui/card';
-import type { SearchPlanResults } from '@/components/sar/SearchPlanWorksheet';
 import { Minimize2, Printer } from 'lucide-react';
 import CoordinateInput from '@/components/sar/CoordinateInput';
 import { FullscreenToggleButton } from '@/components/sar/FullscreenToggleButton';
@@ -84,9 +83,6 @@ export interface Worksheet4InitialState {
 }
 
 interface Worksheet4Props {
-  searchResults?: SearchPlanResults | null;
-  E?: number;
-  divergenceDistance?: number;
   readOnly?: boolean;
   initialState?: Worksheet4InitialState;
   /** Mirror seluruh input worksheet ke induk — dasar save case lengkap &
@@ -94,10 +90,11 @@ interface Worksheet4Props {
   onStateChange?: (data: Worksheet4InitialState) => void;
 }
 
+/** Worksheet 4 (Search Radius — darat) berdiri sendiri: TIDAK menerima props
+ *  dari Worksheet 1 (Datum). Seluruh input (posisi, rute, target, galat navigasi)
+ *  berasal dari data kasus hasil analisa AI asisten (set_fields "ws4") atau
+ *  diisi langsung oleh planner. */
 export default function Worksheet4({
-  searchResults,
-  E = 0,
-  divergenceDistance = 0,
   readOnly = false,
   initialState,
   onStateChange,

@@ -722,7 +722,7 @@ export function normalizeCaseToolArgs(toolName: string, rawArgs: Args | undefine
     case 'set_asset_allocation_case': {
       const sruType = normalizeSruType(args.sruType);
       if (sruType) args.sruType = sruType;
-      for (const key of ['transitSpeedKts', 'searchSpeedKts', 'enduranceHours', 'sweepWidthNm', 'homeBaseLat', 'homeBaseLng', 'maritimeTsfMins']) {
+      for (const key of ['transitSpeedKts', 'searchSpeedKts', 'enduranceHours', 'sweepWidthNm', 'homeBaseLat', 'homeBaseLng']) {
         const num = coerceNumber(args[key]);
         if (num !== undefined) args[key] = num;
       }
