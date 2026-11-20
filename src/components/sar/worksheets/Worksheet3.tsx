@@ -50,6 +50,12 @@ interface Worksheet3Props {
    *  antar fix / lingkaran possibility (NM²). Sumber UTAMA nilai A lembar ini
    *  (sinkron otomatis dari WS 4); fallback: Ao Worksheet 1 lalu input manual. */
   ws4AreaNm2?: number | null;
+  /** EST (Effective Search Time, jam) SRU pemilik lembar ini dari Worksheet
+   *  Alokasi Aset — sumber otomatis "Total Search Hours Available" lembar darat
+   *  (disesuaikan per SRU udara pemilik lembar, sinkron tiap alokasi berubah). */
+  estHoursFromAllocation?: number;
+  /** Nama SRU sumber EST (untuk teks keterangan). */
+  estSourceName?: string;
   onTrackSpacingChange?: (result: { platform: LandSearchPlatform | null; heights: readonly number[]; spacingByHeight: Array<number | null> }) => void;
   /** Mirror seluruh input lembar ke induk (sheet.data) — dasar save case
    *  lengkap & recalculate otomatis antar worksheet. */
@@ -85,7 +91,7 @@ function asSearchNumber(value: unknown): SearchNumber | null {
   return Number.isInteger(n) && n >= 1 && n <= 5 ? (n as SearchNumber) : null;
 }
 
-export default function Worksheet3({ searchResults, readOnly = false, initialState, ws4AreaNm2, onTrackSpacingChange, onStateChange }: Worksheet3Props) {
+export default function Worksheet3({ searchResults, readOnly = false, initialState, ws4AreaNm2, estHoursFromAllocation, estSourceName, onTrackSpacingChange, onStateChange }: Worksheet3Props) {
   const [caseTitle, setCaseTitle] = useState(initialState?.caseTitle ?? '-');
   const [plannerName, setPlannerName] = useState('-');
   const [searchDate, setSearchDate] = useState('-');
@@ -97,6 +103,15 @@ export default function Worksheet3({ searchResults, readOnly = false, initialSta
   const [searchNumber, setSearchNumber] = useState<SearchNumber | null>(asSearchNumber(initialState?.searchNumber));
   const [searchSpeed, setSearchSpeed] = useState(asNumber(initialState?.searchSpeedKts ?? initialState?.searchTas));
   const [hoursAvailable, setHoursAvailable] = useState(asNumber(initialState?.hoursAvailable));
+  // "Total Search Hours Available" lembar darat didapat dari Worksheet Alokasi
+  // Aset (EST = 0.85 × OSE, jam) yang disesuaikan dengan SRU udara pemilik
+  // lembar ini. Sinkron otomatis tiap kalkulasi alokasi berubah; input tetap
+  // bisa diedit manual di antara sinkronisasi.
+  useEffect(() => {
+    if (readOnly) return;
+    if (typeof estHoursFromAllocation !== 'number' || !(estHoursFromAllocation > 0)) return;
+    setHoursAvailable(Number(estHoursFromAllocation.toFixed(2)));
+  }, [estHoursFromAllocation, readOnly]);
   // Override nilai tabel appendix (klik nilai → panel verifikasi → Terapkan).
   const [fvOverride, setFvOverride] = useState<number | undefined>(() => {
     const n = initialState?.fvOverride;
@@ -329,7 +344,9 @@ export default function Worksheet3({ searchResults, readOnly = false, initialSta
           {isCalculationReady && searchNumber === null && <div className="mx-3 mt-2 text-[11px] text-amber-800">Pilih Search Number untuk membaca POD dari{'\u200b'} <TableRefText request={{ docId: 'appendix-i', page: 11, tableId: 'FIG-I-12', sourceLabel: 'Worksheet 3 — POD (Figure I-12)' }}>Figure I-12</TableRefText>.</div>}
 
           <div className="p-2.5 bg-slate-50 border-b-2 border-slate-900 text-xs flex flex-wrap items-center justify-between gap-2">
-            <div><span className="font-bold text-slate-800">Total Search Hours Available:</span>{' '}<input type="number" step="0.1" value={hoursAvailable} disabled={readOnly} onChange={(e) => setHoursAvailable(Number(e.target.value) || 0)} className="font-bold text-blue-900 bg-white border border-slate-300 rounded px-2 py-0.5 w-16 text-right font-mono" />{' '}<span className="font-medium text-slate-600">hrs — input terpisah; tidak digunakan pada rumus di atas</span></div>
+            <div><span className="font-bold text-slate-800">Total Search Hours Available:</span>{' '}<input type="number" step="0.1" value={hoursAvailable} disabled={readOnly} onChange={(e) => setHoursAvailable(Number(e.target.value) || 0)} className="font-bold text-blue-900 bg-white border border-slate-300 rounded px-2 py-0.5 w-16 text-right font-mono" />{' '}{typeof estHoursFromAllocation === 'number' && estHoursFromAllocation > 0
+              ? <span className="font-medium text-slate-600">hrs — dari Worksheet Alokasi Aset SRU (EST alut udara{estSourceName ? ` · ${estSourceName}` : ''}) · sinkron otomatis per SRU</span>
+              : <span className="font-medium text-slate-600">hrs — dari Worksheet Alokasi Aset SRU (lembar EST alut udara) · lengkapi EST SRU ini di tab Alokasi Aset agar tersinkron otomatis</span>}</div>
             <span className="text-[10px] text-slate-500 font-mono italic">Land Search Worksheet</span>
           </div>
           <div className="px-3 py-2 text-[11px] text-slate-500 italic">Opsi A–D tidak dihitung pada Worksheet 3. T dihitung hanya jika Search Area A dan Search Speed V tersedia.</div>

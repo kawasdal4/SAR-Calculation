@@ -135,6 +135,7 @@ import {
   type AssetAllocationCaseInput,
   assetDomain,
   calculateAssetAllocationSummary,
+  calculateSruAsset,
 } from '@/lib/sar/assetAllocation';
 import { deepEqualValue, firstFilledSnapshot, mergeAswSnapshot, hasFilledValue, describeRestoredCaseSections } from '@/lib/sar/stateSync';
 
@@ -2004,6 +2005,46 @@ export default function Home() {
     return calculateAssetAllocationSummary(assets, csp, exitPoint, ws1Ao);
   }, [assets, csp, exitPoint, ws1Ao]);
 
+  // === EST (Effective Search Time, jam) per SRU dari Worksheet Alokasi Aset ===
+  // Sumber nilai "Total Search Hours Available" WS 2/WS 3 (alut udara) & WS 8
+  // (alut laut): EST dihitung per alut di lembar alokasi (0.85 × OSE) lalu
+  // disinkronkan ke lembar worksheet SRU pemiliknya.
+  const assetEstHours = useMemo<Record<string, number>>(() => {
+    const map: Record<string, number> = {};
+    for (const asset of assets) {
+      const est = calculateSruAsset(asset, csp, exitPoint).effectiveSearchHours;
+      if (Number.isFinite(est) && est > 0) map[asset.id] = est;
+    }
+    return map;
+  }, [assets, csp, exitPoint]);
+
+  // Pencocokan lembar worksheet → aset alokasi (pola sama dengan
+  // assetWorksheetSpacing): (1) ikatan assetId langsung, (2) kecocokan
+  // platform/jenis alut, (3) fallback kasus tunggal (1 lembar & 1 aset pada
+  // domain itu). Hasilnya EST + nama SRU per lembar untuk sinkronisasi otomatis.
+  const sheetEstFromAssets = useCallback(
+    (sheets: Array<{ key: string; assetId: string | null; data: { searchPlatform?: string; sruType?: string } }>, domain: 'udara' | 'laut') => {
+      const map: Record<string, { hours: number; assetName: string }> = {};
+      const domainAssets = assets.filter((a) => assetDomain(a.type) === domain);
+      for (const sheet of sheets) {
+        const asset = domainAssets.find((a) => a.id === sheet.assetId)
+          ?? domainAssets.find((a) => domain === 'udara'
+            ? (sheet.data.searchPlatform === 'helicopter' ? 'helicopter' : sheet.data.searchPlatform === 'fixed-wing' ? 'fixed-wing-aircraft' : undefined) === a.type
+            : sheet.data.sruType === a.type)
+          ?? (sheets.length === 1 && domainAssets.length === 1 ? domainAssets[0] : undefined);
+        const hours = asset ? assetEstHours[asset.id] : undefined;
+        if (asset && hours && hours > 0) {
+          map[sheet.key] = { hours, assetName: asset.name?.trim() || caseSruTypeName[asset.type] || asset.type };
+        }
+      }
+      return map;
+    },
+    [assets, assetEstHours]
+  );
+  const ws2SheetEst = useMemo(() => sheetEstFromAssets(ws2Sheets, 'udara'), [sheetEstFromAssets, ws2Sheets]);
+  const ws3SheetEst = useMemo(() => sheetEstFromAssets(ws3Sheets, 'udara'), [sheetEstFromAssets, ws3Sheets]);
+  const ws8SheetEst = useMemo(() => sheetEstFromAssets(ws8Sheets, 'laut'), [sheetEstFromAssets, ws8Sheets]);
+
   // Map view center
   const mapCenter: LatLng = useMemo(() => {
     if (datumData && datumResults) {
@@ -3032,6 +3073,8 @@ export default function Home() {
                     aswSpeedKts={asw.aswSpeed}
                     ws1Ao={ws1Ao}
                     initialState={sheet.data}
+                    estHoursFromAllocation={ws2SheetEst[sheet.key]?.hours}
+                    estSourceName={ws2SheetEst[sheet.key]?.assetName}
                     onTrackSpacingChange={(result) => handleWS2TrackSpacingChange(sheet.key, result)}
                     onStateChange={(data) => handleWS2SheetData(sheet.key, data)}
                   />
@@ -3077,6 +3120,8 @@ export default function Home() {
                     initialC={searchResults?.C ?? 0}
                     initialPod={searchResults?.POD ?? 0}
                     initialState={sheet.data}
+                    estHoursFromAllocation={ws8SheetEst[sheet.key]?.hours}
+                    estSourceName={ws8SheetEst[sheet.key]?.assetName}
                     onTrackSpacingChange={(result) => handleWS8TrackSpacingChange(sheet.key, result)}
                     onStateChange={(data) => handleWS8SheetData(sheet.key, data)}
                   />
@@ -3371,6 +3416,8 @@ export default function Home() {
                     E={datumResults?.E ?? 5.0}
                     initialState={sheet.data}
                     ws4AreaNm2={ws4State?.searchAreaNm2 ?? null}
+                    estHoursFromAllocation={ws3SheetEst[sheet.key]?.hours}
+                    estSourceName={ws3SheetEst[sheet.key]?.assetName}
                     onTrackSpacingChange={(result) => handleWS3TrackSpacingChange(sheet.key, result)}
                     onStateChange={(data) => handleWS3SheetData(sheet.key, data)}
                   />

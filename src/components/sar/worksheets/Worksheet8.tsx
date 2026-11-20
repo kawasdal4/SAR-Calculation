@@ -43,6 +43,12 @@ interface Worksheet8Props {
   readOnly?: boolean;
   windKts?: number;
   initialState?: Worksheet8InitialState;
+  /** EST (Effective Search Time, jam) SRU pemilik lembar ini dari Worksheet
+   *  Alokasi Aset — sumber otomatis "Total Search Hours Available" (nilai
+   *  disesuaikan dengan SRU laut pemilik lembar, sinkron tiap alokasi berubah). */
+  estHoursFromAllocation?: number;
+  /** Nama SRU sumber EST (untuk teks keterangan). */
+  estSourceName?: string;
   onTrackSpacingChange?: (result: { spacingNm: number; selection: string }) => void;
   /** Mirror seluruh input lembar ke induk (sheet.data) — dasar save case
    *  lengkap & recalculate otomatis antar worksheet. */
@@ -56,6 +62,8 @@ export default function Worksheet8({
   readOnly = false,
   windKts = 0,
   initialState,
+  estHoursFromAllocation,
+  estSourceName,
   onTrackSpacingChange,
   onStateChange,
 }: Worksheet8Props) {
@@ -115,6 +123,16 @@ export default function Worksheet8({
 
   // Available search hours from Worksheet No. 7
   const [hoursAvailable, setHoursAvailable] = useState(initialState?.hoursAvailable ?? 0);
+
+  // "Total Search Hours Available" didapat dari Worksheet Alokasi Aset (EST =
+  // 0.85 × OSE, jam) yang disesuaikan dengan SRU laut pemilik lembar ini.
+  // Sinkron otomatis tiap kalkulasi alokasi berubah; input tetap bisa diedit
+  // manual di antara sinkronisasi.
+  useEffect(() => {
+    if (readOnly) return;
+    if (typeof estHoursFromAllocation !== 'number' || !(estHoursFromAllocation > 0)) return;
+    setHoursAvailable(Number(estHoursFromAllocation.toFixed(2)));
+  }, [estHoursFromAllocation, readOnly]);
 
   // Selected eye-height column for Area A
   const selIdx = heights.indexOf(eyeHeight as typeof heights[number]);
@@ -616,7 +634,9 @@ export default function Worksheet8({
                 onChange={(e) => setHoursAvailable(Number(e.target.value) || 0)}
                 className="font-bold text-blue-900 bg-white border border-slate-300 rounded px-2 py-0.5 w-16 text-right font-mono"
               />{' '}
-              <span className="font-medium text-slate-600">hrs — (from Worksheet No. 7)</span>
+              {typeof estHoursFromAllocation === 'number' && estHoursFromAllocation > 0
+                ? <span className="font-medium text-slate-600">hrs — dari Worksheet Alokasi Aset SRU (EST Maritime{estSourceName ? ` · ${estSourceName}` : ''}) · sinkron otomatis per SRU laut</span>
+                : <span className="font-medium text-slate-600">hrs — dari Worksheet Alokasi Aset SRU (lembar EST Maritime) · lengkapi EST SRU ini di tab Alokasi Aset agar tersinkron otomatis</span>}
             </div>
             <span className="text-[10px] text-slate-500 font-mono italic">
               Vessel Search Planning & Trade-offs

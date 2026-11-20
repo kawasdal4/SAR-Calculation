@@ -148,7 +148,7 @@ export default function SearchPlanWorksheet({
     visibility,
     windSpeed,
     altitudeFt,
-    conditions,
+    searchNumber,
     datumType,
     facilities,
     onStateChange,
