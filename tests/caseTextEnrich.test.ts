@@ -211,17 +211,21 @@ describe('enrichCaseFromSourceText', () => {
       incident: { type: 'aircraft-ditching' },
       meta: { source: 'pdf' },
     });
-    const { case: enriched, filled } = enrichCaseFromSourceText(empty, SOAL_PK_TAL);
+    const { case: enriched, filled, timeClarifications, timeClarificationNotes } = enrichCaseFromSourceText(empty, SOAL_PK_TAL);
 
     // Semua field yang sebelumnya MISSING dari run model kini terisi.
+    // (search.datumTime TIDAK lagi diisi otomatis — gerbang kartu waktu:
+    // soal memuat ≥2 kandidat tanggal/waktu → pengguna memilih di kartu.)
     const fields = new Set(filled.map((entry) => entry.field));
     for (const field of [
       'aeroDrift.glideSpeedKts', 'aeroDrift.glideRatio', 'aeroDrift.variation',
       'incident.headingDeg', 'incident.flightLevelFt', 'lkp.coord',
-      'aeroDrift.windLayers', 'sea.current', 'sea.surfaceWindSeries', 'search.datumTime', 'sru',
+      'aeroDrift.windLayers', 'sea.current', 'sea.surfaceWindSeries', 'sru',
     ]) {
       expect(fields.has(field)).toBe(true);
     }
+    expect(fields.has('search.datumTime')).toBe(false);
+    expect(enriched.search?.datumTime).toBeUndefined();
 
     expect(enriched.aeroDrift?.glideSpeedKts).toBe(GOLDEN.aeroDrift?.glideSpeedKts);
     expect(enriched.aeroDrift?.glideRatio).toBe(GOLDEN.aeroDrift?.glideRatio);
@@ -236,7 +240,12 @@ describe('enrichCaseFromSourceText', () => {
     expect(enriched.lkp?.source).toBe('explicit');
     expect(enriched.sea?.current).toEqual(GOLDEN.sea?.current);
     expect(enriched.sea?.surfaceWindSeries).toEqual(GOLDEN.sea?.surfaceWindSeries);
-    expect(enriched.search?.datumTime).toBe(GOLDEN.search?.datumTime);
+    // Datum time menunggu pilihan pengguna di kartu Datum Time (kandidat
+    // "Waktu pencarian selanjutnya — 19 November 2026 07.00 WIB" tersedia).
+    const datumCard = timeClarifications.find((card) => card.kind === 'datum');
+    expect(datumCard).toBeDefined();
+    expect(datumCard!.candidates.some((candidate) => candidate.value.includes('07.00 WIB'))).toBe(true);
+    expect(timeClarificationNotes.some((note) => note.includes('search.datumTime'))).toBe(true);
     expect(enriched.sru?.length).toBe(3);
     expect(enriched.sru?.[0].callsign).toBe('HR-3604');
     expect(enriched.sru?.[2].tasSearchKts).toBe(15);
@@ -252,13 +261,12 @@ describe('enrichCaseFromSourceText', () => {
     for (const field of [
       'lkp.coord', 'aeroDrift.glideSpeedKts', 'aeroDrift.variation', 'incident.headingDeg',
       'incident.flightLevelFt', 'aeroDrift.windLayers', 'sea.current', 'sea.surfaceWindSeries',
-      'search.datumTime',
     ]) {
       expect(missingFields).not.toContain(field);
     }
   });
 
-  test('nilai model TIDAK ditimpa oleh enrichment', () => {
+  test('nilai model TIDAK ditimpa oleh enrichment (datum time salah → kartu, bukan timpaan diam-diam)', () => {
     const withModelValues: SarCaseSchema = sarCaseSchema.parse({
       schemaVersion: 1,
       incident: { type: 'aircraft-ditching', headingDeg: 250, flightLevelFt: 150 },
@@ -273,7 +281,9 @@ describe('enrichCaseFromSourceText', () => {
     expect(enriched.aeroDrift?.variationDeg).toBe(3);
     expect(enriched.incident?.headingDeg).toBe(250);
     expect(enriched.sea?.current).toEqual({ dirToDeg: 90, speedKts: 1.5 });
-    expect(enriched.search?.datumTime).toBe('19 November 2026 08.00 WIB');
+    // Datum time bacaan model (08.00) TIDAK didukung kandidat soal (07.00) →
+    // DIHAPUS (kartu Datum Time yang menentukan), bukan ditimpa diam-diam.
+    expect(enriched.search?.datumTime).toBeUndefined();
     expect(enriched.lkp?.coord?.lat).toBe(-6.5);
     // Field yang memang kosong tetap diisi.
     const fields = new Set(filled.map((entry) => entry.field));
@@ -498,5 +508,45 @@ describe('Gerbang klarifikasi waktu deterministik (buildRequiredTimeClarificatio
     // tanggal nama bulan + jam DETRESFA — tidak perlu konfirmasi.
     expect(gate.datumTime).not.toBeNull();
     expect(gate.incidentTime).toBeNull();
+  });
+
+  test('Tanggal ambigu + 2 waktu kejadian (FULL EXERCISE SRX48): kartu SEMUA kombinasi DD/MM×MM/DD × jam kejadian', () => {
+    const soal = `• 03/12/2024, pesawat SRX48 berangkat dari Ternate menuju Merauke dengan 6 POB.
+• Pada pukul 1050 WIT Pesawat melaporkan kerusakan pada kedua mesin dan melaporkan kepada ATC di ketinggian 18000 feet dengan heading 134(M).
+• ATC melakukan panggilan dan tidak ada respon.
+• ATC declare DETRESFA pada pukul 1053 WIT dengan LKP pada koordinat 4°59'00"S -133°53'48"E.
+• Kantor SAR Ambon menerima informasi dari ATC pukul 1105 WIT via telephone.`;
+    const facts = extractCaseFacts(soal);
+    const gate = buildRequiredTimeClarifications(facts);
+    expect(gate.datumTime).not.toBeNull();
+    // Kartu waktu kejadian: 2 bacaan tanggal × 2 waktu kejadian (10.50 vs 10.53).
+    expect(gate.incidentTime).not.toBeNull();
+    expect(gate.incidentTime!.candidates).toHaveLength(4);
+    const values = gate.incidentTime!.candidates.map((candidate) => candidate.value);
+    expect(values).toContain('03 Desember 2024 10.50 WIT');
+    expect(values).toContain('03 Desember 2024 10.53 WIT');
+    expect(values).toContain('12 Maret 2024 10.50 WIT');
+    expect(values).toContain('12 Maret 2024 10.53 WIT');
+    // Waktu informasi diterima (11.05) dan waktu pencarian tidak ikut kartu kejadian.
+    expect(values.some((value) => value.includes('11.05'))).toBe(false);
+    // Kandidat DETRESFA ditandai rekomendasi (aturan DETRESFA), keputusan tetap milik pengguna.
+    expect(gate.incidentTime!.candidates.some((candidate) => candidate.label.includes('umumnya dipakai'))).toBe(true);
+    expect(gate.incidentTime!.question).toContain('AMBIGU');
+  });
+
+  test('Tanggal jelas + 2 waktu kejadian (MAYDAY vs DETRESFA): kartu pilihan waktu, jam DETRESFA tidak diasumsikan', () => {
+    const soal = `12 Maret 2024, pesawat SRX48 berangkat dari Ternate.
+Pada pukul 1050 WIT pesawat melaporkan kerusakan pada kedua mesin.
+ATC declare DETRESFA pada pukul 1053 WIT dengan LKP pada koordinat 4°59'00"S.
+Kantor SAR menerima informasi pukul 1105 WIT.`;
+    const facts = extractCaseFacts(soal);
+    const gate = buildRequiredTimeClarifications(facts);
+    expect(gate.incidentTime).not.toBeNull();
+    // Kandidat = waktu kejadian saja (10.50 & 10.53), bukan waktu informasi.
+    expect(gate.incidentTime!.candidates).toHaveLength(2);
+    const values = gate.incidentTime!.candidates.map((candidate) => candidate.value);
+    expect(values).toContain('12 Maret 2024 10.50 WIT');
+    expect(values).toContain('12 Maret 2024 10.53 WIT');
+    expect(values.some((value) => value.includes('11.05'))).toBe(false);
   });
 });

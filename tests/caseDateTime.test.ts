@@ -5,11 +5,13 @@
  *    kandidat; "17/11/2026" tidak ambigu (DD/MM tunggal).
  * 2. Kalimat DETRESFA → waktu kejadian A.1 = tanggal awal soal + jam DETRESFA
  *    ("pukul 1053 WIT" tanpa pemisah = 10.53).
- * 3. enrichCaseFromSourceText mengisi incident.lastContactTime (kosong → isi;
- *    model isi salah → koreksi) + catatan DIASUMSIKAN untuk tanggal ambigu.
+ * 3. GERBANG KARTU WAKTU (aturan pengguna, 2026-11): tanggal ambigu / ≥2
+ *    kandidat waktu kejadian → enrich TIDAK mengisi/mengoreksi waktu otomatis;
+ *    kartu pilihan (kombinasi DD/MM×MM/DD × jam kejadian) + catatan dikirim,
+ *    bacaan model yang tidak didukung kandidat DIHAPUS.
  * 4. Anchor chat: argumen set_awa_case siap pakai + anchor tanggal/waktu/LKP.
  * 5. Regresi PK-TAL (fixture lama): tanpa DETRESFA → lastContactTime tidak
- *    disentuh pass deterministik.
+ *    disentuh pass deterministik (bacaan model = kandidat soal persis).
  */
 
 import { describe, test, expect } from 'bun:test';
@@ -19,6 +21,10 @@ import {
   parseDetresfaTime,
   extractCaseFacts,
   enrichCaseFromSourceText,
+  buildTimeClarificationCards,
+  parseLeadingIndoDateLabel,
+  addDaysToIndoDateLabel,
+  resolveDatumTimeValue,
   formatAwaCaseDataAnchor,
   formatIncidentDateTimeAnchor,
   formatAswDatumTimeAnchor,
@@ -146,35 +152,64 @@ function baseCase(overrides: Partial<SarCaseSchema['incident']> = {}): SarCaseSc
   } as unknown as SarCaseSchema;
 }
 
-describe('enrichCaseFromSourceText — tanggal & waktu kejadian A.1', () => {
-  test('field kosong → diisi tanggal awal soal + jam DETRESFA + catatan ambigu (UNVERIFIED)', () => {
+describe('enrichCaseFromSourceText — gerbang kartu waktu (tanggal ambigu / banyak kandidat)', () => {
+  test('tanggal ambigu + 2 waktu kejadian → TIDAK diisi otomatis; kartu kombinasi DD/MM×MM/DD × jam dikirim', () => {
     const result = enrichCaseFromSourceText(baseCase(), SOAL_FULL_EXERCISE);
-    expect(result.case.incident.lastContactTime).toBe('03 Desember 2024 10.53 WIT');
-    const assumption = result.case.meta?.assumptions?.find((a) => a.field === 'incident.lastContactTime');
-    expect(assumption).toBeDefined();
-    expect(assumption?.reason).toContain('AMBIGU');
-    expect(assumption?.reason).toContain('12 Maret 2024');
-    const source = result.case.meta?.fieldSources?.find((s) => s.field === 'incident.lastContactTime');
-    expect(source?.status).toBe('UNVERIFIED');
-    expect(result.filled.some((f) => f.field === 'incident.lastContactTime')).toBe(true);
+    // Nilai waktu TIDAK diisi otomatis (tidak ada asumsi diam-diam AI).
+    expect(result.case.incident.lastContactTime).toBeUndefined();
+    expect(result.case.search?.datumTime).toBeUndefined();
+    // Dua kartu: Waktu Kejadian (ADW A.1) dulu, lalu Datum Time (ASW).
+    expect(result.timeClarifications.map((card) => card.kind)).toEqual(['incident', 'datum']);
+    const incidentCard = result.timeClarifications[0];
+    // Kombinasi 2 bacaan tanggal × 2 waktu kejadian (10.50 kerusakan & 10.53 DETRESFA).
+    expect(incidentCard.candidates).toHaveLength(4);
+    const values = incidentCard.candidates.map((candidate) => candidate.value);
+    expect(values).toContain('03 Desember 2024 10.50 WIT');
+    expect(values).toContain('03 Desember 2024 10.53 WIT');
+    expect(values).toContain('12 Maret 2024 10.50 WIT');
+    expect(values).toContain('12 Maret 2024 10.53 WIT');
+    // Label menjelaskan bacaan tanggal + makna waktu + rekomendasi DETRESFA.
+    expect(incidentCard.candidates.some((candidate) => candidate.label.includes('DD/MM'))).toBe(true);
+    expect(incidentCard.candidates.some((candidate) => candidate.label.includes('MM/DD'))).toBe(true);
+    expect(incidentCard.candidates.some((candidate) => candidate.label.includes('DETRESFA') && candidate.label.includes('umumnya dipakai'))).toBe(true);
+    // Waktu Kantor SAR menerima informasi (11.05) BUKAN kandidat waktu kejadian.
+    expect(values.some((value) => value.includes('11.05'))).toBe(false);
+    // Catatan penjelas (bukan koreksi ⚠ "diambil dari TEKS soal").
+    expect(result.timeClarificationNotes.some((note) => note.includes('incident.lastContactTime') && note.includes('tidak diisi otomatis'))).toBe(true);
+    expect(result.corrections.filter((correction) => correction.field === 'incident.lastContactTime')).toHaveLength(0);
+    // Kartu datum: kandidat tanpa tanggal + tanggal dasar bacaan DD/MM (+1 hari utk "esok").
+    const datumCard = result.timeClarifications[1];
+    expect(datumCard.candidates.length).toBeGreaterThanOrEqual(3);
+    expect(datumCard.candidates.some((candidate) => candidate.value.includes('10.53 WIT'))).toBe(true);
+    expect(datumCard.baseDateLabel).toBe('03 Desember 2024');
+    expect(datumCard.baseDateNextDayLabel).toBe('04 Desember 2024');
   });
 
-  test('model mengisi waktu salah (10.50) → DIKOREKSI ke jam DETRESFA (10.53)', () => {
+  test('bacaan model TIDAK didukung kandidat ("12 Maret 2024 10.50 WIT") → DIHAPUS + kartu (bukan koreksi ⚠)', () => {
     const result = enrichCaseFromSourceText(
       baseCase({ lastContactTime: '12 Maret 2024 10.50 WIT' }),
       SOAL_FULL_EXERCISE,
     );
-    expect(result.case.incident.lastContactTime).toBe('03 Desember 2024 10.53 WIT');
-    expect(result.corrections.some((c) => c.field === 'incident.lastContactTime' && c.from.includes('10.50'))).toBe(true);
+    expect(result.case.incident.lastContactTime).toBeUndefined();
+    expect(result.timeClarifications.some((card) => card.kind === 'incident')).toBe(true);
+    expect(result.timeClarificationNotes.some((note) => note.includes('DIHAPUS') && note.includes('12 Maret 2024 10.50 WIT'))).toBe(true);
+    expect(result.corrections.filter((correction) => correction.field === 'incident.lastContactTime')).toHaveLength(0);
   });
 
-  test('model sudah memakai jam DETRESFA → tidak ditimpa', () => {
+  test('bacaan model = kandidat soal persis → DIPERTAHANKAN, kartu tetap tampil untuk konfirmasi', () => {
+    const soalJelas = `12 Maret 2024, pesawat berangkat.
+Pada pukul 1050 WIT pesawat melaporkan kerusakan pada kedua mesin.
+ATC declare DETRESFA pada pukul 1053 WIT dengan LKP pada koordinat 4°59'00"S -133°53'48"E.`;
     const result = enrichCaseFromSourceText(
       baseCase({ lastContactTime: '12 Maret 2024 10.53 WIT' }),
-      SOAL_FULL_EXERCISE,
+      soalJelas,
     );
     expect(result.case.incident.lastContactTime).toBe('12 Maret 2024 10.53 WIT');
-    expect(result.corrections.filter((c) => c.field === 'incident.lastContactTime')).toHaveLength(0);
+    expect(result.timeClarificationNotes.some((note) => note.includes('salah satu kandidat') && note.includes('KONFIRMASI'))).toBe(true);
+    // Kartu waktu kejadian tetap wajib (2 kandidat jam kejadian: 10.50 vs 10.53).
+    const incidentCard = result.timeClarifications.find((card) => card.kind === 'incident');
+    expect(incidentCard).toBeDefined();
+    expect(incidentCard!.candidates).toHaveLength(2);
   });
 
   test('soal tanpa DETRESFA (PK-TAL) → lastContactTime tidak disentuh', () => {
@@ -187,14 +222,57 @@ describe('enrichCaseFromSourceText — tanggal & waktu kejadian A.1', () => {
     expect(result.corrections).toHaveLength(0);
   });
 
-  test('tanggal tidak ambigu (nama bulan) → status VERIFIED tanpa asumsi ambigu', () => {
+  test('tanggal tidak ambigu (nama bulan) + DETRESFA tunggal → deterministik VERIFIED tanpa kartu waktu', () => {
     const soal = `12 Maret 2024, pesawat berangkat.
 ATC declare DETRESFA pada pukul 1053 WIT dengan LKP pada koordinat 4°59'00"S -133°53'48"E.`;
     const result = enrichCaseFromSourceText(baseCase(), soal);
     expect(result.case.incident.lastContactTime).toBe('12 Maret 2024 10.53 WIT');
     const source = result.case.meta?.fieldSources?.find((s) => s.field === 'incident.lastContactTime');
     expect(source?.status).toBe('VERIFIED');
+    expect(result.timeClarifications).toHaveLength(0);
     expect(result.case.meta?.assumptions?.some((a) => a.field === 'incident.lastContactTime')).toBe(false);
+  });
+
+  test('buildTimeClarificationCards: kartu datum punya tanggal dasar untuk penggabungan kandidat tanpa tanggal', () => {
+    const facts = extractCaseFacts(SOAL_FULL_EXERCISE);
+    const cards = buildTimeClarificationCards(facts);
+    expect(cards.map((card) => card.kind)).toEqual(['incident', 'datum']);
+    const datumCard = cards[1];
+    expect(datumCard.question).toContain('digabung dengan tanggal');
+    expect(datumCard.baseDateLabel).toBe('03 Desember 2024');
+    expect(datumCard.baseDateNextDayLabel).toBe('04 Desember 2024');
+    // Kartu kejadian: kandidat sudah memuat tanggal (dateLabel terisi).
+    expect(cards[0].candidates.every((candidate) => typeof candidate.dateLabel === 'string' && candidate.dateLabel.length > 0)).toBe(true);
+  });
+});
+
+describe('helper penggabungan tanggal kandidat datum (resolveDatumTimeValue dsb.)', () => {
+  test('parseLeadingIndoDateLabel: "03 Desember 2024 10.53 WIT" → "03 Desember 2024"', () => {
+    expect(parseLeadingIndoDateLabel('03 Desember 2024 10.53 WIT')).toBe('03 Desember 2024');
+    expect(parseLeadingIndoDateLabel('10.53 WIT')).toBeNull();
+  });
+
+  test('addDaysToIndoDateLabel: lintas bulan & tahun aman (aritmetika UTC)', () => {
+    expect(addDaysToIndoDateLabel('03 Desember 2024', 1)).toBe('04 Desember 2024');
+    expect(addDaysToIndoDateLabel('31 Desember 2024', 1)).toBe('01 Januari 2025');
+    expect(addDaysToIndoDateLabel('17 November 2026', 1)).toBe('18 November 2026');
+    expect(addDaysToIndoDateLabel('bukan tanggal', 1)).toBeNull();
+  });
+
+  test('resolveDatumTimeValue: kandidat tanpa tanggal digabung; "esok hari" memakai tanggal +1', () => {
+    const base = '03 Desember 2024';
+    const next = '04 Desember 2024';
+    expect(resolveDatumTimeValue({ value: '10.53 WIT' }, base, next)).toBe('03 Desember 2024 10.53 WIT');
+    expect(
+      resolveDatumTimeValue(
+        { value: '06.00 WIT', source: 'Direncanakan pencarian akan dilanjutkan esok hari pukul 0600 WIT.' },
+        base,
+        next,
+      ),
+    ).toBe('04 Desember 2024 06.00 WIT');
+    // Kandidat bertanggal tidak disentuh; tanpa tanggal dasar juga apa adanya.
+    expect(resolveDatumTimeValue({ value: '19 November 2026 07.00 WIB' }, base, next)).toBe('19 November 2026 07.00 WIB');
+    expect(resolveDatumTimeValue({ value: '10.53 WIT' })).toBe('10.53 WIT');
   });
 });
 

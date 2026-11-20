@@ -500,22 +500,41 @@ function searchPhraseQualifier(phrase: string): string | null {
   return null;
 }
 
+/** Potong jendela teks ke kalimat yang memuat `offset` — jam dari kalimat
+ *  LAIN tidak boleh menempel ke label frasa (bug nyata: "DETRESFA dengan LKP
+ *  pada koordinat …" menyeret jam kalimat berikutnya "informasi pukul 1105").
+ *  Batas kalimat: ". " (bukan titik desimal "133.53") atau baris baru. */
+function phraseSentence(windowText: string, offset: number): string {
+  const beforeText = windowText.slice(0, offset);
+  const startCut = Math.max(beforeText.lastIndexOf('. '), beforeText.lastIndexOf('\n')) + 1;
+  const afterText = windowText.slice(offset);
+  const endMatch = afterText.search(/\.\s|\n/);
+  const endCut = endMatch === -1 ? windowText.length : offset + endMatch + 1;
+  return windowText.slice(startCut, endCut);
+}
+
 /** Ambil jam-menit + zona dalam jendela sekitar frasa (cari SETELAH frasa dulu,
  *  fallback ke BELAKANG frasa untuk pola "pukul 10.53 WIT ATC menyatakan …").
- *  Menangani "10.53", "10:53", dan "1053" (4 digit tanpa pemisah). */
+ *  Kedua jendela dibatasi ke kalimat frasa; menangani "10.53", "10:53", dan
+ *  "1053" (4 digit tanpa pemisah). */
 function extractTimeNear(text: string, index: number): { hour: number; minute: number; zone?: string; value: string } | null {
   const forward = text.slice(index, index + 220);
-  const around = text.slice(Math.max(0, index - 160), index + 220);
-  const tryWindows: Array<[string, number]> = [[forward, index], [around, Math.max(0, index - 160)]];
-  for (const [window, windowStart] of tryWindows) {
+  const aroundStart = Math.max(0, index - 160);
+  const around = text.slice(aroundStart, index + 220);
+  const tryWindows: string[] = [
+    phraseSentence(forward, 0),
+    phraseSentence(around, index - aroundStart),
+  ];
+  for (const window of tryWindows) {
     const timeMatch = window.match(/(?:pukul|jam)\s+(\d{1,2})(?:[.:](\d{2})|(\d{2}))?\b/i);
     if (!timeMatch || timeMatch.index === undefined) continue;
     if (!timeMatch[2] && !timeMatch[3]) continue; // tanpa menit ("pukul 05") — bukan kandidat
     const hour = Number(timeMatch[1]);
     const minute = Number(timeMatch[2] ?? timeMatch[3]);
     if (hour > 23 || minute > 59) continue;
-    const zoneEnd = windowStart + timeMatch.index + timeMatch[0].length + 24;
-    const zoneWindow = text.slice(windowStart + timeMatch.index + timeMatch[0].length, Math.min(text.length, Math.max(zoneEnd, windowStart + timeMatch.index + timeMatch[0].length + 4)));
+    // Zona dicari DALAM kalimat frasa (setelah jam) — offset kalimat terpotong
+    // tidak lagi sejajar dengan offset teks asli.
+    const zoneWindow = window.slice(timeMatch.index + timeMatch[0].length, timeMatch.index + timeMatch[0].length + 28);
     const zone = zoneWindow.match(/\b(WIB|WITA|WIT|UTC|Z)\b/i)?.[1]?.toUpperCase();
     const time = `${String(hour).padStart(2, '0')}.${String(minute).padStart(2, '0')}${zone ? ` ${zone}` : ''}`;
     return { hour, minute, ...(zone ? { zone } : {}), value: time };
@@ -603,6 +622,45 @@ export function findDatumTimeCandidates(text: string): DatumTimeCandidateFact[] 
   }
 
   return candidates.sort((a, b) => a.index - b.index);
+}
+
+// ── Klasifikasi kandidat: fase kejadian vs fase pencarian ──────────────────
+
+/** Label waktu FASE KEJADIAN (bahan kartu A.1 ADW): MAYDAY/kejadian/DETRESFA. */
+const INCIDENT_PHASE_LABEL_RE = /mayday|detresfa|kejadian|ditching|distress|kerusakan/i;
+/** Label kandidat hasil parser catch-all ("pukul HH.MM" tanpa frasa khusus). */
+const CATCH_ALL_LABEL = 'Waktu lain di soal';
+
+/** Kandidat waktu FASE KEJADIAN untuk kartu Waktu Kejadian (A.1 ADW):
+ *  - kandidat berlabel MAYDAY/DETRESFA/kejadian selalu masuk;
+ *  - kandidat catch-all ("Waktu lain di soal") masuk HANYA bila muncul
+ *    SEBELUM kandidat fase pencarian pertama (Kantor SAR menerima informasi,
+ *    pencarian, SRU tiba/onscene) — waktu naratif lain di awal soal lazimnya
+ *    waktu kejadian (mis. FULL EXERCISE SRX48: "Pada pukul 1050 WIT Pesawat
+ *    melaporkan kerusakan").
+ *  Aturan pengguna: bila ≥2 kandidat kejadian (mis. waktu kerusakan 10.50 vs
+ *  DETRESFA 10.53), AI TIDAK BOLEH memilih sendiri — kartu konfirmasi wajib. */
+export function pickIncidentPhaseTimes(candidates: DatumTimeCandidateFact[]): DatumTimeCandidateFact[] {
+  // Label kandidat berbentuk "<frasa> — <nilai>" — deteksi catch-all pakai prefix.
+  const isCatchAll = (label: string): boolean => label.startsWith(CATCH_ALL_LABEL);
+  const firstSearchPhase = candidates.find((candidate) =>
+    !INCIDENT_PHASE_LABEL_RE.test(candidate.label) && !isCatchAll(candidate.label),
+  );
+  const incident: DatumTimeCandidateFact[] = [];
+  for (const candidate of candidates) {
+    if (INCIDENT_PHASE_LABEL_RE.test(candidate.label)) incident.push(candidate);
+    else if (isCatchAll(candidate.label)
+      && (firstSearchPhase === undefined || candidate.index < firstSearchPhase.index)) {
+      incident.push(candidate);
+    }
+  }
+  return incident;
+}
+
+/** Catatan rekomendasi untuk kandidat waktu kejadian DETRESFA (aturan
+ *  pengguna: A.1 umumnya jam deklarasi DETRESFA) — tetap keputusan pengguna. */
+function incidentTimeLabelSuffix(label: string): string {
+  return /detresfa/i.test(label) ? ' — umumnya dipakai sebagai waktu kejadian (aturan DETRESFA)' : '';
 }
 
 /** Mode interval observasi ASW dari jarak antar baris deret angin soal:
@@ -1076,6 +1134,13 @@ export interface CaseEnrichResult {
    *  nilai yang tidak ada di soal). Koreksi HANYA untuk field yang teksnya
    *  bisa diparse deterministik penuh, dan selalu tercatat di sini. */
   corrections: Array<{ field: string; from: string; to: string; source: string }>;
+  /** Kartu pilihan tanggal/waktu WAJIB (aturan pengguna): bila tanggal soal
+   *  ambigu (DD/MM vs MM/DD) atau ≥2 kandidat waktu, nilai waktu TIDAK diisi
+   *  otomatis — pengguna memilih di kartu, hasilnya diterapkan ke field. */
+  timeClarifications: TimeClarificationCard[];
+  /** Catatan penjelas untuk warnings respons (kenapa waktu tidak diisi
+   *  otomatis dan apa yang harus dilakukan pengguna). */
+  timeClarificationNotes: string[];
 }
 
 /** Semua nilai ketinggian BERLABEL di teks ("ketinggian 18000 feet",
@@ -1130,6 +1195,9 @@ export function enrichCaseFromSourceText(sarCase: SarCaseSchema, sourceText: str
   const corrections: CaseEnrichResult['corrections'] = [];
   const sources = [...(working.meta?.fieldSources ?? [])];
   const assumptions = [...(working.meta?.assumptions ?? [])];
+  // Kartu pilihan waktu (aturan pengguna) + catatan penjelasnya.
+  const timeClarifications = buildTimeClarificationCards(facts);
+  const timeClarificationNotes: string[] = [];
 
   const record = (field: string, value: string, source: string): void => {
     filled.push({ field, value, source });
@@ -1140,6 +1208,52 @@ export function enrichCaseFromSourceText(sarCase: SarCaseSchema, sourceText: str
     corrections.push({ field, from, to, source });
     filled.push({ field, value: to, source });
     sources.push({ field, source: `Koreksi deterministik teks soal (nilai model "${from}" tidak didukung teks): ${source}`, status: 'VERIFIED' });
+  };
+
+  /** Kartu waktu wajib → nilai waktu bacaan model DIPERTAHANKAN HANYA bila
+   *  persis sama dengan salah satu kandidat hasil parse teks soal (bacaan
+   *  didukung teks — prinsip sama dengan ketinggian insiden); selain itu
+   *  DIHAPUS (jangan berasumsi sendiri — pengguna memilih di kartu).
+   *  Sumber/asumsi lama field yang dihapus dibuang supaya pratinjau tidak
+   *  menampilkan klaim palsu. */
+  const clearFieldForTimeCard = (
+    field: 'incident.lastContactTime' | 'search.datumTime',
+    card: TimeClarificationCard,
+    clearEvenIfMatchesCandidate = false,
+  ): void => {
+    const key = field === 'incident.lastContactTime' ? 'lastContactTime' : 'datumTime';
+    const cardTitle = card.kind === 'incident' ? 'Klarifikasi Waktu Kejadian (ADW A.1)' : 'Klarifikasi Datum Time (ASW)';
+    const container = (field === 'incident.lastContactTime' ? working.incident : working.search) as Record<string, unknown> | undefined;
+    const previous = container?.[key];
+    const normalize = (text: string): string => text.trim().replace(/\s+/g, ' ').toLowerCase();
+    const matchesCandidate = !clearEvenIfMatchesCandidate
+      && typeof previous === 'string' && previous.trim() !== ''
+      && card.candidates.some((candidate) => normalize(candidate.value) === normalize(previous));
+    if (typeof previous === 'string' && previous.trim() !== '' && !matchesCandidate) {
+      if (field === 'incident.lastContactTime') {
+        working.incident = { ...working.incident, lastContactTime: undefined };
+      } else {
+        working.search = { ...(working.search ?? {}), datumTime: undefined };
+      }
+      timeClarificationNotes.push(
+        `Nilai "${field}" bacaan model ("${previous}") DIHAPUS — bacaan tidak didukung kandidat waktu hasil parse teks soal. Pilih tanggal/waktu yang benar di kartu "${cardTitle}" di bawah (aturan: tanggal ambigu/banyak waktu tidak boleh diasumsikan AI).`,
+      );
+      // Buang klaim sumber/asumsi lama atas field yang dihapus.
+      const clearedSources = sources.filter((entry) => entry.field !== field);
+      sources.length = 0;
+      sources.push(...clearedSources);
+      const keptAssumptions = assumptions.filter((entry) => entry.field !== field);
+      assumptions.length = 0;
+      assumptions.push(...keptAssumptions);
+    } else if (matchesCandidate) {
+      timeClarificationNotes.push(
+        `Nilai "${field}" bacaan model ("${String(previous)}") = salah satu kandidat waktu di soal — tetap KONFIRMASI pilihan Anda di kartu "${cardTitle}" di bawah; worksheet diisi setelah Anda memilih.`,
+      );
+    } else {
+      timeClarificationNotes.push(
+        `"${field}" tidak diisi otomatis — pilih nilai yang benar di kartu "${cardTitle}" di bawah.`,
+      );
+    }
   };
 
   // ADW
@@ -1262,12 +1376,20 @@ export function enrichCaseFromSourceText(sarCase: SarCaseSchema, sourceText: str
     );
   }
 
-  // ── Tanggal & waktu kejadian A.1 (aturan pengguna: DETRESFA → A.1) ─────────
-  // Kalimat "ATC declare DETRESFA pada pukul 1053 WIT dengan LKP …" → A.1 =
-  // tanggal di AWAL soal + jam deklarasi DETRESFA (bukan waktu Kantor SAR
-  // menerima informasi). Tanggal berslash ambigu ("03/12/2024") diisi bacaan
-  // DD/MM + catatan DIASUMSIKAN: WAJIB konfirmasi tanggal ke pengguna.
-  if (facts.caseDate && facts.detresfaTime) {
+  // ── Tanggal & waktu kejadian A.1 (aturan pengguna) ─────────
+  // GERBANG KARTU WAKTU: bila kartu konfirmasi WAJIB (tanggal soal ambigu
+  // DD/MM vs MM/DD, atau ≥2 kandidat waktu kejadian), nilai waktu TIDAK diisi
+  // dan bacaan model DIHAPUS — pengguna memilih di kartu Waktu Kejadian.
+  // Tanpa kartu (tanggal nama bulan/bacaan tunggal + DETRESFA + 1 waktu
+  // kejadian) → deterministik: A.1 = tanggal awal soal + jam DETRESFA
+  // (bukan waktu Kantor SAR menerima informasi).
+  const incidentClarification = timeClarifications.find((card) => card.kind === 'incident');
+  if (incidentClarification) {
+    // Tanggal soal AMBIGU (DD/MM vs MM/DD) → tanggal belum terkonfirmasi;
+    // nilai waktu insiden model DIHAPUS apa pun bentuknya (pilihan kartu yang
+    // menentukan tanggal + jam sekaligus).
+    clearFieldForTimeCard('incident.lastContactTime', incidentClarification, facts.caseDate?.ambiguous === true);
+  } else if (facts.caseDate && facts.detresfaTime) {
     const incidentTime = working.incident.lastContactTime;
     const detresfa = facts.detresfaTime.value;
     const detresfaTimeText = `${String(detresfa.hour).padStart(2, '0')}.${String(detresfa.minute).padStart(2, '0')}${detresfa.zone ? ` ${detresfa.zone}` : ''}`;
@@ -1281,18 +1403,7 @@ export function enrichCaseFromSourceText(sarCase: SarCaseSchema, sourceText: str
       const previous = incidentTime ?? '(kosong)';
       working.incident.lastContactTime = value;
       filled.push({ field: 'incident.lastContactTime', value, source });
-      if (facts.caseDate.ambiguous) {
-        // Tanggal berslash ambigu — DD/MM dipakai SEMENTARA (konvensi
-        // Indonesia); konfirmasi tanggal wajib dilakukan pengguna.
-        sources.push({ field: 'incident.lastContactTime', source: `${source} (status tanggal: AMBIGU — butuh konfirmasi)`, status: 'UNVERIFIED' });
-        assumptions.push({
-          field: 'incident.lastContactTime',
-          value,
-          reason: `Tanggal "${facts.caseDate.raw}" di awal soal AMBIGU (format DD/MM vs MM/DD): bisa ${facts.caseDate.readings.map((entry) => entry.label).join(' atau ')}. Dipakai SEMENTARA bacaan DD/MM (konvensi Indonesia) — WAJIB konfirmasi tanggal ke pengguna sebelum worksheet difinalkan.`,
-        });
-      } else {
-        sources.push({ field: 'incident.lastContactTime', source, status: 'VERIFIED' });
-      }
+      sources.push({ field: 'incident.lastContactTime', source, status: 'VERIFIED' });
       if (incidentTime) {
         corrections.push({
           field: 'incident.lastContactTime',
@@ -1325,7 +1436,13 @@ export function enrichCaseFromSourceText(sarCase: SarCaseSchema, sourceText: str
   if (seaChanged) working.sea = sea;
 
   // Pencarian
-  if (facts.datumTime && !working.search?.datumTime) {
+  // GERBANG KARTU WAKTU (datum ASW): ≥2 kandidat tanggal/waktu → pengguna
+  // memilih di kartu Klarifikasi Datum Time; isian otomatis/bacaan model
+  // DIHAPUS. 1 kandidat pencarian tunggal → diisi langsung (deterministik).
+  const datumClarification = timeClarifications.find((card) => card.kind === 'datum');
+  if (datumClarification) {
+    clearFieldForTimeCard('search.datumTime', datumClarification);
+  } else if (facts.datumTime && !working.search?.datumTime) {
     working.search = { ...(working.search ?? {}), datumTime: facts.datumTime.value };
     record('search.datumTime', facts.datumTime.value, facts.datumTime.source);
   }
@@ -1357,10 +1474,10 @@ export function enrichCaseFromSourceText(sarCase: SarCaseSchema, sourceText: str
     }
   }
 
-  if (filled.length > 0) {
+  if (filled.length > 0 || timeClarificationNotes.length > 0) {
     working.meta = { ...working.meta, fieldSources: sources, assumptions };
   }
-  return { case: working, filled, corrections };
+  return { case: working, filled, corrections, timeClarifications, timeClarificationNotes };
 }
 
 /** Anchor deterministik untuk prompt chat AI: tabel angin per ketinggian dari
@@ -1470,10 +1587,17 @@ function formatClockText(time: { hour: number; minute: number; zone?: string }):
  * model langsung mengisi waktu tanpa kartu, padahal aturan pengguna mewajibkan
  * kartu). Dari fakta teks soal hasil parse regex server:
  * - Datum Time (ASW): kandidat ≥2 → kartu dengan SEMUA kandidat.
- * - Waktu kejadian A.1 (ADW): tanggal berslash ambigu → kartu kedua bacaan
- *   (DD/MM vs MM/DD); tanpa DETRESFA dan kandidat waktu ≥2 → kartu waktu
- *   kejadian. Detresfa + tanggal tak ambigu → tanpa kartu (aturan pengguna:
- *   A.1 = tanggal awal soal + jam deklarasi DETRESFA).
+ * - Waktu kejadian A.1 (ADW):
+ *   (a) tanggal berslash ambigu + ≥2 kandidat waktu kejadian (mis. FULL
+ *       EXERCISE SRX48: 10.50 kerusakan vs 10.53 DETRESFA) → kartu SEMUA
+ *       KOMBINASI tanggal (DD/MM vs MM/DD) × waktu kejadian;
+ *   (b) tanggal ambigu + 1 waktu kejadian → kartu kedua bacaan tanggal
+ *       (jam kejadian mengikuti DETRESFA — deterministik setelah tanggal);
+ *   (c) tanggal jelas + ≥2 kandidat waktu kejadian → kartu pilihan waktu
+ *       (model tidak boleh memilih sendiri antara MAYDAY vs DETRESFA);
+ *   (d) tanpa DETRESFA + kandidat ≥2 → kartu semua kandidat waktu.
+ *   Detresfa + tanggal tak ambigu + 1 waktu kejadian → tanpa kartu (aturan
+ *   pengguna: A.1 = tanggal awal soal + jam deklarasi DETRESFA).
  * Route /api/chat memakai hasil ini untuk MENYINTESIS kartu bila model tidak
  * memanggil tool clarify, dan MENGHAPUS nilai waktu yang diisi model sendiri.
  */
@@ -1491,29 +1615,158 @@ export function buildRequiredTimeClarifications(facts: CaseTextFacts): TimeClari
     };
   }
 
+  const incidentTimes = pickIncidentPhaseTimes(candidates);
   if (facts.caseDate?.ambiguous) {
     const readings = facts.caseDate.readings;
-    const detresfaNote = facts.detresfaTime
-      ? ` Setelah tanggal dipilih, jam kejadian A.1 mengikuti waktu deklarasi DETRESFA di soal (pukul ${formatClockText(facts.detresfaTime.value)}).`
-      : '';
+    if (incidentTimes.length >= 2) {
+      // (a) SEMUA kombinasi bacaan tanggal × waktu kejadian — pengguna memilih
+      // satu opsi yang SUDAH memuat tanggal + jam (tidak ada asumsi diam-diam).
+      gate.incidentTime = {
+        question:
+          `Tanggal di awal soal "${facts.caseDate.raw}" AMBIGU — bisa dibaca DD/MM (konvensi Indonesia) atau MM/DD (konvensi AS) — `
+          + `dan soal memuat ${incidentTimes.length} kandidat waktu kejadian. `
+          + 'Pilih TANGGAL + WAKTU kejadian yang benar (point A.1 worksheet ADW — waktu MAYDAY/kerusakan/kejadian/DETRESFA, '
+          + 'bukan waktu Kantor SAR menerima informasi atau waktu pencarian); pilihan dipakai untuk SEMUA tanggal worksheet kasus ini '
+          + '(A.1 ADW, deret angin, dsb.).',
+        candidates: readings.flatMap((reading, readingIndex) => incidentTimes.map((time) => ({
+          label: `${readingIndex === 0 ? 'Dibaca DD/MM (konvensi Indonesia)' : 'Dibaca MM/DD (konvensi AS)'} — ${reading.label} ${time.value} (${time.label}${incidentTimeLabelSuffix(time.label)})`,
+          value: `${reading.label} ${time.value}`,
+          source: time.source,
+        }))),
+      };
+    } else {
+      const detresfaNote = facts.detresfaTime
+        ? ` Setelah tanggal dipilih, jam kejadian A.1 mengikuti waktu deklarasi DETRESFA di soal (pukul ${formatClockText(facts.detresfaTime.value)}).`
+        : '';
+      gate.incidentTime = {
+        question:
+          `Tanggal di awal soal "${facts.caseDate.raw}" AMBIGU — bisa dibaca DD/MM (konvensi Indonesia) atau MM/DD (konvensi AS). `
+          + 'Pilih tanggal yang benar; pilihan dipakai untuk SEMUA tanggal worksheet kasus ini (A.1 ADW, deret angin, dsb.).'
+          + detresfaNote,
+        candidates: readings.map((reading, index) => ({
+          label: `${index === 0 ? 'Dibaca DD/MM (konvensi Indonesia)' : 'Dibaca MM/DD (konvensi AS)'} — ${reading.label}`,
+          value: reading.label,
+        })),
+      };
+    }
+  } else if (incidentTimes.length >= 2) {
+    // (c) Tanggal jelas tapi waktu kejadian tidak tunggal — jangan mengasumsikan
+    // DETRESFA (atau MAYDAY) sendiri; tampilkan kandidat waktu kejadian saja.
+    const dateLabel = facts.caseDate ? formatIndoDateFull(facts.caseDate.reading) : undefined;
     gate.incidentTime = {
       question:
-        `Tanggal di awal soal "${facts.caseDate.raw}" AMBIGU — bisa dibaca DD/MM (konvensi Indonesia) atau MM/DD (konvensi AS). `
-        + 'Pilih tanggal yang benar; pilihan dipakai untuk SEMUA tanggal worksheet kasus ini (A.1 ADW, deret angin, dsb.).'
-        + detresfaNote,
-      candidates: readings.map((reading, index) => ({
-        label: `${index === 0 ? 'Dibaca DD/MM (konvensi Indonesia)' : 'Dibaca MM/DD (konvensi AS)'} — ${reading.label}`,
-        value: reading.label,
+        `Soal memuat ${incidentTimes.length} kandidat WAKTU KEJADIAN (point A.1 worksheet ADW — waktu MAYDAY/kerusakan/kejadian/DETRESFA). `
+        + 'Waktu mana yang dipakai sebagai waktu kejadian? Waktu deklarasi DETRESFA umumnya dipakai (aturan DETRESFA), tetapi keputusan akhir milik Anda.',
+      candidates: incidentTimes.map((time) => ({
+        label: `${time.label} — ${time.value}${incidentTimeLabelSuffix(time.label)}`,
+        value: dateLabel && !parseLeadingIndoDateLabel(time.value) ? `${dateLabel} ${time.value}` : time.value,
+        source: time.source,
       })),
     };
   } else if (!facts.detresfaTime && candidates.length >= 2) {
+    // (d) Perilaku lama: tanpa kalimat DETRESFA dan waktu naratif ≥2 — kartu
+    // SEMUA kandidat (termasuk waktu informasi/pencarian sebagai pembanding).
+    const dateLabel = facts.caseDate && !facts.caseDate.ambiguous ? formatIndoDateFull(facts.caseDate.reading) : undefined;
     gate.incidentTime = {
       question:
         'Soal memuat beberapa tanggal/waktu. Waktu mana yang dipakai sebagai WAKTU KEJADIAN '
         + '(point A.1 worksheet ADW — waktu distress/MAYDAY/kejadian, bukan waktu laporan diterima)?',
-      candidates: candidates.map((candidate) => ({ label: candidate.label, value: candidate.value, source: candidate.source })),
+      candidates: candidates.map((candidate) => ({
+        label: candidate.label,
+        value: dateLabel && !parseLeadingIndoDateLabel(candidate.value) ? `${dateLabel} ${candidate.value}` : candidate.value,
+        source: candidate.source,
+      })),
     };
   }
 
   return gate;
+}
+
+// ── Kartu pilihan waktu untuk alur parse-case (Ekstrak) ───────────────────
+
+/** Kartu pilihan waktu di pratinjau ekstraksi — bentuk sama dengan kartu chat
+ *  (clarify_datum_time / clarify_incident_time) + metadata tanggal dasar agar
+ *  kandidat jam TANPA tanggal bisa digabung dengan tanggal pilihan pengguna.
+ *  Alur: server MENGHAPUS nilai waktu bacaan model dari kasus → pengguna
+ *  memilih di kartu → nilai diterapkan ke field worksheet. */
+export interface TimeClarificationCard {
+  /** 'incident' = Waktu Kejadian A.1 worksheet ADW; 'datum' = Datum Time ASW. */
+  kind: 'incident' | 'datum';
+  question: string;
+  candidates: Array<{ label: string; value: string; source?: string; /** Tanggal bagian depan value (untuk penggabungan datum). */ dateLabel?: string }>;
+  /** Tanggal dasar soal (bacaan DD/MM bila ambigu) — fallback penggabungan. */
+  baseDateLabel?: string;
+  /** Tanggal dasar +1 hari — untuk kandidat berfrasa "esok hari". */
+  baseDateNextDayLabel?: string;
+}
+
+const INDO_DATE_LABEL_RE = new RegExp(`^(\\d{1,2}\\s+(?:${MONTH_NAME_PATTERN})\\s+\\d{4})`, 'i');
+
+/** "03 Desember 2024 10.53 WIT" → "03 Desember 2024" (prefix tanggal nama
+ *  bulan; null bila value tidak diawali tanggal). */
+export function parseLeadingIndoDateLabel(value: string): string | null {
+  const match = value.trim().match(INDO_DATE_LABEL_RE);
+  return match ? match[1] : null;
+}
+
+/** "03 Desember 2024" + n hari → "04 Desember 2024" (aritmetika UTC — aman
+ *  lintas bulan/tahun). null bila label tidak bisa diparse. */
+export function addDaysToIndoDateLabel(label: string, days: number): string | null {
+  const parsed = parseIndoDate(label);
+  if (!parsed) return null;
+  const shifted = new Date(Date.UTC(parsed.year, parsed.month - 1, parsed.day + days));
+  return `${String(shifted.getUTCDate()).padStart(2, '0')} ${indoMonthName(shifted.getUTCMonth() + 1)} ${shifted.getUTCFullYear()}`;
+}
+
+const NEXT_DAY_PHRASE_RE = /\besok\b|\bbesok\b|next\s*day/i;
+
+/** Gabungkan kandidat datum time dengan tanggal dasar (HANYA bila kandidat
+ *  tanpa tanggal): "10.53 WIT" + "03 Desember 2024" → "03 Desember 2024 10.53
+ *  WIT"; kandidat berfrasa "esok hari" memakai tanggal dasar +1 hari.
+ *  Deterministik — dipakai UI saat pengguna memilih kandidat datum. */
+export function resolveDatumTimeValue(
+  candidate: { value: string; source?: string; label?: string },
+  baseDateLabel?: string,
+  baseDateNextDayLabel?: string,
+): string {
+  const value = (candidate.value ?? '').trim();
+  if (!baseDateLabel || parseLeadingIndoDateLabel(value)) return value;
+  const nextDay = NEXT_DAY_PHRASE_RE.test(`${candidate.label ?? ''} ${candidate.source ?? ''}`);
+  const dateLabel = nextDay && baseDateNextDayLabel ? baseDateNextDayLabel : baseDateLabel;
+  return `${dateLabel} ${value}`;
+}
+
+/** Kartu pilihan waktu WAJIB untuk pratinjau ekstraksi (parse-case): sama
+ *  seperti gerbang chat, PLUS tanggal dasar untuk kandidat datum tanpa tanggal.
+ *  Urutan kartu mengikuti alur kerja: Waktu Kejadian (A.1) dulu, lalu Datum. */
+export function buildTimeClarificationCards(facts: CaseTextFacts): TimeClarificationCard[] {
+  const gate = buildRequiredTimeClarifications(facts);
+  const cards: TimeClarificationCard[] = [];
+  const baseDateLabel = facts.caseDate ? formatIndoDateFull(facts.caseDate.reading) : undefined;
+  const baseDateNextDayLabel = baseDateLabel ? addDaysToIndoDateLabel(baseDateLabel, 1) ?? undefined : undefined;
+  if (gate.incidentTime) {
+    cards.push({
+      kind: 'incident',
+      question: gate.incidentTime.question,
+      candidates: gate.incidentTime.candidates.map((candidate) => ({
+        ...candidate,
+        dateLabel: parseLeadingIndoDateLabel(candidate.value) ?? undefined,
+      })),
+      ...(baseDateLabel ? { baseDateLabel } : {}),
+      ...(baseDateNextDayLabel ? { baseDateNextDayLabel } : {}),
+    });
+  }
+  if (gate.datumTime) {
+    cards.push({
+      kind: 'datum',
+      question: gate.datumTime.question
+        + (baseDateLabel
+          ? ' Kandidat tanpa tanggal digabung dengan tanggal yang Anda pilih di kartu Waktu Kejadian (atau bacaan DD/MM soal bila belum memilih); kandidat "esok hari" memakai tanggal +1 hari.'
+          : ''),
+      candidates: [...gate.datumTime.candidates],
+      ...(baseDateLabel ? { baseDateLabel } : {}),
+      ...(baseDateNextDayLabel ? { baseDateNextDayLabel } : {}),
+    });
+  }
+  return cards;
 }

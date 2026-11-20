@@ -44,6 +44,7 @@ import {
   mergeUserFieldValue,
   type CaseApplyStep,
 } from '@/lib/ai/parseCase';
+import { addDaysToIndoDateLabel, resolveDatumTimeValue } from '@/lib/ai/caseTextEnrich';
 import type { SarCaseSchema } from '@/lib/sar/caseSchema';
 import type { DocumentSnapshot } from '@/lib/sar/dataBank';
 import type { SetFieldsWorksheet } from '@/lib/ai/tools/setFields';
@@ -72,6 +73,8 @@ type ParseCaseHttpResponse = {
   /** Fase E: kartu pilihan Appendix/Table (mis. kategori leeway) — ditentukan
    *  server secara deterministik dari kasus terekstrak (tanpa menunggu tool). */
   referenceChoices?: ReferenceChoicePayload[];
+  /** Kartu pilihan tanggal/waktu wajib (tanggal ambigu / ≥2 kandidat waktu). */
+  timeClarifications?: ExtractionTimeClarificationCard[];
   model?: string;
 };
 
@@ -110,6 +113,11 @@ interface ChatMessage {
   /** Field referensi yang sudah DIKONFIRMASI pengguna di pesan ini
    *  (USER_CONFIRMED_REFERENCE — diterapkan via set_fields + change-log). */
   referenceConfirmed?: Array<{ fieldPath: string; referenceId: string; label: string; selectedBy: 'ai' | 'manual'; sourceTable: string }>;
+  /** === Kartu pilihan tanggal/waktu (parse-case): tanggal ambigu / ≥2 kandidat === */
+  timeClarifications?: ExtractionTimeClarificationCard[];
+  /** Tanggal terpilih pengguna di kartu Waktu Kejadian (A.1) pesan ini —
+   *  dipakai untuk menggabungkan kandidat Datum Time yang tanpa tanggal. */
+  extractionIncidentDateChoice?: string;
 }
 
 /** Fase 4: pratinjau hasil fill_form dari respons /api/chat. */
@@ -286,6 +294,19 @@ interface DatumTimeCandidate {
   label?: string;
   value?: string;
   source?: string;
+  /** Tanggal bagian depan value (kartu ekstraksi — untuk penggabungan datum). */
+  dateLabel?: string;
+}
+
+/** Kartu pilihan tanggal/waktu hasil parse-case (aturan pengguna): bila tanggal
+ *  soal ambigu (DD/MM vs MM/DD) atau ≥2 kandidat waktu, pengguna MEMILIH di
+ *  kartu — nilai otomatis tidak diisi server (lihat /api/ai/parse-case). */
+interface ExtractionTimeClarificationCard {
+  kind: 'incident' | 'datum';
+  question: string;
+  candidates: DatumTimeCandidate[];
+  baseDateLabel?: string;
+  baseDateNextDayLabel?: string;
 }
 
 /**
@@ -307,7 +328,7 @@ function DatumTimeClarifyCard({
   question?: string;
   candidates?: DatumTimeCandidate[];
   answered?: string;
-  onAnswer: (value: string, label?: string) => void;
+  onAnswer: (candidate: DatumTimeCandidate) => void;
   title?: string;
   manualPlaceholder?: string;
   answeredLabel?: string;
@@ -334,7 +355,7 @@ function DatumTimeClarifyCard({
                 <button
                   key={ci}
                   type="button"
-                  onClick={() => onAnswer(c.value as string, c.label)}
+                  onClick={() => onAnswer({ label: c.label, value: c.value as string, source: c.source, dateLabel: c.dateLabel })}
                   className="w-full text-left bg-white border border-slate-300 hover:border-emerald-400 hover:bg-emerald-50 rounded-md px-2 py-1.5 transition-colors"
                 >
                   <span className="block text-[11px] font-bold text-slate-900">{c.label || c.value}</span>
@@ -353,7 +374,7 @@ function DatumTimeClarifyCard({
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && manual.trim()) {
                   e.preventDefault();
-                  onAnswer(manual.trim());
+                  onAnswer({ value: manual.trim() });
                 }
               }}
               placeholder={validCandidates.length > 0 ? 'atau isi manual' : manualPlaceholder}
@@ -364,7 +385,7 @@ function DatumTimeClarifyCard({
             <button
               type="button"
               disabled={!manual.trim()}
-              onClick={() => manual.trim() && onAnswer(manual.trim())}
+              onClick={() => manual.trim() && onAnswer({ value: manual.trim() })}
               className="shrink-0 text-[11px] bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-300 text-white font-bold px-2.5 py-1.5 rounded-md flex items-center gap-1 transition-colors"
             >
               <Send className="h-3 w-3" /> Kirim
@@ -1134,7 +1155,7 @@ export default function AIChatPanel({
       }
       const assistantMsg: ChatMessage = {
         role: 'assistant',
-        content: `📋 Ekstraksi soal kasus selesai (model ${data.model ?? '?'}${data.attempts ? `, ${data.attempts} percobaan` : ''}). Tinjau data per field di bawah: lengkapi atau setujui data yang HILANG, lalu terapkan ke worksheet — tidak ada data yang berubah sebelum Anda konfirmasi.${(data.referenceChoices?.length ?? 0) > 0 ? '\n\n🧭 Parameter yang butuh pilihan Appendix/Table ada di kartu di bawah — AI sudah menganalisis; bila yakin, rekomendasi diterapkan otomatis.' : ''}`,
+        content: `📋 Ekstraksi soal kasus selesai (model ${data.model ?? '?'}${data.attempts ? `, ${data.attempts} percobaan` : ''}). Tinjau data per field di bawah: lengkapi atau setujui data yang HILANG, lalu terapkan ke worksheet — tidak ada data yang berubah sebelum Anda konfirmasi.${(data.referenceChoices?.length ?? 0) > 0 ? '\n\n🧭 Parameter yang butuh pilihan Appendix/Table ada di kartu di bawah — AI sudah menganalisis; bila yakin, rekomendasi diterapkan otomatis.' : ''}${(data.timeClarifications?.length ?? 0) > 0 ? '\n\n⏰ Tanggal/waktu soal punya beberapa kandidat (termasuk kemungkinan terbalik bulan/tanggal) — AI TIDAK memilih sendiri: pilih tanggal & waktu yang benar di kartu Klarifikasi Waktu di bawah sebelum menerapkan.' : ''}`,
         caseExtraction: {
           caseTitle: data.case.caseTitle,
           incidentType: data.case.incident.type,
@@ -1149,6 +1170,9 @@ export default function AIChatPanel({
         },
         ...(Array.isArray(data.referenceChoices) && data.referenceChoices.length > 0
           ? { referenceChoices: data.referenceChoices }
+          : {}),
+        ...(Array.isArray(data.timeClarifications) && data.timeClarifications.length > 0
+          ? { timeClarifications: data.timeClarifications }
           : {}),
         extractionAppliedStepIds: [],
         extractionAppliedAll: false,
@@ -1336,6 +1360,77 @@ export default function AIChatPanel({
       );
     },
     [sendMessage, onLogConversation],
+  );
+
+  /** Kartu pilihan tanggal/waktu pada pratinjau ekstraksi (parse-case): pilihan
+   *  pengguna LANGSUNG diubah ke field kasus (incident.lastContactTime /
+   *  search.datumTime) dan apply plan dihitung ulang — tanpa panggilan chat.
+   *  Kandidat datum time tanpa tanggal digabung dengan tanggal pilihan kartu
+   *  Waktu Kejadian (fallback: bacaan DD/MM server); frasa "esok hari" =
+   *  tanggal +1 hari (resolveDatumTimeValue). Kartu terpilih ditutup. */
+  const handleExtractionTimeChoice = useCallback(
+    (msgIdx: number, card: ExtractionTimeClarificationCard, candidate: DatumTimeCandidate) => {
+      const chosenValue = (candidate.value ?? '').trim();
+      if (!chosenValue) return;
+      setMessages((prev) => prev.map((msg, i) => {
+        if (i !== msgIdx || !msg.caseExtraction) return msg;
+        const workingCase = structuredClone(msg.caseExtraction.rawCase) as SarCaseSchema;
+        // Tanggal dasar penggabungan (datum tanpa tanggal): pilihan kartu
+        // Waktu Kejadian > fallback bacaan DD/MM dari server.
+        const incidentDateChoice = msg.extractionIncidentDateChoice;
+        const baseDate = card.kind === 'datum' ? (incidentDateChoice || card.baseDateLabel) : undefined;
+        const baseNextDay = card.kind === 'datum'
+          ? (incidentDateChoice
+            ? addDaysToIndoDateLabel(incidentDateChoice, 1) ?? card.baseDateNextDayLabel
+            : card.baseDateNextDayLabel)
+          : undefined;
+        const value = card.kind === 'datum'
+          ? resolveDatumTimeValue({ value: chosenValue, source: candidate.source, label: candidate.label }, baseDate, baseNextDay)
+          : chosenValue;
+        const field = card.kind === 'incident' ? 'incident.lastContactTime' : 'search.datumTime';
+        const merged = mergeUserFieldValue(workingCase, field, value);
+        if (!merged.ok) {
+          return { ...msg, extractionFieldErrors: { ...(msg.extractionFieldErrors ?? {}), [field]: merged.error ?? 'Nilai tidak valid.' } };
+        }
+        // Pilihan pengguna di kartu = konfirmasi (keputusan no.6 — bukan teks soal).
+        workingCase.meta = {
+          ...workingCase.meta,
+          assumptions: [...(workingCase.meta?.assumptions ?? []), merged.assumption!],
+        };
+        const rebuilt = buildCaseExtractionResult(workingCase, {});
+        if (!rebuilt.ok) {
+          return { ...msg, extractionFieldErrors: { ...(msg.extractionFieldErrors ?? {}), [field]: rebuilt.detail?.[0] ?? 'Kasus tidak valid setelah koreksi.' } };
+        }
+        onLogConversation?.(
+          'decision',
+          card.kind === 'incident'
+            ? `Waktu kejadian (A.1) dikonfirmasi pengguna di kartu ekstraksi: ${value}${candidate.label ? ` — ${candidate.label}` : ''}`
+            : `Datum time dikonfirmasi pengguna di kartu ekstraksi: ${value}${candidate.label ? ` — ${candidate.label}` : ''}`,
+        );
+        // Buang catatan "pilih di kartu" untuk field yang sudah dijawab.
+        const keptWarnings = (msg.caseExtraction.warnings ?? []).filter((w) => !w.includes(`"${field}"`));
+        return {
+          ...msg,
+          extractionFieldErrors: Object.fromEntries(Object.entries(msg.extractionFieldErrors ?? {}).filter(([key]) => key !== field)),
+          caseExtraction: {
+            ...msg.caseExtraction,
+            caseTitle: rebuilt.case.caseTitle,
+            fieldRows: rebuilt.fieldRows,
+            applyPlan: rebuilt.applyPlan,
+            completeness: rebuilt.completeness,
+            assumptions: rebuilt.assumptions,
+            warnings: keptWarnings.length > 0 ? keptWarnings : undefined,
+            rawCase: workingCase,
+          },
+          // Pilihan tanggal A.1 diingat untuk penggabungan kandidat datum.
+          ...(card.kind === 'incident' && candidate.dateLabel
+            ? { extractionIncidentDateChoice: candidate.dateLabel }
+            : {}),
+          timeClarifications: (msg.timeClarifications ?? []).filter((c) => c.kind !== card.kind),
+        };
+      }));
+    },
+    [onLogConversation],
   );
 
   const handleApply = useCallback(
@@ -1800,6 +1895,27 @@ export default function AIChatPanel({
                     />
                   )}
 
+                  {/* Kartu pilihan tanggal/waktu (aturan pengguna): tanggal soal
+                      ambigu (DD/MM vs MM/DD) atau ≥2 kandidat waktu — pilihan
+                      pengguna mengisi field kasus langsung (tanpa panggilan chat). */}
+                  {msg.timeClarifications && msg.timeClarifications.length > 0 && (
+                    <div className="mt-2 space-y-2">
+                      {msg.timeClarifications.map((card, ci) => (
+                        <DatumTimeClarifyCard
+                          key={`${card.kind}-${ci}`}
+                          question={card.question}
+                          candidates={card.candidates}
+                          onAnswer={(candidate) => handleExtractionTimeChoice(idx, card, candidate)}
+                          title={card.kind === 'incident' ? 'Klarifikasi Waktu Kejadian (ADW A.1)' : 'Klarifikasi Datum Time (ASW)'}
+                          manualPlaceholder={card.kind === 'incident'
+                            ? 'Isi waktu kejadian manual, mis. 03 Desember 2024 10.53 WIT'
+                            : 'Isi datum time manual, mis. 03 Desember 2024 06.00 WIT'}
+                          answeredLabel={card.kind === 'incident' ? 'Waktu kejadian' : 'Datum time'}
+                        />
+                      ))}
+                    </div>
+                  )}
+
                   {/* Fase 4: pratinjau draf dokumen fill_form — apply lewat set_fields
                       (satu mekanisme); dokumen resmi tetap DRAFT sampai disetujui. */}
                   {msg.fillForm && (
@@ -1867,7 +1983,7 @@ export default function AIChatPanel({
                               question={a.question}
                               candidates={a.candidates}
                               answered={clarifyAnswers[clarifyKey]}
-                              onAnswer={(value, label) => handleClarifyAnswer(clarifyKey, value, label, 'datum')}
+                              onAnswer={(candidate) => handleClarifyAnswer(clarifyKey, candidate.value ?? '', candidate.label, 'datum')}
                             />
                           );
                         }
@@ -1882,7 +1998,7 @@ export default function AIChatPanel({
                               question={a.question}
                               candidates={a.candidates}
                               answered={clarifyAnswers[clarifyKey]}
-                              onAnswer={(value, label) => handleClarifyAnswer(clarifyKey, value, label, 'incident')}
+                              onAnswer={(candidate) => handleClarifyAnswer(clarifyKey, candidate.value ?? '', candidate.label, 'incident')}
                               title="Klarifikasi Waktu Kejadian (ADW A.1)"
                               manualPlaceholder="Isi waktu kejadian manual, mis. 17 Nov 2026 15.56 WIT"
                               answeredLabel="Waktu kejadian"

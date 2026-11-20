@@ -36,7 +36,7 @@ import {
   type CaseExtractionResult,
   type CaseExtractionSuccess,
 } from '@/lib/ai/parseCase';
-import { enrichCaseFromSourceText } from '@/lib/ai/caseTextEnrich';
+import { enrichCaseFromSourceText, type TimeClarificationCard } from '@/lib/ai/caseTextEnrich';
 import { buildReferenceChoice, type ReferenceChoicePayload } from '@/lib/ai/tools/referenceChoice';
 
 export const maxDuration = 300;
@@ -254,6 +254,8 @@ export async function POST(req: NextRequest) {
           let finalResult: CaseExtractionSuccess = extraction;
           const sourceText = sourceTextParts.join('\n\n').slice(0, MAX_TEXT_CHARS);
           const correctionWarnings: string[] = [];
+          let timeClarifications: TimeClarificationCard[] = [];
+          let timeClarificationNotes: string[] = [];
           if (sourceText.trim()) {
             const enrich = enrichCaseFromSourceText(extraction.case, sourceText);
             for (const correction of enrich.corrections) {
@@ -261,6 +263,11 @@ export async function POST(req: NextRequest) {
                 `Nilai "${correction.field}" diambil dari TEKS soal (${correction.to}) — bacaan model "${correction.from}" tidak cocok dengan tabel/kalimat soal.`,
               );
             }
+            // GERBANG KARTU WAKTU (aturan pengguna): tanggal/waktu ambigu atau
+            // ≥2 kandidat TIDAK diisi otomatis — kartu pilihan dikirim ke UI;
+            // worksheet diisi setelah pengguna memilih.
+            timeClarifications = enrich.timeClarifications;
+            timeClarificationNotes = enrich.timeClarificationNotes;
             if (enrich.filled.length > 0) {
               console.log(`[parse-case] Pass deterministik mengisi ${enrich.filled.length} field: ${enrich.filled.map((entry) => entry.field).join(', ')}`);
               const rebuilt = buildCaseExtractionResult(enrich.case, {}, {
@@ -301,9 +308,10 @@ export async function POST(req: NextRequest) {
           }
           return NextResponse.json({
             ...success,
-            ...(correctionWarnings.length > 0 || fileWarnings.length > 0
-              ? { warnings: [...correctionWarnings, ...fileWarnings] }
+            ...(correctionWarnings.length > 0 || timeClarificationNotes.length > 0 || fileWarnings.length > 0
+              ? { warnings: [...correctionWarnings, ...timeClarificationNotes, ...fileWarnings] }
               : {}),
+            ...(timeClarifications.length > 0 ? { timeClarifications } : {}),
             ...(referenceChoices.length > 0 ? { referenceChoices } : {}),
           });
         }
