@@ -99,6 +99,12 @@ interface PrintPreviewState {
 
 const PAGE_STYLE_ID = 'scan-print-page-style';
 
+// Batas zoom peta scan — dipakai slider DAN roda mouse agar konsisten.
+const ZOOM_MIN = 1;
+const ZOOM_MAX = 4;
+/** Sensitivitas roda mouse: faktor zoom = exp(-deltaY × ini). */
+const ZOOM_WHEEL_FACTOR = 0.0022;
+
 function injectPrintPageStyle(pageWidthMm: number, pageHeightMm: number): void {
   let style = document.getElementById(PAGE_STYLE_ID) as HTMLStyleElement | null;
   if (!style) {
@@ -158,6 +164,13 @@ export default function ScannedChartStudio({
   const [containerWidth, setContainerWidth] = useState(0);
   const [nowMs, setNowMs] = useState(() => Date.now());
 
+  // --- Interaksi mouse: zoom roda + drag/pan (aktif juga saat fullscreen) --
+  const [panning, setPanning] = useState(false);
+  // Klik yang datang tepat setelah drag/pan bukan pemilihan titik kalibrasi.
+  const dragGuardRef = useRef(false);
+  // Poros zoom roda mouse: titik gambar di bawah kursor dipertahankan.
+  const wheelAnchorRef = useRef<{ pxImg: number; pyImg: number; mx: number; my: number } | null>(null);
+
   // --- State cetak / PDF ---------------------------------------------------
   const [printOpen, setPrintOpen] = useState(false);
   const [printPaper, setPrintPaper] = useState<ScanPrintPaper>('a3');
@@ -202,6 +215,48 @@ export default function ScannedChartStudio({
     observer.observe(element);
     return () => observer.disconnect();
   }, [mapInfo]);
+
+  // Ukuran tampil gambar (dipakai efek zoom roda mouse & bagian kalibrasi).
+  const displayedScale = containerWidth > 0 && imageNatural ? (containerWidth * zoom) / imageNatural.width : 0;
+  const displayedWidth = imageNatural ? imageNatural.width * displayedScale : 0;
+  const displayedHeight = imageNatural ? imageNatural.height * displayedScale : 0;
+
+  // Zoom dengan roda mouse pada kontainer peta — listener NATIVE non-passive:
+  // React onWheel pasif, preventDefault diabaikan, kontainer overflow-auto ikut
+  // menggulir sambil zoom. Juga berlaku di mode layar penuh. Zoom berporos di
+  // bawah kursor (titik di bawah pointer tetap di bawah pointer).
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || !imageNatural || displayedScale <= 0) return;
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      const dy = event.deltaMode === 1 ? event.deltaY * 16 : event.deltaY;
+      const next = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom * Math.exp(-dy * ZOOM_WHEEL_FACTOR)));
+      if (next === zoom) return;
+      const rect = el.getBoundingClientRect();
+      const mx = event.clientX - rect.left;
+      const my = event.clientY - rect.top;
+      wheelAnchorRef.current = {
+        pxImg: (mx + el.scrollLeft) / displayedScale,
+        pyImg: (my + el.scrollTop) / displayedScale,
+        mx,
+        my,
+      };
+      setZoom(next);
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [mapInfo, imageNatural, displayedScale, zoom]);
+
+  // Terapkan poros zoom roda mouse setelah ukuran tampil diperbarui.
+  useEffect(() => {
+    const el = containerRef.current;
+    const anchor = wheelAnchorRef.current;
+    if (!el || !anchor || displayedScale <= 0) return;
+    wheelAnchorRef.current = null;
+    el.scrollLeft = Math.max(0, anchor.pxImg * displayedScale - anchor.mx);
+    el.scrollTop = Math.max(0, anchor.pyImg * displayedScale - anchor.my);
+  }, [zoom, displayedScale]);
 
   // ---------------------------------------------------------------------
   // Upload / ganti / hapus peta
@@ -259,25 +314,32 @@ export default function ScannedChartStudio({
   // ---------------------------------------------------------------------
   // Kalibrasi
   // ---------------------------------------------------------------------
-  const displayedScale = containerWidth > 0 && imageNatural ? (containerWidth * zoom) / imageNatural.width : 0;
-  const displayedWidth = imageNatural ? imageNatural.width * displayedScale : 0;
-  const displayedHeight = imageNatural ? imageNatural.height * displayedScale : 0;
-
   const handleMapClickForCalibration = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    // Klik yang merupakan akhir dari drag/pan (posisi digeser) bukan pemilihan
+    // titik kalibrasi — abaikan sekali lalu kosongkan guard.
+    if (dragGuardRef.current) {
+      dragGuardRef.current = false;
+      return;
+    }
     if (!calibMode || !imageNatural || displayedScale <= 0) return;
     const container = event.currentTarget;
-    const rect = container.getBoundingClientRect();
-    // Klik harus dikoreksi offset scroll kontainer: gambar scan besar digulir
-    // (tinggi tampil > tinggi kontainer) — tanpa scrollLeft/scrollTop, titik
-    // terekam di posisi salah dan SEMUA overlay tergeser/keluar kanvas.
+    // Pakai rect ELEMEN IMG (bukan rect kontainer + scrollLeft/scrollTop):
+    // rect img sudah mencerminkan posisi hasil scroll/zoom sehingga kebal
+    // terhadap padding, perataan konten, dan lebar scrollbar kontainer;
+    // skala dihitung dari ukuran tampil AKTUAL gambar (bukan murni state)
+    // agar titik tidak terekam bergeser saat layout/zoom belum sinkron.
+    const img = container.querySelector('img');
+    if (!img) return;
+    const imgRect = img.getBoundingClientRect();
+    if (imgRect.width <= 0 || imgRect.height <= 0) return;
     const point = imagePointFromClick({
       clientX: event.clientX,
       clientY: event.clientY,
-      rectLeft: rect.left,
-      rectTop: rect.top,
-      scrollLeft: container.scrollLeft,
-      scrollTop: container.scrollTop,
-      scale: displayedScale,
+      rectLeft: imgRect.left,
+      rectTop: imgRect.top,
+      scrollLeft: 0,
+      scrollTop: 0,
+      scale: imgRect.width / imageNatural.width,
     });
     if (point.x < 0 || point.y < 0 || point.x > imageNatural.width || point.y > imageNatural.height) return;
     // Koordinat dialog SELALU kosong untuk titik baru — mewarisi nilai titik
@@ -288,6 +350,48 @@ export default function ScannedChartStudio({
     setPendingPx(point);
     setCalibMode(false);
   }, [calibMode, imageNatural, displayedScale]);
+
+  // Seret (drag) mouse kiri untuk menggeser peta — pengganti scrollbar, aktif
+  // juga saat mode kalibrasi dan layar penuh. Geser > 3 px dianggap drag:
+  // klik yang mengakhiri drag tidak dihitung sebagai pemilihan titik
+  // kalibrasi (guard kadaluarsa otomatis bila klik tidak terjadi).
+  const handlePanStart = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    if (!imageLoaded || event.button !== 0) return;
+    const el = containerRef.current;
+    if (!el) return;
+    // Abaikan mousedown pada zona scrollbar kontainer (ujung kanan/bawah) —
+    // menggeser scrollbar bawaan tidak boleh ikut memicu pan.
+    const zone = el.getBoundingClientRect();
+    if (event.clientX - zone.left > zone.width - 18 || event.clientY - zone.top > zone.height - 18) return;
+    event.preventDefault(); // cegah seleksi teks & drag gambar bawaan browser
+    dragGuardRef.current = false;
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const startLeft = el.scrollLeft;
+    const startTop = el.scrollTop;
+    let moved = false;
+    setPanning(true);
+    const onMove = (moveEvent: MouseEvent) => {
+      const dx = moveEvent.clientX - startX;
+      const dy = moveEvent.clientY - startY;
+      if (!moved && Math.hypot(dx, dy) > 3) moved = true;
+      if (!moved) return;
+      el.scrollLeft = Math.max(0, startLeft - dx);
+      el.scrollTop = Math.max(0, startTop - dy);
+    };
+    const onEnd = () => {
+      window.removeEventListener('mousemove', onMove);
+      setPanning(false);
+      if (moved) {
+        dragGuardRef.current = true;
+        window.setTimeout(() => {
+          dragGuardRef.current = false;
+        }, 250);
+      }
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onEnd, { once: true });
+  }, [imageLoaded]);
 
   const commitCalibrationPoint = useCallback(() => {
     if (!pendingPx) return;
@@ -576,8 +680,8 @@ export default function ScannedChartStudio({
               <span className="text-[10px] text-slate-500">Zoom</span>
               <input
                 type="range"
-                min={1}
-                max={4}
+                min={ZOOM_MIN}
+                max={ZOOM_MAX}
                 step={0.1}
                 value={zoom}
                 onChange={(event) => setZoom(Number(event.target.value))}
@@ -587,6 +691,9 @@ export default function ScannedChartStudio({
               <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => setZoom(1)} title="Reset zoom">
                 <RotateCcw className="h-3 w-3" />
               </Button>
+              <span className="hidden sm:inline text-[10px] text-slate-400" title="Arahkan kursor ke peta lalu gulirkan roda mouse untuk zoom; tekan dan seret untuk menggeser peta">
+                scroll = zoom · seret = geser
+              </span>
               <Button size="sm" className="h-7 text-[11px]" onClick={() => { setPrintOpen(true); setPrintPreview(null); setPrintError(null); }} disabled={!transform}>
                 <Printer className="h-3 w-3" /> Cetak / PDF
               </Button>
@@ -636,13 +743,16 @@ export default function ScannedChartStudio({
 
           <div
             ref={containerRef}
-            className={`relative w-full overflow-auto bg-slate-100 ${calibMode ? 'cursor-crosshair' : ''}`}
+            className={`relative w-full overflow-auto select-none bg-slate-100 ${
+              calibMode ? 'cursor-crosshair' : panning ? 'cursor-grabbing' : imageLoaded ? 'cursor-grab' : ''
+            }`}
             style={{ height }}
             onDragOver={(event) => event.preventDefault()}
             onDrop={onDrop}
             onClick={handleMapClickForCalibration}
+            onMouseDown={handlePanStart}
             role="application"
-            aria-label={`${title} — peta hasil scan dengan overlay hasil worksheet`}
+            aria-label={`${title} — peta hasil scan dengan overlay hasil worksheet (gulir roda mouse untuk zoom, tekan dan seret untuk menggeser)`}
           >
             {!imageLoaded && (
               <div className="absolute inset-0 flex items-center justify-center">
