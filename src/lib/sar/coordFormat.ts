@@ -103,6 +103,76 @@ export function parseCoordinate(input: string, axis: CoordAxis): number | null {
 }
 
 // ============================================================================
+// Input koordinat TERSTRUKTUR: urai/join komponen DMS & DM + siklus format.
+// Dipakai CoordinateInput (3 kotak derajat°/menit′/detik″, 2 kotak DM, atau
+// desimal) — hemisphere dipilih lewat tombol N/S (lintang) atau E/W (bujur)
+// sehingga tanda tidak perlu diketik (menghindari hemisfer terbalik).
+// ============================================================================
+
+export type CoordHemisphere = '+' | '-';
+export type CoordInputFormat = 'dms' | 'dm' | 'decimal';
+
+/** Siklus tombol pengganti format: DMS → DM → Desimal → DMS. */
+export function nextCoordInputFormat(format: CoordInputFormat): CoordInputFormat {
+  return format === 'dms' ? 'dm' : format === 'dm' ? 'decimal' : 'dms';
+}
+
+export interface DmsParts {
+  deg: number;
+  min: number;
+  /** Detik boleh pecahan 1 desimal (presisi ±3 cm). */
+  sec: number;
+  hemi: CoordHemisphere;
+}
+
+/** Urai derajat desimal → komponen DMS untuk kotak input. Detik dibulatkan ke
+ *  1 desimal; pembulatan yang mencapai 60″/60′ dinormalisasi (menit/derajat
+ *  naik) agar isi kotak SELALU valid. */
+export function splitDmsParts(value: number, axis: CoordAxis): DmsParts {
+  const hemi: CoordHemisphere = value < 0 ? '-' : '+';
+  const totalSec = Math.round(Math.abs(value) * 3600 * 10) / 10;
+  let deg = Math.floor(totalSec / 3600);
+  let min = Math.floor((totalSec - deg * 3600) / 60);
+  let sec = Math.round((totalSec - deg * 3600 - min * 60) * 10) / 10;
+  if (sec >= 60) { sec = 0; min += 1; }
+  if (min >= 60) { min = 0; deg += 1; }
+  const limit = axis === 'lat' ? 90 : 180;
+  if (deg > limit) { deg = limit; min = 0; sec = 0; }
+  return { deg, min, sec, hemi };
+}
+
+/** Gabung komponen DMS → derajat desimal bertanda. */
+export function joinDmsParts(deg: number, min: number, sec: number, hemi: CoordHemisphere): number {
+  const unsigned = deg + min / 60 + sec / 3600;
+  return hemi === '-' ? -unsigned : unsigned;
+}
+
+export interface DmParts {
+  deg: number;
+  /** Menit desimal 2 angka (presisi ±2 m). */
+  min: number;
+  hemi: CoordHemisphere;
+}
+
+/** Urai derajat desimal → derajat + menit desimal (2 angka) untuk mode DM. */
+export function splitDmParts(value: number, axis: CoordAxis): DmParts {
+  const hemi: CoordHemisphere = value < 0 ? '-' : '+';
+  const totalMin = Math.round(Math.abs(value) * 60 * 100) / 100;
+  let deg = Math.floor(totalMin / 60);
+  let min = Math.round((totalMin - deg * 60) * 100) / 100;
+  if (min >= 60) { min = 0; deg += 1; }
+  const limit = axis === 'lat' ? 90 : 180;
+  if (deg > limit) { deg = limit; min = 0; }
+  return { deg, min, hemi };
+}
+
+/** Gabung derajat + menit desimal → derajat desimal bertanda. */
+export function joinDmParts(deg: number, min: number, hemi: CoordHemisphere): number {
+  const unsigned = deg + min / 60;
+  return hemi === '-' ? -unsigned : unsigned;
+}
+
+// ============================================================================
 // Unit tests
 // ============================================================================
 

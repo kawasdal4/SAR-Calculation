@@ -6,8 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Compass, MapPinPlus, MousePointer2, Printer, RotateCcw, Ruler, Target, Trash2, Undo2 } from 'lucide-react';
 import SeaMapMount from '@/components/sar/SeaMapMount';
+import CoordinateInput from '@/components/sar/CoordinateInput';
 import type { MapCircle, MapLine, MapMarker } from '@/components/sar/SeaMap';
-import { formatDMS, parseCoordinate } from '@/lib/sar/coordFormat';
+import { formatDMS } from '@/lib/sar/coordFormat';
 import { bearingDeg, distanceNm, type LatLng } from '@/lib/sar/sarCalculations';
 import { calculateIntercept, type InterceptInput, type InterceptResult, type InterceptType } from '@/lib/sar/interceptCalculations';
 
@@ -20,7 +21,7 @@ interface InterceptWorksheetProps {
   className?: string;
 }
 
-type CoordinateFields = { targetLat: string; targetLng: string; sruLat: string; sruLng: string };
+type CoordinateFields = { targetLat: number | null; targetLng: number | null; sruLat: number | null; sruLng: number | null };
 type DroppedPoint = { id: string; position: LatLng };
 type MapToolMode = 'pan' | 'drop' | 'measure';
 
@@ -44,13 +45,13 @@ const METHODS: InterceptType[] = ['head-on', 'overtaking', 'beam-on'];
 export default function InterceptWorksheet({ onResults, initialInput, onStateChange, className = '' }: InterceptWorksheetProps) {
   const [method, setMethod] = useState<InterceptType>(initialInput?.type ?? 'head-on');
   const [coords, setCoords] = useState<CoordinateFields>(() => initialInput ? {
-    // Nilai awal (mis. dari analisa AI) ditampilkan dalam format DMS — format
-    // desimal/DM tetap bisa diketik ulang (parseCoordinate menerima ketiganya).
-    targetLat: formatDMS(initialInput.target.pos.lat, false),
-    targetLng: formatDMS(initialInput.target.pos.lng, true),
-    sruLat: formatDMS(initialInput.sru.pos.lat, false),
-    sruLng: formatDMS(initialInput.sru.pos.lng, true),
-  } : { targetLat: '', targetLng: '', sruLat: '', sruLng: '' });
+    // Nilai awal (mis. dari analisa AI) langsung numerik — input memakai
+    // CoordinateInput terstruktur (DMS 3 kotak / DM / desimal + hemisfer).
+    targetLat: initialInput.target.pos.lat,
+    targetLng: initialInput.target.pos.lng,
+    sruLat: initialInput.sru.pos.lat,
+    sruLng: initialInput.sru.pos.lng,
+  } : { targetLat: null, targetLng: null, sruLat: null, sruLng: null });
   const [inputData, setInputData] = useState<InterceptInput>(() => initialInput ? {
     ...initialInput,
     referenceTime: initialInput.referenceTime || '',
@@ -67,14 +68,7 @@ export default function InterceptWorksheet({ onResults, initialInput, onStateCha
   const [selectedDroppedPointId, setSelectedDroppedPointId] = useState<string | null>(null);
   const [mapToolMode, setMapToolMode] = useState<MapToolMode>('pan');
 
-  const parsedCoords = useMemo(() => ({
-    targetLat: parseCoordinate(coords.targetLat, 'lat'),
-    targetLng: parseCoordinate(coords.targetLng, 'lng'),
-    sruLat: parseCoordinate(coords.sruLat, 'lat'),
-    sruLng: parseCoordinate(coords.sruLng, 'lng'),
-  }), [coords]);
-
-  const positionsReady = Object.values(parsedCoords).every((value) => value !== null);
+  const positionsReady = Object.values(coords).every((value) => value !== null && Number.isFinite(value));
   const heading = headingText.trim() === '' ? null : Number(headingText);
   const headingReady = method !== 'beam-on' || (heading !== null && Number.isFinite(heading) && heading >= 0 && heading < 360);
   const inputReady = Boolean(
@@ -88,8 +82,8 @@ export default function InterceptWorksheet({ onResults, initialInput, onStateCha
     target: {
       ...inputData.target,
       pos: {
-        lat: parsedCoords.targetLat ?? 0,
-        lng: parsedCoords.targetLng ?? 0,
+        lat: coords.targetLat ?? 0,
+        lng: coords.targetLng ?? 0,
       },
       courseDeg: heading ?? 0,
       departureTime: inputData.referenceTime,
@@ -97,12 +91,12 @@ export default function InterceptWorksheet({ onResults, initialInput, onStateCha
     sru: {
       ...inputData.sru,
       pos: {
-        lat: parsedCoords.sruLat ?? 0,
-        lng: parsedCoords.sruLng ?? 0,
+        lat: coords.sruLat ?? 0,
+        lng: coords.sruLng ?? 0,
       },
       departureTime: inputData.referenceTime,
     },
-  }), [inputData, method, parsedCoords, heading]);
+  }), [inputData, method, coords, heading]);
 
   const results = useMemo<InterceptResult | null>(
     () => inputReady ? calculateIntercept(calculationInput) : null,
@@ -207,13 +201,13 @@ export default function InterceptWorksheet({ onResults, initialInput, onStateCha
     }).format(end);
   }, [results, inputData.referenceTime]);
 
-  const updateCoordinate = (key: keyof CoordinateFields, value: string) => {
+  const updateCoordinate = (key: keyof CoordinateFields, value: number | null) => {
     setCoords((current) => ({ ...current, [key]: value }));
   };
 
   const reset = () => {
     setMethod('head-on');
-    setCoords({ targetLat: '', targetLng: '', sruLat: '', sruLng: '' });
+    setCoords({ targetLat: null, targetLng: null, sruLat: null, sruLng: null });
     setHeadingText('');
     setDroppedPoints([]);
     setSelectedDroppedPointId(null);
@@ -262,9 +256,15 @@ export default function InterceptWorksheet({ onResults, initialInput, onStateCha
                 <div className="space-y-2 rounded border border-blue-200 bg-white p-2.5">
                   <h3 className="text-xs font-bold text-blue-800">A · Target Position / Track</h3>
                   <input aria-label="Nama Target" placeholder="Nama / Call Sign Target" value={inputData.target.name} onChange={(event) => setInputData((current) => ({ ...current, target: { ...current.target, name: event.target.value } }))} className="w-full rounded border border-slate-300 px-2 py-1.5 text-xs" />
-                  <div className="grid grid-cols-2 gap-2">
-                    <CoordinateInput label="Latitude (DMS / DD)" value={coords.targetLat} error={coords.targetLat !== '' && parsedCoords.targetLat === null} onChange={(value) => updateCoordinate('targetLat', value)} />
-                    <CoordinateInput label="Longitude (DMS / DD)" value={coords.targetLng} error={coords.targetLng !== '' && parsedCoords.targetLng === null} onChange={(value) => updateCoordinate('targetLng', value)} />
+                  <div className="grid grid-cols-1 gap-2">
+                    <div>
+                      <span className="mb-1 block text-[10px] font-medium text-slate-600">Latitude</span>
+                      <CoordinateInput axis="lat" value={coords.targetLat ?? 0} onChange={(value) => updateCoordinate('targetLat', value)} aria-label="Latitude target" />
+                    </div>
+                    <div>
+                      <span className="mb-1 block text-[10px] font-medium text-slate-600">Longitude</span>
+                      <CoordinateInput axis="lng" value={coords.targetLng ?? 0} onChange={(value) => updateCoordinate('targetLng', value)} aria-label="Longitude target" />
+                    </div>
                   </div>
                   <NumberInput label="Target Speed (kts)" value={inputData.target.speedKts} min={0} onChange={(value) => setInputData((current) => ({ ...current, target: { ...current.target, speedKts: value === '' ? 0 : Number(value) } }))} />
                   {method === 'beam-on' && <NumberInput label="Target Heading · True Bearing (°T)" value={heading ?? ''} min={0} max={359.999} onChange={(value) => { const text = String(value); setHeadingText(text); setInputData((current) => ({ ...current, target: { ...current.target, courseDeg: value === '' ? 0 : Number(value) } })); }} />}
@@ -272,9 +272,15 @@ export default function InterceptWorksheet({ onResults, initialInput, onStateCha
                 <div className="space-y-2 rounded border border-orange-200 bg-white p-2.5">
                   <h3 className="text-xs font-bold text-orange-800">B · SRU Position</h3>
                   <input aria-label="Nama SRU" placeholder="Nama / Call Sign SRU" value={inputData.sru.name} onChange={(event) => setInputData((current) => ({ ...current, sru: { ...current.sru, name: event.target.value } }))} className="w-full rounded border border-slate-300 px-2 py-1.5 text-xs" />
-                  <div className="grid grid-cols-2 gap-2">
-                    <CoordinateInput label="Latitude (DMS / DD)" value={coords.sruLat} error={coords.sruLat !== '' && parsedCoords.sruLat === null} onChange={(value) => updateCoordinate('sruLat', value)} />
-                    <CoordinateInput label="Longitude (DMS / DD)" value={coords.sruLng} error={coords.sruLng !== '' && parsedCoords.sruLng === null} onChange={(value) => updateCoordinate('sruLng', value)} />
+                  <div className="grid grid-cols-1 gap-2">
+                    <div>
+                      <span className="mb-1 block text-[10px] font-medium text-slate-600">Latitude</span>
+                      <CoordinateInput axis="lat" value={coords.sruLat ?? 0} onChange={(value) => updateCoordinate('sruLat', value)} aria-label="Latitude SRU" />
+                    </div>
+                    <div>
+                      <span className="mb-1 block text-[10px] font-medium text-slate-600">Longitude</span>
+                      <CoordinateInput axis="lng" value={coords.sruLng ?? 0} onChange={(value) => updateCoordinate('sruLng', value)} aria-label="Longitude SRU" />
+                    </div>
                   </div>
                   <NumberInput label="SRU Speed (kts)" value={inputData.sru.speedKts} min={0} onChange={(value) => setInputData((current) => ({ ...current, sru: { ...current.sru, speedKts: value === '' ? 0 : Number(value) } }))} />
                 </div>
@@ -380,13 +386,6 @@ export default function InterceptWorksheet({ onResults, initialInput, onStateCha
       </Card>
     </div>
   );
-}
-
-function CoordinateInput({ label, value, error, onChange }: { label: string; value: string; error: boolean; onChange: (value: string) => void }) {
-  return <label className="block text-[10px] font-medium text-slate-600">{label}
-    <input value={value} onChange={(event) => onChange(event.target.value)} placeholder="06°12′30″S" className={`mt-1 w-full rounded border px-1.5 py-1.5 text-xs text-slate-800 ${error ? 'border-rose-500 bg-rose-50' : 'border-slate-300 bg-white'}`} />
-    {error && <span className="text-[9px] text-rose-600">Format atau rentang koordinat tidak valid.</span>}
-  </label>;
 }
 
 function NumberInput({ label, value, min, max, onChange }: { label: string; value: number | string; min: number; max?: number; onChange: (value: number | string) => void }) {
