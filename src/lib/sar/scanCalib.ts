@@ -283,3 +283,29 @@ export function buildScanTransform(points: CalibrationPoint[]): BuildScanTransfo
 export function pxDistance(a: { x: number; y: number }, b: { x: number; y: number }): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
+
+/**
+ * Konversi klik pada kontainer peta scan (overflow-auto + zoom) → pixel gambar
+ * ASLI. Wajib menjumlahkan scrollLeft/scrollTop kontainer: posisi klik terhadap
+ * rect kontainer hanya mencakup area yang TERLIHAT, sedangkan gambar besar
+ * (tinggi scan > tinggi kontainer) digulir — tanpa offset scroll, titik
+ * kalibrasi terekam di posisi yang salah (tergeser sebesar scroll), transform
+ * memetakan semua overlay ke lokasi yang keliru/keluar kanvas, dan vektor,
+ * search area, serta label tampak "tidak muncul".
+ */
+export function imagePointFromClick(params: {
+  clientX: number;
+  clientY: number;
+  rectLeft: number;
+  rectTop: number;
+  scrollLeft: number;
+  scrollTop: number;
+  /** Pixel tampil (CSS) per pixel gambar asli. */
+  scale: number;
+}): { x: number; y: number } {
+  const { clientX, clientY, rectLeft, rectTop, scrollLeft, scrollTop, scale } = params;
+  return {
+    x: (clientX - rectLeft + scrollLeft) / scale,
+    y: (clientY - rectTop + scrollTop) / scale,
+  };
+}

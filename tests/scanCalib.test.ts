@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import {
   buildScanTransform,
   geoToLocalMeters,
+  imagePointFromClick,
   localMetersToGeo,
   localOriginFor,
   metersPerDegLat,
@@ -133,5 +134,77 @@ describe('kekurangan titik', () => {
     expect(result.transform).toBeNull();
     expect(result.error).toContain('minimal 2 titik');
     expect(buildScanTransform([]).error).toContain('minimal 2 titik');
+  });
+});
+
+describe('imagePointFromClick — klik kontainer scan (scroll + zoom)', () => {
+  const base = { rectLeft: 40, rectTop: 20 };
+
+  it('tanpa scroll: posisi klik relatif kontainer ÷ skala', () => {
+    const p = imagePointFromClick({
+      ...base,
+      clientX: 100,
+      clientY: 50,
+      scrollLeft: 0,
+      scrollTop: 0,
+      scale: 0.4,
+    });
+    expect(p.x).toBeCloseTo(150, 9);
+    expect(p.y).toBeCloseTo(75, 9);
+  });
+
+  it('dengan scroll: offset scrollLeft/scrollTop WAJIB dihitung (bug lama: titik ternoda sebesar scroll)', () => {
+    // Kontainer 460px menampilkan gambar 1200px — digulir 300 CSS px ke bawah.
+    const p = imagePointFromClick({
+      ...base,
+      clientX: 100,
+      clientY: 50,
+      scrollLeft: 120,
+      scrollTop: 300,
+      scale: 0.4,
+    });
+    // Tanpa koreksi scroll hasilnya (150, 75) — SALAH; yang benar:
+    expect(p.x).toBeCloseTo((100 - 40 + 120) / 0.4, 9);
+    expect(p.y).toBeCloseTo((50 - 20 + 300) / 0.4, 9);
+    expect(p.y).toBeGreaterThan(750); // jelas berbeda jauh dari (75) versi lama
+  });
+
+  it('skala zoom diperhitungkan (zoom 1.5 pada lebar kontainer 800 → scale 1.5)', () => {
+    const p = imagePointFromClick({
+      ...base,
+      clientX: 220,
+      clientY: 170,
+      scrollLeft: 0,
+      scrollTop: 0,
+      scale: 1.5,
+    });
+    expect(p.x).toBeCloseTo(120, 9);
+    expect(p.y).toBeCloseTo(100, 9);
+  });
+
+  it('titik klik tetap konsisten: px sama → toGeo sama, terlepas dari scroll', () => {
+    // Titik gambar (900, 1100) diklik lewat scroll berbeda menghasilkan px sama.
+    const viaScroll = imagePointFromClick({
+      rectLeft: 0,
+      rectTop: 0,
+      clientX: 360,
+      clientY: 440,
+      scrollLeft: 0,
+      scrollTop: 0,
+      scale: 0.4,
+    });
+    const viaNoScroll = imagePointFromClick({
+      rectLeft: 0,
+      rectTop: 0,
+      clientX: 360,
+      clientY: 50,
+      scrollLeft: 0,
+      scrollTop: 390,
+      scale: 0.4,
+    });
+    expect(viaScroll.x).toBeCloseTo(viaNoScroll.x, 9);
+    expect(viaScroll.y).toBeCloseTo(viaNoScroll.y, 9);
+    expect(viaScroll.x).toBeCloseTo(900, 9);
+    expect(viaScroll.y).toBeCloseTo(1100, 9);
   });
 });

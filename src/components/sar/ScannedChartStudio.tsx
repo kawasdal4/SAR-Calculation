@@ -57,7 +57,7 @@ import {
 } from '@/components/ui/select';
 import CoordinateInput from '@/components/sar/CoordinateInput';
 import { formatDMS } from '@/lib/sar/coordFormat';
-import { buildScanTransform, type CalibrationPoint } from '@/lib/sar/scanCalib';
+import { buildScanTransform, imagePointFromClick, type CalibrationPoint } from '@/lib/sar/scanCalib';
 import { drawScanOverlay } from '@/lib/sar/scanDraw';
 import {
   composeScanPrintPage,
@@ -147,6 +147,7 @@ export default function ScannedChartStudio({
   const [pendingPx, setPendingPx] = useState<{ x: number; y: number } | null>(null);
   const [newLat, setNewLat] = useState(0);
   const [newLng, setNewLng] = useState(0);
+  const [calibNotice, setCalibNotice] = useState<string | null>(null);
 
   // --- State tampilan ------------------------------------------------------
   const [zoom, setZoom] = useState(1);
@@ -264,11 +265,27 @@ export default function ScannedChartStudio({
 
   const handleMapClickForCalibration = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     if (!calibMode || !imageNatural || displayedScale <= 0) return;
-    const rect = event.currentTarget.getBoundingClientRect();
-    const x = (event.clientX - rect.left) / displayedScale;
-    const y = (event.clientY - rect.top) / displayedScale;
-    if (x < 0 || y < 0 || x > imageNatural.width || y > imageNatural.height) return;
-    setPendingPx({ x, y });
+    const container = event.currentTarget;
+    const rect = container.getBoundingClientRect();
+    // Klik harus dikoreksi offset scroll kontainer: gambar scan besar digulir
+    // (tinggi tampil > tinggi kontainer) — tanpa scrollLeft/scrollTop, titik
+    // terekam di posisi salah dan SEMUA overlay tergeser/keluar kanvas.
+    const point = imagePointFromClick({
+      clientX: event.clientX,
+      clientY: event.clientY,
+      rectLeft: rect.left,
+      rectTop: rect.top,
+      scrollLeft: container.scrollLeft,
+      scrollTop: container.scrollTop,
+      scale: displayedScale,
+    });
+    if (point.x < 0 || point.y < 0 || point.x > imageNatural.width || point.y > imageNatural.height) return;
+    // Koordinat dialog SELALU kosong untuk titik baru — mewarisi nilai titik
+    // sebelumnya membuat dua titik berkoordinat hampir sama → transform rusak.
+    setNewLat(0);
+    setNewLng(0);
+    setCalibNotice(null);
+    setPendingPx(point);
     setCalibMode(false);
   }, [calibMode, imageNatural, displayedScale]);
 
@@ -277,6 +294,12 @@ export default function ScannedChartStudio({
     const validLat = Math.abs(newLat) <= 90;
     const validLng = Math.abs(newLng) <= 180 && (newLat !== 0 || newLng !== 0);
     if (!validLat || !validLng) return;
+    // Tolak koordinat yang sama dengan titik lain (dua titik berimpit geo →
+    // transformasi gagal → overlay tidak tergambar sama sekali).
+    if (calibPoints.some((pt) => Math.abs(pt.pos.lat - newLat) < 1e-6 && Math.abs(pt.pos.lng - newLng) < 1e-6)) {
+      setCalibNotice('Koordinat sama dengan titik kalibrasi lain — pilih titik lain pada peta dan isi koordinatnya.');
+      return;
+    }
     setCalibPoints((points) => [
       ...points,
       {
@@ -287,7 +310,10 @@ export default function ScannedChartStudio({
       },
     ]);
     setPendingPx(null);
-  }, [pendingPx, newLat, newLng]);
+    // Alur beruntun: langsung siap klik titik berikutnya (2-4 titik tanpa
+    // menekan tombol kalibrasi ulang); keluar lewat tombol "batal".
+    setCalibMode(true);
+  }, [pendingPx, newLat, newLng, calibPoints]);
 
   const removeCalibrationPoint = useCallback((id: string) => {
     setCalibPoints((points) => points.filter((point) => point.id !== id));
@@ -325,6 +351,32 @@ export default function ScannedChartStudio({
     || (polygons && polygons.length > 0)
     || (circles && circles.length > 0),
   );
+
+  // Diagnostik "overlay tidak muncul": transform valid tapi SEMUA posisi hasil
+  // (marker/garis/polygon/lingkaran) tergambar di luar area gambar — hampir
+  // pasti koordinat kalibrasi keliru (hemisfer terbalik, titik tertukar) atau
+  // titik kalibrasi salah tempat. Tanpa peringatan ini overlay “hilang”
+  // diam-diam karena digambar di luar batas kanvas.
+  const overlayOutsideImage = useMemo(() => {
+    if (!transform || !imageNatural) return false;
+    const positions: Array<{ lat: number; lng: number }> = [];
+    for (const marker of markers ?? []) positions.push(marker.position);
+    for (const line of lines ?? []) positions.push(line.from, line.to);
+    for (const polygon of polygons ?? []) positions.push(...polygon.points);
+    for (const circle of circles ?? []) positions.push(circle.center);
+    if (positions.length === 0) return false;
+    const marginX = imageNatural.width * 0.05;
+    const marginY = imageNatural.height * 0.05;
+    return positions.every((pos) => {
+      const px = transform.toPixel(pos);
+      return (
+        px.x < -marginX
+        || px.x > imageNatural.width + marginX
+        || px.y < -marginY
+        || px.y > imageNatural.height + marginY
+      );
+    });
+  }, [transform, imageNatural, markers, lines, polygons, circles]);
 
   // ---------------------------------------------------------------------
   // Pratinjau cetak / simpan PDF
@@ -541,6 +593,20 @@ export default function ScannedChartStudio({
             </div>
           </div>
 
+          {!transform && hasOverlayData && !calibMode && (
+            <div className="flex flex-wrap items-center gap-2 border-b border-amber-300 bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              <span className="font-semibold">
+                {calibPoints.length === 0
+                  ? 'Vektor, search area, dan label siap digambar — kalibrasi dulu 2 titik pada peta: klik titik yang koordinatnya diketahui (mis. perpotongan garis koordinat), lalu isi koordinatnya.'
+                  : `Kalibrasi ${calibPoints.length}/2 titik — tambah ${2 - calibPoints.length} titik lagi agar vektor, search area, dan label dapat digambar.`}
+              </span>
+              <Button size="sm" className="h-7 text-[11px]" onClick={() => setCalibMode(true)}>
+                <Crosshair className="h-3 w-3" /> {calibPoints.length === 0 ? 'Mulai kalibrasi' : 'Lanjut kalibrasi'}
+              </Button>
+            </div>
+          )}
+
           {calibMode && (
             <div className="border-b border-amber-200 bg-amber-50 px-3 py-1.5 text-[11px] font-medium text-amber-800">
               Mode kalibrasi aktif — klik satu titik pada peta yang koordinatnya diketahui (mis. perpotongan garis
@@ -548,9 +614,23 @@ export default function ScannedChartStudio({
             </div>
           )}
 
+          {calibNotice && (
+            <div className="border-b border-amber-200 bg-amber-50 px-3 py-1.5 text-[11px] font-medium text-amber-800">
+              {calibNotice}
+            </div>
+          )}
+
           {!transform && calibPoints.length >= 2 && transformResult.error && (
             <div className="border-b border-red-200 bg-red-50 px-3 py-1.5 text-[11px] text-red-700">
               {transformResult.error}
+            </div>
+          )}
+
+          {transform && overlayOutsideImage && (
+            <div className="border-b border-red-200 bg-red-50 px-3 py-1.5 text-[11px] text-red-800">
+              Hasil worksheet tergambar DI LUAR area peta ini — hampir pasti koordinat kalibrasi keliru
+              (periksa tanda S/E: lintang selatan Indonesia negatif, bujur timur positif) atau titik tertukar.
+              Hapus titik yang keliru pada panel kalibrasi di bawah, lalu kalibrasi ulang.
             </div>
           )}
 
@@ -690,6 +770,8 @@ export default function ScannedChartStudio({
             <DialogDescription className="text-xs">
               Posisi klik: px ({Math.round(pendingPx?.x ?? 0)}, {Math.round(pendingPx?.y ?? 0)}). Masukkan koordinat
               geografis titik tersebut pada peta (terima DMS <code>06°05′00″S</code>, DM, atau desimal <code>-6.083</code>).
+              Lintang selatan Indonesia = negatif / akhiran <b>S</b>; bujur timur = positif / akhiran <b>E</b> —
+              keliru hemisfer membuat hasil tergambar di luar peta.
             </DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-3">
