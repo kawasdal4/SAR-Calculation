@@ -91,7 +91,7 @@ test('TAF menambah TSF dan mengurangi OSE tepat 60 menit (tempo vs cerah)', () =
   expect(cerah.onSceneEnduranceMinutes! - tempo.onSceneEnduranceMinutes!).toBe(60);
 });
 
-test('alut laut mengabaikan TAF (tafMinutes null, TSF dari maritimeTsfMins)', () => {
+test('alut laut mengabaikan TAF (tafMinutes null; TSF = Tr Go + Tr Back otomatis)', () => {
   const vessel = calculateSruAsset(
     {
       id: 'sru-2',
@@ -103,12 +103,16 @@ test('alut laut mengabaikan TAF (tafMinutes null, TSF dari maritimeTsfMins)', ()
       searchSpeedKts: 10,
       enduranceHours: 8,
       sweepWidthNm: 2,
-      maritimeTsfMins: 30,
+      // maritimeTsfMins @deprecated — diabaikan kalkulasi (TSF laut otomatis).
       tafCondition: 'tempo',
     },
     CSP,
     EXIT,
   );
+  // TAF tidak berlaku untuk alut laut.
   expect(vessel.tafMinutes).toBeNull();
-  expect(vessel.totalSafetyFuelMinutes).toBe(30);
+  // TSF laut = total transit (Tr Go + Tr Back) otomatis — bukan input manual
+  // (commit 3ba2f40: maritimeTsfMins deprecated, nilai lama diabaikan).
+  expect(vessel.totalSafetyFuelMinutes).not.toBeNull();
+  expect(vessel.totalSafetyFuelMinutes!).toBeCloseTo(vessel.totalTransitHours * 60, 6);
 });

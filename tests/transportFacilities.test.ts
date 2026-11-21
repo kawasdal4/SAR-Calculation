@@ -7,7 +7,7 @@
  *  - 43 KANSAR = daftar nama batas wilayah (kansarBoundaries), dan titik
  *    representatifnya WAJIB jatuh di dalam poligon wilayahnya sendiri
  *    (cek geometri deterministik via pointInKansarPolygon).
- *  - Kantor Pusat Basarnas ada (posisi indikatif alamat resmi).
+ *  - Kantor Pusat Basarnas ada (koordinat resmi JDIH, hasil audit pemilik).
  *
  * Jalankan: bun test tests/transportFacilities.test.ts
  */
@@ -101,10 +101,11 @@ describe('posisi kantor SAR & Kantor Pusat Basarnas (sarOffices.json)', () => {
     }
   });
 
-  it('Kantor Pusat Basarnas: alamat resmi + posisi di kawasan Kemayoran (indikatif)', () => {
+  it('Kantor Pusat Basarnas: alamat resmi + koordinat resmi JDIH (audit pemilik)', () => {
     expect(pusat[0].name).toBe('Kantor Pusat Basarnas');
     expect(pusat[0].specs.address).toContain('Jl. Angkasa');
-    expect(pusat[0].specs.positionBasis).toContain('indikatif');
+    // Basis posisi dari audit pemilik 67a5c70: koordinat resmi JDIH Basarnas.
+    expect(pusat[0].specs.positionBasis).toContain('JDIH');
     // Kotak longgar kawasan Kemayoran/Jakarta Pusat — bukan titik eksak.
     expect(pusat[0].lat).toBeGreaterThan(-6.20);
     expect(pusat[0].lat).toBeLessThan(-6.10);
@@ -136,10 +137,14 @@ describe('loader layer peta', () => {
     }
   });
 
-  it('tooltip memuat nama + status verifikasi (fasilitas & kantor)', () => {
+  it('tooltip memuat nama + basis audit (kantor) / status verifikasi (fasilitas)', () => {
     const facility = TRANSPORT_FACILITIES[0] as TransportFacilityEntry;
     const office = SAR_OFFICES[0] as SarOfficeEntry;
     expect(facilityTooltip(facility)).toContain(facility.name);
-    expect(facilityTooltip(office)).toContain('UNVERIFIED');
+    expect(facilityTooltip(facility)).toContain(facility.verification.toLowerCase());
+    // Tooltip kantor menampilkan basis audit pemilik (commit 67a5c70), bukan tag UNVERIFIED.
+    expect(facilityTooltip(office)).toContain(office.name);
+    expect(facilityTooltip(office)).toContain('hasil audit pemilik');
+    expect(facilityTooltip(office)).toContain(office.specs.positionBasis ?? '');
   });
 });
