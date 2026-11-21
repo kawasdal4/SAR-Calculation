@@ -10,8 +10,8 @@
  *
  * Backend (dipilih otomatis):
  *  - Cloudflare R2 (kompatibel S3) bila env R2_ACCOUNT_ID, R2_ACCESS_KEY_ID,
- *    R2_SECRET_ACCESS_KEY, R2_BUCKET terisi — via aws4fetch (SigV4, tanpa
- *    dependensi berat).
+ *    R2_SECRET_ACCESS_KEY, R2_BUCKET (alias: R2_BUCKET_NAME) terisi — via
+ *    aws4fetch (SigV4, tanpa dependensi berat).
  *  - DATABASE (storage 'db') bila R2 TIDAK dikonfigurasi: isi berkas disimpan
  *    langsung di baris TempMapFile (BYTEA/BLOB). WAJIB di lingkungan serverless
  *    (Vercel/Lambda): filesystem proses read-only (/var/task) dan /tmp hanya
@@ -63,7 +63,9 @@ function r2Env() {
   const accountId = process.env.R2_ACCOUNT_ID?.trim();
   const accessKeyId = process.env.R2_ACCESS_KEY_ID?.trim();
   const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY?.trim();
-  const bucket = process.env.R2_BUCKET?.trim();
+  // R2_BUCKET kanonik; R2_BUCKET_NAME = alias var yang pernah diset di Vercel
+  // (nilai Secret tidak bisa dibaca ulang via CLI, jadi kode menerima keduanya).
+  const bucket = (process.env.R2_BUCKET ?? process.env.R2_BUCKET_NAME)?.trim();
   const prefix = (process.env.R2_PREFIX?.trim() || 'temp-maps').replace(/^\/+|\/+$/g, '');
   const configured = Boolean(accountId && accessKeyId && secretAccessKey && bucket);
   return { accountId, accessKeyId, secretAccessKey, bucket, prefix, configured };
