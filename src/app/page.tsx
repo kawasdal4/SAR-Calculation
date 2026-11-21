@@ -2993,7 +2993,7 @@ export default function Home() {
               </div>
               <TabsList className="flex-1 min-w-0 flex flex-col h-auto items-stretch p-1.5 gap-1.5 bg-slate-200/80 rounded-xl border border-slate-300/80 shadow-inner">
                 {/* Baris komando lintas domain: ringkasan + alat lintas domain */}
-                <div data-mm-group="umum" className="flex flex-wrap items-center gap-1 rounded-lg border border-slate-300/70 bg-slate-50/80 px-1.5 py-1">
+                <div data-mm-group="umum" className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-300/70 bg-slate-50/80 px-1.5 py-1">
                   <span
                     data-mm-badge="umum"
                     className="relative z-30 mr-1 inline-flex select-none items-center gap-1 rounded-md bg-slate-600 px-2 py-1 text-[10px] font-extrabold uppercase tracking-[0.14em] text-white shadow-sm print:hidden"
@@ -3032,7 +3032,7 @@ export default function Home() {
                 </div>
 
                 {/* KELOMPOK 1 — DOMAIN UDARA */}
-                <div data-mm-group="udara" className="flex flex-wrap items-center gap-1 rounded-lg border border-sky-300/70 bg-sky-50/60 px-1.5 py-1">
+                <div data-mm-group="udara" className="flex flex-wrap items-center gap-2 rounded-lg border border-sky-300/70 bg-sky-50/60 px-1.5 py-1">
                   <span
                     data-mm-badge="udara"
                     className="relative z-30 mr-1 inline-flex select-none items-center gap-1 rounded-md bg-sky-700 px-2 py-1 text-[10px] font-extrabold uppercase tracking-[0.14em] text-white shadow-sm print:hidden"
@@ -3068,7 +3068,7 @@ export default function Home() {
                 </div>
 
                 {/* KELOMPOK 2 — DOMAIN LAUT */}
-                <div data-mm-group="laut" className="flex flex-wrap items-center gap-1 rounded-lg border border-blue-300/70 bg-blue-50/60 px-1.5 py-1">
+                <div data-mm-group="laut" className="flex flex-wrap items-center gap-2 rounded-lg border border-blue-300/70 bg-blue-50/60 px-1.5 py-1">
                   <span
                     data-mm-badge="laut"
                     className="relative z-30 mr-1 inline-flex select-none items-center gap-1 rounded-md bg-blue-800 px-2 py-1 text-[10px] font-extrabold uppercase tracking-[0.14em] text-white shadow-sm print:hidden"
@@ -3107,7 +3107,7 @@ export default function Home() {
                 </div>
 
                 {/* KELOMPOK 3 — DOMAIN DARAT */}
-                <div data-mm-group="darat" className="flex flex-wrap items-center gap-1 rounded-lg border border-amber-300/70 bg-amber-50/60 px-1.5 py-1">
+                <div data-mm-group="darat" className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-300/70 bg-amber-50/60 px-1.5 py-1">
                   <span
                     data-mm-badge="darat"
                     className="relative z-30 mr-1 inline-flex select-none items-center gap-1 rounded-md bg-amber-600 px-2 py-1 text-[10px] font-extrabold uppercase tracking-[0.14em] text-white shadow-sm print:hidden"

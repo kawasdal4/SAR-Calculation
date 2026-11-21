@@ -11,10 +11,12 @@
  *   akar, ke atas dan ke bawah spine.
  * - STUB GRUP       : percabangan spine → tepi kiri badge tiap grup
  *   (gradien indigo → warna domain), dash berjalan menuju grup.
- * - BUS GRUP (comb) : dari badge turun ke jalur bus di bawah baris tab,
- *   melaju kiri→kanan menancup ke setiap tab (`data-tab-value`) grup itu
- *   dan berakhir di tab terakhir — semua tab tersambung ke induknya.
- *   Bus berada di dalam gap antar baris grup, tidak menimpa chip.
+ * - BUS GRUP       : tiap BARIS tab dalam satu grup (tab bisa wrap beberapa
+ *   baris) mendapat bus sendiri yang dipasang tepat di gap di bawah baris
+ *   itu, lalu menancup ke setiap tab (`data-tab-value`) barisnya — sehingga
+ *   TIDAK ADA garis yang melintasi atau menimpa tab lain. Antarpbaris
+ *   tersambung rel vertikal di margin kanan grup (di kanan semua tab), dan
+ *   bus baris terakhir berada di gap antar grup.
  * - PULSA DATA      : setiap alur WORKSHEET_DATA_FLOWS digambar sebagai
  *   kometa bercahaya yang melaju DI ATAS kawat org chart: tab produsen →
  *   bus grup → badge → spine → hub → spine → badge tujuan → bus → tab
@@ -24,6 +26,9 @@
  * Catatan teknis:
  * - Semua kawat memakai poliline siku bersudut membulat (roundedElbow) —
  *   gaya bagan organisasi, bukan lengkungan bezier radial.
+ * - Kawat grup digugurkan bila badge tidak duduk segaris dengan baris
+ *   pertamanya (kontainer terlalu sempit) — geometri bebas-timpa tidak
+ *   bisa dijamin, lebih aman tidak menggambar.
  * - pathLength=1 menormalisasi panjang jalur sehingga kecepatan dash/kometa
  *   seragam untuk semua panjang; dashoffset negatif = maju ke ujung path
  *   (arah aliran: akar → grup → tab).
@@ -152,17 +157,126 @@ function badgeLeft(badge: Box): Pt {
   return { x: badge.x, y: badge.y + badge.h / 2 };
 }
 
+/** Baris tab di dalam satu grup (kontainer flex-wrap): tab dalam satu
+ * flex line segaris (items-center), cukup dikluster menurut tengah
+ * vertikal. Tiap baris diurutkan kiri → kanan. */
+function clusterRows(tabs: Box[]): Box[][] {
+  const sorted = [...tabs].sort((a, b) => a.y + a.h / 2 - (b.y + b.h / 2));
+  const rows: Box[][] = [];
+  for (const t of sorted) {
+    const cur = rows[rows.length - 1];
+    if (!cur || Math.abs(t.y + t.h / 2 - (cur[0].y + cur[0].h / 2)) > 7) rows.push([t]);
+    else cur.push(t);
+  }
+  rows.forEach((row) => row.sort((a, b) => a.x - b.x));
+  return rows;
+}
+
+/** Rute kawat satu grup: bus per baris tab + rel vertikal kanan. */
+interface GroupRoute {
+  id: string;
+  badge: Box;
+  /** Tab per baris visual, urut kiri → kanan. */
+  rows: Box[][];
+  /** Level bus tiap baris — di gap tepat di bawah baris itu. */
+  busY: number[];
+  /** X rel vertikal penyambung bus antar baris (di kanan semua tab). */
+  railX: number;
+}
+
 /**
- * Level bus di bawah baris grup: sedikit di bawah kotak kontainer grup
- * (di dalam gap antar baris grup) agar tidak menimpa chip mana pun.
+ * Rangkai geometri bus grup yang DIJAMIN tidak melintasi/menimpa tab:
+ * - tiap baris tab dapat bus sendiri di gap tepat di bawah barisnya;
+ * - antarpbaris disambung rel vertikal di margin kanan grup (di kanan
+ *   SEMUA tab, minimum 2 px dari tepi tab terkanan);
+ * - bus baris terakhir tetap di gap antar grup, di bawah kotak kontainer.
+ * Mengembalikan null bila badge tidak duduk segaris dengan baris pertama
+ * (kontainer terlalu sempit sampai badge turun sendirian) — kawat grup
+ * digugurkan daripada berisiko menimpa tab.
  */
-function groupBusY(groupBox: Box | undefined, badge: Box, tabs: Box[], hostH: number): number {
-  const contentBottom = Math.max(
-    groupBox ? groupBox.y + groupBox.h : 0,
-    badge.y + badge.h,
-    ...tabs.map((t) => t.y + t.h),
-  );
-  return clamp(contentBottom + 3.2, contentBottom + 2, hostH - 2);
+function buildGroupRoute(
+  id: string,
+  badge: Box,
+  groupBox: Box | undefined,
+  tabs: Box[],
+  hostH: number,
+): GroupRoute | null {
+  if (tabs.length === 0) return null;
+  const rows = clusterRows(tabs);
+  const row0Top = Math.min(...rows[0].map((t) => t.y));
+  const row0Bottom = Math.max(...rows[0].map((t) => t.y + t.h));
+  const badgeCy = badge.y + badge.h / 2;
+  if (badgeCy < row0Top - 8 || badgeCy > row0Bottom + 8) return null;
+
+  const busY = rows.map((row, r) => {
+    const bottom = Math.max(...row.map((t) => t.y + t.h), r === 0 ? badge.y + badge.h : 0);
+    if (r < rows.length - 1) {
+      const nextTop = Math.min(...rows[r + 1].map((t) => t.y));
+      const gap = nextTop - bottom;
+      return bottom + Math.max(1.3, Math.min(gap / 2, 5));
+    }
+    const base = Math.max(bottom, groupBox ? groupBox.y + groupBox.h : 0);
+    return clamp(base + 3.2, base + 2, hostH - 2);
+  });
+
+  const maxRight = Math.max(...tabs.map((t) => t.x + t.w), badge.x + badge.w);
+  const railCeil = groupBox ? groupBox.x + groupBox.w - 10 : maxRight + 5;
+  const railX = Math.max(maxRight + 2, Math.min(maxRight + 5, railCeil));
+  return { id, badge, rows, busY, railX };
+}
+
+/**
+ * Poliline kawat satu grup, digambar tanpa retracing: kawat baris pertama
+ * berangkat dari badge, menyusuri bus baris-0 kiri→kanan sambil menancup
+ * ke tiap tabnya, berakhir di puncak rel kanan (grup multi-baris) atau di
+ * tab terakhir (grup satu baris). Rel kanan meneruskan aliran turun ke bus
+ * tiap baris berikutnya; tiap bus itu mengalir kanan→kiri dan berakhir di
+ * tab terkiri barisnya.
+ */
+function groupWirePaths(g: GroupRoute): string[] {
+  const ds: string[] = [];
+  const nR = g.rows.length;
+  const badgeCx = g.badge.x + g.badge.w / 2;
+
+  const pts0: Pt[] = [badgeBottom(g.badge), { x: badgeCx, y: g.busY[0] }];
+  const row0 = g.rows[0];
+  row0.forEach((tab, i) => {
+    const cx = tab.x + tab.w / 2;
+    pts0.push({ x: cx, y: g.busY[0] }, { x: cx, y: tab.y + tab.h });
+    if (i < row0.length - 1 || nR > 1) pts0.push({ x: cx, y: g.busY[0] });
+  });
+  if (nR > 1) pts0.push({ x: g.railX, y: g.busY[0] });
+  ds.push(roundedElbow(pts0));
+
+  if (nR > 1) {
+    // Rel kanan: satu tarikan vertikal menyambung bus semua baris.
+    ds.push(roundedElbow([{ x: g.railX, y: g.busY[0] }, { x: g.railX, y: g.busY[nR - 1] }]));
+    // Bus baris kedua dst: dari rel mengalir kanan→kiri menancup ke tiap
+    // tab barisnya, berakhir di tab terkiri.
+    for (let r = 1; r < nR; r++) {
+      const pts: Pt[] = [{ x: g.railX, y: g.busY[r] }];
+      const ordered = [...g.rows[r]].reverse();
+      ordered.forEach((tab, i) => {
+        const cx = tab.x + tab.w / 2;
+        pts.push({ x: cx, y: g.busY[r] }, { x: cx, y: tab.y + tab.h });
+        if (i < ordered.length - 1) pts.push({ x: cx, y: g.busY[r] });
+      });
+      ds.push(roundedElbow(pts));
+    }
+  }
+  return ds.filter(Boolean);
+}
+
+/** Rute minimal di atas kawat grup: tab → bus barisnya → (rel kanan bila
+ * bukan baris pertama) → bus baris-0 → badge. Dipakai kometa data; tidak
+ * melintasi tab mana pun. */
+function routeTabToBadgePts(tab: Box, g: GroupRoute): Pt[] {
+  const r = Math.max(0, g.rows.findIndex((row) => row.includes(tab)));
+  const cx = tab.x + tab.w / 2;
+  const pts: Pt[] = [tabBottomAnchor(tab), { x: cx, y: g.busY[r] }];
+  if (r > 0) pts.push({ x: g.railX, y: g.busY[r] }, { x: g.railX, y: g.busY[0] });
+  pts.push({ x: g.badge.x + g.badge.w / 2, y: g.busY[0] }, badgeBottom(g.badge));
+  return pts;
 }
 
 interface Geo {
@@ -277,11 +391,25 @@ export default function WorksheetMindMap({ hostId, flows, activeTab, className =
   });
   tabsByGroup.forEach((list) => list.sort((a, b) => a.x + a.w / 2 - (b.x + b.w / 2)));
 
-  const busYOf = (groupId: string): number => {
-    const badge = badgeById.get(groupId);
-    if (!badge) return -1;
-    return groupBusY(geo.groups.get(groupId), badge, tabsByGroup.get(groupId) ?? [], geo.h);
-  };
+  // Rute kawat per grup: bus per baris tab + rel kanan — dijamin tidak
+  // melintasi tab mana pun walau tab wrap beberapa baris.
+  const routes = new Map<string, GroupRoute & { tone: MindTone; active: boolean; idx: number }>();
+  geo.badges.forEach((b, idx) => {
+    const route = buildGroupRoute(b.id, b.box, geo.groups.get(b.id), tabsByGroup.get(b.id) ?? [], geo.h);
+    if (!route) return;
+    routes.set(b.id, { ...route, tone: GROUP_TONES[b.id] ?? 'slate', active: activeGroup === b.id, idx });
+  });
+
+  // Kawat bus per grup (base + dash berjalan): beberapa poliline per grup.
+  const wires = [...routes.values()].flatMap((g) =>
+    groupWirePaths(g).map((d, i) => ({
+      key: `wire-${g.id}-${i}`,
+      d,
+      tone: g.tone,
+      active: g.active,
+      idx: g.idx,
+    })),
+  );
 
   // === BATANG ORG CHART (hub → spine) — aliran keluar akar, ke atas & bawah ===
   const badgeCys = geo.badges.map((b) => b.box.y + b.box.h / 2);
@@ -304,31 +432,6 @@ export default function WorksheetMindMap({ hostId, flows, activeTab, className =
     };
   });
 
-  // === BUS GRUP (comb): badge → bus → menancup ke setiap tab grup ===
-  const combs = geo.badges
-    .map((b, idx) => {
-      const badge = b.box;
-      const tabs = tabsByGroup.get(b.id) ?? [];
-      if (tabs.length === 0) return null;
-      const busY = busYOf(b.id);
-      const badgeC = badgeBottom(badge);
-      const pts: Pt[] = [badgeC, { x: badgeC.x, y: busY }];
-      tabs.forEach((tab, i) => {
-        const cx = tab.x + tab.w / 2;
-        pts.push({ x: cx, y: busY });
-        pts.push({ x: cx, y: tab.y + tab.h });
-        if (i < tabs.length - 1) pts.push({ x: cx, y: busY });
-      });
-      return {
-        id: b.id,
-        d: roundedElbow(pts),
-        tone: GROUP_TONES[b.id] ?? 'slate',
-        active: activeGroup === b.id,
-        idx,
-      };
-    })
-    .filter((c): c is NonNullable<typeof c> => c !== null);
-
   // === TAB PESERTA ALUR DATA (untuk port ujung) ===
   const flowTabs = new Set<string>();
   flows.forEach((f) => {
@@ -337,41 +440,29 @@ export default function WorksheetMindMap({ hostId, flows, activeTab, className =
   });
 
   // === PULSA DATA — kometa melaju di atas kawat org chart:
-  // tab sumber → bus → badge → spine → hub → spine → badge → bus → tab tujuan.
+  // tab sumber → bus barisnya → rel kanan → bus baris-0 → badge → spine →
+  // hub → spine → badge tujuan → bus → tab konsumen.
   const STAGGER = 0.55;
   const cometFlows = flows
     .map((f, index) => {
       const fromTab = geo.tabs.get(f.from);
       const toTab = geo.tabs.get(f.to);
-      const badgeFrom = fromTab?.group ? badgeById.get(fromTab.group) : undefined;
-      const badgeTo = toTab?.group ? badgeById.get(toTab.group) : undefined;
-      if (!fromTab || !toTab || !badgeFrom || !badgeTo) return null;
-      const busFrom = busYOf(fromTab.group!);
-      const busTo = busYOf(toTab.group!);
-      if (busFrom < 0 || busTo < 0) return null;
-      const fromC = tabBottomAnchor(fromTab.box);
-      const toC = tabBottomAnchor(toTab.box);
-      const fromB = badgeBottom(badgeFrom);
-      const fromL = badgeLeft(badgeFrom);
-      const toB = badgeBottom(badgeTo);
-      const toL = badgeLeft(badgeTo);
-      const fbC = center(badgeFrom);
-      const tbC = center(badgeTo);
+      const routeFrom = fromTab?.group ? routes.get(fromTab.group) : undefined;
+      const routeTo = toTab?.group ? routes.get(toTab.group) : undefined;
+      if (!fromTab || !toTab || !routeFrom || !routeTo) return null;
+      const fbC = center(routeFrom.badge);
+      const tbC = center(routeTo.badge);
       const pts: Pt[] = [
-        fromC,
-        { x: fromC.x, y: busFrom },
-        { x: fromB.x, y: busFrom },
-        fromB,
-        fromL,
+        ...routeTabToBadgePts(fromTab.box, routeFrom),
+        badgeLeft(routeFrom.badge),
         { x: spineX, y: fbC.y },
         { x: spineX, y: hubC.y },
         rootEdge,
         { x: spineX, y: tbC.y },
-        toL,
-        toB,
-        { x: toB.x, y: busTo },
-        { x: toC.x, y: busTo },
-        toC,
+        badgeLeft(routeTo.badge),
+        // Badge → tab tujuan: kebalikan rute tab → badge; titik badgeBottom
+        // paling depan dibuang agar tidak terduplikasi setelah badgeLeft.
+        ...routeTabToBadgePts(toTab.box, routeTo).reverse().slice(1),
       ];
       return {
         key: `flow-${f.from}-${f.to}-${index}`,
@@ -499,9 +590,9 @@ export default function WorksheetMindMap({ hostId, flows, activeTab, className =
         </g>
       ))}
 
-      {/* 3) BUS GRUP — badge menancup ke setiap tab grupnya, dash berjalan */}
-      {combs.map((c) => (
-        <g key={`comb-${c.id}`}>
+      {/* 3) BUS GRUP — bus per baris + rel kanan; tak pernah menimpa tab */}
+      {wires.map((c) => (
+        <g key={c.key}>
           {c.d && (
             <>
               <path
