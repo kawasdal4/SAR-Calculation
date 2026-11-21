@@ -11,7 +11,7 @@
     "test:mef": "node --test tests/oncMef.test.mjs",
     "test:ws4": "node --test tests/landSearchRadius.test.mjs",
     "test:landmap": "node --test tests/landMapProj.test.mjs tests/landMapScale.test.mjs",
-    "test:scan": "bun test tests/scanCalib.test.ts tests/scanPrint.test.ts",
+    "test:scan": "bun test tests/scanCalib.test.ts tests/scanPrint.test.ts tests/scanDrawOffset.test.ts",
     "db:push": "prisma db push --schema prisma/schema.sqlite.prisma --accept-data-loss",
     "db:generate": "prisma generate --schema prisma/schema.sqlite.prisma",
     "db:migrate": "prisma migrate dev --schema prisma/schema.sqlite.prisma",

@@ -19,6 +19,14 @@ export interface DrawScanOverlayOptions {
   transform: ScanTransform;
   /** Pixel canvas per pixel gambar asli. */
   scale: number;
+  /**
+   * Offset canvas px yang ditambahkan SETELAH skala — origin rect gambar pada
+   * kanvas. Dipakai komposisi cetak/PDF: peta digambar di dalam letterbox
+   * (computeContainRect), jadi origin gambar TIDAK di (0,0) kanvas halaman.
+   * Tanpa offset ini seluruh overlay tergeser sebesar jarak letterbox dan
+   * jatuh di luar peta (di margin/pojok halaman) pada cetak & PDF.
+   */
+  offset?: { x: number; y: number };
   markers?: MapMarker[];
   lines?: MapLine[];
   polygons?: MapPolygon[];
@@ -81,6 +89,7 @@ export function drawScanOverlay(options: DrawScanOverlayOptions): void {
     ctx,
     transform,
     scale,
+    offset,
     markers,
     lines,
     polygons,
@@ -91,6 +100,9 @@ export function drawScanOverlay(options: DrawScanOverlayOptions): void {
     showMarkerLabels = true,
     layers,
   } = options;
+  // Offset origin gambar pada kanvas halaman cetak (0,0 pada overlay layar).
+  const ox = offset?.x ?? 0;
+  const oy = offset?.y ?? 0;
   const showLines = layers?.lines !== false;
   const showMarkers = layers?.markers !== false;
   const showPolygons = layers?.polygons !== false;
@@ -98,7 +110,7 @@ export function drawScanOverlay(options: DrawScanOverlayOptions): void {
 
   const toCtx = (pos: { lat: number; lng: number }): { x: number; y: number } => {
     const p = transform.toPixel(pos);
-    return { x: p.x * scale, y: p.y * scale };
+    return { x: p.x * scale + ox, y: p.y * scale + oy };
   };
 
   ctx.save();

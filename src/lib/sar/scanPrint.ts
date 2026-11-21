@@ -185,12 +185,15 @@ export function composeScanPrintPage(options: ComposeScanPrintOptions): Composed
   );
   ctx.drawImage(image, rect.x, rect.y, rect.width, rect.height);
 
-  // Overlay hasil worksheet pada skala yang sama.
+  // Overlay hasil worksheet pada skala yang sama. Origin gambar di halaman
+  // adalah rect (letterbox tengah) — TANPA offset ini overlay tergambar di
+  // (0,0) halaman dan bergeser keluar peta sebesar jarak letterbox.
   const overlayScale = rect.width / imageWidth;
   drawScanOverlay({
     ctx,
     transform,
     scale: overlayScale,
+    offset: { x: rect.x, y: rect.y },
     markers,
     lines,
     polygons,
