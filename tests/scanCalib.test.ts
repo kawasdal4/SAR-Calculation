@@ -32,19 +32,14 @@ describe('round-trip meter lokal ⇄ lat/lon', () => {
   });
 });
 
-describe('similarity (2 titik) — rotasi + skala + translasi', () => {
-  it('toPixel/toGeo round-trip pada scan yang diputar 5°', () => {
-    // Peta "asli": transformasi bumi→gambar yang diketahui (putar 5°, skala 1.6 px/m, geser).
-    const theta = (5 * Math.PI) / 180;
-    const s = 1.6;
-    const a = s * Math.cos(theta);
-    const bTrue = s * Math.sin(theta);
-    const tx = 320;
-    const ty = 140;
+describe('2 titik — affine sejajar-sumbu (semua orientasi scan)', () => {
+  const k = 1.6;
+
+  it('peta utara-atas (sx>0, sy<0): probe luar sampel eksak', () => {
+    const origin = localOriginFor([JKT]);
     const toPx = (pos: { lat: number; lng: number }) => {
-      const origin = localOriginFor([JKT]);
       const m = geoToLocalMeters(pos, origin);
-      return { x: a * m.x - bTrue * m.y + tx, y: bTrue * m.x + a * m.y + ty };
+      return { x: k * m.x + 320, y: -k * m.y + 140 };
     };
     const p1 = { lat: -6.2, lng: 106.6 };
     const p2 = { lat: -6.0, lng: 107.1 };
@@ -54,24 +49,75 @@ describe('similarity (2 titik) — rotasi + skala + translasi', () => {
     ];
     const result = buildScanTransform(points);
     expect(result.error).toBeNull();
-    expect(result.transform).not.toBeNull();
-    expect(result.transform!.kind).toBe('similarity');
-    // Titik kalibrasi diproyeksikan tepat ke pixel sumber.
+    expect(result.transform!.kind).toBe('axis-affine');
     for (const point of points) {
       const projected = result.transform!.toPixel(point.pos);
       expect(Math.abs(projected.x - point.px.x)).toBeLessThan(1e-6);
       expect(Math.abs(projected.y - point.px.y)).toBeLessThan(1e-6);
-      const back = result.transform!.toGeo(point.px);
-      expect(Math.abs(back.lat - point.pos.lat)).toBeLessThan(1e-9);
-      expect(Math.abs(back.lng - point.pos.lng)).toBeLessThan(1e-9);
     }
-    // Titik lain di luar sampel tetap konsisten dengan transformasi asli.
     const probe = { lat: -6.08, lng: 106.95 };
     const want = toPx(probe);
     const got = result.transform!.toPixel(probe);
     expect(Math.hypot(got.x - want.x, got.y - want.y)).toBeLessThan(0.01);
-    // Residual nol karena 2 titik pas 4 parameter.
     expect(result.rmsPx).toBeCloseTo(0, 6);
+  });
+
+  it('PETA TERBALIK 180° (sx<0, sy>0): LKP utara garis kalibrasi memetakan ke BAWAH gambar — bug lama similarity melempar ke y negatif', () => {
+    // Kasus nyata: peta laut hasil scan terbalik (label graticule kebaca
+    // terbalik). Transformasi sebenarnya [[-k,0],[0,+k]] — similarity tidak
+    // bisa merepresentasikannya (determinan > 0) dan membuat sumbu lintang
+    // terbalik: titik di UTARA garis kalibrasi jatuh DI ATAS tepi gambar.
+    const origin = localOriginFor([JKT]);
+    const toPx = (pos: { lat: number; lng: number }) => {
+      const m = geoToLocalMeters(pos, origin);
+      return { x: -k * m.x + 320, y: k * m.y + 140 };
+    };
+    const p1 = { lat: -6.2, lng: 106.6 };
+    const p2 = { lat: -6.0, lng: 107.1 };
+    const points: CalibrationPoint[] = [
+      { id: 'k1', px: toPx(p1), pos: p1, label: 'K1' },
+      { id: 'k2', px: toPx(p2), pos: p2, label: 'K2' },
+    ];
+    const result = buildScanTransform(points);
+    expect(result.error).toBeNull();
+    expect(result.transform!.kind).toBe('axis-affine');
+    // Titik kalibrasi eksak.
+    for (const point of points) {
+      const projected = result.transform!.toPixel(point.pos);
+      expect(Math.abs(projected.x - point.px.x)).toBeLessThan(1e-6);
+      expect(Math.abs(projected.y - point.px.y)).toBeLessThan(1e-6);
+    }
+    // Probe di UTARA kedua titik kalibrasi → y lebih BESAR (bawah gambar),
+    // bukan negatif (atas gambar) seperti hasil similarity lama.
+    const probeNorth = { lat: -5.9, lng: 106.85 };
+    const want = toPx(probeNorth);
+    const got = result.transform!.toPixel(probeNorth);
+    expect(Math.hypot(got.x - want.x, got.y - want.y)).toBeLessThan(0.01);
+    expect(got.y).toBeGreaterThan(140); // utara → ke bawah gambar (scan terbalik)
+    const probeSouth = { lat: -6.3, lng: 106.85 };
+    expect(result.transform!.toPixel(probeSouth).y).toBeLessThan(140);
+    expect(result.rmsPx).toBeCloseTo(0, 6);
+  });
+
+  it('gagal ramah: dua titik pada satu PARALEL (beda bujur saja)', () => {
+    const points: CalibrationPoint[] = [
+      { id: 'a', px: { x: 1007, y: 489 }, pos: { lat: -6.0, lng: 134.5 } },
+      { id: 'b', px: { x: 77, y: 489 }, pos: { lat: -6.0, lng: 135.0 } },
+    ];
+    const result = buildScanTransform(points);
+    expect(result.transform).toBeNull();
+    expect(result.error).toContain('hampir segaris');
+    expect(result.error).toContain('diagonal');
+  });
+
+  it('gagal ramah: dua titik pada satu MERIDIAN (beda lintang saja)', () => {
+    const points: CalibrationPoint[] = [
+      { id: 'a', px: { x: 1007, y: 489 }, pos: { lat: -6.0, lng: 134.5 } },
+      { id: 'b', px: { x: 1007, y: 1500 }, pos: { lat: -5.5, lng: 134.5 } },
+    ];
+    const result = buildScanTransform(points);
+    expect(result.transform).toBeNull();
+    expect(result.error).toContain('hampir segaris');
   });
 
   it('gagal ramah untuk titik berdekatan', () => {
@@ -86,6 +132,38 @@ describe('similarity (2 titik) — rotasi + skala + translasi', () => {
 });
 
 describe('affine LSQ (≥3 titik) — mengoreksi shear scan', () => {
+  it('scan diputar 5° + 3 titik → rotasi terkoreksi eksak (koreksi kemiringan tetap tersedia)', () => {
+    const theta = (5 * Math.PI) / 180;
+    const s = 1.6;
+    const a = s * Math.cos(theta);
+    const bTrue = s * Math.sin(theta);
+    const tx = 320;
+    const ty = 140;
+    const origin = localOriginFor([JKT]);
+    const toPx = (pos: { lat: number; lng: number }) => {
+      const m = geoToLocalMeters(pos, origin);
+      return { x: a * m.x - bTrue * m.y + tx, y: bTrue * m.x + a * m.y + ty };
+    };
+    const geo: Array<{ lat: number; lng: number }> = [
+      { lat: -6.2, lng: 106.6 },
+      { lat: -6.0, lng: 107.1 },
+      { lat: -6.35, lng: 107.0 },
+    ];
+    const points: CalibrationPoint[] = geo.map((pos, i) => ({
+      id: `k${i + 1}`,
+      px: toPx(pos),
+      pos,
+      label: `K${i + 1}`,
+    }));
+    const result = buildScanTransform(points);
+    expect(result.error).toBeNull();
+    expect(result.transform!.kind).toBe('affine');
+    const probe = { lat: -6.08, lng: 106.95 };
+    const want = toPx(probe);
+    const got = result.transform!.toPixel(probe);
+    expect(Math.hypot(got.x - want.x, got.y - want.y)).toBeLessThan(0.05);
+  });
+
   it('residual ~0 untuk 4 titik pada transformasi affine + shear', () => {
     const A = { a: 1.4, b: 0.12, c: -0.05, d: 1.7, tx: 90, ty: -40 };
     const origin = localOriginFor([JKT]);

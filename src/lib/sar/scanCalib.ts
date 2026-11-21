@@ -3,16 +3,27 @@
  *
  * Pengguna menandai ≥2 titik pada gambar scan dan memasukkan koordinat
  * geografisnya; modul ini membangun transformasi gambar↔geografi:
- *  - 2 titik  : similarity (skala seragam + rotasi + translasi) — cukup untuk
- *               scan yang rapi; rotasi scan kecil ikut teratasi.
+ *  - 2 titik  : affine sejajar-sumbu (skala X & Y independen, exact 4↔4) —
+ *               mendukung semua orientasi scan termasuk terbalik 180°.
  *  - ≥3 titik : affine least-squares (skala, rotasi, shear, translasi) —
  *               mengoreksi scan yang sedikit melar/miring.
  *
  * Kerangka kerja: koordinat geografis dipetakan ke bidang LOKAL (meter,
  * equirectangular pada lintang rata-rata titik kalibrasi) sehingga skala
  * px/meter stabil pada luas satu lembar peta; transformasi mencari peta
- * linear meter→pixel. Rotasi peta (utara ke atas) TIDAK dipaksakan — hasil
- * pola pencarian tetap akurat meski scan miring.
+ * linear meter→pixel.
+ *
+ * PENTING — orientasi scan: banyak peta laut hasil scan TERBALIK 180° (teks
+ * & label graticule kebaca terbalik). Transformasi sebenarnya untuk scan
+ * terbalik adalah [[−k,0],[0,+k]] (skala per-sumbu beda tanda, determinan
+ * negatif di bidang meter) — bentuk similarity [[a,−b],[b,a]] (determinan
+ * selalu > 0) TIDAK MAMPU merepresentasikannya: sumbu lintang ikut terbalik
+ * dan overlay jatuh di luar peta meski kalibrasi benar. Karena itu 2 titik
+ * memakai affine sejajar-sumbu (skala X & Y independen, exact 4↔4), dan
+ * pasangan titik yang hampir segaris (satu garis graticule) ditolak dengan
+ * pesan ramah karena arah utara memang tidak bisa ditentukan dari 2 titik
+ * segaris. Koreksi kemiringan scan (rotasi kecil) tetap tersedia lewat ≥3
+ * titik → affine least-squares.
  */
 
 import type { LatLng } from './sarCalculations';
@@ -167,7 +178,7 @@ function fitAffine(
 }
 
 export interface ScanTransform {
-  kind: 'similarity' | 'affine';
+  kind: 'similarity' | 'axis-affine' | 'affine';
   /** Peta linear meter lokal → pixel gambar asli. */
   metersToPx: LinearMap2D;
   origin: LocalOrigin;
@@ -254,22 +265,37 @@ export function buildScanTransform(points: CalibrationPoint[]): BuildScanTransfo
     if (geoDistM < 500 || pxDist < 10) {
       return { transform: null, residualsPx: [], rmsPx: null, error: 'Dua titik kalibrasi terlalu berdekatan — pilih titik yang berjauhan (mis. dua sudut peta yang jelas).' };
     }
-    const det = dxm * dxm + dym * dym;
-    if (det < 1) {
-      return { transform: null, residualsPx: [], rmsPx: null, error: 'Dua titik kalibrasi terlalu berdekatan secara geografis — pilih titik yang berjauhan (mis. dua sudut peta).' };
+    // Dua titik yang hampir segaris (selisih bujur ~0 ATAU selisih lintang ~0,
+    // mis. keduanya pada satu paralel / satu meridian graticule): sumbu tegak
+    // lurusnya tidak terconstraint — arah utara peta (termasuk apakah scan
+    // terbalik 180°) tidak bisa ditentukan, dan model apa pun akan menebak.
+    // Tolak dengan pesan ramah daripada menghasilkan transformasi salah diam-diam.
+    const latRatio = Math.abs(dym) / geoDistM;
+    if (latRatio < 0.08 || latRatio > 0.92) {
+      return {
+        transform: null,
+        residualsPx: [],
+        rmsPx: null,
+        error: 'Kedua titik kalibrasi hampir segaris pada satu garis graticule (beda bujur atau beda lintangnya saja ~0) — arah utara peta tidak bisa ditentukan dari 2 titik segaris, overlay bisa tergambar terbalik/keluar peta. Pilih 2 titik yang diagonal (beda lintang DAN bujur, mis. dua perpotongan graticule di dua sudut peta), atau tambah titik ke-3.',
+      };
     }
-    const a = (dxm * dxp + dym * dyp) / det;
-    const b = (dxm * dyp - dym * dxp) / det;
-    // Similarity: rotasi seragam — pakai bentuk [[a,-b],[b,a]].
+    // Affine sejajar-sumbu: exact (4 parameter ↔ 4 persamaan), skala X & Y
+    // bebas bertanda sehingga SEMUA orientasi scan terrepresentasi —
+    //   utara-atas    : sx > 0, sy < 0
+    //   terbalik 180° : sx < 0, sy > 0   ← kasus peta laut hasil scan terbalik
+    // Berbeda dengan similarity ([[a,−b],[b,a]], determinan > 0) yang memaksa
+    // rotasi murni dan membuat sumbu lintang terbalik pada scan terbalik 180°.
+    const sx = dxp / dxm;
+    const sy = dyp / dym;
     const metersToPx: LinearMap2D = {
-      a,
-      b: -b,
-      c: b,
-      d: a,
-      tx: p1.x - (a * m1.x - b * m1.y),
-      ty: p1.y - (b * m1.x + a * m1.y),
+      a: sx,
+      b: 0,
+      c: 0,
+      d: sy,
+      tx: p1.x - sx * m1.x,
+      ty: p1.y - sy * m1.y,
     };
-    return finalize(metersToPx, origin, 'similarity', points);
+    return finalize(metersToPx, origin, 'axis-affine', points);
   }
 
   const metersToPx = fitAffine(meters, pixels);

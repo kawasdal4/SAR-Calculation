@@ -579,7 +579,7 @@ export default function ScannedChartStudio({
     ? { tone: 'warn' as const, text: `Kalibrasi ${calibPoints.length}/2 titik minimum` }
     : {
       tone: 'ok' as const,
-      text: `Kalibrasi OK — ${calibPoints.length} titik (${transform?.kind === 'affine' ? 'affine' : 'similarity'})${transformResult.rmsPx != null && calibPoints.length >= 3 ? ` · RMS ${transformResult.rmsPx.toFixed(1)} px` : ''}`,
+      text: `Kalibrasi OK — ${calibPoints.length} titik (${transform?.kind === 'affine' ? 'affine LSQ' : transform?.kind === 'axis-affine' ? 'affine 2-titik' : 'similarity'})${transformResult.rmsPx != null && calibPoints.length >= 3 ? ` · RMS ${transformResult.rmsPx.toFixed(1)} px` : ''}`,
     };
 
   return (
@@ -826,7 +826,7 @@ export default function ScannedChartStudio({
               )}
               {calibPoints.length > 0 && (
                 <span className="text-[10px] text-slate-500">
-                  Saran: pilih 2–4 titik yang berjauhan (sudut peta/perpotongan garis koordinat). Titik ke-3+ mengaktifkan koreksi affine.
+                  Saran: pilih 2 titik yang diagonal — beda lintang DAN bujur (mis. dua perpotongan graticule di dua sudut); 2 titik segaris pada satu garis graticule tidak bisa menentukan arah utara. Scan miring? Tambah titik ke-3 untuk koreksi affine.
                 </span>
               )}
             </div>
