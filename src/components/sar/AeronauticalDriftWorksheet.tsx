@@ -51,6 +51,20 @@ function formatFt(val: number): string {
     .replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
 
+/**
+ * Angka hasil hitung dengan maksimal 4 desimal — bila koma pendek tampil
+ * apa adanya, bila koma panjang dibulatkan ke 4 desimal dan nol di akhir
+ * dipangkas: 4797.5 → "4797.5", 8.128999… → "8.129", 25.743333… → "25.7433".
+ * Dipakai B.6, B.7, B.8, dan B.10 sesuai panduan worksheet.
+ */
+function formatNum4(val: number): string {
+  if (!Number.isFinite(val)) return '-';
+  return val
+    .toFixed(4)
+    .replace(/(\.\d*?)0+$/, '$1')
+    .replace(/\.$/, '');
+}
+
 interface HeadingInputProps {
   label: string;
   value?: number;
@@ -165,32 +179,46 @@ function HeadingInput({
 }
 
 /**
- * B.13 — Date/time at end of glide: waktu insiden + td (menit desimal; Math.round
- * = pembulatan setengah-ke-atas sesuai aturan worksheet). Tanggal/waktu apa pun
- * dari soal dikonversi otomatis ke format Basarnas "MMDD.HHMM Z, DD MMM YYYY".
- * Bulan/tanggal dari string waktu insiden (mis. "17 Nov 2026 07.00 UTC")
- * menimpa fallback dari field tanggal worksheet.
+ * B.13 — Date/time at end of glide: A.1 (waktu insiden) + B.7 yang SUDAH
+ * dibulatkan setengah-ke-atas ke menit utuh (panduan: 8.129 → 8; 8.5 → 9).
+ * Hasil tampil selama A.1 bisa diparse DAN bulan/tanggalnya diketahui —
+ * bulan/tanggal boleh diambil dari string A.1 itu sendiri (termasuk format
+ * Basarnas MMDD.HHMM yang sudah ternormalisasi) atau dari field tanggal
+ * header; tahun bersifat opsional (dicari di field tanggal atau angka 20xx
+ * pada string A.1) sehingga B.13 tetap muncul walau field tanggal kosong.
+ * Output format Basarnas "MMDD.HHMM Z, DD MMM[ YYYY]"; melewati 2400 lanjut
+ * tanggal berikutnya (penggulungan bulan ditangani Date UTC).
+ * Diekspor untuk pengujian (tests/adwB13.test.ts).
  */
-function formatUtcEnd(dateValue: string, timeValue: string, minutes: number): string | null {
-  const dateParts = parseDateParts(dateValue);
+export function formatUtcEnd(dateValue: string, timeValue: string, roundedMinutes: number): string | null {
   const parsedTime = parseSarTimeToHours(timeValue);
-  if (!dateParts || !parsedTime || !dateParts.year) return null;
-  const month = parsedTime.month ?? dateParts.month;
-  const day = (parsedTime.hasDay ? parsedTime.day : undefined) ?? dateParts.day;
+  if (!parsedTime) return null;
+  // Fallback tanggal dari field header: format ISO ("2026-11-17") atau
+  // "17 Nov 2026" via parseDateParts; tambahan format "17/11/2026"
+  // (dd/mm gaya Indonesia) ditangani di sini.
+  let dateParts = parseDateParts(dateValue);
+  if (!dateParts) {
+    const dmy = /^(0?[1-9]|[12]\d|3[01])[\/\-.](0?[1-9]|1[0-2])[\/\-.](\d{4})$/.exec(dateValue.trim());
+    if (dmy) {
+      dateParts = { year: parseInt(dmy[3], 10), month: parseInt(dmy[2], 10), day: parseInt(dmy[1], 10) };
+    }
+  }
+  const month = parsedTime.month ?? dateParts?.month;
+  const day = (parsedTime.hasDay ? parsedTime.day : undefined) ?? dateParts?.day;
   if (!month || !day) return null;
-  const year = dateParts.year;
+  const yearMatch = /\b(20\d{2})\b/.exec(timeValue);
+  const year = dateParts?.year ?? (yearMatch ? parseInt(yearMatch[1], 10) : undefined);
   const minutesOfDay = Math.round((parsedTime.hours % 24) * 60);
-  const base = new Date(Date.UTC(year, month - 1, day, 0, minutesOfDay));
+  const base = new Date(Date.UTC(year ?? 2000, month - 1, day, 0, minutesOfDay));
   if (
     Number.isNaN(base.getTime()) ||
-    base.getUTCFullYear() !== year ||
     base.getUTCMonth() !== month - 1 ||
     base.getUTCDate() !== day
   ) return null;
-  base.setUTCMinutes(base.getUTCMinutes() + Math.round(minutes));
+  base.setUTCMinutes(base.getUTCMinutes() + Math.round(roundedMinutes));
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const basarnas = `${String(base.getUTCMonth() + 1).padStart(2, '0')}${String(base.getUTCDate()).padStart(2, '0')}.${String(base.getUTCHours()).padStart(2, '0')}${String(base.getUTCMinutes()).padStart(2, '0')} Z`;
-  const human = `${String(base.getUTCDate()).padStart(2, '0')} ${months[base.getUTCMonth()]} ${base.getUTCFullYear()}`;
+  const human = `${String(base.getUTCDate()).padStart(2, '0')} ${months[base.getUTCMonth()]}${year ? ` ${year}` : ''}`;
   return `${basarnas}, ${human}`;
 }
 
@@ -374,6 +402,11 @@ export default function AeronauticalDriftWorksheet({
 
   const downwindDir = (formData.awaGlideDirFrom + 180) % 360;
   const anySegmentActive = formData.useAircraftGlide || formData.useParachute;
+  // B.10 — arah & kecepatan AWA tampil maksimal 4 desimal; arah bulat tetap
+  // bergaya 3 digit pad ("070"), arah pecahan pakai formatNum4 ("329.1812").
+  const awaDirLabel = Number.isInteger(formData.awaGlideDirFrom)
+    ? formData.awaGlideDirFrom.toString().padStart(3, '0')
+    : formatNum4(formData.awaGlideDirFrom);
 
   return (
     <div className={`space-y-4 ${className} text-slate-900 font-sans`}>
@@ -872,7 +905,7 @@ export default function AeronauticalDriftWorksheet({
                 {(viewMode === 'dual' || viewMode === 'aircraft') && (
                   <div className="flex items-center gap-1 font-mono w-36 justify-end">
                     <span className="w-20 font-bold text-blue-950 border-b border-dotted border-slate-700 text-right pr-1">
-                      {formatFt(results.aircraftRateOfDescentFtMin)}
+                      {formatNum4(results.aircraftRateOfDescentFtMin)}
                     </span>
                     <span className="text-slate-600 font-sans text-xs">ft/min</span>
                   </div>
@@ -899,46 +932,42 @@ export default function AeronauticalDriftWorksheet({
               </div>
             </div>
 
-            {/* Line 7: Time of descent (td = Alt Loss/rated) */}
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 py-1">
-              <div className="flex items-baseline gap-2">
-                <span className="w-4 font-bold text-slate-900">7</span>
-                <div>
+            {/* Line 7: Time of descent (td = Alt Loss/rated) — hitungan kanan wajib satu baris */}
+            <div className="flex items-center justify-between gap-2 border-b border-slate-100 py-1">
+              <div className="flex min-w-0 flex-1 items-baseline gap-2">
+                <span className="w-4 shrink-0 font-bold text-slate-900">7</span>
+                <div className="min-w-0">
                   <span className="text-slate-800">Time of descent (td = Alt Loss/rated)</span>
                   <div className="text-[10px] text-slate-500 italic">
                     (hasil desimal; dibulatkan SETENGAH-KE-ATAS ke menit utuh — nilai bulat dipakai B.13 dan waktu distress worksheet ASW)
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-6">
+              <div className="flex shrink-0 items-center gap-6 whitespace-nowrap font-mono">
                 {(viewMode === 'dual' || viewMode === 'aircraft') && (
-                  <div className="font-mono w-36 text-right">
-                    <div className="flex items-center gap-1 justify-end">
-                      <span className="w-20 font-bold text-blue-950 border-b border-dotted border-slate-700 text-right pr-1">
-                        {results.aircraftTimeOfDescentMin.toFixed(2)}
-                      </span>
-                      <span className="text-slate-600 font-sans text-xs">min</span>
-                    </div>
-                    {/* Hitungan pembulatan yang ditulis di worksheet */}
+                  <div className="flex items-center justify-end gap-1">
+                    <span className="font-bold text-blue-950 border-b border-dotted border-slate-700 pr-1">
+                      {formatNum4(results.aircraftTimeOfDescentMin)}
+                    </span>
+                    <span className="text-slate-600 font-sans text-xs">min</span>
+                    {/* Hitungan pembulatan inline — satu baris dengan nilai */}
                     {formData.useAircraftGlide && results.aircraftRateOfDescentFtMin > 0 && (
-                      <div className="text-[9px] leading-tight text-slate-600 mt-0.5">
-                        {formatFt(results.aircraftAltLossFt)} ÷ {formatFt(results.aircraftRateOfDescentFtMin)} = {results.aircraftTimeOfDescentMin.toFixed(2)} → <b>{roundHalfUpToMinute(results.aircraftTimeOfDescentMin)} min</b>
-                      </div>
+                      <span className="ml-1 text-[9px] leading-none text-slate-600">
+                        ({formatFt(results.aircraftAltLossFt)} ÷ {formatNum4(results.aircraftRateOfDescentFtMin)} → <b>{roundHalfUpToMinute(results.aircraftTimeOfDescentMin)} min</b>)
+                      </span>
                     )}
                   </div>
                 )}
                 {(viewMode === 'dual' || viewMode === 'parachute') && (
-                  <div className="font-mono w-36 text-right">
-                    <div className="flex items-center gap-1 justify-end">
-                      <span className="w-20 font-bold text-blue-950 border-b border-dotted border-slate-700 text-right pr-1">
-                        {results.parachuteTimeOfDescentMin.toFixed(2)}
-                      </span>
-                      <span className="text-slate-600 font-sans text-xs">min</span>
-                    </div>
+                  <div className="flex items-center justify-end gap-1">
+                    <span className="font-bold text-blue-950 border-b border-dotted border-slate-700 pr-1">
+                      {formatNum4(results.parachuteTimeOfDescentMin)}
+                    </span>
+                    <span className="text-slate-600 font-sans text-xs">min</span>
                     {formData.useParachute && results.parachuteRateOfDescentFtMin > 0 && (
-                      <div className="text-[9px] leading-tight text-slate-600 mt-0.5">
-                        {formatFt(results.parachuteAltLossFt)} ÷ {formatFt(results.parachuteRateOfDescentFtMin)} = {results.parachuteTimeOfDescentMin.toFixed(2)} → <b>{roundHalfUpToMinute(results.parachuteTimeOfDescentMin)} min</b>
-                      </div>
+                      <span className="ml-1 text-[9px] leading-none text-slate-600">
+                        ({formatFt(results.parachuteAltLossFt)} ÷ {formatNum4(results.parachuteRateOfDescentFtMin)} → <b>{roundHalfUpToMinute(results.parachuteTimeOfDescentMin)} min</b>)
+                      </span>
                     )}
                   </div>
                 )}
@@ -955,7 +984,7 @@ export default function AeronauticalDriftWorksheet({
                 {(viewMode === 'dual' || viewMode === 'aircraft') && (
                   <div className="flex items-center gap-1 font-mono w-36 justify-end">
                     <span className="w-20 font-bold text-blue-950 border-b border-dotted border-slate-700 text-right pr-1">
-                      {results.aircraftGlideDistanceNm.toFixed(2)}
+                      {formatNum4(results.aircraftGlideDistanceNm)}
                     </span>
                     <span className="text-slate-600 font-sans text-xs">NM</span>
                   </div>
@@ -963,7 +992,7 @@ export default function AeronauticalDriftWorksheet({
                 {(viewMode === 'dual' || viewMode === 'parachute') && (
                   <div className="flex items-center gap-1 font-mono w-36 justify-end">
                     <span className="w-20 font-bold text-blue-950 border-b border-dotted border-slate-700 text-right pr-1">
-                      {results.parachuteGlideDistanceNm.toFixed(2)}
+                      {formatNum4(results.parachuteGlideDistanceNm)}
                     </span>
                     <span className="text-slate-600 font-sans text-xs">NM</span>
                   </div>
@@ -1019,46 +1048,46 @@ export default function AeronauticalDriftWorksheet({
               </div>
             </div>
 
-            {/* Line 10: Average wind aloft during glide (AWAg) */}
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 py-1">
-              <div className="flex items-baseline gap-2">
-                <span className="w-4 font-bold text-slate-900">10</span>
-                <div>
+            {/* Line 10: Average wind aloft during glide (AWAg) — kanan wajib satu baris */}
+            <div className="flex items-center justify-between gap-2 border-b border-slate-100 py-1">
+              <div className="flex min-w-0 flex-1 items-baseline gap-2">
+                <span className="w-4 shrink-0 font-bold text-slate-900">10</span>
+                <div className="min-w-0">
                   <span className="text-slate-800">Average wind aloft during glide (AWAg)</span>
                   <div className="text-[10px] text-slate-500 italic">
                     (attach Average wind aloft worksheet)
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-6 font-mono">
+              <div className="flex shrink-0 items-center gap-6 whitespace-nowrap font-mono">
                 {(viewMode === 'dual' || viewMode === 'aircraft') && (
-                  <div className="flex items-center gap-1 w-36 justify-end">
+                  <div className="flex items-center gap-1 justify-end">
                     <span className="font-bold text-blue-950 border-b border-dotted border-slate-700 px-1">
-                      {formData.awaIsValid ? `${formData.awaGlideDirFrom.toString().padStart(3, '0')}°T / ${formData.awaGlideSpeedKts} kts` : '- (AWA belum valid)'}
+                      {formData.awaIsValid ? `${awaDirLabel}°T / ${formatNum4(formData.awaGlideSpeedKts)} kts` : '- (AWA belum valid)'}
                     </span>
                   </div>
                 )}
                 {(viewMode === 'dual' || viewMode === 'parachute') && (
-                  <div className="flex items-center gap-1 w-36 justify-end">
+                  <div className="flex items-center gap-1 justify-end">
                     <span className="font-bold text-blue-950 border-b border-dotted border-slate-700 px-1">
-                      {formData.awaIsValid ? `${formData.awaGlideDirFrom.toString().padStart(3, '0')}°T / ${formData.awaGlideSpeedKts} kts` : '- (AWA belum valid)'}
+                      {formData.awaIsValid ? `${awaDirLabel}°T / ${formatNum4(formData.awaGlideSpeedKts)} kts` : '- (AWA belum valid)'}
                     </span>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Line 11: Downwind aircraft/parachute displacement due to average wind aloft */}
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 py-1">
-              <div className="flex items-baseline gap-2">
-                <span className="w-4 font-bold text-slate-900">11</span>
-                <span className="text-slate-800">
+            {/* Line 11: Downwind aircraft/parachute displacement due to average wind aloft — hitungan kanan wajib satu baris */}
+            <div className="flex items-center justify-between gap-2 border-b border-slate-100 py-1">
+              <div className="flex min-w-0 flex-1 items-baseline gap-2">
+                <span className="w-4 shrink-0 font-bold text-slate-900">11</span>
+                <span className="min-w-0 text-slate-800">
                   Downwind aircraft/parachute displacement due to average wind aloft (dd = (td × AWA)/60)
                 </span>
               </div>
-              <div className="flex items-center gap-6 font-mono">
+              <div className="flex shrink-0 items-center gap-6 whitespace-nowrap font-mono">
                 {(viewMode === 'dual' || viewMode === 'aircraft') && (
-                  <div className="flex items-center gap-1 w-36 justify-end">
+                  <div className="flex items-center gap-1 justify-end">
                     <span className="font-bold text-blue-950 border-b border-dotted border-slate-700 px-1">
                       {formData.awaIsValid ? downwindDir.toFixed(0).padStart(3, '0') : '-'}
                     </span>
@@ -1070,7 +1099,7 @@ export default function AeronauticalDriftWorksheet({
                   </div>
                 )}
                 {(viewMode === 'dual' || viewMode === 'parachute') && (
-                  <div className="flex items-center gap-1 w-36 justify-end">
+                  <div className="flex items-center gap-1 justify-end">
                     <span className="font-bold text-blue-950 border-b border-dotted border-slate-700 px-1">
                       {formData.awaIsValid ? downwindDir.toFixed(0).padStart(3, '0') : '-'}
                     </span>
@@ -1084,17 +1113,17 @@ export default function AeronauticalDriftWorksheet({
               </div>
             </div>
 
-            {/* Line 12: Aircraft/parachute glide displacement (da = vector sum of dg and dd) */}
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 py-1 bg-blue-50/30">
-              <div className="flex items-baseline gap-2">
-                <span className="w-4 font-bold text-slate-900">12</span>
-                <span className="text-slate-900 font-bold">
+            {/* Line 12: Aircraft/parachute glide displacement (da = vector sum of dg and dd) — hitungan kanan wajib satu baris */}
+            <div className="flex items-center justify-between gap-2 border-b border-slate-100 py-1 bg-blue-50/30">
+              <div className="flex min-w-0 flex-1 items-baseline gap-2">
+                <span className="w-4 shrink-0 font-bold text-slate-900">12</span>
+                <span className="min-w-0 text-slate-900 font-bold">
                   Aircraft/parachute glide displacement (da = vector sum of dg and dd)
                 </span>
               </div>
-              <div className="flex items-center gap-6 font-mono">
+              <div className="flex shrink-0 items-center gap-6 whitespace-nowrap font-mono">
                 {(viewMode === 'dual' || viewMode === 'aircraft') && (
-                  <div className="flex items-center gap-1 w-36 justify-end">
+                  <div className="flex items-center gap-1 justify-end">
                     <span className="font-black text-blue-950 border-b-2 border-slate-900 px-1">
                       {results.positionValid && formData.useAircraftGlide ? results.aircraftGlideDisplacementVector.dir.toFixed(1).padStart(5, '0') : '-'}
                     </span>
@@ -1106,7 +1135,7 @@ export default function AeronauticalDriftWorksheet({
                   </div>
                 )}
                 {(viewMode === 'dual' || viewMode === 'parachute') && (
-                  <div className="flex items-center gap-1 w-36 justify-end">
+                  <div className="flex items-center gap-1 justify-end">
                     <span className="font-black text-blue-950 border-b-2 border-slate-900 px-1">
                       {results.positionValid && formData.useParachute ? results.parachuteDisplacementVector.dir.toFixed(1).padStart(5, '0') : '-'}
                     </span>
@@ -1120,45 +1149,51 @@ export default function AeronauticalDriftWorksheet({
               </div>
             </div>
 
-            {/* Line 13: Date/time at end of glide */}
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 py-1">
-              <div className="flex items-baseline gap-2">
-                <span className="w-4 font-bold text-slate-900">13</span>
-                <span className="text-slate-800">
+            {/* Line 13: Date/time at end of glide — A.1 + B.7 dibulatkan; kanan wajib satu baris */}
+            <div className="flex items-center justify-between gap-2 border-b border-slate-100 py-1">
+              <div className="flex min-w-0 flex-1 items-baseline gap-2">
+                <span className="w-4 shrink-0 font-bold text-slate-900">13</span>
+                <span className="min-w-0 text-slate-800">
                   Date/time at end of glide (incident date/time + time of descent)
                 </span>
-                <div className="text-[10px] text-slate-500 italic">
-                  (B.8/B.11 memakai td desimal; untuk B.13 td dibulatkan setengah-ke-atas ke menit, suffix Z dipertahankan)
+                <div className="min-w-0 text-[10px] text-slate-500 italic">
+                  (rumus: A.1 + hasil pembulatan B.7 — td desimal dibulatkan setengah-ke-atas ke menit, suffix Z dipertahankan)
                 </div>
               </div>
-              <div className="flex items-center gap-6 font-mono">
+              <div className="flex shrink-0 items-center gap-6 whitespace-nowrap font-mono">
                 {(viewMode === 'dual' || viewMode === 'aircraft') && (
-                  <div className="flex items-center gap-1 w-36 justify-end">
+                  <div className="flex items-center gap-1 justify-end">
                     <span className="font-bold text-blue-950 border-b border-dotted border-slate-700 px-1">
-                      {formData.useAircraftGlide ? formatUtcEnd(formData.date, formData.incidentTime, results.aircraftTimeOfDescentMin) ?? '-' : '-'}
+                      {formData.useAircraftGlide
+                        ? formatUtcEnd(formData.date, formData.incidentTime, roundHalfUpToMinute(results.aircraftTimeOfDescentMin)) ?? '-'
+                        : '-'}
                     </span>
                   </div>
                 )}
                 {(viewMode === 'dual' || viewMode === 'parachute') && (
-                  <div className="flex items-center gap-1 w-36 justify-end">
+                  <div className="flex items-center gap-1 justify-end">
                     <span className="font-bold text-blue-950 border-b border-dotted border-slate-700 px-1">
-                      {formData.useParachute ? formatUtcEnd(
-                        formData.date,
-                        formData.incidentTime,
-                        (formData.useAircraftGlide ? results.aircraftTimeOfDescentMin : 0) +
-                          (formData.useParachute ? results.parachuteTimeOfDescentMin : 0),
-                      ) ?? '-' : '-'}
+                      {formData.useParachute
+                        ? formatUtcEnd(
+                          formData.date,
+                          formData.incidentTime,
+                          roundHalfUpToMinute(
+                            (formData.useAircraftGlide ? results.aircraftTimeOfDescentMin : 0) +
+                              (formData.useParachute ? results.parachuteTimeOfDescentMin : 0),
+                          ),
+                        ) ?? '-'
+                        : '-'}
                     </span>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Line 14: Latitude, longitude at end of glide */}
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b-2 border-slate-900 py-1.5 bg-sky-50/50">
-              <div className="flex items-baseline gap-2">
-                <span className="w-4 font-bold text-slate-900">14</span>
-                <div>
+            {/* Line 14: Latitude, longitude at end of glide — koordinat kanan wajib satu baris */}
+            <div className="flex items-center justify-between gap-2 border-b-2 border-slate-900 py-1.5 bg-sky-50/50">
+              <div className="flex min-w-0 flex-1 items-baseline gap-2">
+                <span className="w-4 shrink-0 font-bold text-slate-900">14</span>
+                <div className="min-w-0">
                   <span className="text-slate-950 font-bold">
                     Latitude, longitude at end of glide
                   </span>
@@ -1167,29 +1202,25 @@ export default function AeronauticalDriftWorksheet({
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-6 font-mono">
+              <div className="flex shrink-0 items-center gap-6 whitespace-nowrap font-mono">
                 {(viewMode === 'dual' || viewMode === 'aircraft') && (
-                  <div className="text-right w-36">
-                    <div className="font-bold text-blue-950 text-[11px]">
-                      {results.positionValid && formData.useAircraftGlide ? formatDMS(results.aircraftEndGlidePos.lat, false) : '-'}
-                    </div>
-                    <div className="font-bold text-blue-950 text-[11px]">
-                      {results.positionValid && formData.useAircraftGlide ? formatDMS(results.aircraftEndGlidePos.lng, true) : '-'}
-                    </div>
+                  <div className="text-right text-[11px] font-bold text-blue-950">
+                    {results.positionValid && formData.useAircraftGlide
+                      ? `${formatDMS(results.aircraftEndGlidePos.lat, false)}, ${formatDMS(results.aircraftEndGlidePos.lng, true)}`
+                      : '-'}
                   </div>
                 )}
                 {(viewMode === 'dual' || viewMode === 'parachute') && (
-                  <div className="text-right w-36 bg-emerald-50/80 p-1 rounded border border-emerald-300">
-                    <div className="text-[9px] font-bold uppercase text-emerald-800">
-                      Hasil geodesik (B.14)
-                    </div>
-                    <div className="font-black text-emerald-950 text-xs">
-                      {results.positionValid ? formatDMS(results.landingPos.lat, false) : '-'}
-                    </div>
-                    <div className="font-black text-emerald-950 text-xs">
-                      {results.positionValid ? formatDMS(results.landingPos.lng, true) : '-'}
-                    </div>
-                    <div className="text-[9px] text-emerald-800">Pembacaan manual UPS dapat berbeda</div>
+                  <div
+                    className="rounded border border-emerald-300 bg-emerald-50/80 px-1 py-0.5 text-right text-[11px]"
+                    title="Hasil geodesik (B.14) — pembacaan manual UPS dapat berbeda"
+                  >
+                    <span className="text-[9px] font-bold uppercase text-emerald-800">geodesik:</span>{' '}
+                    <span className="font-black text-emerald-950">
+                      {results.positionValid
+                        ? `${formatDMS(results.landingPos.lat, false)}, ${formatDMS(results.landingPos.lng, true)}`
+                        : '-'}
+                    </span>
                   </div>
                 )}
               </div>
@@ -1204,13 +1235,13 @@ export default function AeronauticalDriftWorksheet({
             <li><b>B.1/B.2</b> — Soal Kasus; Altmin jangan di-default 0 bila tidak diketahui; valid: Altmax ≥ Altmin.</li>
             <li><b>B.4</b> — Aircraft: Flight Manual; Parachute: Table N-13 (IAMSAR Vol II, hal. N-20); rasio aircraft tidak boleh disalin ke parasut.</li>
             <li><b>B.5</b> — Glide Speed dari soal/Flight Manual, bukan TAS cruise otomatis.</li>
-            <li><b>B.6</b> — Aircraft: (TASg × 101) / gr — konstanta 101 hanya untuk aircraft; Parachute: nilai Table N-13 tanpa interpolasi.</li>
+            <li><b>B.6</b> — Aircraft: (TASg × 101) / gr — konstanta 101 hanya untuk aircraft; Parachute: nilai Table N-13 tanpa interpolasi. Hasil B.6, B.7, B.8, dan B.10 ditampilkan maksimal 4 desimal (koma panjang dibulatkan ke 4, nol akhir dipangkas).</li>
             <li><b>B.7/B.8/B.11</b> — hitung dengan <b>td desimal</b>; hasil B.8 &amp; B.11 dalam NM.</li>
             <li><b>B.9</b> — Magnetic → True: Variation East ditambah, West dikurangi (kebalikan mnemonic T-v-M-d-C); dari Compass, koreksi Deviation dulu (Dev East tambah).</li>
             <li><b>B.10</b> — AWA diambil dari worksheet AWA aplikasi; tidak dihitung ulang dari Wind Forecast dan tidak ditebak.</li>
             <li><b>B.11</b> — arah downwind = AWA − 180°; dd = (td × AWA speed)/60.</li>
             <li><b>B.12</b> — vector sum head-to-tail (geodesik, setara plotting UPS); bukan penjumlahan jarak aritmetika.</li>
-            <li><b>B.13</b> — waktu insiden + td; pembulatan setengah-ke-atas (pecahan ≥ 0,5 menit naik); suffix Z dipertahankan; melewati 2400 lanjut tanggal berikutnya. Ditampilkan dalam format Basarnas MMDD.HHMM Z.</li>
+            <li><b>B.13</b> — rumus: A.1 + (hasil pembulatan B.7 setengah-ke-atas); melewati 2400 lanjut tanggal berikutnya; suffix Z dipertahankan. Bulan/tanggal diambil dari A.1 (format apa pun) atau field tanggal; tahun opsional — B.13 tetap tampil walau field tanggal kosong. Ditampilkan format Basarnas MMDD.HHMM Z.</li>
             <li><b>A.1 + B.7 → ASW</b> — waktu distress worksheet ASW diambil otomatis dari A.1 (waktu insiden) + B.7 (menit turun seluruh segmen aktif, dibulatkan setengah-ke-atas), format Basarnas MMDD.HHMM.</li>
             <li><b>B.14</b> — koordinat akhir dari hasil geodesik/UPS; bila haluan turun tidak diketahui: kosongkan dan teruskan jumlah glide distance ke worksheet Total probable error of position A.5.</li>
             <li>Parachute glide ratio 0 → Part C (drift angin saja); hasil fase Pesawat &amp; Parasut disimpan terpisah.</li>
