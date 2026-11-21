@@ -2965,16 +2965,18 @@ export default function Home() {
         {/* Left Column: Worksheets & Tools */}
         <section className="lg:col-span-3 space-y-4">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            {/* Navigation Tabs List — PETA PIKIRAN (MIND MAP) dengan TIGA
-                KELOMPOK DOMAIN (UDARA / LAUT / DARAT) + satu kelompok komando
-                lintas domain. Worksheet Intercept, Alokasi Aset, Hitung Dasar,
-                dan Renops punya instansi per domain dengan state mandiri;
-                Briefing & De-briefing, Pola & Rute, Generator Soal, dan
-                ringkasan tetap tanpa kelompok domain. SEMUA tab tampil (wrap
-                per baris), tanpa scroll samping. Node pusat (hub) di kiri
-                menyalakan cabang ke tiap grup; animasi WorksheetMindMap
-                menggambar pulsa data dari tab sumber melalui pusat menuju tab
-                penerima sesuai WORKSHEET_DATA_EDGES. */}
+            {/* Navigation Tabs List — STRUKTUR ORGANISASI (ORG CHART) dengan
+                TIGA KELOMPOK DOMAIN (UDARA / LAUT / DARAT) + satu kelompok
+                komando lintas domain. Worksheet Intercept, Alokasi Aset,
+                Hitung Dasar, dan Renops punya instansi per domain dengan
+                state mandiri; Briefing & De-briefing, Pola & Rute, Generator
+                Soal, dan ringkasan tetap tanpa kelompok domain. SEMUA tab
+                tampil (wrap per baris), tanpa scroll samping. Node akar
+                (hub) di kiri tersambung lewat batang + percabangan siku ke
+                tiap grup, lalu bus ke setiap tab — semua garis membawa dash
+                berjalan; animasi WorksheetMindMap menggambar pulsa data di
+                atas kawat org chart dari tab sumber melalui pusat menuju
+                tab penerima sesuai WORKSHEET_DATA_EDGES. */}
             <div className="mb-3 relative flex items-stretch gap-2" id="worksheet-tabs-host">
               {/* NODE PUSAT mind map — inti komando tempat semua cabang dan
                   pulsa data bertemu. Tersembunyi di layar kecil. */}

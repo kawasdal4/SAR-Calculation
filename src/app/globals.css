@@ -847,13 +847,13 @@
   flex: 0 0 auto;
 }
 
-/* ===== WORKSHEET MIND MAP — peta pikiran alur data antar worksheet.
-   Kometa data (dash) bergerak dari tab produsen → node grup → pusat (hub) →
-   node grup tujuan → tab konsumen memakai pathLength=1, sehingga animasi
-   stroke-dashoffset bergerak dalam satuan proporsional (0 → -1 = satu putaran
-   jalur) dan kecepatan kometa seragam untuk semua panjang jalur. Dashoffset
-   negatif menggeser pola dash ke ujung path (arah aliran produsen → konsumen).
-   ===== */
+/* ===== WORKSHEET MIND MAP — STRUKTUR ORGANISASI (org chart) alur data
+   antar worksheet. Semua kawat (batang hub → spine → stub grup → bus ke
+   setiap tab) memakai DASH BERJALAN: pola dash kecil melaju terus sepanjang
+   garis dari akar menuju grup dan tab (mm-wire-flow). Kometa data
+   (mm-comet) melaju di atas kawat yang sama dari tab produsen ke konsumen.
+   pathLength=1 + dashoffset negatif = aliran maju ke ujung path dengan
+   kecepatan seragam untuk semua panjang garis. ===== */
 @keyframes mm-comet {
   from {
     stroke-dashoffset: 0;
@@ -874,8 +874,10 @@
   animation-duration: 1.8s;
 }
 
-/* Denyut cahaya pada cabang utama mengalir keluar dari pusat (hub → badge). */
-@keyframes mm-branch-flow {
+/* Dash berjalan pada kawat org chart (batang/stub/bus): periode dash
+   0.035+0.115 = 0.15 (dengan pathLength=1) sehingga offset -0.15 per putaran
+   loops mulus tanpa lompatan. */
+@keyframes mm-wire-flow {
   from {
     stroke-dashoffset: 0;
   }
@@ -884,8 +886,8 @@
   }
 }
 
-.mm-branch-flow {
-  animation: mm-branch-flow 2.8s linear infinite;
+.mm-wire-flow {
+  animation: mm-wire-flow 3.2s linear infinite;
 }
 
 /* Halo port ujung alur data berdenyut lembut. transform-box: fill-box agar
@@ -943,7 +945,7 @@
   .mm-comet,
   .mm-comet-glow,
   .mm-comet--active,
-  .mm-branch-flow,
+  .mm-wire-flow,
   .mm-port-halo,
   .mm-hub,
   .mm-hub-ring {
