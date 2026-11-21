@@ -289,7 +289,8 @@ export default function AeronauticalDriftWorksheet({
 });
 
   const [searchPlanOption, setSearchPlanOption] = useState<'A' | 'B' | 'C' | ''>('');
-  const [viewMode, setViewMode] = useState<'dual' | 'aircraft' | 'parachute'>('dual');
+  // Default tampilan: Lembar Pesawat (da) — alur kerja worksheet dimulai dari glide pesawat.
+  const [viewMode, setViewMode] = useState<'dual' | 'aircraft' | 'parachute'>('aircraft');
 
   // Keep external AWA in sync, including whether it came from a valid worksheet.
   // (Pola resmi React: menyesuaikan state saat render ketika props berubah — tanpa effect.)
@@ -691,9 +692,9 @@ export default function AeronauticalDriftWorksheet({
           <div className="space-y-2 pl-6 pt-1 text-xs">
             {/* Header when dual mode is active */}
             {viewMode === 'dual' && (
-              <div className="flex items-center justify-between pb-1 border-b border-slate-300 text-[11px] font-bold text-slate-700">
-                <span className="w-1/2">Parameter / Deskripsi</span>
-                <div className="w-1/2 flex items-center justify-end gap-6 text-center">
+              <div className="flex items-center justify-between gap-2 pb-1 border-b border-slate-300 text-[11px] font-bold text-slate-700">
+                <span className="min-w-0 flex-1">Parameter / Deskripsi</span>
+                <div className="flex shrink-0 items-center justify-end gap-6 text-center">
                   <span className="w-36 text-sky-900 bg-sky-50 px-2 py-0.5 rounded border border-sky-200">
                     Aircraft Glide (da)
                   </span>
@@ -705,14 +706,14 @@ export default function AeronauticalDriftWorksheet({
             )}
 
             {/* Line 1: Incident or bailout/opening altitude (Altmax) */}
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 py-1">
-              <div className="flex items-baseline gap-2">
+            <div className="flex items-center justify-between gap-2 border-b border-slate-100 py-1">
+              <div className="flex min-w-0 flex-1 items-baseline gap-2">
                 <span className="w-4 font-bold text-slate-900">1</span>
                 <span className="text-slate-800">
                   Incident or bailout/opening altitude as appropriate (Altmax)
                 </span>
               </div>
-              <div className="flex items-center gap-6">
+              <div className="flex shrink-0 items-center gap-6 whitespace-nowrap">
                 {(viewMode === 'dual' || viewMode === 'aircraft') && (
                   <div className="flex items-center gap-1 font-mono w-36 justify-end">
                     <input
@@ -747,14 +748,14 @@ export default function AeronauticalDriftWorksheet({
             </div>
 
             {/* Line 2: Terrain or bailout/opening altitude (Altmin) */}
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 py-1">
-              <div className="flex items-baseline gap-2">
+            <div className="flex items-center justify-between gap-2 border-b border-slate-100 py-1">
+              <div className="flex min-w-0 flex-1 items-baseline gap-2">
                 <span className="w-4 font-bold text-slate-900">2</span>
                 <span className="text-slate-800">
                   Terrain or bailout/opening altitude as appropriate (Altmin)
                 </span>
               </div>
-              <div className="flex items-center gap-6">
+              <div className="flex shrink-0 items-center gap-6 whitespace-nowrap">
                 {(viewMode === 'dual' || viewMode === 'aircraft') && (
                   <div className="flex items-center gap-1 font-mono w-36 justify-end">
                     <input
@@ -789,14 +790,14 @@ export default function AeronauticalDriftWorksheet({
             </div>
 
             {/* Line 3: Altitude loss (Alt loss = Altmax – Altmin) */}
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 py-1">
-              <div className="flex items-baseline gap-2">
+            <div className="flex items-center justify-between gap-2 border-b border-slate-100 py-1">
+              <div className="flex min-w-0 flex-1 items-baseline gap-2">
                 <span className="w-4 font-bold text-slate-900">3</span>
                 <span className="text-slate-800">
                   Altitude loss (Alt loss = Altmax – Altmin)
                 </span>
               </div>
-              <div className="flex items-center gap-6">
+              <div className="flex shrink-0 items-center gap-6 whitespace-nowrap">
                 {(viewMode === 'dual' || viewMode === 'aircraft') && (
                   <div className="flex items-center gap-1 font-mono w-36 justify-end">
                     <span className="w-20 font-bold text-blue-950 border-b border-dotted border-slate-700 text-right pr-1">
@@ -817,10 +818,10 @@ export default function AeronauticalDriftWorksheet({
             </div>
 
             {/* Line 4: Glide ratio (gr = horizontal distance/vertical distance) */}
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 py-1">
-              <div className="flex items-baseline gap-2">
+            <div className="flex items-center justify-between gap-2 border-b border-slate-100 py-1">
+              <div className="flex min-w-0 flex-1 items-baseline gap-2">
                 <span className="w-4 font-bold text-slate-900">4</span>
-                <div>
+                <div className="min-w-0">
                   <span className="text-slate-800">
                     Glide ratio (gr = horizontal distance/vertical distance)
                   </span>
@@ -829,7 +830,7 @@ export default function AeronauticalDriftWorksheet({
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-6">
+              <div className="flex shrink-0 items-center gap-6 whitespace-nowrap">
                 {(viewMode === 'dual' || viewMode === 'aircraft') && (
                   <div className="flex items-center gap-1 font-mono w-36 justify-end">
                     <input
@@ -857,12 +858,12 @@ export default function AeronauticalDriftWorksheet({
             </div>
 
             {/* Line 5: Glide true air speed (TASg) */}
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 py-1">
-              <div className="flex items-baseline gap-2">
+            <div className="flex items-center justify-between gap-2 border-b border-slate-100 py-1">
+              <div className="flex min-w-0 flex-1 items-baseline gap-2">
                 <span className="w-4 font-bold text-slate-900">5</span>
                 <span className="text-slate-800">Glide true air speed (TASg)</span>
               </div>
-              <div className="flex items-center gap-6">
+              <div className="flex shrink-0 items-center gap-6 whitespace-nowrap">
                 {(viewMode === 'dual' || viewMode === 'aircraft') && (
                   <div className="flex items-center gap-1 font-mono w-36 justify-end">
                     <input
@@ -889,19 +890,25 @@ export default function AeronauticalDriftWorksheet({
             </div>
 
             {/* Line 6: Rate of descent (rated) */}
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 py-1">
-              <div className="flex items-baseline gap-2">
+            <div className="flex items-center justify-between gap-2 border-b border-slate-100 py-1">
+              <div className="flex min-w-0 flex-1 items-baseline gap-2">
                 <span className="w-4 font-bold text-slate-900">6</span>
-                <div>
+                <div className="min-w-0">
                   <span className="text-slate-800">
                     Rate of descent (rated) ((TASg × 101)/gr for aircraft)
                   </span>
                   <div className="text-[10px] text-slate-500 italic">
                     (aircraft: rumus konstanta 101; parachutes: nilai Table N-13 — pilih jenis di bagian atas, tanpa interpolasi)
                   </div>
+                  {/* Catatan sumber N-13 pindah ke sisi kiri agar kolom nilai kanan tetap satu baris. */}
+                  {(viewMode === 'dual' || viewMode === 'parachute') && (
+                    <div className="text-[9px] leading-tight text-slate-500" title={TABLE_N13_SOURCE}>
+                      {n13Provenance}
+                    </div>
+                  )}
                 </div>
               </div>
-              <div className="flex items-center gap-6">
+              <div className="flex shrink-0 items-center gap-6 whitespace-nowrap">
                 {(viewMode === 'dual' || viewMode === 'aircraft') && (
                   <div className="flex items-center gap-1 font-mono w-36 justify-end">
                     <span className="w-20 font-bold text-blue-950 border-b border-dotted border-slate-700 text-right pr-1">
@@ -911,22 +918,17 @@ export default function AeronauticalDriftWorksheet({
                   </div>
                 )}
                 {(viewMode === 'dual' || viewMode === 'parachute') && (
-                  <div className="w-36">
-                    <div className="flex items-center gap-1 font-mono justify-end">
-                      <input
-                        type="number"
-                        min="0"
-                        step="1"
-                        value={formData.parachuteRateOfDescentFtMin}
-                        onChange={(e) => updateField('parachuteRateOfDescentFtMin', Number(e.target.value) || 0)}
-                        className="w-20 font-bold text-blue-900 border-b border-dotted border-slate-700 bg-transparent text-right pr-1 focus:outline-none"
-                        aria-label="Parachute rate of descent from table N-13"
-                      />
-                      <span className="text-slate-600 font-sans text-xs">ft/min</span>
-                    </div>
-                    <div className="mt-0.5 text-right text-[9px] leading-tight text-slate-500" title={TABLE_N13_SOURCE}>
-                      {n13Provenance}
-                    </div>
+                  <div className="flex items-center gap-1 font-mono w-36 justify-end">
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={formData.parachuteRateOfDescentFtMin}
+                      onChange={(e) => updateField('parachuteRateOfDescentFtMin', Number(e.target.value) || 0)}
+                      className="w-20 font-bold text-blue-900 border-b border-dotted border-slate-700 bg-transparent text-right pr-1 focus:outline-none"
+                      aria-label="Parachute rate of descent from table N-13"
+                    />
+                    <span className="text-slate-600 font-sans text-xs">ft/min</span>
                   </div>
                 )}
               </div>
@@ -975,12 +977,12 @@ export default function AeronauticalDriftWorksheet({
             </div>
 
             {/* Line 8: Glide distance (dg = (TASg × td)/60) */}
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 py-1">
-              <div className="flex items-baseline gap-2">
+            <div className="flex items-center justify-between gap-2 border-b border-slate-100 py-1">
+              <div className="flex min-w-0 flex-1 items-baseline gap-2">
                 <span className="w-4 font-bold text-slate-900">8</span>
                 <span className="text-slate-800">Glide distance (dg = (TASg × td)/60)</span>
               </div>
-              <div className="flex items-center gap-6">
+              <div className="flex shrink-0 items-center gap-6 whitespace-nowrap">
                 {(viewMode === 'dual' || viewMode === 'aircraft') && (
                   <div className="flex items-center gap-1 font-mono w-36 justify-end">
                     <span className="w-20 font-bold text-blue-950 border-b border-dotted border-slate-700 text-right pr-1">
@@ -1001,12 +1003,12 @@ export default function AeronauticalDriftWorksheet({
             </div>
 
             {/* Line 9: Descent heading (if unknown, leave blank) */}
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 py-1">
-              <div className="flex items-baseline gap-2">
+            <div className="flex items-center justify-between gap-2 border-b border-slate-100 py-1">
+              <div className="flex min-w-0 flex-1 items-baseline gap-2">
                 <span className="w-4 font-bold text-slate-900">9</span>
                 <span className="text-slate-800">Descent heading (if unknown, leave blank)</span>
               </div>
-              <div className="flex items-center gap-6">
+              <div className="flex shrink-0 items-center gap-6 whitespace-nowrap">
                 {(viewMode === 'dual' || viewMode === 'aircraft') && (
                   <HeadingInput
                     label="Aircraft"
