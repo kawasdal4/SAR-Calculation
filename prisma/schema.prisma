@@ -216,18 +216,22 @@ model AiSessionLog {
 /// di memori browser. Untuk upload PDF, `rasterKey` menyimpan PNG raster
 /// halaman pertama (pdftoppm) untuk tampilan & cetak; file asli tidak diubah.
 model TempMapFile {
-  id         String   @id @default(uuid())
-  fileName   String
-  mimeType   String
-  sizeBytes  Int
-  /// 'r2' | 'local'
-  storage    String
+  id          String   @id @default(uuid())
+  fileName    String
+  mimeType    String
+  sizeBytes   Int
+  /// 'r2' | 'db' | 'local' — db = isi berkas disimpan di baris ini (tanpa R2)
+  storage     String
   /// Kunci objek di R2 / nama file di disk lokal (versi ASLI yang diunggah)
-  storageKey String
+  storageKey  String
   /// Kunci objek raster PNG (khusus upload PDF; null bila langsung image)
-  rasterKey  String?
-  createdAt  DateTime @default(now())
-  expiresAt  DateTime
+  rasterKey   String?
+  /// Isi berkas ASLI (storage 'db' — serverless tanpa R2; BYTEA/BLOB)
+  bytes       Bytes?
+  /// Isi raster PNG halaman pertama (storage 'db', khusus upload PDF)
+  rasterBytes Bytes?
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime
 
   @@index([expiresAt])
 }

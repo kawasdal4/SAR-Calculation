@@ -8,11 +8,16 @@
  *  - paling lambat 6 JAM (kolom expiresAt; sweep dijalankan pada tiap upload
  *    dan tiap GET — objek kedaluwarsa dihapus dari storage + barisnya).
  *
- * Backend:
+ * Backend (dipilih otomatis):
  *  - Cloudflare R2 (kompatibel S3) bila env R2_ACCOUNT_ID, R2_ACCESS_KEY_ID,
  *    R2_SECRET_ACCESS_KEY, R2_BUCKET terisi — via aws4fetch (SigV4, tanpa
  *    dependensi berat).
- *  - Fallback disk lokal `.uploads/` (dev/sandbox) dengan kebijakan yang sama.
+ *  - DATABASE (storage 'db') bila R2 TIDAK dikonfigurasi: isi berkas disimpan
+ *    langsung di baris TempMapFile (BYTEA/BLOB). WAJIB di lingkungan serverless
+ *    (Vercel/Lambda): filesystem proses read-only (/var/task) dan /tmp hanya
+ *    hidup per-instance — berkas disk bisa hilang antar request, baris DB tidak.
+ *  - Fallback disk (storage 'local', dev/sandbox): UPLOAD_DIR → .uploads/ di
+ *    cwd → /tmp/.uploads (kandidat pertama yang BISA ditulis dipakai).
  *
  * Upload PDF: halaman PERTAMA diraster-kan ke PNG (pdftoppm, sisi terpanjang
  * ±4200 px) supaya bisa ditampilkan & dicetak; FILE ASLI TIDAK PERNAH DIUBAH —
@@ -41,7 +46,7 @@ export interface TempMapInfo {
   fileName: string;
   mimeType: string;
   sizeBytes: number;
-  storage: 'r2' | 'local';
+  storage: 'r2' | 'db' | 'local';
   /** URL tampilan (raster PNG bila PDF, selain itu file asli). */
   displayUrl: string;
   /** URL file asli (tanpa perubahan). */
@@ -69,9 +74,40 @@ export function isR2Configured(): boolean {
 }
 
 function localUploadDir(): string {
-  const dir = path.join(process.cwd(), '.uploads');
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-  return dir;
+  if (localUploadDirCache) return localUploadDirCache;
+  const envDir = process.env.UPLOAD_DIR?.trim();
+  localUploadDirCache = resolveLocalUploadDir(
+    [
+      envDir || undefined,
+      path.join(process.cwd(), '.uploads'),
+      // Serverless (Vercel/Lambda): cwd = /var/task read-only → /tmp writable.
+      path.join('/tmp', '.uploads'),
+    ].filter((d): d is string => Boolean(d)),
+  );
+  return localUploadDirCache;
+}
+
+let localUploadDirCache: string | null = null;
+
+/** Pilih kandidat direktori pertama yang BISA dibuat & ditulis (probe baca-
+ *  tulis, bukan sekadar mkdir). Eksport untuk pengujian/diagnostik. */
+export function resolveLocalUploadDir(candidates: string[]): string {
+  for (const dir of candidates) {
+    try {
+      if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+      const probe = path.join(dir, '.probe-write');
+      writeFileSync(probe, '1');
+      rmSync(probe, { force: true });
+      return dir;
+    } catch {
+      // Read-only / tidak bisa dibuat → coba kandidat berikutnya.
+    }
+  }
+  throw new Error(
+    'Tidak ada direktori upload yang bisa ditulis (dicoba: ' +
+    `${candidates.join(', ') || '(kosong)'}). Set env UPLOAD_DIR ke folder ` +
+    'writable atau konfigurasikan penyimpanan R2.',
+  );
 }
 
 function r2Client(): AwsClient {
@@ -98,8 +134,8 @@ function encodeR2Key(key: string): string {
 // Operasi objek (R2 / disk)
 // ---------------------------------------------------------------------------
 
-async function putObject(key: string, bytes: Buffer, mimeType: string): Promise<void> {
-  if (isR2Configured()) {
+async function putObject(kind: 'r2' | 'local', key: string, bytes: Buffer, mimeType: string): Promise<void> {
+  if (kind === 'r2') {
     const client = r2Client();
     const res = await client.fetch(r2ObjectUrl(key), {
       method: 'PUT',
@@ -112,8 +148,8 @@ async function putObject(key: string, bytes: Buffer, mimeType: string): Promise<
   writeFileSync(path.join(localUploadDir(), key.replace(/\//g, '__')), bytes);
 }
 
-async function getObject(key: string): Promise<Buffer | null> {
-  if (isR2Configured()) {
+async function getObject(kind: 'r2' | 'local', key: string): Promise<Buffer | null> {
+  if (kind === 'r2') {
     const client = r2Client();
     const res = await client.fetch(r2ObjectUrl(key), { method: 'GET' });
     if (res.status === 404) return null;
@@ -125,8 +161,8 @@ async function getObject(key: string): Promise<Buffer | null> {
   return readFileSync(file);
 }
 
-async function deleteObject(key: string): Promise<void> {
-  if (isR2Configured()) {
+async function deleteObject(kind: 'r2' | 'local', key: string): Promise<void> {
+  if (kind === 'r2') {
     const client = r2Client();
     await client.fetch(r2ObjectUrl(key), { method: 'DELETE' });
     return;
@@ -220,13 +256,29 @@ const TEMP_MAP_TABLE_DDL: Array<{ sqlite: string; postgres: string }> = [
   },
 ];
 
-/** Pastikan tabel TempMapFile ada (sekali per proses; gagal → dicoba lagi nanti). */
+/** Pastikan tabel TempMapFile + kolom bytes ada (sekali per proses; gagal →
+ *  dicoba lagi nanti). Kolom bytes/rasterBytes (BYTEA/BLOB) dipakai storage
+ *  'db' — serverless tanpa R2 menyimpan isi berkas langsung di baris. */
 export function ensureTempMapTable(): Promise<void> {
   if (!ensureTablePromise) {
     const isSqlite = isSqliteDatabase();
     ensureTablePromise = (async () => {
       for (const ddl of TEMP_MAP_TABLE_DDL) {
         await db.$executeRawUnsafe(isSqlite ? ddl.sqlite : ddl.postgres);
+      }
+      // Tambah kolom bytes bila tabel dibuat oleh versi lama / db push lama.
+      if (isSqlite) {
+        for (const column of ['bytes', 'rasterBytes']) {
+          try {
+            await db.$executeRawUnsafe(`ALTER TABLE "TempMapFile" ADD COLUMN "${column}" BLOB`);
+          } catch (error) {
+            // SQLite tanpa IF NOT EXISTS: abaikan persis error kolom ganda.
+            if (!/duplicate column/i.test(String((error as Error)?.message ?? error))) throw error;
+          }
+        }
+      } else {
+        await db.$executeRawUnsafe(`ALTER TABLE "TempMapFile" ADD COLUMN IF NOT EXISTS "bytes" BYTEA`);
+        await db.$executeRawUnsafe(`ALTER TABLE "TempMapFile" ADD COLUMN IF NOT EXISTS "rasterBytes" BYTEA`);
       }
     })().catch((error) => {
       // Reset cache agar panggilan berikutnya mencoba lagi (mis. DB baru siap).
@@ -245,12 +297,16 @@ export async function sweepExpiredTempMaps(): Promise<number> {
   await ensureTempMapTable();
   const expired = await db.tempMapFile.findMany({
     where: { expiresAt: { lt: new Date() } },
-    select: { id: true, storageKey: true, rasterKey: true },
+    select: { id: true, storage: true, storageKey: true, rasterKey: true },
   });
   for (const row of expired) {
-    try { await deleteObject(row.storageKey); } catch { /* biarkan R2 lifecycle */ }
-    if (row.rasterKey) {
-      try { await deleteObject(row.rasterKey); } catch { /* idem */ }
+    // Storage 'db': isi berkas hidup di barisnya — hapus baris = hapus berkas.
+    if (row.storage !== 'db') {
+      const kind = row.storage === 'r2' ? 'r2' : 'local';
+      try { await deleteObject(kind, row.storageKey); } catch { /* biarkan R2 lifecycle */ }
+      if (row.rasterKey) {
+        try { await deleteObject(kind, row.rasterKey); } catch { /* idem */ }
+      }
     }
   }
   if (expired.length > 0) {
@@ -275,7 +331,7 @@ export async function createTempMapUpload(input: {
   bytes: Buffer;
 }): Promise<TempMapInfo> {
   // Peluang bersih-bersih: sweep dipanggil di tiap upload (biaya kecil).
-  // Sweep memanggil ensureTempMapTable() — tabel dibuat bila belum ada.
+  // Sweep memanggil ensureTempMapTable() — tabel + kolom bytes dibuat bila belum ada.
   await sweepExpiredTempMaps();
 
   const id = crypto.randomUUID();
@@ -283,33 +339,46 @@ export async function createTempMapUpload(input: {
   const ext = path.extname(safeName) || (input.mimeType === 'application/pdf' ? '.pdf' : '.png');
   const base = safeName.slice(0, safeName.length - ext.length) || 'peta';
   const prefix = isR2Configured() ? r2Env().prefix : 'temp-maps';
-  const storage: 'r2' | 'local' = isR2Configured() ? 'r2' : 'local';
   const storageKey = `${prefix}/${id}-${base}${ext}`;
 
-  await putObject(storageKey, input.bytes, input.mimeType);
+  // PDF → raster halaman pertama untuk tampilan (file asli tetap utuh).
+  const rasterPng = input.mimeType === 'application/pdf'
+    ? (rasterizePdfFirstPage(input.bytes)?.png ?? null)
+    : null;
+  const rasterKey = rasterPng ? `${prefix}/${id}-raster.png` : null;
+  const expiresAt = new Date(Date.now() + TEMP_MAP_TTL_MS);
+  const rowBase = {
+    id,
+    fileName: safeName,
+    mimeType: input.mimeType,
+    sizeBytes: input.bytes.length,
+    storageKey,
+    rasterKey,
+    expiresAt,
+  };
 
-  let rasterKey: string | null = null;
-  if (input.mimeType === 'application/pdf') {
-    const raster = rasterizePdfFirstPage(input.bytes);
-    if (raster) {
-      rasterKey = `${prefix}/${id}-raster.png`;
-      await putObject(rasterKey, raster.png, 'image/png');
+  let storage: TempMapInfo['storage'];
+  if (isR2Configured()) {
+    storage = 'r2';
+    await putObject('r2', storageKey, input.bytes, input.mimeType);
+    if (rasterPng && rasterKey) await putObject('r2', rasterKey, rasterPng, 'image/png');
+    await db.tempMapFile.create({ data: { ...rowBase, storage } });
+  } else {
+    // Serverless tanpa R2: simpan isi berkas DI BARIS DB (BYTEA) — filesystem
+    // proses read-only (/var/task) dan /tmp tidak konsisten antar instance.
+    try {
+      storage = 'db';
+      await db.tempMapFile.create({
+        data: { ...rowBase, storage, bytes: input.bytes, rasterBytes: rasterPng },
+      });
+    } catch {
+      // DB menolak bytes (kolom tak bisa dibuat/driver lama) → fallback disk.
+      storage = 'local';
+      await putObject('local', storageKey, input.bytes, input.mimeType);
+      if (rasterPng && rasterKey) await putObject('local', rasterKey, rasterPng, 'image/png');
+      await db.tempMapFile.create({ data: { ...rowBase, storage } });
     }
   }
-
-  const expiresAt = new Date(Date.now() + TEMP_MAP_TTL_MS);
-  await db.tempMapFile.create({
-    data: {
-      id,
-      fileName: safeName,
-      mimeType: input.mimeType,
-      sizeBytes: input.bytes.length,
-      storage,
-      storageKey,
-      rasterKey,
-      expiresAt,
-    },
-  });
 
   return {
     id,
@@ -342,13 +411,23 @@ export async function loadTempMap(id: string, variant: 'original' | 'raster'): P
     await deleteTempMapById(id).catch(() => undefined);
     return { ok: false, code: 'expired' };
   }
-  const key = variant === 'raster' ? (row.rasterKey ?? row.storageKey) : row.storageKey;
-  const bytes = await getObject(key);
+  let bytes: Buffer | null;
+  let mimeType = row.mimeType;
+  if (row.storage === 'db') {
+    // Isi berkas tersimpan di barisnya (BYTEA) — tidak ada objek eksternal.
+    const rasterFirst = variant === 'raster' && row.rasterBytes;
+    bytes = (rasterFirst ? row.rasterBytes : row.bytes) ?? null;
+    if (rasterFirst) mimeType = 'image/png';
+  } else {
+    const kind = row.storage === 'r2' ? 'r2' : 'local';
+    const key = variant === 'raster' ? (row.rasterKey ?? row.storageKey) : row.storageKey;
+    bytes = await getObject(kind, key);
+    if (variant === 'raster' && row.rasterKey) mimeType = 'image/png';
+  }
   if (!bytes) return { ok: false, code: 'not-found' };
-  const mimeType = variant === 'raster' && row.rasterKey ? 'image/png' : row.mimeType;
   return {
     ok: true,
-    data: { fileName: row.fileName, mimeType, bytes, rasterKey: row.rasterKey },
+    data: { fileName: row.fileName, mimeType, bytes: Buffer.from(bytes), rasterKey: row.rasterKey },
   };
 }
 
@@ -356,8 +435,11 @@ export async function deleteTempMapById(id: string): Promise<boolean> {
   await ensureTempMapTable();
   const row = await db.tempMapFile.findUnique({ where: { id } });
   if (!row) return false;
-  await deleteObject(row.storageKey).catch(() => undefined);
-  if (row.rasterKey) await deleteObject(row.rasterKey).catch(() => undefined);
+  if (row.storage !== 'db') {
+    const kind = row.storage === 'r2' ? 'r2' : 'local';
+    await deleteObject(kind, row.storageKey).catch(() => undefined);
+    if (row.rasterKey) await deleteObject(kind, row.rasterKey).catch(() => undefined);
+  }
   await db.tempMapFile.delete({ where: { id } }).catch(() => undefined);
   return true;
 }

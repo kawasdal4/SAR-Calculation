@@ -10,7 +10,8 @@ export const dynamic = 'force-dynamic';
 
 /**
  * POST /api/maps/temp — upload peta hasil scan (PNG/JPEG/WEBP/PDF) ke
- * penyimpanan SEMENTARA (R2 bila dikonfigurasi, atau disk lokal).
+ * penyimpanan SEMENTARA (R2 bila dikonfigurasi, atau database — isi berkas di
+ * baris TempMapFile; fallback disk hanya untuk dev).
  * Berkas otomatis terhapus saat browser di-refresh/tutup (beacon release)
  * atau maksimum 6 jam. File asli disimpan TANPA perubahan; khusus PDF
  * ditambahkan raster PNG halaman pertama hanya untuk tampilan/cetak.
