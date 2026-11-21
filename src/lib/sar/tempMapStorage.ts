@@ -11,7 +11,11 @@
  * Backend (dipilih otomatis):
  *  - Cloudflare R2 (kompatibel S3) bila env R2_ACCOUNT_ID, R2_ACCESS_KEY_ID,
  *    R2_SECRET_ACCESS_KEY, R2_BUCKET (alias: R2_BUCKET_NAME) terisi — via
- *    aws4fetch (SigV4, tanpa dependensi berat).
+ *    aws4fetch (SigV4, tanpa dependensi berat). PENTING: permintaan R2
+ *    dikirim via fetch(url, init) dengan body BYTE (r2SignedFetch), BUKAN
+ *    client.fetch() — patch fetch milik Next.js me-rebuild Request object
+ *    menjadi body stream tanpa panjang → chunked tanpa Content-Length →
+ *    R2 menolak PUT dengan 411 MissingContentLength (lihat r2SignedFetch).
  *  - DATABASE (storage 'db') bila R2 TIDAK dikonfigurasi: isi berkas disimpan
  *    langsung di baris TempMapFile (BYTEA/BLOB). WAJIB di lingkungan serverless
  *    (Vercel/Lambda): filesystem proses read-only (/var/task) dan /tmp hanya
@@ -132,18 +136,51 @@ function encodeR2Key(key: string): string {
   return key.split('/').map(encodeURIComponent).join('/');
 }
 
+/**
+ * Kirim permintaan SigV4 ke R2 via fetch(url, init) — body BYTE asli, bukan
+ * Request object. Diekspor hanya untuk pengujian regresi.
+ *
+ * Latar (bug "R2 PUT gagal: 411 MissingContentLength" di Vercel): aws4fetch
+ * client.fetch() membungkus body di `new Request(url, {body})` lalu memanggil
+ * fetch(Request). Patch fetch milik Next.js (patch-fetch.js → doOriginalFetch,
+ * isRequestInput) me-rebuild Request itu dengan `body: request.body` yang
+ * berupa ReadableStream TANPA panjang → undici mengirim
+ * Transfer-Encoding: chunked TANPA Content-Length → R2 (seperti S3) menolak
+ * PUT dengan 411 MissingContentLength. Dengan fetch(url, init) + body byte
+ * (Uint8Array), patch-fetch memakai cabang init yang mempertahankan body
+ * asli dan undici menghitung Content-Length dari panjang byte.
+ *
+ * Tanda tangan SigV4 tetap valid setelah di-dispatch ulang: R2 (service s3)
+ * memakai X-Amz-Content-Sha256: UNSIGNED-PAYLOAD (body tidak di-hash), dan
+ * content-length tidak pernah masuk SignedHeaders (UNSIGNABLE_HEADERS
+ * aws4fetch). Header content-length eksplisit ditambahkan sebagai pengaman
+ * tambahan bila runtime tidak menghitungnya sendiri.
+ */
+export async function r2SignedFetch(
+  url: string,
+  method: 'PUT' | 'GET' | 'DELETE',
+  bytes: Uint8Array | null,
+  mimeType?: string,
+): Promise<Response> {
+  const client = r2Client();
+  const headers: Record<string, string> = {};
+  if (mimeType) headers['content-type'] = mimeType;
+  if (bytes) headers['content-length'] = String(bytes.byteLength);
+  const signed = await client.sign(url, { method, headers, body: bytes ?? undefined });
+  return fetch(signed.url, {
+    method: signed.method,
+    headers: signed.headers,
+    body: bytes ?? undefined,
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Operasi objek (R2 / disk)
 // ---------------------------------------------------------------------------
 
 async function putObject(kind: 'r2' | 'local', key: string, bytes: Buffer, mimeType: string): Promise<void> {
   if (kind === 'r2') {
-    const client = r2Client();
-    const res = await client.fetch(r2ObjectUrl(key), {
-      method: 'PUT',
-      body: new Uint8Array(bytes),
-      headers: { 'content-type': mimeType },
-    });
+    const res = await r2SignedFetch(r2ObjectUrl(key), 'PUT', bytes, mimeType);
     if (!res.ok) throw new Error(`R2 PUT gagal: ${res.status} ${await res.text().catch(() => '')}`.slice(0, 300));
     return;
   }
@@ -152,8 +189,7 @@ async function putObject(kind: 'r2' | 'local', key: string, bytes: Buffer, mimeT
 
 async function getObject(kind: 'r2' | 'local', key: string): Promise<Buffer | null> {
   if (kind === 'r2') {
-    const client = r2Client();
-    const res = await client.fetch(r2ObjectUrl(key), { method: 'GET' });
+    const res = await r2SignedFetch(r2ObjectUrl(key), 'GET', null);
     if (res.status === 404) return null;
     if (!res.ok) throw new Error(`R2 GET gagal: ${res.status}`);
     return Buffer.from(await res.arrayBuffer());
@@ -165,8 +201,7 @@ async function getObject(kind: 'r2' | 'local', key: string): Promise<Buffer | nu
 
 async function deleteObject(kind: 'r2' | 'local', key: string): Promise<void> {
   if (kind === 'r2') {
-    const client = r2Client();
-    await client.fetch(r2ObjectUrl(key), { method: 'DELETE' });
+    await r2SignedFetch(r2ObjectUrl(key), 'DELETE', null);
     return;
   }
   const file = path.join(localUploadDir(), key.replace(/\//g, '__'));
