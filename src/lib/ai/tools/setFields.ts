@@ -15,6 +15,8 @@
  */
 
 /** Worksheet target `set_fields`. */
+import { LEEWAY_OBJECT_TYPES, resolveLeewayObjectFromDescription } from '../../sar/sarCalculations';
+
 export const SET_FIELDS_WORKSHEETS = [
   'asw', 'awa', 'aero', 'datum', 'ws2', 'ws3', 'ws8', 'ws4',
   'assets', 'pattern', 'intercept', 'lkp', 'briefing', 'renops',
@@ -319,6 +321,24 @@ export function parseSetFieldsArgs(rawArgs: unknown): SetFieldsParseResult {
           continue;
         }
         values[name] = match;
+        continue;
+      }
+      // datum.leewayObjectId: id WAJIB kategori leeway resmi Table I-1/I-2 —
+      // id tak dikenal dicocokkan dari deskripsinya (mis. "rakit 25 orang
+      // dengan kanopi & drogue"); tetap gagal → TOLAK. Tanpa ini id liar masuk
+      // state lalu jatuh diam-diam ke kategori default pertama di Worksheet 1.
+      if (worksheetKey === 'datum' && name === 'leewayObjectId') {
+        const direct = LEEWAY_OBJECT_TYPES.find((t) => t.id.toLowerCase() === value.toLowerCase());
+        if (direct) {
+          values[name] = direct.id;
+          continue;
+        }
+        const resolved = resolveLeewayObjectFromDescription(value)?.object.id;
+        if (resolved) {
+          values[name] = resolved;
+          continue;
+        }
+        errors.push(`fields[${index}] (${name}): "${value}" bukan id kategori leeway Table I-1/I-2 dan tidak bisa dicocokkan dari deskripsinya. Contoh id: ${LEEWAY_OBJECT_TYPES.slice(0, 8).map((t) => t.id).join(', ')}.`);
         continue;
       }
       values[name] = value;

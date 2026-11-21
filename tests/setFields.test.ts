@@ -145,6 +145,38 @@ describe('parseSetFieldsArgs — penolakan (dilarang mengarang/menebak)', () => 
   });
 });
 
+describe('parseSetFieldsArgs — datum.leewayObjectId (Table I-1/I-2, id resmi saja)', () => {
+  it('id resmi diterima & dinormalisasi (case-insensitive)', () => {
+    const result = parseSetFieldsArgs({
+      worksheet: 'datum',
+      fields: [{ name: 'leewayObjectId', value_string: 'Raft-Canopy-Drogue' }],
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.applied.values['leewayObjectId']).toBe('raft-canopy-drogue');
+  });
+
+  it('deskripsi kategori dicocokkan ke id resmi (mis. "rakit 25 person canopy drogue")', () => {
+    const result = parseSetFieldsArgs({
+      worksheet: 'datum',
+      fields: [{ name: 'leewayObjectId', value_string: 'raft 25 person with canopy and drogue' }],
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const id = result.applied.values['leewayObjectId'] as string;
+      expect(['raft-canopy-drogue', 'raft-1520-person', 'raft-46-person']).toContain(id);
+    }
+  });
+
+  it('teks bebas yang tidak cocok ditolak (tidak masuk state diam-diam)', () => {
+    const result = parseSetFieldsArgs({
+      worksheet: 'datum',
+      fields: [{ name: 'leewayObjectId', value_string: 'mobil sedan merah' }],
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.errors[0]).toContain('Table I-1/I-2');
+  });
+});
+
 describe('Deklarasi tool (registry-driven)', () => {
   it('description & parameters dibangkitkan dari registry (tanpa nama karangan)', () => {
     const description = setFieldsToolDescription();

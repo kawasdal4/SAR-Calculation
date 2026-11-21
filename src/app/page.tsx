@@ -84,6 +84,7 @@ import {
   WS1_FS_OPTIONS,
   WS1_DEFAULT_DRIFT_ERROR_PERCENT,
   TABLE_J_DEFAULT_GPS_ERROR_NM,
+  LEEWAY_OBJECT_TYPES,
 } from '@/lib/sar/sarCalculations';
 import type { SearchNumber } from '@/lib/sar/wscPodTables';
 import { formatDMS } from '@/lib/sar/coordFormat';
@@ -505,6 +506,17 @@ export default function Home() {
    *  Worksheet 1 (kategori leeway Table I-1/I-2, x & y Table J-1/J-2).
    *  Diteruskan ke DatumWorksheet via prop externalSelection (ts monoton). */
   const [datumSelectionCmd, setDatumSelectionCmd] = useState<{ ts: number; leewayObjectId?: string; X?: number; Y?: number } | null>(null);
+  /** Kategori leeway yang DIPILIH USER secara EKSPLISIT — kartu pemilihan object
+   *  chat AI (Fase E, tombol "Konfirmasi & Terapkan"), klik baris Table I-1/I-2
+   *  (Worksheet 1 / dialog Appendix / dropdown Worksheet Datum).
+   *  Dipakai handleApplyDatum agar tebakan `leewayObjectId` milik model yang
+   *  selalu terbawa di payload kasus ekstraksi (field wajib tool set_datum_case)
+   *  TIDAK menimpa pilihan user — akar masalah "Search target (description) WS 1
+   *  tidak sesuai pilihan di chat AI". */
+  const leewayUserPickRef = useRef<{ id: string; ts: number } | null>(null);
+  const markLeewayUserPick = useCallback((id: string) => {
+    leewayUserPickRef.current = { id, ts: Date.now() };
+  }, []);
   const handleAusSarManualOpenChange = useCallback((open: boolean) => {
     setIsAusSarManualOpen(open);
     if (!open) setTableRefRequest(null);
@@ -1440,13 +1452,20 @@ export default function Home() {
     // kategori leeway / nilai x/y yang SUDAH dipilih planner (kartu pemilihan
     // object di chat AI, klik baris Table J/I-1, atau input manual) tidak boleh
     // hilang ketika langkah "Datum" kasus ekstraksi diterapkan belakangan.
+    // Kategori leeway: pilihan EKSPLISIT user (kartu pemilihan object / klik
+    // baris Table I-1/I-2 / dropdown Datum) MENANG atas id milik model —
+    // payload set_datum_case wajib membawa leewayObjectId (tebakan model),
+    // dan bila dibiarkan selalu menimpa, Search target (description) WS 1
+    // kembali ke tebakan model padahal user sudah konfirmasi di kartu chat.
+    const payloadLeewayOk = data.leewayObjectId !== undefined
+      && (leewayUserPickRef.current === null || data.leewayObjectId === leewayUserPickRef.current.id);
     const datumInit: DatumInitialState = {
       ...(data.latitude !== undefined ? { latitude: data.latitude } : {}),
       driftInterval: data.driftInterval,
       seaCurrentDir: data.seaCurrentDir,
       seaCurrentSpeed: data.seaCurrentSpeed,
       seaCurrentErr: data.seaCurrentErr ?? 0,
-      ...(data.leewayObjectId ? { leewayObjectId: data.leewayObjectId } : {}),
+      ...(data.leewayObjectId && payloadLeewayOk ? { leewayObjectId: data.leewayObjectId } : {}),
       ...(data.X !== undefined ? { X: data.X } : {}),
       ...(data.Y !== undefined ? { Y: data.Y } : {}),
     };
@@ -1835,6 +1854,13 @@ export default function Home() {
         break;
       }
       case 'datum': {
+        // Kategori leeway yang ditulis lewat set_fields (kartu pemilihan object
+        // Fase E / permintaan user di chat) = pilihan eksplisit → tandai agar
+        // apply kasus berikutnya tidak menimpanya dengan tebakan model.
+        const leewayPick = values['leewayObjectId'];
+        if (typeof leewayPick === 'string' && LEEWAY_OBJECT_TYPES.some((t) => t.id === leewayPick)) {
+          markLeewayUserPick(leewayPick);
+        }
         setDatumState((prev) => ({ ...(prev ?? {}), ...values } as DatumInitialState));
         setLoadedInitialState((prev) => ({ ...prev, datum: { ...(prev?.datum ?? {}), ...values } } as typeof prev));
         break;
@@ -1930,7 +1956,7 @@ export default function Home() {
     setCaseVersion((v) => v + 1);
     toast.success(`AI mengisi ${count} field pada ${worksheet.toUpperCase()}${sruName ? ` (${sruName})` : ''}.`);
     return true;
-  }, [activeTab]);
+  }, [activeTab, markLeewayUserPick]);
   // Latest-ref untuk undo batch AI (effect — ref tidak boleh ditulis saat render).
   useEffect(() => {
     handleApplySetFieldsRef.current = handleApplySetFields;
@@ -3404,7 +3430,10 @@ export default function Home() {
                 initialMeasured={ws1Measured}
                 selectedFs={worksheet1Fs}
                 onFsChange={handleWorksheet1FsChange}
-                onLeewayObjectChange={(leewayObjectId) => setDatumSelectionCmd({ ts: Date.now(), leewayObjectId })}
+                onLeewayObjectChange={(leewayObjectId) => {
+                  markLeewayUserPick(leewayObjectId);
+                  setDatumSelectionCmd({ ts: Date.now(), leewayObjectId });
+                }}
                 onXChange={(x) => setDatumSelectionCmd({ ts: Date.now(), X: x })}
                 onYChange={(y) => setDatumSelectionCmd({ ts: Date.now(), Y: y })}
               />
@@ -3432,6 +3461,7 @@ export default function Home() {
                 onStateChange={setDatumState}
                 initialState={loadedInitialState?.datum}
                 externalSelection={datumSelectionCmd}
+                onUserPickLeeway={markLeewayUserPick}
                 key={`datum-${caseVersion}`}
               />
               <PrintCompanionMap

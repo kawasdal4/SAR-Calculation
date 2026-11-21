@@ -104,6 +104,10 @@ interface DatumWorksheetProps {
    *  pada Worksheet 1 yang mengubah kategori leeway / nilai x / nilai y).
    *  Dikenali lewat `ts` monoton agar perintah yang sama bisa dikirim ulang. */
   externalSelection?: { ts: number; leewayObjectId?: string; X?: number; Y?: number } | null;
+  /** Dipanggil saat USER memilih kategori leeway langsung di worksheet ini
+   *  (dropdown Search Object Type / klik baris Table I-1/I-2 di dialog Appendix)
+   *  — penanda pilihan eksplisit agar apply kasus chat berikutnya tidak menimpa. */
+  onUserPickLeeway?: (leewayObjectId: string) => void;
 }
 
 export default function DatumWorksheet({
@@ -124,6 +128,7 @@ export default function DatumWorksheet({
   onStateChange,
   initialState,
   externalSelection,
+  onUserPickLeeway,
 }: DatumWorksheetProps) {
   const [driftInterval, setDriftInterval] = useState<number>(initialState?.driftInterval ?? 0);
   const [latitude, setLatitude] = useState<number>(initialState?.latitude ?? Math.abs(startLat));
@@ -432,7 +437,13 @@ export default function DatumWorksheet({
       >
         <div className="mb-3">
           <Label className="text-xs">Search Object Type (Figure N-2/N-3)</Label>
-          <Select value={leewayObjectId} onValueChange={setLeewayObjectId}>
+          <Select
+            value={leewayObjectId}
+            onValueChange={(v) => {
+              setLeewayObjectId(v);
+              onUserPickLeeway?.(v);
+            }}
+          >
             <SelectTrigger className="h-9">
               <SelectValue />
             </SelectTrigger>
@@ -471,6 +482,7 @@ export default function DatumWorksheet({
                     // worksheet berganti (multiplier/modifier/divergensi ikut).
                     if (rowKey && LEEWAY_OBJECT_TYPES.some((t) => t.id === rowKey)) {
                       setLeewayObjectId(rowKey);
+                      onUserPickLeeway?.(rowKey);
                     }
                   },
                 }}
