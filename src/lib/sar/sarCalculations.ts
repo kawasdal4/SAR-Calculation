@@ -1258,6 +1258,13 @@ export const TABLE_J_ALL_NAV_ERRORS: TableJ1Entry[] = [
   ...TABLE_J2_NAV_ERRORS,
 ];
 
+/**
+ * Default galat posisi x/y (NM) ketika soal tidak menyebut alat navigasi:
+ * baris pertama Table J-1 — GPS = 0.1 NM (permintaan planner: Worksheet Datum
+ * & Worksheet 1 langsung menampilkan galat GPS secara default).
+ */
+export const TABLE_J_DEFAULT_GPS_ERROR_NM = 0.1;
+
 export function getTableJ1ErrorById(id: string): number | undefined {
   return TABLE_J1_NAV_ERRORS.find((e) => e.id === id)?.errorNm;
 }

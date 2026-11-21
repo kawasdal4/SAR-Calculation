@@ -83,7 +83,9 @@ import {
   computeWs1SearchArea,
   WS1_FS_OPTIONS,
   WS1_DEFAULT_DRIFT_ERROR_PERCENT,
+  TABLE_J_DEFAULT_GPS_ERROR_NM,
 } from '@/lib/sar/sarCalculations';
+import type { SearchNumber } from '@/lib/sar/wscPodTables';
 import { formatDMS } from '@/lib/sar/coordFormat';
 import { installPrintFooterListener } from '@/lib/sar/printFooter';
 import { computeDatumWs1, ws1DatumDtgUtc } from '@/lib/sar/datumWs1';
@@ -365,6 +367,12 @@ export default function Home() {
   const [searchResults, setSearchResults] = useState<SearchPlanResults | null>(null);
   const [worksheet1Ao, setWorksheet1Ao] = useState(0);
   const [worksheet1Fs, setWorksheet1Fs] = useState(1.1);
+  // Search plan (A/B/C) bersama satu kasus — sinkron antar worksheet AWA/ADW/ASW.
+  // Default 'A' (pencarian pertama) sesuai konvensi worksheet Basarnas.
+  const [searchPlanCase, setSearchPlanCase] = useState<'A' | 'B' | 'C'>('A');
+  // Search number kasus (Figure I-12, 1..5) — sinkron antar WS 1 (fs)/WS 2/WS 3/WS 8:
+  // mengubah fs di WS 1 mengubah urutan pencarian di lembar lain, dan sebaliknya.
+  const [caseSearchNumber, setCaseSearchNumber] = useState<SearchNumber>(1);
   // Mirror pengukuran peta dari Worksheet 1 (jarak L/R terukur + persen de).
   // Dilaporkan Worksheet1 selagi tabnya terpasang; null saat unmount — nilai
   // lokal Worksheet 1 memang hilang dan kembali dihitung analitik.
@@ -1423,7 +1431,15 @@ export default function Home() {
     }
     if (data.fs !== undefined && (WS1_FS_OPTIONS as readonly number[]).includes(data.fs)) {
       setWorksheet1Fs(data.fs);
+      // fs = pencarian ke-n (1.1 ke-1, 1.6 ke-2, …) — search number lembar
+      // WS 2/WS 3/WS 8 ikut mengikuti (satu keputusan kasus).
+      const fsIdx = (WS1_FS_OPTIONS as readonly number[]).indexOf(data.fs);
+      if (fsIdx >= 0) setCaseSearchNumber((fsIdx + 1) as SearchNumber);
     }
+    // Hanya field yang BENAR-BENAR ada di payload yang menimpa state —
+    // kategori leeway / nilai x/y yang SUDAH dipilih planner (kartu pemilihan
+    // object di chat AI, klik baris Table J/I-1, atau input manual) tidak boleh
+    // hilang ketika langkah "Datum" kasus ekstraksi diterapkan belakangan.
     const datumInit: DatumInitialState = {
       ...(data.latitude !== undefined ? { latitude: data.latitude } : {}),
       driftInterval: data.driftInterval,
@@ -1431,16 +1447,24 @@ export default function Home() {
       seaCurrentSpeed: data.seaCurrentSpeed,
       seaCurrentErr: data.seaCurrentErr ?? 0,
       ...(data.leewayObjectId ? { leewayObjectId: data.leewayObjectId } : {}),
-      X: data.X ?? 0,
-      Y: data.Y ?? 0,
+      ...(data.X !== undefined ? { X: data.X } : {}),
+      ...(data.Y !== undefined ? { Y: data.Y } : {}),
     };
-    setLoadedInitialState((prev) => ({
-      ...prev,
-      datum: datumInit,
-    }));
+    setLoadedInitialState((prev) => {
+      const merged: DatumInitialState = { ...(prev?.datum ?? {}), ...datumInit };
+      // Default galat posisi = Table J-1 GPS (0.1 NM) bila belum pernah diisi.
+      if (merged.X === undefined) merged.X = TABLE_J_DEFAULT_GPS_ERROR_NM;
+      if (merged.Y === undefined) merged.Y = TABLE_J_DEFAULT_GPS_ERROR_NM;
+      return { ...prev, datum: merged };
+    });
     // Seed mirror Datum: bila tab WS 1 belum pernah dibuka saat kasus
     // disimpan, input arus/leeway dari AI ikut tersimpan di snapshot.
-    setDatumState(datumInit);
+    setDatumState((prev) => {
+      const merged: DatumInitialState = { ...(prev ?? {}), ...datumInit };
+      if (merged.X === undefined) merged.X = TABLE_J_DEFAULT_GPS_ERROR_NM;
+      if (merged.Y === undefined) merged.Y = TABLE_J_DEFAULT_GPS_ERROR_NM;
+      return merged;
+    });
     setCaseVersion((version) => version + 1);
     setActiveTab('ws1');
   }, []);
@@ -1829,6 +1853,19 @@ export default function Home() {
           const target = idx >= 0 ? idx : 0;
           return prev.map((sheet, i) => i === target ? { ...sheet, data: { ...sheet.data, ...values } } : sheet);
         });
+        // Search number (Figure I-12) = keputusan SATU kasus: bila AI mengisi
+        // searchNumber di satu lembar, lembar SRU lain + fs Worksheet 1 ikut
+        // berubah otomatis (fs 1.1 = pencarian ke-1, 1.6 ke-2, dst.).
+        const searchNumberValue = values['searchNumber'];
+        if (typeof searchNumberValue === 'number' && Number.isInteger(searchNumberValue) && searchNumberValue >= 1 && searchNumberValue <= 5) {
+          const n = searchNumberValue as SearchNumber;
+          setCaseSearchNumber(n);
+          const fsForN = (WS1_FS_OPTIONS as readonly number[])[n - 1];
+          if (fsForN !== undefined) setWorksheet1Fs(fsForN);
+          if (worksheet !== 'ws2') setWs2Sheets((prev) => prev.map((sheet) => ({ ...sheet, data: { ...sheet.data, searchNumber: n } })));
+          if (worksheet !== 'ws3') setWs3Sheets((prev) => prev.map((sheet) => ({ ...sheet, data: { ...sheet.data, searchNumber: n } })));
+          if (worksheet !== 'ws8') setWs8Sheets((prev) => prev.map((sheet) => ({ ...sheet, data: { ...sheet.data, searchNumber: n } })));
+        }
         break;
       }
       case 'ws4': {
@@ -1956,6 +1993,25 @@ export default function Home() {
     }
     return { applied, failed };
   }, [handleApplyASW, handleApplyAWA, handleApplyAeroDrift, handleApplyDatum, handleApplyWS2, handleApplyWS3, handleApplyWS8, handleApplyAssetAllocation]);
+
+  // === Sinkronisasi nilai bersama antar worksheet (satu keputusan kasus) ===
+  // 1) fs Worksheet 1 ↔ search number Figure I-12 (WS 2/WS 3/WS 8):
+  //    fs 1.1 = pencarian ke-1 (First), 1.6 = ke-2 (Second), 2.0 = ke-3,
+  //    2.3 = ke-4, 2.5 = ke-5. Mengubah fs di WS 1 mengubah urutan pencarian
+  //    di lembar lain, dan sebaliknya.
+  const handleWorksheet1FsChange = useCallback((fs: number) => {
+    setWorksheet1Fs(fs);
+    const idx = (WS1_FS_OPTIONS as readonly number[]).indexOf(fs);
+    if (idx >= 0) setCaseSearchNumber((idx + 1) as SearchNumber);
+  }, []);
+  const handleCaseSearchNumberChange = useCallback((n: SearchNumber) => {
+    setCaseSearchNumber(n);
+    const fsForN = (WS1_FS_OPTIONS as readonly number[])[n - 1];
+    if (fsForN !== undefined) setWorksheet1Fs(fsForN);
+  }, []);
+  // 2) Search plan A/B/C bersama: AWA/ASW/ADW menampilkan pilihan yang sama —
+  //    default 'A' (pencarian pertama); klik di salah satu worksheet diteruskan
+  //    ke dua worksheet lain lewat state halaman (searchPlanCase).
 
 
   useEffect(() => {
@@ -3193,6 +3249,8 @@ export default function Home() {
                 onObservationsChange={setAwaObservations}
                 onContextChange={setAwaContext}
                 initialState={loadedInitialState?.awa}
+                searchPlan={searchPlanCase}
+                onSearchPlanChange={setSearchPlanCase}
               />
               <div className="print-companion-page">
                 <ManeuveringBoard
@@ -3252,6 +3310,8 @@ export default function Home() {
                 onResults={setAeroResults}
                 onStateChange={(s) => setAeroDraft(s)}
                 onDerivedDistressTime={setAdwDerivedDistressTime}
+                searchPlan={searchPlanCase}
+                onSearchPlanChange={setSearchPlanCase}
               />
               <PrintCompanionMap
                 title="LAMPIRAN: PETA PLOTTING AERONAUTICAL DRIFT & LKP"
@@ -3312,6 +3372,8 @@ export default function Home() {
                 windOverride={windOverride}
                 initialState={loadedInitialState?.asw}
                 derivedDistressTime={adwDerivedDistressTime}
+                searchPlan={searchPlanCase}
+                onSearchPlanChange={setSearchPlanCase}
               />
               <div className="print-companion-page">
                 <ManeuveringBoard
@@ -3341,7 +3403,7 @@ export default function Home() {
                 onMeasuredChange={setWs1Measured}
                 initialMeasured={ws1Measured}
                 selectedFs={worksheet1Fs}
-                onFsChange={setWorksheet1Fs}
+                onFsChange={handleWorksheet1FsChange}
                 onLeewayObjectChange={(leewayObjectId) => setDatumSelectionCmd({ ts: Date.now(), leewayObjectId })}
                 onXChange={(x) => setDatumSelectionCmd({ ts: Date.now(), X: x })}
                 onYChange={(y) => setDatumSelectionCmd({ ts: Date.now(), Y: y })}
@@ -3421,6 +3483,8 @@ export default function Home() {
                     estHoursFromAllocation={ws2SheetEst[sheet.key]?.hours}
                     estSourceName={ws2SheetEst[sheet.key]?.assetName}
                     onTrackSpacingChange={(result) => handleWS2TrackSpacingChange(sheet.key, result)}
+                    caseSearchNumber={caseSearchNumber}
+                    onSearchNumberChange={handleCaseSearchNumberChange}
                     onStateChange={(data) => handleWS2SheetData(sheet.key, data)}
                   />
                 </div>
@@ -3468,6 +3532,8 @@ export default function Home() {
                     estHoursFromAllocation={ws8SheetEst[sheet.key]?.hours}
                     estSourceName={ws8SheetEst[sheet.key]?.assetName}
                     onTrackSpacingChange={(result) => handleWS8TrackSpacingChange(sheet.key, result)}
+                    caseSearchNumber={caseSearchNumber}
+                    onSearchNumberChange={handleCaseSearchNumberChange}
                     onStateChange={(data) => handleWS8SheetData(sheet.key, data)}
                   />
                 </div>
@@ -3848,6 +3914,8 @@ export default function Home() {
                     estHoursFromAllocation={ws3SheetEst[sheet.key]?.hours}
                     estSourceName={ws3SheetEst[sheet.key]?.assetName}
                     onTrackSpacingChange={(result) => handleWS3TrackSpacingChange(sheet.key, result)}
+                    caseSearchNumber={caseSearchNumber}
+                    onSearchNumberChange={handleCaseSearchNumberChange}
                     onStateChange={(data) => handleWS3SheetData(sheet.key, data)}
                   />
                 </div>

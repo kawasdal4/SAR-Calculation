@@ -11,6 +11,7 @@ import {
   WS1_DEFAULT_DRIFT_ERROR_PERCENT,
   TABLE_J1_NAV_ERRORS,
   TABLE_J2_NAV_ERRORS,
+  TABLE_J_DEFAULT_GPS_ERROR_NM,
 } from '@/lib/sar/sarCalculations';
 import {
   computeDatumWs1,
@@ -189,8 +190,9 @@ export default function Worksheet1({
         leewayRate: lwMult,
         leewayModifier: lwMod,
         leewayDivergenceDeg: lwDivAngle,
-        x: datumResults?.X ?? 0,
-        y: datumResults?.Y ?? 0,
+        // Default x/y = Table J-1 GPS (0.1 NM) bila Datum belum mengirim hasil.
+        x: datumResults?.X ?? TABLE_J_DEFAULT_GPS_ERROR_NM,
+        y: datumResults?.Y ?? TABLE_J_DEFAULT_GPS_ERROR_NM,
         dePercent: driftErrorPercent,
         fs: fsSelected > 0 ? fsSelected : undefined,
         searchNumber: 1,
@@ -224,9 +226,9 @@ export default function Worksheet1({
   const deR = distR * driftErrorPercent / 100;
   const De = (deL + deR + distLR) / 2;
 
-  // Fix Error
-  const distressCraftX = datumResults?.X ?? 0;
-  const searchCraftY = datumResults?.Y ?? 0;
+  // Fix Error — default Table J-1 GPS (0.1 NM) sebelum Datum menghitung.
+  const distressCraftX = datumResults?.X ?? TABLE_J_DEFAULT_GPS_ERROR_NM;
+  const searchCraftY = datumResults?.Y ?? TABLE_J_DEFAULT_GPS_ERROR_NM;
 
   // Total Errors (E) + Search Area — math diekstraksi ke lib:
   // computeWs1SearchArea = computeE + R = ⌈E × fs⌉ + Ao = 4R² (kompatibilitas

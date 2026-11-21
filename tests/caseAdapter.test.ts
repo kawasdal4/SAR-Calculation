@@ -59,12 +59,13 @@ describe('Pemetaan seed worksheet (fixture PK-TAL)', () => {
     expect(seeds.aero?.useParachute).toBe(false);
   });
 
-  it('Datum: arus 250°/0,3 kn (arah KE), latitude |lat| LKP, X/Y default 0', () => {
+  it('Datum: arus 250°/0,3 kn (arah KE), latitude |lat| LKP, X/Y default Table J-1 GPS (0.1 NM)', () => {
     expect(seeds.datum?.seaCurrentDir).toBe(250);
     expect(seeds.datum?.seaCurrentSpeed).toBe(0.3);
     expect(seeds.datum?.latitude).toBeCloseTo(6.879444, 5);
-    expect(seeds.datum?.X).toBe(0);
-    expect(seeds.datum?.Y).toBe(0);
+    // Permintaan planner: default x/y = alat navigasi GPS Table J-1 (0.1 NM).
+    expect(seeds.datum?.X).toBe(0.1);
+    expect(seeds.datum?.Y).toBe(0.1);
     expect(seeds.datum?.lkpSource).toBe('explicit');
     // leeway belum dipilih planner → tidak diisi (dilarang mengarang kategori)
     expect(seeds.datum?.leewayObjectId).toBeUndefined();

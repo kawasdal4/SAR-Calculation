@@ -32,6 +32,12 @@ interface AWAWorksheetProps {
   initialState?: AWAInitialState | null;
   readOnly?: boolean;
   className?: string;
+  /** Search plan (A/B/C) bersama satu kasus — sinkron otomatis antar worksheet
+   *  AWA/ADW/ASW. Default 'A' (pencarian pertama) sesuai konvensi worksheet.
+   *  Bila prop tidak diberikan, komponen memakai state lokal (default 'A'). */
+  searchPlan?: 'A' | 'B' | 'C';
+  /** Laporkan pilihan Search plan ke halaman agar worksheet lain mengikuti. */
+  onSearchPlanChange?: (plan: 'A' | 'B' | 'C') => void;
 }
 
 const AWA_OBSERVATION_LEVELS_FT = [0, 3000, 6000, 9000, 12000, 18000, 24000, 30000] as const;
@@ -49,6 +55,8 @@ export default function AWAWorksheet({
   initialState,
   readOnly = false,
   className = '',
+  searchPlan,
+  onSearchPlanChange,
 }: AWAWorksheetProps) {
   // CONTOH 1 (Slide Basarnas I Kadek Dedi K.: Pesawat tempur PD-ABC bail out 10.000 ft)
   const defaultObsEx1: AWAObservation[] = [
@@ -98,7 +106,9 @@ export default function AWAWorksheet({
   const [searchDate, setSearchDate] = useState('-');
   const [plannerName, setPlannerName] = useState('-');
   const [datumNumber, setDatumNumber] = useState('0');
-  const [searchPlan, setSearchPlan] = useState<'A' | 'B' | 'C' | ''>('');
+  // Search plan default 'A' (pencarian pertama) — sinkron antar AWA/ADW/ASW.
+  const [searchPlanLocal, setSearchPlanLocal] = useState<'A' | 'B' | 'C' | ''>('A');
+  const searchPlanActive = searchPlan ?? searchPlanLocal;
 
   useEffect(() => {
     onObservationsChange?.(observations);
@@ -336,9 +346,10 @@ export default function AWAWorksheet({
                   key={plan}
                   type="button"
                   disabled={readOnly}
-                  onClick={() => setSearchPlan(plan)}
+                  onClick={() => { setSearchPlanLocal(plan); onSearchPlanChange?.(plan); }}
+                  title={`Search plan ${plan} — pilihan ini disinkronkan ke worksheet ASW & ADW`}
                   className={`w-6 h-6 rounded-full font-bold flex items-center justify-center transition-colors ${
-                    searchPlan === plan
+                    searchPlanActive === plan
                       ? 'border-2 border-slate-900 bg-blue-100 text-blue-900 ring-2 ring-blue-500'
                       : 'border border-slate-400 text-slate-600 hover:bg-slate-100'
                   }`}
@@ -346,7 +357,7 @@ export default function AWAWorksheet({
                   {plan}
                 </button>
               ))}
-              <span className="text-[10px] text-slate-500 italic">(Circle one)</span>
+              <span className="text-[10px] text-slate-500 italic">(Circle one — tersinkron AWA/ASW/ADW)</span>
             </div>
           </div>
 

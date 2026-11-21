@@ -174,10 +174,75 @@ export function rasterizePdfFirstPage(pdf: Buffer): { png: Buffer; widthPx: numb
 }
 
 // ---------------------------------------------------------------------------
+// Self-healing schema: tabel TempMapFile dibuat OTOMATIS bila belum ada.
+// Deployment (Supabase/Vercel) yang belum menjalankan `prisma db push` setelah
+// model TempMapFile ditambahkan gagal dengan P2021 ("The table `public.
+// TempMapFile` does not exist") — dengan DDL ini upload peta tetap jalan tanpa
+// migrasi manual. Aman dipanggil berulang: IF NOT EXISTS + cache per proses.
+// ---------------------------------------------------------------------------
+
+let ensureTablePromise: Promise<void> | null = null;
+
+function isSqliteDatabase(): boolean {
+  const url = (process.env.DATABASE_URL ?? '').trim().toLowerCase();
+  return url.startsWith('file:') || url.startsWith('sqlite:');
+}
+
+const TEMP_MAP_TABLE_DDL: Array<{ sqlite: string; postgres: string }> = [
+  {
+    sqlite: `CREATE TABLE IF NOT EXISTS "TempMapFile" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "fileName" TEXT NOT NULL,
+      "mimeType" TEXT NOT NULL,
+      "sizeBytes" INTEGER NOT NULL,
+      "storage" TEXT NOT NULL,
+      "storageKey" TEXT NOT NULL,
+      "rasterKey" TEXT,
+      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "expiresAt" DATETIME NOT NULL
+    )`,
+    postgres: `CREATE TABLE IF NOT EXISTS "TempMapFile" (
+      "id" TEXT NOT NULL,
+      "fileName" TEXT NOT NULL,
+      "mimeType" TEXT NOT NULL,
+      "sizeBytes" INTEGER NOT NULL,
+      "storage" TEXT NOT NULL,
+      "storageKey" TEXT NOT NULL,
+      "rasterKey" TEXT,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "expiresAt" TIMESTAMP(3) NOT NULL,
+      CONSTRAINT "TempMapFile_pkey" PRIMARY KEY ("id")
+    )`,
+  },
+  {
+    sqlite: `CREATE INDEX IF NOT EXISTS "TempMapFile_expiresAt_idx" ON "TempMapFile"("expiresAt")`,
+    postgres: `CREATE INDEX IF NOT EXISTS "TempMapFile_expiresAt_idx" ON "TempMapFile"("expiresAt")`,
+  },
+];
+
+/** Pastikan tabel TempMapFile ada (sekali per proses; gagal → dicoba lagi nanti). */
+export function ensureTempMapTable(): Promise<void> {
+  if (!ensureTablePromise) {
+    const isSqlite = isSqliteDatabase();
+    ensureTablePromise = (async () => {
+      for (const ddl of TEMP_MAP_TABLE_DDL) {
+        await db.$executeRawUnsafe(isSqlite ? ddl.sqlite : ddl.postgres);
+      }
+    })().catch((error) => {
+      // Reset cache agar panggilan berikutnya mencoba lagi (mis. DB baru siap).
+      ensureTablePromise = null;
+      throw error;
+    });
+  }
+  return ensureTablePromise;
+}
+
+// ---------------------------------------------------------------------------
 // Sweep kedaluwarsa (6 jam) — hapus objek + baris
 // ---------------------------------------------------------------------------
 
 export async function sweepExpiredTempMaps(): Promise<number> {
+  await ensureTempMapTable();
   const expired = await db.tempMapFile.findMany({
     where: { expiresAt: { lt: new Date() } },
     select: { id: true, storageKey: true, rasterKey: true },
@@ -210,6 +275,7 @@ export async function createTempMapUpload(input: {
   bytes: Buffer;
 }): Promise<TempMapInfo> {
   // Peluang bersih-bersih: sweep dipanggil di tiap upload (biaya kecil).
+  // Sweep memanggil ensureTempMapTable() — tabel dibuat bila belum ada.
   await sweepExpiredTempMaps();
 
   const id = crypto.randomUUID();
@@ -269,6 +335,7 @@ export interface LoadedTempMap {
 export async function loadTempMap(id: string, variant: 'original' | 'raster'): Promise<
   { ok: true; data: LoadedTempMap } | { ok: false; code: 'not-found' | 'expired' }
 > {
+  await ensureTempMapTable();
   const row = await db.tempMapFile.findUnique({ where: { id } });
   if (!row) return { ok: false, code: 'not-found' };
   if (row.expiresAt.getTime() < Date.now()) {
@@ -286,6 +353,7 @@ export async function loadTempMap(id: string, variant: 'original' | 'raster'): P
 }
 
 export async function deleteTempMapById(id: string): Promise<boolean> {
+  await ensureTempMapTable();
   const row = await db.tempMapFile.findUnique({ where: { id } });
   if (!row) return false;
   await deleteObject(row.storageKey).catch(() => undefined);

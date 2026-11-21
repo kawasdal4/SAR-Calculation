@@ -51,6 +51,11 @@ interface ASWWorksheetProps {
   derivedDistressTime?: string | null;
   readOnly?: boolean;
   className?: string;
+  /** Search plan (A/B/C) bersama satu kasus — sinkron otomatis antar worksheet
+   *  AWA/ADW/ASW. Default 'A' (pencarian pertama) sesuai konvensi worksheet. */
+  searchPlan?: 'A' | 'B' | 'C';
+  /** Laporkan pilihan Search plan ke halaman agar worksheet lain mengikuti. */
+  onSearchPlanChange?: (plan: 'A' | 'B' | 'C') => void;
 }
 
 // ─── Basarnas Time Format Helpers ─────────────────────────────────────────
@@ -67,6 +72,8 @@ export default function ASWWorksheet({
   derivedDistressTime,
   readOnly = false,
   className = '',
+  searchPlan,
+  onSearchPlanChange,
 }: ASWWorksheetProps) {
   const [observations, setObservations] = useState<ASWObservation[]>(
     () => initialState?.observations ?? []
@@ -117,7 +124,9 @@ export default function ASWWorksheet({
   const [searchDate, setSearchDate] = useState('-');
   const [plannerName, setPlannerName] = useState('-');
   const [datumNumber, setDatumNumber] = useState('0');
-  const [searchPlan, setSearchPlan] = useState<'A' | 'B' | 'C' | ''>('');
+  // Search plan default 'A' (pencarian pertama) — sinkron antar AWA/ADW/ASW.
+  const [searchPlanLocal, setSearchPlanLocal] = useState<'A' | 'B' | 'C' | ''>('A');
+  const searchPlanActive = searchPlan ?? searchPlanLocal;
 
   // Handle external wind override if active
   useEffect(() => {
@@ -442,8 +451,9 @@ export default function ASWWorksheet({
                   key={plan}
                   type="button"
                   disabled={readOnly}
-                  onClick={() => setSearchPlan(plan)}
-                  className={`w-6 h-6 rounded-full font-bold flex items-center justify-center transition-colors ${searchPlan === plan
+                  onClick={() => { setSearchPlanLocal(plan); onSearchPlanChange?.(plan); }}
+                  title={`Search plan ${plan} — pilihan ini disinkronkan ke worksheet AWA & ADW`}
+                  className={`w-6 h-6 rounded-full font-bold flex items-center justify-center transition-colors ${searchPlanActive === plan
                     ? 'border-2 border-slate-900 bg-blue-100 text-blue-900 ring-2 ring-blue-500'
                     : 'border border-slate-400 text-slate-600 hover:bg-slate-100'
                     }`}
@@ -451,7 +461,7 @@ export default function ASWWorksheet({
                   {plan}
                 </button>
               ))}
-              <span className="text-[10px] text-slate-500 italic">(Circle one)</span>
+              <span className="text-[10px] text-slate-500 italic">(Circle one — tersinkron AWA/ASW/ADW)</span>
             </div>
           </div>
         </div>

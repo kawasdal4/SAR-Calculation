@@ -40,6 +40,11 @@ interface AeronauticalDriftWorksheetProps {
   /** Waktu distress hasil A.1 + B.7 (menit turun dibulatkan) dalam format Basarnas MMDD.HHMM, untuk worksheet ASW. */
   onDerivedDistressTime?: (basarnasTime: string | null) => void;
   className?: string;
+  /** Search plan (A/B/C) bersama satu kasus — sinkron otomatis antar worksheet
+   *  AWA/ADW/ASW. Default 'A' (pencarian pertama) sesuai konvensi worksheet. */
+  searchPlan?: 'A' | 'B' | 'C';
+  /** Laporkan pilihan Search plan ke halaman agar worksheet lain mengikuti. */
+  onSearchPlanChange?: (plan: 'A' | 'B' | 'C') => void;
 }
 
 /** Data awal yang bisa diterapkan dari luar (mis. AI assistant) tanpa field AWA (dari props). */
@@ -232,6 +237,8 @@ export default function AeronauticalDriftWorksheet({
   onStateChange,
   onDerivedDistressTime,
   className = '',
+  searchPlan,
+  onSearchPlanChange,
 }: AeronauticalDriftWorksheetProps) {
   const [formData, setFormData] = useState<AeroDriftInput>(() => {
   const base: AeroDriftInput = {
@@ -288,7 +295,9 @@ export default function AeronauticalDriftWorksheet({
   return base;
 });
 
-  const [searchPlanOption, setSearchPlanOption] = useState<'A' | 'B' | 'C' | ''>('');
+  // Search plan default 'A' (pencarian pertama) — sinkron antar AWA/ADW/ASW.
+  const [searchPlanLocal, setSearchPlanLocal] = useState<'A' | 'B' | 'C' | ''>('A');
+  const searchPlanActive = searchPlan ?? searchPlanLocal;
   // Default tampilan: Lembar Pesawat (da) — alur kerja worksheet dimulai dari glide pesawat.
   const [viewMode, setViewMode] = useState<'dual' | 'aircraft' | 'parachute'>('aircraft');
 
@@ -536,9 +545,10 @@ export default function AeronauticalDriftWorksheet({
                   <button
                     key={plan}
                     type="button"
-                    onClick={() => setSearchPlanOption(plan)}
+                    onClick={() => { setSearchPlanLocal(plan); onSearchPlanChange?.(plan); }}
+                    title={`Search plan ${plan} — pilihan ini disinkronkan ke worksheet AWA & ASW`}
                     className={`w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center transition-all ${
-                      searchPlanOption === plan
+                      searchPlanActive === plan
                         ? 'border border-slate-900 bg-blue-100 text-blue-900 ring-1 ring-blue-600'
                         : 'text-slate-600 hover:text-slate-900'
                     }`}
@@ -547,7 +557,7 @@ export default function AeronauticalDriftWorksheet({
                   </button>
                 ))}
               </div>
-              <span className="text-[10px] text-slate-500 italic shrink-0">(Circle one)</span>
+              <span className="text-[10px] text-slate-500 italic shrink-0">(Circle one — tersinkron AWA/ASW/ADW)</span>
             </div>
           </div>
 

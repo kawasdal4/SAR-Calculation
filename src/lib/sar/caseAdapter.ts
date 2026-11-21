@@ -29,6 +29,7 @@ import { type SearchPatternType } from './searchPatterns';
 import type { AWAObservation } from './sarCalculations';
 import type { ASWObservation } from './sarCalculations';
 import type { LatLng } from './sarCalculations';
+import { TABLE_J_DEFAULT_GPS_ERROR_NM } from './sarCalculations';
 
 // Re-export tipe seed worksheet (type-only — tanpa dependensi runtime ke UI).
 export type { AWAObservation, ASWObservation, LatLng };
@@ -363,15 +364,15 @@ export function buildCaseWorksheetSeeds(
       seaCurrentSpeed: current?.speedKts,
       seaCurrentErr: 0,
       ...(leewayObjectId ? { leewayObjectId } : {}),
-      X: planner.xNm ?? 0,
-      Y: planner.yNm ?? 0,
+      X: planner.xNm ?? TABLE_J_DEFAULT_GPS_ERROR_NM,
+      Y: planner.yNm ?? TABLE_J_DEFAULT_GPS_ERROR_NM,
       useWindCurrent: true,
       lkp: seeds.lkp,
       lkpSource,
       fs: planner.fs,
     };
     if (planner.xNm === undefined || planner.yNm === undefined) {
-      assumptions.push({ field: 'datum.X/Y', value: '0', reason: 'Galat posisi x/y (Tabel J-1) tidak diketahui dari soal — default 0 NM (aturan handleApplyDatum).' });
+      assumptions.push({ field: 'datum.X/Y', value: '0.1', reason: 'Galat posisi x/y (Table J-1) tidak disebut soal — default alat navigasi GPS 0.1 NM (planner bisa mengganti di Worksheet Datum).' });
     }
     if (!leewayObjectId) {
       assumptions.push({ field: 'datum.leewayObjectId', reason: 'Kategori leeway (Tabel I-1/I-2) belum dipilih planner — Datum tidak bisa dihitung sampai dipilih.' });

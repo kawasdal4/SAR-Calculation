@@ -59,6 +59,11 @@ interface Worksheet2Props {
   /** Nama SRU sumber EST (untuk teks keterangan). */
   estSourceName?: string;
   onTrackSpacingChange?: (result: { platform: 'fixed-wing' | 'helicopter' | null; spacingNm: number; selection: string }) => void;
+  /** Search number kasus (1..5, Figure I-12) — sinkron otomatis antar WS 1 (fs)
+   *  /WS 2/WS 3/WS 8. Bila diubah di worksheet mana pun, lembar lain mengikuti. */
+  caseSearchNumber?: SearchNumber;
+  /** Laporkan perubahan search number ke halaman agar worksheet lain ikut. */
+  onSearchNumberChange?: (n: SearchNumber) => void;
   /** Mirror seluruh input lembar ke induk (sheet.data) — dasar save case
    *  lengkap & recalculate otomatis: editan manual tidak hilang saat pindah
    *  tab/remount, dan induk bisa memicu hitungan ulang worksheet terkait. */
@@ -77,6 +82,8 @@ export default function Worksheet2({
   estHoursFromAllocation,
   estSourceName,
   onTrackSpacingChange,
+  caseSearchNumber,
+  onSearchNumberChange,
   onStateChange,
 }: Worksheet2Props) {
   // Case & Metadata state
@@ -89,7 +96,17 @@ export default function Worksheet2({
   const [visibilityIndex, setVisibilityIndex] = useState(initialState?.visibilityIndex ?? -1);
   const [isFatigue, setIsFatigue] = useState<'' | 'Yes' | 'No'>(initialState?.isFatigue ?? '');
   const [piwFlotationKnown, setPiwFlotationKnown] = useState(initialState?.piwFlotationKnown ?? false);
-  const [searchNumber, setSearchNumber] = useState<SearchNumber | 0>(initialState?.searchNumber ?? 0);
+  // Search number default 1 (First search — kurva pertama Figure I-12);
+  // sinkron dengan pilihan di Worksheet 1 (fs)/WS 3/WS 8.
+  const [searchNumber, setSearchNumber] = useState<SearchNumber | 0>(initialState?.searchNumber ?? 1);
+  useEffect(() => {
+    if (caseSearchNumber && caseSearchNumber !== searchNumber) setSearchNumber(caseSearchNumber);
+  }, [caseSearchNumber, searchNumber]);
+  /** Ganti search number lokal + laporkan ke halaman (sinkron antar worksheet). */
+  const changeSearchNumber = (n: SearchNumber | 0) => {
+    setSearchNumber(n);
+    if (n >= 1) onSearchNumberChange?.(n as SearchNumber);
+  };
   const [selectedHeight, setSelectedHeight] = useState<500 | 1000 | 1500 | 2000 | 0>(initialState?.selectedHeight ?? 0);
   // Override nilai tabel appendix (klik nilai → panel verifikasi → Terapkan).
   // HARUS sebelum w2Rows (dipakai pada input overrides computeW2Row).
@@ -412,7 +429,7 @@ export default function Worksheet2({
                 }}
               >
                 Figure I-12
-              </TableRefText>{'\u200b'}Search: </span><select value={searchNumber} disabled={readOnly} onChange={(e) => setSearchNumber(Number(e.target.value) as SearchNumber | 0)} className="font-bold text-blue-900 bg-white border border-slate-300 rounded px-1.5 py-0.5"><option value={0}>-</option><option value={1}>First</option><option value={2}>Second</option><option value={3}>Third</option><option value={4}>Fourth</option><option value={5}>Fifth</option></select></div>
+              </TableRefText>{'\u200b'}Search: </span><select value={searchNumber} disabled={readOnly} onChange={(e) => changeSearchNumber(Number(e.target.value) as SearchNumber | 0)} className="font-bold text-blue-900 bg-white border border-slate-300 rounded px-1.5 py-0.5" title="Urutan pencarian Figure I-12 — tersinkron dengan fs Worksheet 1, WS 3, dan WS 8"><option value={0}>-</option><option value={1}>First</option><option value={2}>Second</option><option value={3}>Third</option><option value={4}>Fourth</option><option value={5}>Fifth</option></select></div>
             <div><span className="text-slate-600">Height for Area A: </span><select value={selectedHeight} disabled={readOnly} onChange={(e) => setSelectedHeight(Number(e.target.value) as 0 | 500 | 1000 | 1500 | 2000)} className="font-bold text-blue-900 bg-white border border-slate-300 rounded px-1.5 py-0.5"><option value={0}>Pilih ft</option>{heights.map((height) => <option key={height} value={height}>{height} ft</option>)}</select></div>
             {targetMeta?.isPiw && <label className="flex items-center gap-1 text-slate-700"><input type="checkbox" checked={piwFlotationKnown} disabled={readOnly} onChange={(e) => setPiwFlotationKnown(e.target.checked)} /> PIW menggunakan flotation device ({'\u200b'}<TableRefText
               disabled={readOnly}

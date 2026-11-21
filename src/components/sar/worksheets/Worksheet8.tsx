@@ -50,6 +50,11 @@ interface Worksheet8Props {
   /** Nama SRU sumber EST (untuk teks keterangan). */
   estSourceName?: string;
   onTrackSpacingChange?: (result: { spacingNm: number; selection: string }) => void;
+  /** Search number kasus (1..5, Figure I-12) — sinkron otomatis antar WS 1 (fs)
+   *  /WS 2/WS 3/WS 8. Bila diubah di worksheet mana pun, lembar lain mengikuti. */
+  caseSearchNumber?: SearchNumber;
+  /** Laporkan perubahan search number ke halaman agar worksheet lain ikut. */
+  onSearchNumberChange?: (n: SearchNumber) => void;
   /** Mirror seluruh input lembar ke induk (sheet.data) — dasar save case
    *  lengkap & recalculate otomatis antar worksheet. */
   onStateChange?: (data: Worksheet8InitialState) => void;
@@ -65,6 +70,8 @@ export default function Worksheet8({
   estHoursFromAllocation,
   estSourceName,
   onTrackSpacingChange,
+  caseSearchNumber,
+  onSearchNumberChange,
   onStateChange,
 }: Worksheet8Props) {
   // Case & Metadata state
@@ -76,7 +83,17 @@ export default function Worksheet8({
   const [searchObject, setSearchObject] = useState<W8Target|''>(initialState?.searchObject ?? '');
   const [visibilityKm, setVisibilityKm] = useState(initialState?.visibilityKm ?? '');
   const [isFatigue, setIsFatigue] = useState<''|'Yes'|'No'>(initialState?.isFatigue ?? '');
-  const [searchNumber, setSearchNumber] = useState<SearchNumber | 0>(initialState?.searchNumber ?? 0);
+  // Search number default 1 (First search — kurva pertama Figure I-12);
+  // sinkron dengan pilihan di Worksheet 1 (fs)/WS 2/WS 3.
+  const [searchNumber, setSearchNumber] = useState<SearchNumber | 0>(initialState?.searchNumber ?? 1);
+  useEffect(() => {
+    if (caseSearchNumber && caseSearchNumber !== searchNumber) setSearchNumber(caseSearchNumber);
+  }, [caseSearchNumber, searchNumber]);
+  /** Ganti search number lokal + laporkan ke halaman (sinkron antar worksheet). */
+  const changeSearchNumber = (n: SearchNumber | 0) => {
+    setSearchNumber(n);
+    if (n >= 1) onSearchNumberChange?.(n as SearchNumber);
+  };
   const [vesselSpeedKts, setVesselSpeedKts] = useState(initialState?.vesselSpeedKts ?? 0); // Vessel search speed (kts)
   // Override nilai tabel appendix (klik nilai → panel verifikasi → Terapkan).
   const [fwOverride, setFwOverride] = useState<number | undefined>(initialState?.fwOverride);
@@ -361,7 +378,7 @@ export default function Worksheet8({
               }}
             >
               Figure I-12
-            </TableRefText>): <select value={searchNumber} disabled={readOnly} onChange={(e) => setSearchNumber(Number(e.target.value) as SearchNumber | 0)} className="border rounded px-1"><option value={0}>-</option>{[1,2,3,4,5].map((n) => <option key={n} value={n}>{['First','Second','Third','Fourth','Fifth'][n-1]}</option>)}</select></label>
+            </TableRefText>): <select value={searchNumber} disabled={readOnly} onChange={(e) => changeSearchNumber(Number(e.target.value) as SearchNumber | 0)} className="border rounded px-1" title="Urutan pencarian Figure I-12 — tersinkron dengan fs Worksheet 1, WS 2, dan WS 3"><option value={0}>-</option>{[1,2,3,4,5].map((n) => <option key={n} value={n}>{['First','Second','Third','Fourth','Fifth'][n-1]}</option>)}</select></label>
             <span className="text-slate-500">
               Wu:{'\u200b'}
               <TableRefText

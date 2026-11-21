@@ -32,6 +32,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { useFullscreen } from '@/hooks/use-fullscreen';
+import { FullscreenToggleButton } from '@/components/sar/FullscreenToggleButton';
 import type { LatLng } from '@/lib/sar/sarCalculations';
 import type { MapCircle, MapLine, MapMarker, MapPolygon } from '@/components/sar/SeaMap';
 import {
@@ -268,6 +270,13 @@ const CSS = `
 .landmap-hide-north .land-north { display: none !important; }
 .landmap-hide-scale .land-scale { display: none !important; }
 .landmap-hide-edge .land-edge-strip { display: none !important; }
+/* ---- Layar penuh peta darat (parity Peta Laut/ONC/MOBO/UPS) ----
+ * Root menjadi elemen :fullscreen — bingkai mengisi viewport, tinggi tetap
+ * inline (520px) di-override dengan !important agar peta ikut membesar. */
+.land-map-root--fs { background: #e2e8f0; padding: 10px 10px 12px; overflow: auto; }
+.land-map-root--fs .land-map-frame { height: calc(100vh - 22px); display: flex; flex-direction: column; }
+.land-map-root--fs .land-map-frame > .land-map-body { flex: 1 1 auto; height: auto !important; min-height: 0; }
+.land-map-root--fs .land-map-toolbar { margin-bottom: 6px !important; }
 @media print {
   .land-map-frame { break-inside: avoid; border-color: #0f172a; }
   .leaflet-control-zoom, .leaflet-control-layers, .land-scale-actions { display: none !important; }
@@ -418,6 +427,8 @@ export default function Worksheet4LandMap({ center, zoom = 12, markers = [], lin
   const [hideToast, setHideToast] = useState(false);
   const [scaleToast, setScaleToast] = useState(false);
   const [viewPrefs, setViewPrefs] = useState<LandViewPrefs>(() => loadLandViewPrefs());
+  // Layar penuh peta darat (permintaan planner — parity dengan peta laut/ONC).
+  const { ref: fsRootRef, isFullscreen: mapFullscreen, toggle: toggleMapFullscreen } = useFullscreen<HTMLDivElement>();
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const autoFellBackRef = useRef(false);
   const hotZoneRef = useRef(false); // kursor di atas peta darat → shortcut H aktif
@@ -429,6 +440,22 @@ export default function Worksheet4LandMap({ center, zoom = 12, markers = [], lin
   useEffect(() => {
     try { window.localStorage.setItem(BASEMAP_KEY, basemapId); } catch { /* ignore */ }
   }, [basemapId]);
+
+  // Leaflet meng-cache ukuran internal — setelah transisi fullscreen (masuk ATAU
+  // keluar) peta harus invalidateSize dua tahap agar tile & grid tidak setengah
+  // tergambar (selaras Peta Laut).
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      const map = mapRef.current;
+      if (!map) return;
+      window.requestAnimationFrame(() => {
+        map.invalidateSize();
+        window.requestAnimationFrame(() => map.invalidateSize());
+      });
+    };
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
+  }, []);
 
   const flashHideToast = useCallback(() => {
     setHideToast(true);
@@ -1018,12 +1045,13 @@ export default function Worksheet4LandMap({ center, zoom = 12, markers = [], lin
 
   return (
     <div
-      className="land-map-root"
+      ref={fsRootRef}
+      className={`land-map-root${mapFullscreen ? ' land-map-root--fs' : ''}`}
       onMouseEnter={() => { hotZoneRef.current = true; }}
       onMouseLeave={() => { hotZoneRef.current = false; }}
     >
       <style>{CSS}</style>
-      {/* Pemilih basemap + pemberitahuan fallback otomatis */}
+      {/* Pemilih basemap + tombol layar penuh + pemberitahuan fallback otomatis */}
       <div className="land-map-toolbar mb-1.5 flex flex-wrap items-center gap-1.5 print:hidden" role="group" aria-label="Basemap peta darat">
         <span className="text-[11px] font-bold text-slate-700">Basemap:</span>
         {BASEMAPS.map((b) => (
@@ -1038,6 +1066,12 @@ export default function Worksheet4LandMap({ center, zoom = 12, markers = [], lin
             {b.label}
           </button>
         ))}
+        <FullscreenToggleButton
+          isFullscreen={mapFullscreen}
+          onToggle={toggleMapFullscreen}
+          label="Layar Penuh"
+          className="ml-auto"
+        />
         {basemapNotice && (
           <span className="inline-flex items-center gap-1.5 rounded border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] text-amber-900">
             <span>{basemapNotice}</span>
@@ -1057,7 +1091,7 @@ export default function Worksheet4LandMap({ center, zoom = 12, markers = [], lin
         <div ref={bottomStripRef} className="land-edge-strip" style={{ bottom: 0, left: MARGIN_X, right: MARGIN_X, height: MARGIN_Y }} />
         <div ref={leftStripRef} className="land-edge-strip" style={{ left: 0, top: MARGIN_Y, bottom: MARGIN_Y, width: MARGIN_X }} />
         <div ref={rightStripRef} className="land-edge-strip" style={{ right: 0, top: MARGIN_Y, bottom: MARGIN_Y, width: MARGIN_X }} />
-        <div className="relative" style={{ height }}>
+        <div className="land-map-body relative" style={{ height }}>
           <div ref={mapElRef} className="land-map-canvas border-2 border-slate-900" style={{ height: '100%' }} />
           {/* Menu Tampilan — parity dengan peta laut: sembunyikan/tampilkan
               panel layer, legenda, panah utara, kontrol skala, dan label tepi

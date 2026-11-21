@@ -18,6 +18,7 @@ import {
   LEEWAY_OBJECT_TYPES,
   TABLE_J1_NAV_ERRORS,
   TABLE_J2_NAV_ERRORS,
+  TABLE_J_DEFAULT_GPS_ERROR_NM,
   type LeewayObjectType,
   type LatLng,
   type Vector,
@@ -130,8 +131,10 @@ export default function DatumWorksheet({
   const [seaCurrentSpeed, setSeaCurrentSpeed] = useState<number>(initialState?.seaCurrentSpeed ?? 0);
   const [seaCurrentErr, setSeaCurrentErr] = useState<number>(initialState?.seaCurrentErr ?? 0);
   const [leewayObjectId, setLeewayObjectId] = useState<string>(initialState?.leewayObjectId ?? '');
-  const [X, setX] = useState<number>(initialState?.X ?? 0);
-  const [Y, setY] = useState<number>(initialState?.Y ?? 0);
+  // Default x/y = Table J-1 alat navigasi GPS (0.1 NM) — permintaan planner:
+  // Worksheet 1 & Datum langsung menampilkan galat GPS sebelum planner mengganti.
+  const [X, setX] = useState<number>(initialState?.X ?? TABLE_J_DEFAULT_GPS_ERROR_NM);
+  const [Y, setY] = useState<number>(initialState?.Y ?? TABLE_J_DEFAULT_GPS_ERROR_NM);
   /** Sakelar "abaikan arus angin" (§4.7.44, Panduan Datum bagian 3.3). */
   const [useWindCurrent, setUseWindCurrent] = useState<boolean>(initialState?.useWindCurrent !== false);
 

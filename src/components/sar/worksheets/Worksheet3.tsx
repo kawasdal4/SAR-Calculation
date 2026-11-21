@@ -56,6 +56,11 @@ interface Worksheet3Props {
   /** Nama SRU sumber EST (untuk teks keterangan). */
   estSourceName?: string;
   onTrackSpacingChange?: (result: { platform: LandSearchPlatform | null; heights: readonly number[]; spacingByHeight: Array<number | null> }) => void;
+  /** Search number kasus (1..5, Figure I-12) — sinkron otomatis antar WS 1 (fs)
+   *  /WS 2/WS 3/WS 8. Bila diubah di worksheet mana pun, lembar lain mengikuti. */
+  caseSearchNumber?: SearchNumber;
+  /** Laporkan perubahan search number ke halaman agar worksheet lain ikut. */
+  onSearchNumberChange?: (n: SearchNumber) => void;
   /** Mirror seluruh input lembar ke induk (sheet.data) — dasar save case
    *  lengkap & recalculate otomatis antar worksheet. */
   onStateChange?: (data: Worksheet3InitialState) => void;
@@ -90,7 +95,7 @@ function asSearchNumber(value: unknown): SearchNumber | null {
   return Number.isInteger(n) && n >= 1 && n <= 5 ? (n as SearchNumber) : null;
 }
 
-export default function Worksheet3({ readOnly = false, initialState, ws4AreaNm2, estHoursFromAllocation, estSourceName, onTrackSpacingChange, onStateChange }: Worksheet3Props) {
+export default function Worksheet3({ readOnly = false, initialState, ws4AreaNm2, estHoursFromAllocation, estSourceName, onTrackSpacingChange, caseSearchNumber, onSearchNumberChange, onStateChange }: Worksheet3Props) {
   const [caseTitle, setCaseTitle] = useState(initialState?.caseTitle ?? '-');
   const [plannerName, setPlannerName] = useState('-');
   const [searchDate, setSearchDate] = useState('-');
@@ -99,7 +104,17 @@ export default function Worksheet3({ readOnly = false, initialState, ws4AreaNm2,
   const [vegetationType, setVegetationType] = useState<LandVegetation | null>(asVegetation(initialState?.vegetationType));
   const [isFatigue, setIsFatigue] = useState<boolean | null>(initialState?.isFatigue ?? null);
   const [searchPlatform, setSearchPlatform] = useState<LandSearchPlatform | null>(initialState?.searchPlatform ?? null);
-  const [searchNumber, setSearchNumber] = useState<SearchNumber | null>(asSearchNumber(initialState?.searchNumber));
+  // Search number default 1 (1st search — kurva pertama Figure I-12); sinkron
+  // dengan pilihan di Worksheet 1 (fs)/WS 2/WS 8.
+  const [searchNumber, setSearchNumber] = useState<SearchNumber | null>(asSearchNumber(initialState?.searchNumber) ?? 1);
+  useEffect(() => {
+    if (caseSearchNumber && caseSearchNumber !== searchNumber) setSearchNumber(caseSearchNumber);
+  }, [caseSearchNumber, searchNumber]);
+  /** Ganti search number lokal + laporkan ke halaman (sinkron antar worksheet). */
+  const changeSearchNumber = (n: SearchNumber | null) => {
+    setSearchNumber(n);
+    if (n !== null && n >= 1) onSearchNumberChange?.(n);
+  };
   const [searchSpeed, setSearchSpeed] = useState(asNumber(initialState?.searchSpeedKts ?? initialState?.searchTas));
   const [hoursAvailable, setHoursAvailable] = useState(asNumber(initialState?.hoursAvailable));
   // "Total Search Hours Available" lembar darat didapat dari Worksheet Alokasi
@@ -240,7 +255,7 @@ export default function Worksheet3({ readOnly = false, initialState, ws4AreaNm2,
               </select>
             </label>
             <label><span className="text-slate-600">Search Number: </span>
-              <select value={searchNumber ?? ''} disabled={readOnly} onChange={(e) => setSearchNumber(e.target.value ? Number(e.target.value) as SearchNumber : null)} className="font-bold text-blue-900 bg-white border border-slate-300 rounded px-1.5 py-0.5 text-xs">
+              <select value={searchNumber ?? ''} disabled={readOnly} onChange={(e) => changeSearchNumber(e.target.value ? Number(e.target.value) as SearchNumber : null)} className="font-bold text-blue-900 bg-white border border-slate-300 rounded px-1.5 py-0.5 text-xs" title="Urutan pencarian Figure I-12 — tersinkron dengan fs Worksheet 1, WS 2, dan WS 8">
                 <option value="">-</option>{([1, 2, 3, 4, 5] as const).map((number) => <option key={number} value={number}>{number}{number === 1 ? 'st' : number === 2 ? 'nd' : number === 3 ? 'rd' : 'th'} Search</option>)}
               </select>
             </label>
